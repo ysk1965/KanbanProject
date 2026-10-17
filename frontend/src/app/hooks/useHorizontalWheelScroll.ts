@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect } from 'react';
 
 /**
  * 전역 가로 스크롤 휠 지원 훅.
@@ -21,7 +21,7 @@ export function useHorizontalWheelScroll() {
     const canScrollHorizontally = (el: HTMLElement): boolean => {
       if (el.scrollWidth - el.clientWidth <= 1) return false;
       const overflowX = getComputedStyle(el).overflowX;
-      return overflowX === "auto" || overflowX === "scroll";
+      return overflowX === 'auto' || overflowX === 'scroll';
     };
 
     const onWheel = (e: WheelEvent) => {
@@ -53,7 +53,7 @@ export function useHorizontalWheelScroll() {
     };
 
     // preventDefault 하려면 passive: false 필수.
-    window.addEventListener("wheel", onWheel, { passive: false });
-    return () => window.removeEventListener("wheel", onWheel);
+    window.addEventListener('wheel', onWheel, { passive: false });
+    return () => window.removeEventListener('wheel', onWheel);
   }, []);
 }

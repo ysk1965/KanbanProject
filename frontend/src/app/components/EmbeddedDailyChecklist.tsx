@@ -1,9 +1,9 @@
-import { useState, useCallback, useRef, useLayoutEffect } from "react";
-import { Plus, ChevronDown, ChevronUp } from "lucide-react";
-import { useTranslation } from "react-i18next";
-import { DailyChecklistItem as DailyChecklistItemType } from "../types";
-import { DailyChecklistItem } from "./DailyChecklistItem";
-import { dailyChecklistAPI } from "../utils/api";
+import { useState, useCallback, useRef, useLayoutEffect } from 'react';
+import { Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { DailyChecklistItem as DailyChecklistItemType } from '../types';
+import { DailyChecklistItem } from './DailyChecklistItem';
+import { dailyChecklistAPI } from '../utils/api';
 import {
   DndContext,
   closestCenter,
@@ -12,17 +12,14 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  restrictToVerticalAxis,
-  restrictToParentElement,
-} from "@dnd-kit/modifiers";
+} from '@dnd-kit/core';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+} from '@dnd-kit/sortable';
 
 interface EmbeddedDailyChecklistProps {
   boardId: string;
@@ -56,12 +53,11 @@ export function EmbeddedDailyChecklist({
   // (마감일 오름차순 그대로 두면 지연 항목이 맨 위로 올라와 오늘 할 일을 가린다)
   const pinnedItems = items.filter((i) => i.pinned);
   const derivedRank = (i: DailyChecklistItemType) =>
-    i.completed ? 2 : i.source === "OVERDUE" ? 1 : 0;
+    i.completed ? 2 : i.source === 'OVERDUE' ? 1 : 0;
   const derivedItems = items
     .filter((i) => !i.pinned)
     .sort((a, b) => derivedRank(a) - derivedRank(b));
-  const [localItems, setLocalItems] =
-    useState<DailyChecklistItemType[]>(pinnedItems);
+  const [localItems, setLocalItems] = useState<DailyChecklistItemType[]>(pinnedItems);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollTopRef = useRef<number>(0);
 
@@ -140,7 +136,7 @@ export function EmbeddedDailyChecklist({
         }
         onRefresh();
       } catch (error) {
-        console.error("Failed to remove item from today:", error);
+        console.error('Failed to remove item from today:', error);
       }
     },
     [boardId, onRefresh],
@@ -152,22 +148,13 @@ export function EmbeddedDailyChecklist({
       const newCompleted = !item.completed;
       // Optimistic local update
       setLocalItems((prev) =>
-        prev.map((i) =>
-          i.id === item.id ? { ...i, completed: newCompleted } : i,
-        ),
+        prev.map((i) => (i.id === item.id ? { ...i, completed: newCompleted } : i)),
       );
       try {
-        await onToggle(
-          item.id,
-          item.checklist_item_id,
-          item.task.id,
-          newCompleted,
-        );
+        await onToggle(item.id, item.checklist_item_id, item.task.id, newCompleted);
       } catch {
         setLocalItems((prev) =>
-          prev.map((i) =>
-            i.id === item.id ? { ...i, completed: !newCompleted } : i,
-          ),
+          prev.map((i) => (i.id === item.id ? { ...i, completed: !newCompleted } : i)),
         );
       }
     },
@@ -183,11 +170,7 @@ export function EmbeddedDailyChecklist({
       canRemove
       compact
       onRemove={() => handleRemoveItem(item)}
-      onToggle={
-        item.checklist_item_id && item.task?.id
-          ? () => handleToggleItem(item)
-          : undefined
-      }
+      onToggle={item.checklist_item_id && item.task?.id ? () => handleToggleItem(item) : undefined}
     />
   );
 
@@ -203,24 +186,24 @@ export function EmbeddedDailyChecklist({
         ) : (
           <ChevronDown className="h-3 w-3 flex-shrink-0" />
         )}
-        <span className="truncate">{t("dailySchedule.todayChecklist")}</span>
+        <span className="truncate">{t('dailySchedule.todayChecklist')}</span>
       </button>
       <div className="flex items-center gap-1 flex-shrink-0">
         <span
           className={`font-medium ${
             totalCount > 0 && completedCount === totalCount
-              ? "text-green-400"
-              : "text-bridge-accent"
+              ? 'text-green-400'
+              : 'text-bridge-accent'
           }`}
         >
-          {totalCount > 0 ? `${completedCount}/${totalCount}` : "0"}
+          {totalCount > 0 ? `${completedCount}/${totalCount}` : '0'}
         </span>
         {!isViewer && (
           <button
             onClick={onAddClick}
             className="w-4 h-4 flex items-center justify-center rounded hover:bg-foreground/10 text-slate-400 hover:text-foreground transition-colors"
-            aria-label={t("dailySchedule.addToToday")}
-            title={t("dailySchedule.addToToday")}
+            aria-label={t('dailySchedule.addToToday')}
+            title={t('dailySchedule.addToToday')}
           >
             <Plus className="h-3 w-3" />
           </button>
@@ -245,7 +228,7 @@ export function EmbeddedDailyChecklist({
               onClick={onToggleExpand}
               className="text-xs text-slate-400 hover:text-foreground pl-2 transition-colors"
             >
-              {t("dailySchedule.moreItems", {
+              {t('dailySchedule.moreItems', {
                 count: combinedItems.length - 4,
               })}
             </button>

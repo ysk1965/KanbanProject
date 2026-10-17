@@ -2,6 +2,8 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.1'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
+    id 'com.diffplug.spotless' version '8.10.4'
 }
 
 group = 'com.kanban'
@@ -82,6 +84,14 @@ dependencies {
     implementation 'org.springframework.retry:spring-retry'
     implementation 'org.springframework:spring-aspects'
 
+    // ShedLock (스케줄러 분산 락 — 무중단 배포 겹침 구간/오토스케일 시 중복 실행 방지)
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:7.7.0'
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.7.0'
+
+    // Observability — 운영 JSON 로그(logstash encoder) + Sentry 에러 리포팅 (DSN 비우면 no-op)
+    implementation 'net.logstash.logback:logstash-logback-encoder:9.0'
+    implementation 'io.sentry:sentry-spring-boot-starter-jakarta:8.60.0'
+
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
@@ -100,6 +110,30 @@ tasks.named('test') {
     // 로컬(Asia/Seoul 등 비-UTC) 머신에서 H2/JDBC가 OS 타임존을 캐시해 LocalDate가 하루 밀리는 문제 방지.
     // @PostConstruct 의 TimeZone.setDefault(UTC) 는 JDBC 초기화보다 늦어서 이 시점엔 이미 늦다.
     systemProperty 'user.timezone', 'UTC'
+    finalizedBy 'jacocoTestReport'
+}
+
+// 커버리지 리포트(XML + HTML). 아직 임계치 게이트는 없다 — 리포트만 생성한다.
+jacoco {
+    toolVersion = '0.8.13'
+}
+
+tasks.named('jacocoTestReport') {
+    dependsOn 'test'
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+// 포맷 체크는 develop 대비 변경된 파일에만 적용(ratchet) — 코드베이스 일괄 리포맷을 피한다.
+spotless {
+    ratchetFrom 'origin/develop'
+    java {
+        target 'src/**/*.java'
+        palantirJavaFormat('2.102.0')
+        removeUnusedImports()
+    }
 }
 
 // 로컬 개발 실행(./gradlew bootRun)을 UTC 로 기동한다.

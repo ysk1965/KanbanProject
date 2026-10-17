@@ -1,0 +1,863 @@
+<title>레벨 모델 — 완성된 모습</title>
+<style>
+  :root {
+    --ground:#12172a; --panel:#1a2038; --raised:#232b48; --sunken:#0e1324;
+    --line:rgba(226,232,255,0.10); --line-strong:rgba(226,232,255,0.20);
+    --ink:#eef1fb; --ink-2:#a8b0cc; --ink-3:#6f789a;
+    --accent:#7c7ef4; --accent-soft:rgba(124,126,244,0.16);
+    --teal:#2DD4BF; --teal-soft:rgba(45,212,191,0.14);
+    --amber:#F5A623; --amber-soft:rgba(245,166,35,0.14);
+    --rose:#FB6E8A; --rose-soft:rgba(251,110,138,0.14);
+    --emerald:#45D9A0; --emerald-soft:rgba(69,217,160,0.14);
+    --shadow:0 20px 52px rgba(4,7,20,0.55);
+    --kr:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,"Cascadia Mono","D2Coding",monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground:#fffcf8; --panel:#f7f1e7; --raised:#efe6d8; --sunken:#f2ebe0;
+      --line:rgba(61,46,31,0.13); --line-strong:rgba(61,46,31,0.24);
+      --ink:#2b2317; --ink-2:#6b6152; --ink-3:#948a79;
+      --accent:#5457e0; --accent-soft:rgba(84,87,224,0.12);
+      --teal:#0e9c8c; --teal-soft:rgba(14,156,140,0.13);
+      --amber:#b6720a; --amber-soft:rgba(182,114,10,0.14);
+      --rose:#cf3f5f; --rose-soft:rgba(207,63,95,0.12);
+      --emerald:#0f9e6d; --emerald-soft:rgba(15,158,109,0.13);
+      --shadow:0 16px 40px rgba(61,46,31,0.13);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#12172a; --panel:#1a2038; --raised:#232b48; --sunken:#0e1324;
+    --line:rgba(226,232,255,0.10); --line-strong:rgba(226,232,255,0.20);
+    --ink:#eef1fb; --ink-2:#a8b0cc; --ink-3:#6f789a;
+    --accent:#7c7ef4; --accent-soft:rgba(124,126,244,0.16);
+    --teal:#2DD4BF; --teal-soft:rgba(45,212,191,0.14);
+    --amber:#F5A623; --amber-soft:rgba(245,166,35,0.14);
+    --rose:#FB6E8A; --rose-soft:rgba(251,110,138,0.14);
+    --emerald:#45D9A0; --emerald-soft:rgba(69,217,160,0.14);
+    --shadow:0 20px 52px rgba(4,7,20,0.55);
+  }
+  :root[data-theme="light"] {
+    --ground:#fffcf8; --panel:#f7f1e7; --raised:#efe6d8; --sunken:#f2ebe0;
+    --line:rgba(61,46,31,0.13); --line-strong:rgba(61,46,31,0.24);
+    --ink:#2b2317; --ink-2:#6b6152; --ink-3:#948a79;
+    --accent:#5457e0; --accent-soft:rgba(84,87,224,0.12);
+    --teal:#0e9c8c; --teal-soft:rgba(14,156,140,0.13);
+    --amber:#b6720a; --amber-soft:rgba(182,114,10,0.14);
+    --rose:#cf3f5f; --rose-soft:rgba(207,63,95,0.12);
+    --emerald:#0f9e6d; --emerald-soft:rgba(15,158,109,0.13);
+    --shadow:0 16px 40px rgba(61,46,31,0.13);
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--ground); color:var(--ink); font-family:var(--kr);
+    font-size:1rem; line-height:1.7; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  .wrap { max-width:1120px; margin:0 auto; padding:0 22px 90px; }
+  h1,h2,h3,h4 { margin:0; letter-spacing:-0.02em; text-wrap:balance; }
+  .eyebrow { margin:0; font-family:var(--mono); font-size:0.73rem; letter-spacing:0.16em;
+             text-transform:uppercase; color:var(--ink-3); }
+  code { font-family:var(--mono); font-size:0.86em; }
+  button { font:inherit; font-family:var(--kr); color:inherit; }
+  button:focus-visible, a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  .masthead { padding:58px 0 34px; border-bottom:1px solid var(--line); }
+  .masthead h1 { font-size:clamp(1.8rem,4.2vw,2.7rem); font-weight:700; line-height:1.16; margin-top:14px; }
+  .masthead h1 em { font-style:normal; color:var(--accent); }
+  .lede { margin:16px 0 0; max-width:64ch; color:var(--ink-2); font-size:1.03rem; }
+
+  section { padding:56px 0 0; }
+  .sec-head { display:grid; gap:9px; margin-bottom:24px; }
+  .sec-head h2 { font-size:clamp(1.35rem,2.8vw,1.85rem); font-weight:700; line-height:1.22; }
+  .sec-head p { margin:0; max-width:66ch; color:var(--ink-2); }
+
+  /* ── 레벨 스위처 ── */
+  .lvlrow { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); margin-bottom:14px; }
+  .lvl {
+    text-align:left; cursor:pointer; border:1px solid var(--line); background:var(--panel);
+    border-radius:14px; padding:15px 17px; display:grid; gap:6px; transition:border-color .16s, background .16s;
+  }
+  .lvl:hover { border-color:var(--line-strong); }
+  .lvl[aria-pressed="true"] { border-color:var(--accent); background:var(--accent-soft); box-shadow:0 0 0 1px var(--accent); }
+  .lvl .ln { display:flex; align-items:baseline; gap:8px; }
+  .lvl .ln b { font-size:1rem; font-weight:700; }
+  .lvl .wrapn { font-family:var(--mono); font-size:0.66rem; color:var(--teal); letter-spacing:.06em; }
+  .lvl .ld { font-size:0.79rem; color:var(--ink-3); line-height:1.55; }
+
+  /* ── 옵션 스위치 줄 ── */
+  .optrow { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .optchip {
+    display:inline-flex; align-items:center; gap:9px; border:1px solid var(--line);
+    border-radius:999px; background:var(--panel); padding:6px 8px 6px 14px; font-size:0.8rem; color:var(--ink-2);
+  }
+  .optchip.on { border-color:var(--accent); color:var(--ink); background:var(--accent-soft); }
+  .optchip .anywhere { font-family:var(--mono); font-size:0.62rem; color:var(--ink-3); }
+  .sw {
+    width:34px; height:19px; border-radius:999px; background:var(--line-strong);
+    position:relative; flex:none; border:0; cursor:pointer; transition:background .18s; padding:0;
+  }
+  .sw::after { content:""; position:absolute; top:2px; left:2px; width:15px; height:15px;
+               border-radius:50%; background:var(--ink-3); transition:transform .18s, background .18s; }
+  .sw[aria-pressed="true"] { background:var(--accent); }
+  .sw[aria-pressed="true"]::after { transform:translateX(15px); background:#fff; }
+
+  .statebar {
+    display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center;
+    margin-bottom:14px; font-size:0.85rem; color:var(--ink-2);
+  }
+  .statebar .chip {
+    font-family:var(--mono); font-size:0.74rem; border:1px solid var(--line);
+    border-radius:999px; padding:6px 13px; background:var(--panel);
+  }
+  .statebar .chip b { color:var(--accent); font-weight:400; }
+
+  /* ── 앱 셸 ── */
+  .app {
+    border:1px solid var(--line-strong); border-radius:18px; overflow:hidden;
+    background:var(--panel); box-shadow:var(--shadow);
+  }
+  .chrome { display:flex; align-items:center; gap:8px; padding:11px 15px;
+            border-bottom:1px solid var(--line); background:var(--raised); }
+  .chrome .dot { width:10px; height:10px; border-radius:50%; background:var(--line-strong); }
+  .chrome .ttl { margin-left:8px; font-family:var(--mono); font-size:0.75rem; color:var(--ink-3); }
+  .chrome .statechip { margin-left:auto; font-size:0.72rem; font-weight:700; border-radius:999px;
+                       padding:3px 11px; background:var(--teal-soft); color:var(--teal); }
+
+  .subtabs { display:flex; align-items:center; gap:4px; padding:8px 14px; border-bottom:1px solid var(--line); }
+  .stab { font-size:0.77rem; color:var(--ink-2); padding:4px 12px; border-radius:7px; }
+  .stab.on { background:var(--accent-soft); color:var(--accent); font-weight:700; }
+
+  .navrow { display:flex; align-items:center; gap:4px; overflow-x:auto; padding:8px 14px;
+            border-bottom:1px solid var(--line); }
+  .navrow .nl { flex:none; font-family:var(--mono); font-size:0.63rem; letter-spacing:.1em;
+                color:var(--ink-3); margin-right:7px; text-transform:uppercase; }
+  .nt { flex:none; font-size:0.75rem; color:var(--ink-2); padding:4px 10px; border-radius:7px;
+        white-space:nowrap; border:1px solid transparent; }
+  .nt.on { background:var(--teal-soft); color:var(--teal); border-color:var(--teal); font-weight:700; }
+  .nt.donetab { color:var(--ink-3); text-decoration:line-through; text-decoration-thickness:1px; }
+
+  .roadmap { display:flex; gap:4px; padding:10px 14px 12px; border-bottom:1px solid var(--line); align-items:flex-end; }
+  .rm-seg { display:grid; gap:5px; }
+  .rm-seg .rl { font-family:var(--mono); font-size:0.62rem; color:var(--ink-3); white-space:nowrap; }
+  .rm-bar { height:9px; border-radius:999px; background:var(--line); position:relative; overflow:hidden; display:flex; gap:2px; padding:2px; }
+  .rm-bar i { display:block; flex:1; border-radius:999px; background:var(--line-strong); }
+  .rm-seg.done .rm-bar i { background:var(--emerald); opacity:.55; }
+  .rm-seg.now .rl { color:var(--teal); font-weight:700; }
+  .rm-seg.now .rm-bar { background:var(--teal-soft); }
+  .rm-seg.now .rm-bar i.filled { background:var(--teal); }
+
+  .shead { padding:13px 14px; border-bottom:1px solid var(--line); display:grid; gap:9px; }
+  .shead .r1 { display:flex; flex-wrap:wrap; align-items:center; gap:7px 12px; }
+  .sname { font-weight:700; font-size:0.95rem; }
+  .spct { font-family:var(--mono); font-weight:700; font-size:1rem; color:var(--teal); font-variant-numeric:tabular-nums; }
+  .sdate { font-family:var(--mono); font-size:0.72rem; color:var(--teal);
+           background:var(--teal-soft); border-radius:7px; padding:2px 8px; }
+  .sinfo { font-size:0.77rem; color:var(--ink-3); }
+  .bar { height:5px; border-radius:999px; background:var(--line); overflow:hidden; }
+  .bar > i { display:block; height:100%; background:var(--teal); border-radius:999px; }
+
+  .stage { display:flex; min-height:322px; }
+  .rail { flex:none; width:196px; border-right:1px solid var(--line); background:var(--raised);
+          padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .rail-h { font-family:var(--mono); font-size:0.68rem; letter-spacing:.12em;
+            text-transform:uppercase; color:var(--ink-3); }
+  .rail-item { border:1px solid var(--line); border-radius:10px; background:var(--panel);
+               padding:9px; display:grid; gap:5px; }
+  .rail-item .rt { font-size:0.8rem; font-weight:500; }
+  .rail-item .rm { font-family:var(--mono); font-size:0.68rem; color:var(--ink-3); }
+
+  .cols { flex:1; display:flex; gap:10px; padding:12px; overflow-x:auto; align-items:flex-start; }
+  .col { flex:none; width:232px; display:grid; gap:8px; align-content:start; }
+  .col-h { display:flex; align-items:center; gap:7px; padding:2px 3px 7px;
+           border-bottom:2px solid var(--ck,var(--line-strong)); }
+  .col-h .cav { width:19px; height:19px; border-radius:50%; flex:none; display:grid;
+                place-items:center; font-size:0.6rem; font-weight:700; color:#fff; }
+  .col-h .cn { font-size:0.83rem; font-weight:700; }
+  .col-h .cc { margin-left:auto; font-family:var(--mono); font-size:0.7rem; color:var(--ink-3); }
+
+  .card { border:1px solid var(--line); border-radius:11px; background:var(--panel);
+          padding:10px; display:grid; gap:7px; }
+  .ctitle { font-size:0.85rem; font-weight:700; line-height:1.4; }
+  .row-mid { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
+  .dbadge { display:inline-flex; align-items:center; gap:4px; font-family:var(--mono);
+            font-size:0.66rem; background:var(--teal-soft); color:var(--teal);
+            border-radius:7px; padding:2px 7px; }
+  .cobadge { display:inline-flex; align-items:center; gap:4px; font-family:var(--mono);
+             font-size:0.66rem; background:var(--amber-soft); color:var(--amber);
+             border-radius:7px; padding:2px 7px; }
+  .stagechip { font-size:0.66rem; font-weight:700; border-radius:999px; padding:3px 9px;
+               font-family:var(--mono); letter-spacing:.04em; }
+  .st-doing { background:var(--accent-soft); color:var(--accent); }
+  .st-review { background:var(--amber-soft); color:var(--amber); }
+  .st-todo { background:var(--line); color:var(--ink-2); }
+  .st-done { background:var(--emerald-soft); color:var(--emerald); }
+  .checks { display:grid; gap:4px; }
+  .chk { display:flex; gap:6px; align-items:flex-start; font-size:0.76rem; color:var(--ink-2); line-height:1.45; }
+  .chk i { flex:none; width:13px; height:13px; border-radius:4px; margin-top:3px;
+           border:1.5px solid var(--line-strong); display:grid; place-items:center;
+           font-size:9px; color:#fff; font-style:normal; }
+  .chk.done i { background:var(--emerald); border-color:var(--emerald); }
+  .chk.done .cx { color:var(--ink-3); text-decoration:line-through; }
+  .chk .cav { flex:none; width:15px; height:15px; border-radius:50%; margin-top:2px;
+              display:grid; place-items:center; font-size:.55rem; font-weight:700; color:#fff; }
+  .chk .blk { font-family:var(--mono); font-size:0.65rem; color:var(--teal); white-space:nowrap; }
+  .cfoot { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:0.68rem;
+           color:var(--ink-3); border-top:1px solid var(--line); padding-top:6px; }
+  .cfoot .mine { color:var(--accent); font-weight:700; }
+  .cfoot .with { font-family:var(--kr); }
+  .avstack { display:flex; margin-left:auto; }
+  .avstack span { width:17px; height:17px; border-radius:50%; margin-left:-5px;
+                  border:2px solid var(--panel); display:grid; place-items:center;
+                  font-size:.55rem; font-weight:700; color:#fff; font-family:var(--kr); }
+  .avstack span:first-child { margin-left:0; }
+
+  .try { margin-top:16px; border:1px solid var(--line); border-radius:14px; background:var(--panel);
+         padding:17px 19px; display:grid; gap:8px; }
+  .try h4 { font-size:0.89rem; font-weight:700; }
+  .try ol { margin:0; padding-left:19px; display:grid; gap:6px; }
+  .try li { font-size:0.86rem; color:var(--ink-2); }
+  .try li b { color:var(--ink); }
+
+  /* ── 표 ── */
+  .tbl { border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .trow { display:grid; grid-template-columns:150px 1fr 1fr 1fr; border-bottom:1px solid var(--line); }
+  .trow.c3 { grid-template-columns:150px 1fr 1fr; }
+  .trow:last-child { border-bottom:0; }
+  .trow > div { padding:11px 15px; font-size:0.85rem; }
+  .trow.head > div { background:var(--raised); font-family:var(--mono); font-size:0.67rem;
+                     letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); }
+  .trow .lab { font-weight:700; }
+  .trow .mut { color:var(--ink-2); }
+  @media (max-width:720px) {
+    .trow, .trow.c3 { grid-template-columns:1fr; }
+    .trow.head { display:none; }
+    .trow > div { padding:5px 14px; }
+    .trow > div:first-child { padding-top:12px; }
+    .trow > div:last-child { padding-bottom:12px; }
+  }
+
+  /* ── 승급 마법사 ── */
+  .wiz { border:1px solid var(--line-strong); border-radius:18px; background:var(--panel);
+         box-shadow:var(--shadow); overflow:hidden; }
+  .wiz .wh { padding:16px 20px; border-bottom:1px solid var(--line); background:var(--raised);
+             display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 14px; }
+  .wiz .wh h3 { font-size:1rem; font-weight:700; }
+  .wiz .wh .ws { font-family:var(--mono); font-size:0.7rem; color:var(--ink-3); }
+  .wiz .wb { padding:18px 20px; display:grid; gap:14px; }
+  .wiz .wq { margin:0; font-size:0.92rem; color:var(--ink-2); max-width:60ch; }
+  .wiz .wq b { color:var(--ink); }
+  .pickgrid { display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); }
+  .pick {
+    text-align:left; cursor:pointer; border:1px solid var(--line); background:var(--ground);
+    border-radius:11px; padding:10px 12px; display:grid; gap:4px; transition:border-color .15s, background .15s;
+  }
+  .pick:hover { border-color:var(--line-strong); }
+  .pick[aria-pressed="true"] { border-color:var(--accent); background:var(--accent-soft); }
+  .pick .pt { font-size:0.83rem; font-weight:700; display:flex; align-items:center; gap:7px; }
+  .pick .pt i { flex:none; width:14px; height:14px; border-radius:4px; border:1.5px solid var(--line-strong);
+                display:grid; place-items:center; font-size:9px; color:#fff; font-style:normal; }
+  .pick[aria-pressed="true"] .pt i { background:var(--accent); border-color:var(--accent); }
+  .pick .pm { font-family:var(--mono); font-size:0.67rem; color:var(--ink-3); }
+  .wact { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+  .wact .go { cursor:pointer; border:1px solid var(--accent); background:var(--accent); color:#fff;
+              font-weight:700; font-size:0.85rem; border-radius:10px; padding:8px 18px; }
+  .wact .go:disabled { opacity:.35; cursor:not-allowed; }
+  .wact .undo { cursor:pointer; border:0; background:transparent; color:var(--ink-3); font-size:0.79rem;
+                text-decoration:underline; text-underline-offset:3px; }
+  .wact .hint { font-size:0.79rem; color:var(--ink-3); }
+  .wresult { border:1px solid var(--teal); border-radius:13px; background:var(--teal-soft);
+             padding:13px 16px; display:grid; gap:6px; }
+  .wresult .wr1 { font-size:0.88rem; font-weight:700; color:var(--teal); }
+  .wresult .wr2 { font-size:0.82rem; color:var(--ink-2); }
+  .wresult code { color:var(--ink); }
+
+  .sprow { display:flex; flex-wrap:wrap; gap:8px; }
+  .sp {
+    cursor:pointer; border:1px dashed var(--line-strong); background:var(--ground);
+    border-radius:10px; padding:8px 13px; display:grid; gap:2px; text-align:left; transition:all .15s;
+  }
+  .sp .spn { font-size:0.8rem; font-weight:700; }
+  .sp .spm { font-family:var(--mono); font-size:0.64rem; color:var(--ink-3); }
+  .sp[data-b="a"] { border-style:solid; border-color:var(--accent); background:var(--accent-soft); }
+  .sp[data-b="a"] .spm { color:var(--accent); }
+  .sp[data-b="b"] { border-style:solid; border-color:var(--teal); background:var(--teal-soft); }
+  .sp[data-b="b"] .spm { color:var(--teal); }
+  .legend { display:flex; flex-wrap:wrap; gap:12px; font-size:0.78rem; color:var(--ink-3); }
+  .legend b { font-weight:700; }
+  .legend .la { color:var(--accent); } .legend .lb { color:var(--teal); }
+
+  /* ── 유령 ── */
+  .ghost {
+    cursor:pointer; position:relative;
+    border:1px dashed var(--line-strong); background:transparent; color:var(--ink-3);
+    border-radius:8px; padding:4px 11px; font-size:0.75rem; white-space:nowrap;
+    display:inline-flex; align-items:center; gap:5px; transition:all .18s;
+  }
+  .ghost:hover, .ghost[aria-expanded="true"] {
+    border-color:var(--accent); border-style:solid; color:var(--accent); background:var(--accent-soft);
+  }
+  .ghost .plus { font-family:var(--mono); font-weight:700; }
+  .ghostwrap { position:relative; display:inline-flex; }
+  .pop {
+    position:absolute; top:calc(100% + 8px); left:0; z-index:40; width:270px;
+    background:var(--raised); border:1px solid var(--accent); border-radius:14px;
+    padding:14px 15px; box-shadow:var(--shadow); text-align:left; display:grid; gap:9px; cursor:default;
+  }
+  .pop h4 { font-size:0.92rem; font-weight:700; }
+  .pop p { margin:0; font-size:0.81rem; color:var(--ink-2); line-height:1.6; }
+  .pop .trg { font-family:var(--mono); font-size:0.7rem; color:var(--amber); }
+  .pop .acts { display:flex; gap:7px; align-items:center; margin-top:2px; }
+  .pop .acts button { cursor:pointer; border-radius:9px; padding:6px 13px; font-size:0.79rem;
+                      border:1px solid var(--line-strong); background:transparent; color:var(--ink-2); }
+  .pop .acts button.go { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700; }
+
+  .ghostdemo { border:1px solid var(--line); border-radius:14px; background:var(--panel);
+               padding:16px 18px 60px; display:grid; gap:12px; margin-bottom:18px; }
+  .ghostdemo .gd { font-size:0.83rem; color:var(--ink-3); }
+  .ghostdemo .gline { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+
+  /* ── 이름 ── */
+  .names { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); }
+  .namec { border:1px solid var(--line); border-radius:14px; background:var(--panel); padding:18px 20px;
+           display:grid; gap:8px; align-content:start; }
+  .namec .big { font-size:1.15rem; font-weight:700; display:flex; align-items:baseline; gap:9px; }
+  .namec .big .num { font-family:var(--mono); font-size:0.68rem; color:var(--ink-3); font-weight:400; }
+  .namec p { margin:0; font-size:0.84rem; color:var(--ink-2); }
+
+  .schema { border:1px solid var(--line); border-radius:16px; background:var(--panel); overflow:hidden; }
+  .schema .sh { padding:14px 20px; border-bottom:1px solid var(--line); background:var(--raised);
+                font-family:var(--mono); font-size:0.78rem; color:var(--ink-2); }
+  .schema .sb { padding:18px 20px; display:grid; gap:13px; }
+  .schema pre { margin:0; overflow-x:auto; background:var(--sunken); border-radius:10px;
+                padding:14px 16px; font-family:var(--mono); font-size:0.78rem; line-height:1.65; color:var(--ink-2); }
+  .schema pre b { color:var(--teal); font-weight:400; }
+  .schema pre i { color:var(--ink-3); font-style:normal; }
+  .schema .note { margin:0; font-size:0.87rem; color:var(--ink-2); }
+  .schema .note b { color:var(--ink); }
+
+  footer { margin-top:56px; padding-top:20px; border-top:1px solid var(--line);
+           font-family:var(--mono); font-size:0.71rem; color:var(--ink-3); }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Milkyway · 레벨 모델 — 완성된 모습</p>
+    <h1>같은 데이터 여섯 장이<br /><em>보드 · 주기 · 로드맵</em>으로 다시 선다</h1>
+    <p class="lede">
+      아래 화면은 전부 눌러볼 수 있습니다. 카드 6장 · 사람 4명 · 할 일 13줄은 한 번도 안 바뀝니다 —
+      바뀌는 건 <b>시간을 몇 겹으로 감싸느냐</b>(사다리)와 <b>무엇을 켜두느냐</b>(스위치)뿐입니다.
+      세 단계 모두 여러 사람이 같이 쓰는 도구입니다.
+    </p>
+  </header>
+
+  <section id="shell">
+    <div class="sec-head">
+      <p class="eyebrow">① 한 화면에서 확인</p>
+      <h2>사다리를 오르내리고, 스위치를 켜고 꺼보세요</h2>
+      <p>위 줄이 사다리(순서가 있고, 오를 때 정리가 따라옵니다), 아래 줄이 스위치(순서가 없고, 어느 단계서든 켭니다)입니다.</p>
+    </div>
+
+    <div class="lvlrow" id="lvlrow"></div>
+    <div class="optrow" id="optrow"></div>
+    <div class="statebar">
+      <span class="chip" id="stateChip"></span>
+      <span class="chip">기존 보드 백필 = <b>ui_level 3 + 전체 옵션</b> — 화면 무변화</span>
+    </div>
+
+    <div class="app" id="app"></div>
+
+    <div class="try">
+      <h4>눌러볼 것</h4>
+      <ol>
+        <li><b>보드 → 주기</b> — 스프린트 헤더와 "아직 안 담음" 레일이 생기고, 카드 4장만 이번 주기에 남습니다. 나머지 2장은 사라진 게 아니라 레일에서 기다립니다.</li>
+        <li><b>주기 → 로드맵</b> — 단계 탭과 로드맵 띠가 위에 얹힙니다. 아래 보드는 그대로입니다.</li>
+        <li><b>구성원별 보기</b> 스위치 — 컬럼이 사람으로 바뀝니다. "튜토리얼 작업"이 두 컬럼에 서는 건 버그가 아니라 사양입니다 — 한 작업을 여럿이 나눠 밀기 때문입니다. <b>보드(1단계)에서도 켜집니다.</b></li>
+        <li><b>리뷰 단계</b> 스위치 — "공용 UI · 연출 작업"이 리뷰 컬럼으로 분리됩니다. 이것도 어느 단계서든 됩니다.</li>
+        <li><b>개인 시간 블록</b> — 할 일 줄마다 내 캘린더 시간이 붙습니다. 팀 마감이 아니라 개인 일정입니다.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="contrast">
+    <div class="sec-head">
+      <p class="eyebrow">② 정밀 대조</p>
+      <h2>단계가 바꾸는 것과 안 바꾸는 것</h2>
+    </div>
+    <div class="tbl">
+      <div class="trow head"><div>항목</div><div>보드</div><div>주기</div><div>로드맵</div></div>
+      <div class="trow"><div class="lab">묶음·작업·할 일·담당자</div><div class="mut">그대로</div><div class="mut">그대로</div><div class="mut">그대로</div></div>
+      <div class="trow"><div class="lab">마감의 의미</div><div class="mut">없음 — 끝나면 완료</div><div class="mut">주기 종료일에 한 번씩 끊음</div><div class="mut">주기 종료 + 단계 종료</div></div>
+      <div class="trow"><div class="lab">담기 / 백로그</div><div class="mut">없음 — 전부 한 판에</div><div class="mut">담긴 것만 보드에, 나머지는 레일</div><div class="mut">주기와 동일</div></div>
+      <div class="trow"><div class="lab">이월</div><div class="mut">해당 없음</div><div class="mut">주기 종료 시 다음 주기로</div><div class="mut">주기 넘김 + 단계 넘김</div></div>
+      <div class="trow"><div class="lab">진행률 분모</div><div class="mut">묶음 안의 할 일</div><div class="mut">이번 주기의 할 일</div><div class="mut">단계 전체</div></div>
+      <div class="trow"><div class="lab">구성원 뷰 · 시간 블록 · 리뷰 · JIRA</div><div class="mut">켤 수 있음</div><div class="mut">켤 수 있음</div><div class="mut">켤 수 있음</div></div>
+    </div>
+  </section>
+
+  <section id="wizards">
+    <div class="sec-head">
+      <p class="eyebrow">③ 승급의 순간</p>
+      <h2>올라가는 건 스위치가 아니라 정리 작업입니다</h2>
+      <p>
+        승급 직후의 화면은 시스템이 재배치한 결과가 아니라 <b>유저 자신이 방금 정리한 모습</b>이어야 합니다.
+        그래서 토글 대신 한 장짜리 마법사를 거칩니다. 강등은 반대로 아무것도 묻지 않습니다 — 숨길 뿐 지우지 않으니까요.
+      </p>
+    </div>
+
+    <div class="wiz" style="margin-bottom:22px">
+      <div class="wh"><h3>보드 → 주기</h3><span class="ws">ui_level 1 → 2 · 승급 마법사 1장</span></div>
+      <div class="wb" id="wiz1"></div>
+    </div>
+
+    <div class="wiz">
+      <div class="wh"><h3>주기 → 로드맵</h3><span class="ws">ui_level 2 → 3 · 승급 마법사 1장</span></div>
+      <div class="wb" id="wiz2"></div>
+    </div>
+  </section>
+
+  <section id="triggers">
+    <div class="sec-head">
+      <p class="eyebrow">④ 올라가는 계기</p>
+      <h2>화면이 아플 때만 권합니다</h2>
+      <p>승급 유령은 상시 광고가 아닙니다. 데이터가 신호를 보낼 때 그 기능이 놓일 자리에 점선으로 서고, 거절하면 기억합니다.</p>
+    </div>
+
+    <div class="ghostdemo">
+      <div class="gline">
+        <span class="gd">보드에 미완료 카드가 15장을 넘긴 날 —</span>
+        <span class="ghostwrap" id="g1"></span>
+      </div>
+      <div class="gline">
+        <span class="gd">주기를 4개 완료한 날, 상단 탭 줄에 —</span>
+        <span class="ghostwrap" id="g2"></span>
+      </div>
+    </div>
+
+    <div class="tbl">
+      <div class="trow c3 head"><div>유령</div><div>뜨는 조건</div><div>서는 자리</div></div>
+      <div class="trow c3"><div class="lab">이번 주만 담기</div><div class="mut">미완료 카드 15장 초과 — 한 판 보드가 실제로 답답해지는 시점</div><div class="mut">보드 헤더 (주기 헤더가 생길 자리)</div></div>
+      <div class="trow c3"><div class="lab">주기를 단계로 묶기</div><div class="mut">완료된 주기 4개 이상 — 묶을 이력이 생긴 시점</div><div class="mut">상단 탭 줄 (단계 탭이 생길 자리)</div></div>
+      <div class="trow c3"><div class="lab">공통 규칙</div><div class="mut">동시 노출 최대 2개 · "그만 보기"는 영구 기억 · 자동 승급은 없음 — 올리는 건 항상 사람</div><div class="mut">기능 서랍에는 항상 남음</div></div>
+    </div>
+  </section>
+
+  <section id="naming">
+    <div class="sec-head">
+      <p class="eyebrow">⑤ 부르는 이름</p>
+      <h2>화면에는 숫자를 쓰지 않습니다</h2>
+      <p>"1단계"는 내 보드가 아직 모자라다는 말로 읽힙니다. 숫자는 저장값(<code>ui_level</code>)과 문서에만 두고, 화면에는 상태 이름만 보여줍니다.</p>
+    </div>
+    <div class="names">
+      <div class="namec">
+        <span class="big">보드 <span class="num">ui_level = 1</span></span>
+        <p>같이 쓰는 할 일 판. 카드를 적고, 나눠 맡고, 하나씩 지웁니다. 기능이 잠긴 칸반이 아니라 <b>그 자체로 완결된 도구</b>입니다.</p>
+      </div>
+      <div class="namec">
+        <span class="big">주기 <span class="num">ui_level = 2</span></span>
+        <p>이번 주에 할 것만 골라 담고, 못 끝낸 건 다음 주기로 넘깁니다. 마감이 처음으로 의미를 갖습니다.</p>
+      </div>
+      <div class="namec">
+        <span class="big">로드맵 <span class="num">ui_level = 3</span></span>
+        <p>주기 여러 개를 단계로 묶어 분기·런칭 단위로 봅니다. 간트와 이력이 여기서 제 값을 합니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="storage">
+    <div class="sec-head">
+      <p class="eyebrow">⑥ 저장</p>
+      <h2>사다리 하나, 스위치 하나</h2>
+    </div>
+    <div class="schema">
+      <div class="sh">boards — 성격이 다른 두 값을 한 컬럼에 섞지 않는다</div>
+      <div class="sb">
+<pre><i>-- 사다리: 시간 묶음 깊이. 1 → 2 → 3 순서가 있고, 오를 때 마법사가 붙는다.</i>
+ALTER TABLE boards ADD COLUMN <b>ui_level</b> SMALLINT NOT NULL DEFAULT 3;
+ALTER TABLE boards ADD CONSTRAINT ck_boards_ui_level CHECK (ui_level BETWEEN 1 AND 3);
+
+<i>-- 스위치: 순서가 없고, 켜도 정리할 게 없다. 쉼표 구분 키 집합.</i>
+ALTER TABLE boards ADD COLUMN <b>ui_options</b> TEXT NOT NULL DEFAULT '';
+<i>--   members · timeblock · review · jira</i>
+
+<i>-- 기존 보드는 지금 화면 그대로 — 최고 레벨 + 전 옵션 백필.</i>
+UPDATE boards SET ui_level = 3, ui_options = <b>'members,timeblock,review,jira'</b>;</pre>
+        <p class="note">
+          <b>마일스톤 데이터는 이미 있습니다.</b> 보드 생성 시 기본 마일스톤이 자동으로 만들어지므로,
+          보드·주기 상태에서는 그 한 행을 말없이 쓰고 화면에서만 숨깁니다.
+          로드맵으로 오를 때 이름을 붙이고 쪼개면 — <b>스키마 변경 없이 승급이 끝납니다.</b>
+          내려간 뒤 다시 오르면 마법사를 다시 돌리지 않고 이전 구조를 그대로 복원합니다.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Milkyway · 레벨 모델 완성 목업 — 사다리(ui_level) + 스위치(ui_options) / 승급 마법사 / 트리거 유령 / 이름 체계
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ── 데이터: 한 번도 안 바뀐다 ── */
+  var MEM = {
+    u1:{n:"유상건",s:"상",c:"#2DD4BF"}, u2:{n:"박진웅",s:"진",c:"#7c7ef4"},
+    u3:{n:"김규현",s:"규",c:"#45D9A0"}, u4:{n:"김효림",s:"효",c:"#FB6E8A"}
+  };
+  var MORDER = ["u1","u2","u3","u4"];
+  function av(u, cls){ var m=MEM[u]; return '<span class="'+(cls||"cav")+'" style="background:'+m.c+'">'+m.s+"</span>"; }
+
+  var TASKS = [
+    { t:"튜토리얼 작업", stage:"doing", sprint:true, co:0, checks:[
+        {t:"튜토리얼 기획", u:"u2", d:true,  b:"7/29 · 3h"},
+        {t:"기존 데이터 변경", u:"u2", d:false, b:"8/3 · 2h"},
+        {t:"인게임 폴리싱", u:"u1", d:false, b:"8/6 · 4h"}] },
+    { t:"공용 UI · 연출 작업", stage:"review", sprint:true, co:0, checks:[
+        {t:"로비 망원경 반응 추가", u:"u1", d:true, b:"7/28 · 2h"},
+        {t:"아이템 보상 팝업 수정", u:"u4", d:false, b:"8/5 · 3h"}] },
+    { t:"텍틱스 모드 아웃게임", stage:"doing", sprint:true, co:2, checks:[
+        {t:"[개발] 텍틱스 아웃게임", u:"u4", d:true, b:"7/31 · 6h"},
+        {t:"[QA] 아웃게임 회귀", u:"u3", d:false, b:"8/7 · 2h"}] },
+    { t:"시즌 상점 개편", stage:"todo", sprint:false, co:0, checks:[
+        {t:"상점 목록 UI", u:"u3", d:false, b:"8/12 · 4h"},
+        {t:"가격 테이블 정리", u:"u2", d:false, b:"8/13 · 2h"}] },
+    { t:"신규 캐릭터 밸런스", stage:"todo", sprint:false, co:0, checks:[
+        {t:"스탯 시트 초안", u:"u1", d:false, b:"8/11 · 3h"},
+        {t:"시뮬레이션 돌리기", u:"u3", d:false, b:"8/14 · 4h"}] },
+    { t:"로딩 최적화", stage:"done", sprint:true, co:0, checks:[
+        {t:"번들 분석", u:"u4", d:true, b:"7/27 · 2h"},
+        {t:"아틀라스 정리", u:"u1", d:true, b:"7/30 · 3h"}] }
+  ];
+
+  var LEVELS = [
+    { v:1, n:"보드", w:"시간 묶음 0겹", d:"전부 한 판에. 끝나면 완료 — 마감이라는 개념 자체가 없습니다." },
+    { v:2, n:"주기", w:"시간 묶음 1겹", d:"이번 주기에 담긴 것만 보드에. 못 끝내면 다음 주기로 이월." },
+    { v:3, n:"로드맵", w:"시간 묶음 2겹", d:"주기 여러 개를 단계로 묶어 분기·런칭 단위로 봅니다." }
+  ];
+  var OPTS = [
+    { k:"members", n:"구성원별 보기" },
+    { k:"timeblock", n:"개인 시간 블록" },
+    { k:"review", n:"리뷰 단계" },
+    { k:"jira", n:"JIRA 연동" }
+  ];
+
+  var S = { level:1, on:{} };
+  function opt(k){ return !!S.on[k]; }
+
+  function esc(id){ return document.getElementById(id); }
+
+  /* ── 레벨/옵션 컨트롤 ── */
+  function renderControls() {
+    var lr = "";
+    LEVELS.forEach(function (l) {
+      lr += '<button type="button" class="lvl" data-lvl="'+l.v+'" aria-pressed="'+(S.level===l.v)+'">' +
+              '<span class="ln"><b>'+l.n+'</b><span class="wrapn">'+l.w+'</span></span>' +
+              '<span class="ld">'+l.d+'</span>' +
+            '</button>';
+    });
+    esc("lvlrow").innerHTML = lr;
+
+    var or = "";
+    OPTS.forEach(function (o) {
+      or += '<span class="optchip'+(opt(o.k)?" on":"")+'">'+o.n+
+            ' <span class="anywhere">보드·주기·로드맵 어디서나</span>' +
+            '<button type="button" class="sw" data-opt="'+o.k+'" aria-pressed="'+opt(o.k)+'" aria-label="'+o.n+'"></button></span>';
+    });
+    esc("optrow").innerHTML = or;
+
+    var keys = OPTS.map(function(o){return o.k;}).filter(opt).join(",");
+    esc("stateChip").innerHTML = "ui_level = <b>"+S.level+"</b> · ui_options = <b>'"+keys+"'</b>";
+  }
+
+  /* ── 앱 셸 ── */
+  function stageOf(t){ return (t.stage==="review" && !opt("review")) ? "doing" : t.stage; }
+  function boardTasks(){ return S.level===1 ? TASKS : TASKS.filter(function(t){return t.sprint;}); }
+  function railTasks(){ return S.level===1 ? [] : TASKS.filter(function(t){return !t.sprint;}); }
+
+  function cardHTML(t, scope) {
+    var lines = scope ? t.checks.filter(function(c){ return c.u===scope; }) : t.checks;
+    if (!lines.length) return "";
+    var owners = []; t.checks.forEach(function(c){ if (owners.indexOf(c.u)<0) owners.push(c.u); });
+    var others = owners.filter(function(u){ return u!==scope; });
+    var d = 0; lines.forEach(function(c){ if (c.d) d+=1; });
+
+    var h = '<article class="card"><span class="ctitle">'+t.t+"</span>";
+
+    var mid = "";
+    if (S.level >= 2) mid += '<span class="dbadge">⤣ 7/27 ~ 8/14</span>';
+    if (S.level >= 2 && t.co) mid += '<span class="cobadge">↩ 이월 '+t.co+'회</span>';
+    if (scope) {
+      var sg = stageOf(t);
+      var lbl = { todo:"할 일", doing:"진행", review:"리뷰", done:"완료" }[sg];
+      mid += '<span class="stagechip st-'+sg+'">'+lbl+"</span>";
+    }
+    if (mid) h += '<span class="row-mid">'+mid+"</span>";
+
+    h += '<div class="checks">';
+    lines.forEach(function (c) {
+      h += '<span class="chk'+(c.d?" done":"")+'"><i>'+(c.d?"✓":"")+"</i>"+av(c.u)+
+           '<span class="cx">'+c.t+
+             (opt("timeblock") ? ' <span class="blk">· '+c.b+"</span>" : "") +
+           "</span></span>";
+    });
+    h += "</div>";
+
+    h += '<div class="cfoot">';
+    if (scope) {
+      h += '<span class="mine">몫 '+d+"/"+lines.length+"</span>";
+      if (others.length) {
+        h += '<span class="with">함께 '+others.length+'명</span><span class="avstack">';
+        others.forEach(function(u){ h += av(u,"x"); });
+        h += "</span>";
+      }
+    } else {
+      h += "<span>할 일 "+d+"/"+lines.length+"</span>";
+      h += '<span class="avstack">';
+      owners.forEach(function(u){ h += av(u,"x"); });
+      h += "</span>";
+    }
+    h += "</div></article>";
+    return h;
+  }
+
+  function stageCols() {
+    var stages = [
+      { k:"todo", n:"할 일", c:"var(--line-strong)" },
+      { k:"doing", n:"진행", c:"var(--accent)" }
+    ];
+    if (opt("review")) stages.push({ k:"review", n:"리뷰", c:"var(--amber)" });
+    stages.push({ k:"done", n:"완료", c:"var(--emerald)" });
+
+    var h = "";
+    stages.forEach(function (sg) {
+      var ts = boardTasks().filter(function(t){ return stageOf(t)===sg.k; });
+      h += '<div class="col" style="--ck:'+sg.c+'">' +
+             '<div class="col-h"><span class="cn">'+sg.n+'</span><span class="cc">'+ts.length+"</span></div>";
+      ts.forEach(function(t){ h += cardHTML(t, null); });
+      if (!ts.length) h += '<span style="font-size:.73rem;color:var(--ink-3);padding:4px 3px">비어 있음</span>';
+      h += "</div>";
+    });
+    return h;
+  }
+
+  function memberCols() {
+    var h = "";
+    MORDER.forEach(function (u) {
+      var ts = boardTasks().filter(function(t){
+        return t.checks.some(function(c){ return c.u===u; });
+      });
+      if (!ts.length) return;
+      var m = MEM[u];
+      h += '<div class="col" style="--ck:'+m.c+'">' +
+             '<div class="col-h"><span class="cav" style="background:'+m.c+'">'+m.s+'</span>' +
+             '<span class="cn">'+m.n+'</span><span class="cc">'+ts.length+"</span></div>";
+      ts.forEach(function(t){ h += cardHTML(t, u); });
+      h += "</div>";
+    });
+    return h;
+  }
+
+  function renderApp() {
+    var stateName = ["","보드","주기","로드맵"][S.level];
+    var h = "";
+
+    h += '<div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span>' +
+         '<span class="ttl">오토배틀러 프로젝트</span>' +
+         '<span class="statechip">'+stateName+"</span></div>";
+
+    if (opt("jira")) {
+      h += '<div class="subtabs"><span class="stab on">보드</span><span class="stab">JIRA</span></div>';
+    }
+
+    if (S.level === 3) {
+      h += '<div class="navrow"><span class="nl">단계</span>' +
+           '<span class="nt donetab">1. 개발 1차</span>' +
+           '<span class="nt donetab">2. 개발 2차</span>' +
+           '<span class="nt on">3. 테스트 런칭</span>' +
+           '<span class="nt">+ 새 단계</span></div>';
+      h += '<div class="roadmap">' +
+           '<div class="rm-seg done" style="flex:2"><span class="rl">개발 1차 · 주기 2</span><div class="rm-bar"><i></i><i></i></div></div>' +
+           '<div class="rm-seg done" style="flex:2"><span class="rl">개발 2차 · 주기 2</span><div class="rm-bar"><i></i><i></i></div></div>' +
+           '<div class="rm-seg now" style="flex:2"><span class="rl">테스트 런칭 · 주기 1/2</span><div class="rm-bar"><i class="filled"></i><i></i></div></div>' +
+           "</div>";
+    }
+
+    var bt = boardTasks();
+    var all = 0, done = 0;
+    bt.forEach(function(t){ t.checks.forEach(function(c){ all+=1; if(c.d) done+=1; }); });
+    var pct = all ? Math.round(done/all*100) : 0;
+
+    if (S.level >= 2) {
+      h += '<div class="shead"><div class="r1">' +
+             '<span class="sname">Sprint 3</span>' +
+             '<span class="spct">'+pct+'%</span>' +
+             '<span class="sdate">7/27 ~ 8/14</span>' +
+             '<span class="sinfo">담긴 카드 '+bt.length+' · 이월 1장 · '+
+               (S.level===3 ? "테스트 런칭 단계의 1번째 주기" : "종료하면 남은 일은 다음 주기로") +
+             "</span></div>" +
+             '<div class="bar"><i style="width:'+pct+'%"></i></div></div>';
+    } else {
+      h += '<div class="shead"><div class="r1">' +
+             '<span class="sname">우리 보드</span>' +
+             '<span class="sinfo">카드 '+bt.length+"장 · 할 일 "+done+"/"+all+
+             " · 마감 없음 — 끝나면 완료</span></div></div>";
+    }
+
+    h += '<div class="stage">';
+    var rt = railTasks();
+    if (rt.length) {
+      h += '<div class="rail"><span class="rail-h">아직 안 담음 · '+rt.length+"</span>";
+      rt.forEach(function (t) {
+        h += '<div class="rail-item"><span class="rt">'+t.t+'</span>' +
+             '<span class="rm">할 일 '+t.checks.length+"줄 · 다음 주기 후보</span></div>";
+      });
+      h += "</div>";
+    }
+    h += '<div class="cols">' + (opt("members") ? memberCols() : stageCols()) + "</div>";
+    h += "</div>";
+
+    esc("app").innerHTML = h;
+  }
+
+  /* ── 마법사 1: 보드 → 주기 ── */
+  var W1 = { sel:{}, done:false };
+  function renderWiz1() {
+    var el = esc("wiz1");
+    if (W1.done) {
+      var picked = TASKS.filter(function(t,i){ return W1.sel[i]; });
+      var rest = TASKS.filter(function(t,i){ return !W1.sel[i]; });
+      el.innerHTML =
+        '<div class="wresult">' +
+          '<span class="wr1">Sprint 1이 만들어졌습니다 — 7/27 ~ 8/14</span>' +
+          '<span class="wr2">담김 '+picked.length+'장: '+picked.map(function(t){return t.t;}).join(" · ")+"</span>" +
+          '<span class="wr2">레일로 '+rest.length+'장: '+ (rest.length ? rest.map(function(t){return t.t;}).join(" · ") : "없음") +
+            " — 사라진 게 아니라 다음 주기 후보로 기다립니다.</span>" +
+          '<span class="wr2"><code>ui_level 1 → 2</code> · 승급 직후 화면 = 방금 내가 고른 그대로</span>' +
+        "</div>" +
+        '<div class="wact"><button type="button" class="undo" id="w1reset">처음부터 다시 해보기</button></div>';
+      return;
+    }
+    var n = Object.keys(W1.sel).filter(function(k){return W1.sel[k];}).length;
+    var h = '<p class="wq"><b>"다음 2주 동안 할 것만 골라주세요."</b> — 여기서 고르는 행위가 곧 백로그의 탄생입니다. 안 고른 카드가 레일로 갑니다.</p>';
+    h += '<div class="pickgrid">';
+    TASKS.forEach(function (t, i) {
+      var on = !!W1.sel[i];
+      h += '<button type="button" class="pick" data-pick="'+i+'" aria-pressed="'+on+'">' +
+             '<span class="pt"><i>'+(on?"✓":"")+"</i>"+t.t+"</span>" +
+             '<span class="pm">할 일 '+t.checks.length+"줄</span></button>";
+    });
+    h += "</div>";
+    h += '<div class="wact">' +
+           '<button type="button" class="go" id="w1go"'+(n?"":" disabled")+">"+
+             (n ? n+"장을 Sprint 1에 담기 →" : "카드를 골라주세요") + "</button>" +
+           '<span class="hint">나중에 언제든 바꿀 수 있습니다 — 지금 결정은 하나도 안 무겁습니다.</span>' +
+         "</div>";
+    el.innerHTML = h;
+  }
+
+  /* ── 마법사 2: 주기 → 로드맵 ── */
+  var SPRINTS = [
+    { n:"Sprint 1", m:"6/1 ~ 6/14 · 완료" }, { n:"Sprint 2", m:"6/15 ~ 6/28 · 완료" },
+    { n:"Sprint 3", m:"6/29 ~ 7/12 · 완료" }, { n:"Sprint 4", m:"7/13 ~ 7/26 · 완료" },
+    { n:"Sprint 5", m:"7/27 ~ 8/14 · 진행 중" }
+  ];
+  var W2 = { b:[null,null,null,null,null] };
+  function renderWiz2() {
+    var el = esc("wiz2");
+    var h = '<p class="wq"><b>"지금까지의 주기에 이름을 붙여 묶어보세요."</b> — 주기를 눌러 단계에 배정합니다. 한 번 더 누르면 다음 단계로 옮겨집니다.</p>';
+    h += '<div class="legend"><span class="la"><b>■ 개발 1차</b></span><span class="lb"><b>■ 테스트 런칭</b></span><span>■ 미배정</span></div>';
+    h += '<div class="sprow">';
+    SPRINTS.forEach(function (s, i) {
+      var b = W2.b[i];
+      h += '<button type="button" class="sp" data-sp="'+i+'"'+(b?' data-b="'+b+'"':"")+'>' +
+             '<span class="spn">'+s.n+'</span>' +
+             '<span class="spm">'+s.m+(b ? " · "+(b==="a"?"개발 1차":"테스트 런칭") : "")+"</span></button>";
+    });
+    h += "</div>";
+    var assigned = W2.b.filter(function(x){return x;}).length;
+    if (assigned === SPRINTS.length) {
+      h += '<div class="wresult">' +
+             '<span class="wr1">단계 2개가 생겼습니다 — 로드맵이 켜집니다</span>' +
+             '<span class="wr2">기존 주기와 카드는 한 장도 안 움직였습니다. 위에 상자만 씌웠습니다.</span>' +
+             '<span class="wr2"><code>ui_level 2 → 3</code> · 마일스톤 행은 원래 있던 것 — 스키마 변경 없음</span>' +
+           "</div>";
+    } else {
+      h += '<div class="wact"><span class="hint">'+assigned+"/"+SPRINTS.length+
+           " 배정 — 전부 배정하면 로드맵이 켜집니다. 하나의 단계에 다 넣어도 됩니다.</span></div>";
+    }
+    el.innerHTML = h;
+  }
+
+  /* ── 유령 데모 ── */
+  var G = { open:null, on:{}, muted:{} };
+  var GHOSTS = {
+    g1:{ n:"이번 주만 담기", d:"카드가 많아졌습니다. 다음 2주 동안 할 것만 골라 담고, 나머지는 옆 레일에서 기다리게 할 수 있습니다.",
+         trg:"트리거 · 미완료 15장 초과", ok:"골라 담기 시작 →" },
+    g2:{ n:"주기를 단계로 묶기", d:"끝난 주기가 4개 쌓였습니다. 이름을 붙여 묶으면 분기·런칭 단위의 로드맵이 됩니다.",
+         trg:"트리거 · 완료 주기 4개", ok:"묶어보기 →" }
+  };
+  function renderGhosts() {
+    ["g1","g2"].forEach(function (id) {
+      var g = GHOSTS[id], el = esc(id);
+      if (G.muted[id]) {
+        el.innerHTML = '<span style="font-size:.75rem;color:var(--ink-3)">유령 없음 — 기능 서랍에만 남음</span>';
+        return;
+      }
+      if (G.on[id]) {
+        el.innerHTML = '<span style="font-size:.78rem;font-weight:700;color:var(--teal)">✓ 마법사가 열립니다 (위 ③ 섹션)</span>';
+        return;
+      }
+      var open = G.open === id;
+      el.innerHTML =
+        '<button type="button" class="ghost" data-g="'+id+'" aria-expanded="'+open+'">' +
+          '<span class="plus">⊕</span>'+g.n+"</button>" +
+        (open ?
+          '<span class="pop"><h4>'+g.n+"</h4><p>"+g.d+"</p>" +
+          '<span class="trg">'+g.trg+"</span>" +
+          '<span class="acts"><button type="button" class="go" data-gok="'+id+'">'+g.ok+"</button>" +
+          '<button type="button" data-glater="1">나중에</button>' +
+          '<button type="button" data-gmute="'+id+'" style="margin-left:auto;border:0;font-size:.72rem;color:var(--ink-3)">그만 보기</button></span></span>'
+          : "");
+    });
+  }
+
+  /* ── 이벤트 ── */
+  document.addEventListener("click", function (e) {
+    var b;
+    if ((b = e.target.closest("[data-lvl]"))) {
+      S.level = +b.getAttribute("data-lvl");
+      renderControls(); renderApp(); return;
+    }
+    if ((b = e.target.closest("[data-opt]"))) {
+      var k = b.getAttribute("data-opt");
+      S.on[k] = !S.on[k];
+      renderControls(); renderApp(); return;
+    }
+    if ((b = e.target.closest("[data-pick]"))) {
+      var i = +b.getAttribute("data-pick");
+      W1.sel[i] = !W1.sel[i]; renderWiz1(); return;
+    }
+    if (e.target.closest("#w1go")) { W1.done = true; renderWiz1(); return; }
+    if (e.target.closest("#w1reset")) { W1 = { sel:{}, done:false }; renderWiz1(); return; }
+    if ((b = e.target.closest("[data-sp]"))) {
+      var j = +b.getAttribute("data-sp");
+      W2.b[j] = W2.b[j] === null ? "a" : (W2.b[j] === "a" ? "b" : null);
+      renderWiz2(); return;
+    }
+    if ((b = e.target.closest("[data-gok]"))) { G.on[b.getAttribute("data-gok")] = true; G.open = null; renderGhosts(); return; }
+    if ((b = e.target.closest("[data-gmute]"))) { G.muted[b.getAttribute("data-gmute")] = true; G.open = null; renderGhosts(); return; }
+    if (e.target.closest("[data-glater]")) { G.open = null; renderGhosts(); return; }
+    if ((b = e.target.closest("[data-g]"))) {
+      var id = b.getAttribute("data-g");
+      G.open = G.open === id ? null : id; renderGhosts(); return;
+    }
+    if (!e.target.closest(".pop")) { if (G.open) { G.open = null; renderGhosts(); } }
+  });
+
+  renderControls(); renderApp(); renderWiz1(); renderWiz2(); renderGhosts();
+})();
+</script>

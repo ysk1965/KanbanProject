@@ -2,9 +2,12 @@ package com.kanban.domain.checklist.controller;
 
 import com.kanban.domain.checklist.dto.ChecklistAIRequest;
 import com.kanban.domain.checklist.dto.ChecklistAIResponse;
+import com.kanban.domain.checklist.dto.ChecklistPresetRequest;
+import com.kanban.domain.checklist.dto.ChecklistPresetResponse;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
 import com.kanban.domain.checklist.service.ChecklistAIService;
+import com.kanban.domain.checklist.service.ChecklistPresetService;
 import com.kanban.domain.checklist.service.ChecklistService;
 import com.kanban.domain.integration.FrontendOriginResolver;
 import com.kanban.global.security.UserPrincipal;
@@ -25,6 +28,7 @@ public class ChecklistController {
 
     private final ChecklistService checklistService;
     private final ChecklistAIService checklistAIService;
+    private final ChecklistPresetService checklistPresetService;
 
     @GetMapping
     public ResponseEntity<ChecklistResponse.ListResponse> getChecklist(
@@ -133,6 +137,26 @@ public class ChecklistController {
             @AuthenticationPrincipal UserPrincipal principal) {
         ChecklistResponse.Detail response = checklistService.toggleChecklistItem(boardId, taskId, itemId, principal.getUserId());
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/apply-preset")
+    public ResponseEntity<ChecklistPresetResponse.ApplyResult> applyPreset(
+            @PathVariable String boardId,
+            @PathVariable String taskId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ChecklistPresetRequest.Apply request) {
+        ChecklistPresetResponse.ApplyResult response = checklistPresetService.applyPreset(
+                boardId, taskId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/preset")
+    public ResponseEntity<Map<String, String>> clearPreset(
+            @PathVariable String boardId,
+            @PathVariable String taskId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        checklistPresetService.clearPreset(boardId, taskId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("message", "태스크의 프리셋이 해제되었습니다"));
     }
 
     @PostMapping("/ai/decompose")

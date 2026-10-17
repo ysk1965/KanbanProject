@@ -11,6 +11,7 @@ public enum ErrorCode {
     // Common
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "C001", "잘못된 입력값입니다"),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C002", "서버 오류가 발생했습니다"),
+    ACCESS_DENIED(HttpStatus.FORBIDDEN, "C003", "접근 권한이 없습니다"),
 
     // Rate Limiting
     RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "R001", "요청이 너무 많습니다. 잠시 후 다시 시도해주세요"),
@@ -92,6 +93,7 @@ public enum ErrorCode {
 
     // Checklist
     CHECKLIST_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "CL001", "체크리스트 항목을 찾을 수 없습니다"),
+    CHECKLIST_PRESET_NOT_FOUND(HttpStatus.NOT_FOUND, "CL002", "체크리스트 프리셋을 찾을 수 없습니다"),
 
     // Schedule
     SCHEDULE_BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "SC001", "스케줄 블록을 찾을 수 없습니다"),
@@ -150,23 +152,26 @@ public enum ErrorCode {
     MILESTONE_ALLOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "MS003", "마일스톤 할당 정보를 찾을 수 없습니다"),
     MILESTONE_ALLOCATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "MS004", "이미 할당된 멤버입니다"),
 
+    // MindMap
+    MINDMAP_SHARE_NOT_FOUND(HttpStatus.NOT_FOUND, "MM001", "공유된 마인드맵을 찾을 수 없습니다"),
+
     // Sprint
     SPRINT_NOT_FOUND(HttpStatus.NOT_FOUND, "SP001", "스프린트를 찾을 수 없습니다"),
     SPRINT_NOT_ENABLED(HttpStatus.BAD_REQUEST, "SP002", "이 마일스톤은 스프린트가 활성화되어 있지 않습니다"),
     SPRINT_TASK_NOT_IN_MILESTONE(HttpStatus.BAD_REQUEST, "SP003", "해당 마일스톤에 속한 태스크가 아닙니다"),
     SPRINT_INVALID_STAGE(HttpStatus.BAD_REQUEST, "SP004", "유효하지 않은 스프린트 단계입니다"),
-    SPRINT_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "SP005", "이미 종료된 스프린트입니다"),
-    // SP006은 "모든 카드가 Done이어야 종료" 게이트에 쓰이던 코드. 미완료 태스크를 다음 스프린트로
-    // 이월하는 방식으로 바뀌면서 종료를 막을 이유가 없어져 회수했다. (번호는 재사용하지 않는다)
-    SPRINT_REACTIVATION_BLOCKED(HttpStatus.CONFLICT, "SP007", "먼저 재활성화된 스프린트를 종료해 주세요"),
-    SPRINT_ALREADY_ACTIVE(HttpStatus.BAD_REQUEST, "SP008", "이미 진행 중인 스프린트입니다"),
-    SPRINT_NOT_IN_REACTIVATION(HttpStatus.BAD_REQUEST, "SP009", "재활성화 중인 스프린트가 아닙니다"),
+    // SP005~SP009, SP013~SP014는 종료/재활성화 라이프사이클과 함께 회수했다.
+    // (SP006 포함 — 번호는 재사용하지 않는다) 스프린트는 이제 마일스톤을 나눈 버킷이라
+    // 닫거나 되살리는 개념이 없고, 분할 조정(SP015)과 미완료 보내기(SP016)만 남는다.
     SPRINT_COLUMN_NOT_FOUND(HttpStatus.NOT_FOUND, "SP010", "스프린트 컬럼을 찾을 수 없습니다"),
     SPRINT_COLUMN_ANCHOR_IMMUTABLE(HttpStatus.BAD_REQUEST, "SP011", "Sprint · Done 컬럼은 수정하거나 삭제할 수 없습니다"),
     SPRINT_COLUMN_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "SP012", "컬럼 이름을 입력해 주세요"),
+    SPRINT_SPLIT_INVALID(HttpStatus.BAD_REQUEST, "SP015", "스프린트 분할 정보가 올바르지 않습니다"),
+    SPRINT_NO_NEXT_SPRINT(HttpStatus.BAD_REQUEST, "SP016", "미완료를 보낼 다음 스프린트가 없습니다"),
 
     // Calendar Event (워크로드 특별 일정)
     CALENDAR_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CE001", "특별 일정을 찾을 수 없습니다"),
+    CALENDAR_EVENT_MEMBER_CONFLICT(HttpStatus.CONFLICT, "CE002", "같은 기간에 이미 부재 또는 휴일근무가 등록되어 있습니다"),
 
     // Weight Level
     WEIGHT_LEVEL_NOT_FOUND(HttpStatus.NOT_FOUND, "W001", "가중치 레벨을 찾을 수 없습니다"),
@@ -315,18 +320,10 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     PERSONAL_TAG_DUPLICATE(HttpStatus.CONFLICT, "PT004", "이미 동일한 이름의 태그가 존재합니다"),
     PERSONAL_TAG_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "PT005", "이미 할당된 태그입니다"),
     PERSONAL_HABIT_NOT_FOUND(HttpStatus.NOT_FOUND, "PH001", "습관을 찾을 수 없습니다"),
-
-    // Diary
-    DIARY_NOT_FOUND(HttpStatus.NOT_FOUND, "DI001", "일기를 찾을 수 없습니다"),
-    DIARY_ALREADY_EXISTS(HttpStatus.CONFLICT, "DI002", "해당 날짜에 이미 일기가 존재합니다"),
-    DIARY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "DI003", "본인의 일기만 접근할 수 있습니다"),
-    DIARY_ALREADY_COMPLETED(HttpStatus.BAD_REQUEST, "DI004", "이미 완성된 일기입니다"),
-
-    // Diary Voice
-    DIARY_VOICE_FILE_EMPTY(HttpStatus.BAD_REQUEST, "DV001", "음성 파일이 비어있습니다"),
-    DIARY_VOICE_FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "DV002", "음성 파일이 25MB를 초과합니다"),
-    DIARY_VOICE_STT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DV003", "음성 인식에 실패했습니다"),
-    DIARY_VOICE_TTS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DV004", "음성 생성에 실패했습니다"),
+    PERSONAL_FEATURE_DOC_NOT_FOUND(HttpStatus.NOT_FOUND, "PF001", "문서를 찾을 수 없습니다"),
+    PERSONAL_FEATURE_UNKNOWN(HttpStatus.NOT_FOUND, "PF002", "알 수 없는 기능입니다"),
+    PERSONAL_FEATURE_CONTENT_TOO_LARGE(HttpStatus.BAD_REQUEST, "PF003", "문서 내용이 256KB를 초과합니다"),
+    PERSONAL_FEATURE_DOC_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "PF004", "기능당 문서는 최대 200개까지 만들 수 있습니다"),
 
     // Custom Icon
     CUSTOMICON_REFERENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "CI001", "레퍼런스 이미지를 찾을 수 없습니다"),
@@ -486,7 +483,10 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     CONFLUENCE_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "CF004", "Confluence 인증에 실패했습니다. 연결을 다시 해주세요"),
     CONFLUENCE_API_ERROR(HttpStatus.BAD_GATEWAY, "CF005", "Confluence API 호출에 실패했습니다"),
     CONFLUENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "CF006", "Confluence 사이트 또는 페이지를 찾을 수 없습니다"),
-    CONFLUENCE_SITE_NOT_SELECTED(HttpStatus.UNPROCESSABLE_ENTITY, "CF007", "Confluence 사이트를 먼저 선택해주세요");
+    CONFLUENCE_SITE_NOT_SELECTED(HttpStatus.UNPROCESSABLE_ENTITY, "CF007", "Confluence 사이트를 먼저 선택해주세요"),
+
+    // Image Vote
+    IMAGE_VOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "IV001", "투표를 찾을 수 없습니다");
 
     private final HttpStatus status;
     private final String code;

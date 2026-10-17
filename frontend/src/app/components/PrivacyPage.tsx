@@ -25,10 +25,7 @@ export function PrivacyPage() {
 
       {/* Content */}
       <main className="max-w-4xl mx-auto px-6 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           {/* Title */}
           <div className="flex items-center gap-4 mb-8">
             <div className="w-14 h-14 bg-gradient-to-br from-bridge-accent to-bridge-secondary rounded-2xl flex items-center justify-center">
@@ -44,14 +41,14 @@ export function PrivacyPage() {
           <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-8 space-y-8">
             {/* Intro */}
             <section>
-              <p className="text-slate-400 leading-relaxed">
-                {t('privacy.intro')}
-              </p>
+              <p className="text-slate-400 leading-relaxed">{t('privacy.intro')}</p>
             </section>
 
             {/* Section 1 */}
             <section>
-              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section1Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">
+                {t('privacy.section1Title')}
+              </h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('privacy.section1Content')}</p>
                 <div className="bg-foreground/5 rounded-xl p-4 space-y-3">
@@ -73,7 +70,9 @@ export function PrivacyPage() {
 
             {/* Section 2 */}
             <section>
-              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section2Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">
+                {t('privacy.section2Title')}
+              </h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('privacy.section2Content')}</p>
                 <ul className="list-disc list-inside ml-4 space-y-2">
@@ -88,7 +87,9 @@ export function PrivacyPage() {
 
             {/* Section 3 */}
             <section>
-              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section3Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">
+                {t('privacy.section3Title')}
+              </h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('privacy.section3Content')}</p>
                 <div className="bg-foreground/5 rounded-xl p-4 space-y-2">
@@ -105,10 +106,10 @@ export function PrivacyPage() {
 
             {/* Section 4 */}
             <section>
-              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section4Title')}</h2>
-              <p className="text-slate-400 leading-relaxed">
-                {t('privacy.section4Content')}
-              </p>
+              <h2 className="text-xl font-bold text-foreground mb-4">
+                {t('privacy.section4Title')}
+              </h2>
+              <p className="text-slate-400 leading-relaxed">{t('privacy.section4Content')}</p>
               <ul className="list-disc list-inside ml-4 text-slate-400 space-y-2 mt-3">
                 <li>{t('privacy.section4Item1')}</li>
                 <li>{t('privacy.section4Item2')}</li>
@@ -117,7 +118,9 @@ export function PrivacyPage() {
 
             {/* Section 5 */}
             <section>
-              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section5Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">
+                {t('privacy.section5Title')}
+              </h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('privacy.section5Content')}</p>
                 <ul className="list-disc list-inside ml-4 space-y-2">
@@ -131,7 +134,9 @@ export function PrivacyPage() {
 
             {/* Section 6 */}
             <section>
-              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section6Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">
+                {t('privacy.section6Title')}
+              </h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('privacy.section6Content')}</p>
                 <ul className="list-disc list-inside ml-4 space-y-2">
@@ -140,23 +145,23 @@ export function PrivacyPage() {
                   <li>{t('privacy.section6Item3')}</li>
                   <li>{t('privacy.section6Item4')}</li>
                 </ul>
-                <p className="mt-3">
-                  {t('privacy.section6Footer')}
-                </p>
+                <p className="mt-3">{t('privacy.section6Footer')}</p>
               </div>
             </section>
 
             {/* Section 7 */}
             <section>
-              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section7Title')}</h2>
-              <p className="text-slate-400 leading-relaxed">
-                {t('privacy.section7Content')}
-              </p>
+              <h2 className="text-xl font-bold text-foreground mb-4">
+                {t('privacy.section7Title')}
+              </h2>
+              <p className="text-slate-400 leading-relaxed">{t('privacy.section7Content')}</p>
             </section>
 
             {/* Section 8 */}
             <section>
-              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section8Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">
+                {t('privacy.section8Title')}
+              </h2>
               <div className="bg-foreground/5 rounded-xl p-4 text-slate-400">
                 <p className="mb-2">{t('privacy.section8Content')}</p>
                 <p>{t('privacy.section8Officer')}</p>
@@ -166,26 +171,21 @@ export function PrivacyPage() {
 
             {/* Section 9 */}
             <section>
-              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section9Title')}</h2>
-              <p className="text-slate-400 leading-relaxed">
-                {t('privacy.section9Content')}
-              </p>
+              <h2 className="text-xl font-bold text-foreground mb-4">
+                {t('privacy.section9Title')}
+              </h2>
+              <p className="text-slate-400 leading-relaxed">{t('privacy.section9Content')}</p>
             </section>
 
             {/* Placeholder Notice */}
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mt-8">
-              <p className="text-yellow-400 text-sm">
-                {t('privacy.draftNotice')}
-              </p>
+              <p className="text-yellow-400 text-sm">{t('privacy.draftNotice')}</p>
             </div>
           </div>
 
           {/* Footer Links */}
           <div className="mt-8 flex items-center justify-center gap-6 text-sm">
-            <Link
-              to="/terms"
-              className="text-slate-400 hover:text-foreground transition-colors"
-            >
+            <Link to="/terms" className="text-slate-400 hover:text-foreground transition-colors">
               {t('privacy.termsLink')}
             </Link>
             <span className="text-slate-400">|</span>

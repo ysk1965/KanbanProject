@@ -1,20 +1,29 @@
-import { Download, Link2, X } from "lucide-react";
-import { MotionModal } from "../ui/MotionModal";
-import type { StorageFileItem } from "../../utils/api";
-import { formatBytes, fileIconFor } from "./storageUtils";
+import { Download, Link2, X } from 'lucide-react';
+import { MotionModal } from '../ui/MotionModal';
+import { ZoomableImage } from '../ui/ZoomableImage';
+import type { StorageFileItem, StoragePreviewInfo } from '../../utils/api';
+import { formatBytes, fileIconFor, isSpreadsheetFile, isConvertibleDocument } from './storageUtils';
+import { SpreadsheetPreview } from './SpreadsheetPreview';
+import { DocumentPreview } from './DocumentPreview';
 
 interface StoragePreviewModalProps {
   file: StorageFileItem | null;
   onClose: () => void;
   onDownload: (file: StorageFileItem) => void;
+  /** 표 뷰어가 원본을 받을 때 쓴다 (storageApi.fetchBlob) */
+  onLoadBlob: (file: StorageFileItem) => Promise<Blob>;
+  /** 문서 PDF 변환 상태 조회 (storageApi.getPreview) */
+  onLoadPreview: (file: StorageFileItem) => Promise<StoragePreviewInfo>;
   onToggleShare: (file: StorageFileItem) => void;
 }
 
-/** 파일 미리보기: 이미지 라이트박스 / 영상 인라인 재생 / 그 외 아이콘 + 다운로드 */
+/** 파일 미리보기: 이미지 / 영상 / PDF / 표(xlsx·csv) / 문서(docx·pptx·hwp → PDF 변환) / 그 외 아이콘 + 다운로드 */
 export function StoragePreviewModal({
   file,
   onClose,
   onDownload,
+  onLoadBlob,
+  onLoadPreview,
   onToggleShare,
 }: StoragePreviewModalProps) {
   if (!file) return null;
@@ -29,10 +38,7 @@ export function StoragePreviewModal({
       className="w-full sm:max-w-3xl bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-foreground/10 shadow-2xl"
     >
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-        <p
-          className="text-sm font-bold text-foreground truncate"
-          title={file.original_filename}
-        >
+        <p className="text-sm font-bold text-foreground truncate" title={file.original_filename}>
           {file.original_filename}
         </p>
         <button
@@ -48,19 +54,19 @@ export function StoragePreviewModal({
       <div className="px-5 pb-5 pt-4">
         <div className="w-full max-h-[60vh] rounded-xl overflow-hidden bg-foreground/[0.04] flex items-center justify-center">
           {file.is_image ? (
-            <img
+            <ZoomableImage
               src={file.url}
               alt={file.original_filename}
               className="max-h-[60vh] w-auto object-contain"
             />
           ) : file.is_video ? (
             <video src={file.url} controls className="max-h-[60vh] w-full" />
-          ) : file.content_type === "application/pdf" ? (
-            <iframe
-              src={file.url}
-              title={file.original_filename}
-              className="w-full h-[60vh]"
-            />
+          ) : file.content_type === 'application/pdf' ? (
+            <iframe src={file.url} title={file.original_filename} className="w-full h-[60vh]" />
+          ) : isSpreadsheetFile(file) ? (
+            <SpreadsheetPreview file={file} loadBlob={onLoadBlob} heightClass="h-[60vh]" />
+          ) : isConvertibleDocument(file) ? (
+            <DocumentPreview file={file} loadPreview={onLoadPreview} heightClass="h-[60vh]" />
           ) : (
             <div className="flex flex-col items-center gap-3 py-16 text-slate-500">
               <Icon className="w-16 h-16" />
@@ -71,21 +77,19 @@ export function StoragePreviewModal({
       </div>
 
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
-        <span className="text-xs text-slate-500">
-          {formatBytes(file.file_size)}
-        </span>
+        <span className="text-xs text-slate-500">{formatBytes(file.file_size)}</span>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => onToggleShare(file)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
               file.is_shared
-                ? "bg-bridge-accent/15 text-bridge-accent"
-                : "bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
+                ? 'bg-bridge-accent/15 text-bridge-accent'
+                : 'bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10'
             }`}
           >
             <Link2 className="w-3.5 h-3.5" />
-            {file.is_shared ? "공유 중" : "공유"}
+            {file.is_shared ? '공유 중' : '공유'}
           </button>
           <button
             type="button"

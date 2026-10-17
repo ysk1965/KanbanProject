@@ -11,6 +11,7 @@ public record ParsedJiraIssue(
     String id,                  // "19963"
     boolean isEpic,             // hierarchyLevel >= 1
     boolean isSubtask,
+    String issueTypeName,       // "버그" / "Story" — 프로젝트·언어마다 달라 이름 그대로 둔다
     String summary,
     String description,         // ADF → 평문
     String statusId,

@@ -80,6 +80,16 @@ public class NoteCommentController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/{commentId}/anchor")
+    public ResponseEntity<NoteCommentResponse.Detail> updateAnchor(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @PathVariable String commentId,
+            @Valid @RequestBody NoteCommentRequest.UpdateAnchor request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(noteCommentService.updateAnchor(boardId, commentId, principal.getUserId(), request));
+    }
+
     @PostMapping("/{commentId}/reactions/toggle")
     public ResponseEntity<NoteCommentResponse.ReactionsResponse> toggleReaction(
             @PathVariable String boardId,

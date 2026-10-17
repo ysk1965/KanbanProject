@@ -3,7 +3,19 @@ import { useTranslation } from 'react-i18next';
 import { useEscClose } from '../hooks/useEscClose';
 import { FEATURE_COLORS } from '../constants';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar, CalendarDays, Repeat, Clock, MoreVertical, Pencil, Trash2, X, Loader2 } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  CalendarDays,
+  Repeat,
+  Clock,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  X,
+  Loader2,
+} from 'lucide-react';
 import {
   startOfMonth,
   endOfMonth,
@@ -36,7 +48,13 @@ interface MeetingCalendarViewProps {
   navigateToDate?: Date | null;
 }
 
-export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, refreshTrigger, navigateToDate }: MeetingCalendarViewProps) {
+export function MeetingCalendarView({
+  boardId,
+  boardMembers,
+  onRefreshSchedule,
+  refreshTrigger,
+  navigateToDate,
+}: MeetingCalendarViewProps) {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
 
@@ -70,7 +88,7 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
 
   const activeMembers = useMemo(
     () => boardMembers.filter((m) => m.role !== 'viewer'),
-    [boardMembers]
+    [boardMembers],
   );
 
   const loadMonthMeetings = useCallback(async () => {
@@ -156,9 +174,7 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
         {/* Title */}
         <div className="flex items-center gap-2.5 mb-4">
           <Calendar size={18} className="text-bridge-accent" />
-          <h2 className="text-base font-bold text-foreground">
-            {t('meeting.tab', '회의')}
-          </h2>
+          <h2 className="text-base font-bold text-foreground">{t('meeting.tab', '회의')}</h2>
         </div>
 
         {/* Month Navigation */}
@@ -225,9 +241,10 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
                   onClick={() => handleDateClick(day)}
                   className={`
                     relative flex flex-col items-center justify-center py-2 rounded-lg transition-all min-h-[44px]
-                    ${isSelected
-                      ? 'bg-bridge-accent/20 border border-bridge-accent/50'
-                      : 'border border-transparent hover:bg-foreground/5'
+                    ${
+                      isSelected
+                        ? 'bg-bridge-accent/20 border border-bridge-accent/50'
+                        : 'border border-transparent hover:bg-foreground/5'
                     }
                     ${!isCurrentMonth ? 'opacity-30' : ''}
                   `}
@@ -235,23 +252,22 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
                   <span
                     className={`
                       text-xs font-medium leading-none
-                      ${isTodayDate
-                        ? 'bg-bridge-accent text-white rounded-full w-6 h-6 flex items-center justify-center text-xs'
-                        : isSelected
-                          ? 'text-foreground'
-                          : isHoliday || dayOfWeek === 0
-                            ? 'text-red-400/80'
-                            : dayOfWeek === 6
-                              ? 'text-blue-400/80'
-                              : 'text-muted-foreground'
+                      ${
+                        isTodayDate
+                          ? 'bg-bridge-accent text-white rounded-full w-6 h-6 flex items-center justify-center text-xs'
+                          : isSelected
+                            ? 'text-foreground'
+                            : isHoliday || dayOfWeek === 0
+                              ? 'text-red-400/80'
+                              : dayOfWeek === 6
+                                ? 'text-blue-400/80'
+                                : 'text-muted-foreground'
                       }
                     `}
                   >
                     {format(day, 'd')}
                   </span>
-                  {count > 0 && (
-                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-bridge-accent" />
-                  )}
+                  {count > 0 && <span className="mt-1 w-1.5 h-1.5 rounded-full bg-bridge-accent" />}
                 </button>
               );
             })}
@@ -299,7 +315,10 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
 
       {/* Mobile - Mini Calendar Sheet */}
       <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-        <SheetContent side="left" className="w-72 p-0 bg-bridge-dark border-foreground/10 flex flex-col">
+        <SheetContent
+          side="left"
+          className="w-72 p-0 bg-bridge-dark border-foreground/10 flex flex-col"
+        >
           <SheetTitle className="sr-only">{t('meeting.tab', '회의')}</SheetTitle>
           {calendarContent}
         </SheetContent>
@@ -332,7 +351,13 @@ interface RecurringMeetingCardProps {
   onRefresh: () => void;
 }
 
-function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onRefresh }: RecurringMeetingCardProps) {
+function RecurringMeetingCard({
+  meeting,
+  monthMeetings,
+  boardId,
+  onNavigate,
+  onRefresh,
+}: RecurringMeetingCardProps) {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -375,7 +400,7 @@ function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onR
     .filter(
       (m) =>
         m.recurrence_group_id === meeting.recurrence_group_id &&
-        m.meeting_date >= format(new Date(), 'yyyy-MM-dd')
+        m.meeting_date >= format(new Date(), 'yyyy-MM-dd'),
     )
     .sort((a, b) => a.meeting_date.localeCompare(b.meeting_date))[0];
 
@@ -459,8 +484,7 @@ function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onR
               <span className="text-slate-500">~</span>
               {meeting.recurrence_end_date
                 ? format(parseISO(meeting.recurrence_end_date), 'M/d', { locale: ko })
-                : ''
-              }
+                : ''}
             </span>
           )}
         </div>
@@ -480,37 +504,44 @@ function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onR
       )}
 
       {/* Delete Scope Modal */}
-      <MotionModal open={deleteOpen} onClose={() => setDeleteOpen(false)} className="sm:w-[400px] sm:max-w-[calc(100%-2rem)] p-0 overflow-hidden">
-          <div className="p-6">
-            <h3 className="text-lg font-bold text-foreground mb-2">
-              {t('meeting.deleteRecurringTitle', '반복 회의 삭제')}
-            </h3>
-            <p className="text-sm text-slate-400 mb-6">
-              {t('meeting.deleteRecurringMessage', '이 회의는 반복 회의입니다. 어떻게 삭제하시겠습니까?')}
-            </p>
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={async () => {
-                  try {
-                    await meetingAPI.deleteMeeting(boardId, meeting.id, 'THIS_AND_FUTURE');
-                    setDeleteOpen(false);
-                    onRefresh();
-                  } catch (error) {
-                    console.error('Failed to delete recurring series:', error);
-                  }
-                }}
-                className="w-full px-4 py-3 text-sm font-bold bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
-              >
-                {t('meeting.deleteThisAndFuture', '이후 회의 모두 삭제')}
-              </button>
-              <button
-                onClick={() => setDeleteOpen(false)}
-                className="w-full px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
-              >
-                {t('common.cancel')}
-              </button>
-            </div>
+      <MotionModal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        className="sm:w-[400px] sm:max-w-[calc(100%-2rem)] p-0 overflow-hidden"
+      >
+        <div className="p-6">
+          <h3 className="text-lg font-bold text-foreground mb-2">
+            {t('meeting.deleteRecurringTitle', '반복 회의 삭제')}
+          </h3>
+          <p className="text-sm text-slate-400 mb-6">
+            {t(
+              'meeting.deleteRecurringMessage',
+              '이 회의는 반복 회의입니다. 어떻게 삭제하시겠습니까?',
+            )}
+          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={async () => {
+                try {
+                  await meetingAPI.deleteMeeting(boardId, meeting.id, 'THIS_AND_FUTURE');
+                  setDeleteOpen(false);
+                  onRefresh();
+                } catch (error) {
+                  console.error('Failed to delete recurring series:', error);
+                }
+              }}
+              className="w-full px-4 py-3 text-sm font-bold bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
+            >
+              {t('meeting.deleteThisAndFuture', '이후 회의 모두 삭제')}
+            </button>
+            <button
+              onClick={() => setDeleteOpen(false)}
+              className="w-full px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
+            >
+              {t('common.cancel')}
+            </button>
           </div>
+        </div>
       </MotionModal>
     </>
   );
@@ -555,7 +586,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
           color,
           recurrence_end_date: recurrenceEndDate || null,
         },
-        'THIS_AND_FUTURE'
+        'THIS_AND_FUTURE',
       );
       onUpdated();
     } catch (error) {
@@ -565,7 +596,10 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
+    <div
+      className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50"
+      onClick={onClose}
+    >
       <div
         className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[420px] max-w-[calc(100vw-2rem)] flex flex-col overflow-hidden border border-foreground/10"
         onClick={(e) => e.stopPropagation()}
@@ -575,7 +609,11 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
           <h2 className="text-base font-bold text-foreground">
             {t('meeting.editRecurring', '반복 회의 수정')}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors" aria-label="닫기">
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-foreground transition-colors"
+            aria-label="닫기"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -618,10 +656,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                 {t('meeting.endTime', '종료 시간')}
               </label>
-              <TimePicker
-                value={endTime}
-                onChange={setEndTime}
-              />
+              <TimePicker value={endTime} onChange={setEndTime} />
             </div>
           </div>
 

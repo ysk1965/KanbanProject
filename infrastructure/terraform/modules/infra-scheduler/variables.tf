@@ -26,6 +26,18 @@ variable "startup_cron" {
   default     = "cron(15 23 ? * * *)" # KST 08:15 (warm-up for 08:30 resume)
 }
 
+variable "stop_rds" {
+  description = "Stop RDS during the nightly shutdown. false = only EB is scaled to 0 and RDS stays up (avoids morning InsufficientDBInstanceCapacity start failures)."
+  type        = bool
+  default     = true
+}
+
+variable "ensure_rds_cron" {
+  description = "Cron for the RDS safety-net check (EventBridge format, UTC). null = every 10 min all day when stop_rds=false, KST 08:00~23:50 otherwise."
+  type        = string
+  default     = null
+}
+
 variable "eb_environment_name" {
   description = "Elastic Beanstalk environment name"
   type        = string

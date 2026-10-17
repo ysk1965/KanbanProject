@@ -29,7 +29,11 @@ public class PolarWebhookController {
 
         log.info("Received Polar webhook: webhookId={}", webhookId);
 
-        polarWebhookService.handleWebhook(webhookId, signature, timestamp, payload);
+        boolean processed = polarWebhookService.handleWebhook(webhookId, signature, timestamp, payload);
+        if (!processed) {
+            // 재전송된 이벤트 — 이미 처리됐거나 처리 중. 200 을 돌려줘야 Polar 가 재시도를 멈춘다.
+            log.info("Polar webhook acknowledged without reprocessing: webhookId={}", webhookId);
+        }
 
         return ResponseEntity.ok().build();
     }

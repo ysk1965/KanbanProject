@@ -21,7 +21,11 @@ interface GroupManagerProps {
 
 const STORAGE_KEY = 'coffee-roulette-groups';
 
-export function GroupManager({ currentParticipants, onLoadGroup, activeGroupId }: GroupManagerProps) {
+export function GroupManager({
+  currentParticipants,
+  onLoadGroup,
+  activeGroupId,
+}: GroupManagerProps) {
   const [groups, setGroups] = useState<ParticipantGroup[]>([]);
   const [groupName, setGroupName] = useState('');
   const [showSaveForm, setShowSaveForm] = useState(false);
@@ -81,9 +85,7 @@ export function GroupManager({ currentParticipants, onLoadGroup, activeGroupId }
 
   const resetGroupStats = (id: string) => {
     if (confirm(t('confirmResetStats'))) {
-      const updatedGroups = groups.map((g) =>
-        g.id === id ? { ...g, stats: {} } : g
-      );
+      const updatedGroups = groups.map((g) => (g.id === id ? { ...g, stats: {} } : g));
       setGroups(updatedGroups);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedGroups));
     }
@@ -120,7 +122,8 @@ export function GroupManager({ currentParticipants, onLoadGroup, activeGroupId }
       {showSaveForm && (
         <div className="mb-4 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
           <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-            {t('currentParticipants')} {currentParticipants.length}{t('peopleToSave')}
+            {t('currentParticipants')} {currentParticipants.length}
+            {t('peopleToSave')}
           </p>
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
@@ -201,10 +204,13 @@ export function GroupManager({ currentParticipants, onLoadGroup, activeGroupId }
               </div>
 
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                {group.participants.length}{t('participants')} · {group.participants.join(', ')}
+                {group.participants.length}
+                {t('participants')} · {group.participants.join(', ')}
               </p>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                {new Date(group.createdAt).toLocaleDateString('ko-KR')} · {getTotalWins(group.stats)}{t('totalRounds')}
+                {new Date(group.createdAt).toLocaleDateString('ko-KR')} ·{' '}
+                {getTotalWins(group.stats)}
+                {t('totalRounds')}
               </p>
               {group.stats && Object.keys(group.stats).length > 0 && (
                 <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
@@ -228,7 +234,8 @@ export function GroupManager({ currentParticipants, onLoadGroup, activeGroupId }
                           key={name}
                           className="bg-white dark:bg-gray-700 px-2 py-1 rounded border border-purple-200 dark:border-purple-700 dark:text-gray-200"
                         >
-                          {name}: {count}{t('roundsUnit')}
+                          {name}: {count}
+                          {t('roundsUnit')}
                         </span>
                       ))}
                   </div>
@@ -241,7 +248,8 @@ export function GroupManager({ currentParticipants, onLoadGroup, activeGroupId }
 
       {groups.length > 0 && (
         <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-4 text-center">
-          {groups.length}{t('totalGroups')}
+          {groups.length}
+          {t('totalGroups')}
         </p>
       )}
     </Card>

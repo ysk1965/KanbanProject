@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface TaskRepository extends JpaRepository<Task, String> {
 
@@ -71,7 +72,14 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "ORDER BY sc.position, t.featurePosition, t.position")
     List<Task> findBySprintId(@Param("sprintId") String sprintId);
 
-    /** 마일스톤 백로그 (아직 어떤 스프린트에도 안 담긴 태스크) — 담기 후보 */
+    /** 보드에서 태스크가 1건이라도 담긴 스프린트 id — 리포트가 빈 버킷을 피해 집계 대상을 고를 때 쓴다. */
+    @Query("SELECT DISTINCT t.sprint.id FROM Task t WHERE t.sprint.milestone.board.id = :boardId")
+    Set<String> findSprintIdsWithTasksByBoardId(@Param("boardId") String boardId);
+
+    /**
+     * 마일스톤 백로그 = 아직 어떤 스프린트 버킷에도 안 담긴 태스크(담기 후보).
+     * 지난 스프린트의 태스크는 그 버킷에 그대로 남는다 — 분할 모델에서는 이력도 버킷 조회로 본다.
+     */
     @Query("SELECT t FROM Task t " +
            "JOIN FETCH t.feature " +
            "LEFT JOIN FETCH t.block " +
@@ -98,7 +106,7 @@ public interface TaskRepository extends JpaRepository<Task, String> {
                                      @Param("kind") com.kanban.domain.sprint.SprintColumnKind kind);
 
     /**
-     * 스프린트 종료 이월 대상: 아직 END(Done) 컬럼에 도달하지 않은 태스크.
+     * 미완료 일괄 이동("다음 스프린트로 보내기") 대상: 아직 END(Done) 컬럼에 도달하지 않은 태스크.
      * 컬럼이 비어 있는(유실된) 태스크도 이월 대상이므로 LEFT JOIN으로 명시한다 —
      * t.sprintColumn.kind 형태로 쓰면 암묵 INNER JOIN이 되어 컬럼 없는 태스크가 통째로 빠진다.
      */
@@ -110,6 +118,14 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     /** 스프린트 모드 off 병합용: 마일스톤 내 담긴 태스크 전체 */
     @Query("SELECT t FROM Task t WHERE t.sprint.milestone.id = :milestoneId AND t.sprint IS NOT NULL")
     List<Task> findInSprintByMilestoneId(@Param("milestoneId") String milestoneId);
+
+    /**
+     * 레벨 1 자동 담기용: 마일스톤에 속하면서 아직 어느 스프린트에도 안 담긴 태스크.
+     * 레벨 1에는 "담기"라는 개념이 없어 백로그가 화면에 없으므로, 여기 남은 태스크는
+     * 사용자 눈에 보이지 않게 된다 — 그래서 보드를 열 때 활성 스프린트로 끌어올린다.
+     */
+    @Query("SELECT t FROM Task t WHERE t.milestone.id = :milestoneId AND t.sprint IS NULL")
+    List<Task> findBacklogByMilestoneId(@Param("milestoneId") String milestoneId);
 
     /** 특정 컬럼에 담긴 태스크 (컬럼 삭제 시 재배치용) */
     @Query("SELECT t FROM Task t WHERE t.sprintColumn.id = :columnId")
@@ -134,6 +150,14 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     int countByBoardId(String boardId);
 
     int countByBoardIdAndIsCompletedTrue(String boardId);
+
+    /**
+     * 여러 보드의 (전체 태스크 수, 완료 태스크 수) 일괄 집계 — getMyBoards N+1 방지.
+     * 행: [board_id, COUNT(*), SUM(is_completed)]. 삭제 태스크는 @SQLRestriction 으로 자동 제외.
+     */
+    @Query("SELECT t.board.id, COUNT(t), COALESCE(SUM(CASE WHEN t.isCompleted = true THEN 1 ELSE 0 END), 0) " +
+           "FROM Task t WHERE t.board.id IN :boardIds GROUP BY t.board.id")
+    List<Object[]> countTotalAndCompletedGroupedByBoardId(@Param("boardIds") List<String> boardIds);
 
     /**
      * 여러 보드의 Task 수 일괄 조회 (N+1 방지)
@@ -173,7 +197,8 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     List<Task> findByFeatureIds(@Param("featureIds") List<String> featureIds);
 
     /**
-     * 보드의 (마일스톤, 피처)별 태스크 수 집계 — 마일스톤 진행률 + 마일스톤-스코프 피처 카운트용.
+     * 보드의 (마일스톤, 피처)별 태스크 수 집계 — 마일스톤-스코프 피처 태스크 카운트용.
+     * (마일스톤 진행률은 ChecklistItemRepository.countByMilestoneAndFeature의 체크리스트 항목 기준으로 계산한다.)
      * 반환: [milestoneId, featureId, totalCount(Long), completedCount(Long)]
      */
     @Query("SELECT t.milestone.id, t.feature.id, COUNT(t), " +
@@ -186,6 +211,11 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Modifying
     @Query("UPDATE Task t SET t.milestone = null WHERE t.milestone.id = :milestoneId")
     int clearMilestoneByMilestoneId(@Param("milestoneId") String milestoneId);
+
+    /** 체크리스트 프리셋 삭제 시 해당 프리셋을 참조하는 태스크의 라벨 해제 */
+    @Modifying
+    @Query("UPDATE Task t SET t.presetId = null WHERE t.presetId = :presetId")
+    int clearPresetByPresetId(@Param("presetId") String presetId);
 
     /** 피처-마일스톤 링크 제거 시 재배정용 — 특정 피처의 특정 마일스톤 태스크 조회 */
     List<Task> findByFeatureIdAndMilestoneId(String featureId, String milestoneId);

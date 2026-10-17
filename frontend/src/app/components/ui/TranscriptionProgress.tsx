@@ -60,15 +60,11 @@ export function TranscriptionProgress({
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xs font-bold text-foreground">
-            {Math.round(percent)}%
-          </span>
+          <span className="text-xs font-bold text-foreground">{Math.round(percent)}%</span>
         </div>
       </div>
       <div className="flex flex-col">
-        <span className="text-xs text-slate-400 leading-tight">
-          {stageLabel}
-        </span>
+        <span className="text-xs text-slate-400 leading-tight">{stageLabel}</span>
         {showChunks && (
           <span className="text-xs text-slate-500">
             ({current}/{total})

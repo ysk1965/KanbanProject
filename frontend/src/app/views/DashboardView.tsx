@@ -1,20 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import type {
-  BoardWebSocketEvent,
-  Feature,
-  JobRole,
-  Milestone,
-} from "../types";
-import type { BoardMember as ShareBoardMember } from "../components/ShareBoardModal";
-import { buildMilestoneColorMap } from "../utils/milestoneColor";
-import { BacklogRail } from "../components/boarddashboard/BacklogRail";
-import { DashboardScopeRow } from "../components/boarddashboard/DashboardScopeRow";
-import { MyWorkloadWidget } from "../components/boarddashboard/MyWorkloadWidget";
-import { TodayTimeblockWidget } from "../components/boarddashboard/TodayTimeblockWidget";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
+import type { BoardWebSocketEvent, Feature, JobRole, Milestone } from '../types';
+import type { BoardMember as ShareBoardMember } from '../components/ShareBoardModal';
+import { buildMilestoneColorMap } from '../utils/milestoneColor';
+import { useAxisRefresh } from '../utils/axisTransfer';
+import { DashboardScopeRow } from '../components/boarddashboard/DashboardScopeRow';
+import { MyWorkloadWidget } from '../components/boarddashboard/MyWorkloadWidget';
+import { TodayTimeblockWidget } from '../components/boarddashboard/TodayTimeblockWidget';
+import { SplitHandle } from '../components/boarddashboard/SplitHandle';
+import {
+  MIN_TIMEBLOCK_WIDTH,
+  TIMEBLOCK_WIDTH_VAR,
+  useTimeblockColumnSplit,
+} from '../components/boarddashboard/dashboardSplit';
 
 /** 대시보드 스코프 딥링크 파라미터 (?member= 는 칸반 담당자 필터가 이미 쓰고 있다) */
-const SCOPE_PARAM = "scope";
+const SCOPE_PARAM = 'scope';
 
 interface DashboardViewProps {
   boardId: string;
@@ -56,8 +58,13 @@ interface DashboardViewProps {
 /**
  * 보드 > 대시보드 — 개인 관점의 진입 화면.
  *
- * 레이아웃
- *  왼쪽 = 오늘의 타임블록 / 오른쪽 = 내 워크로드(간트 + 배치 레일)
+ * 레이아웃 — 패널 넷, 열 셋.
+ *  왼쪽   = 오늘의 타임블록
+ *  가운데 = 내 워크로드 (위) · 배치 대기 (아래)
+ *  오른쪽 = 내 백로그
+ *
+ * 넷 다 같은 셸(PanelShell)을 쓴다 — 머리 높이·좌우 여백·링크 자리·배너 위치가 같다.
+ * 경계는 셋(좌우 둘 + 가운데 열 안에 하나) 모두 손잡이라, 배분은 전부 사용자가 정한다.
  */
 export function DashboardView({
   boardId,
@@ -85,17 +92,41 @@ export function DashboardView({
   onOpenResourceView,
   onRefreshAfterPromote,
 }: DashboardViewProps) {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // 타임블록 │ 워크로드 좌우 배분 — 사용자가 정하고 브라우저가 기억한다.
+  // xl 미만에서는 두 열이 한 줄로 접히므로 손잡이도 값도 쓰이지 않는다.
+  const {
+    containerRef: gridRef,
+    size: timeblockWidth,
+    maxSize: maxTimeblockWidth,
+    onPointerDown: onColumnPointerDown,
+    onKeyDown: onColumnKeyDown,
+    reset: resetColumnSplit,
+  } = useTimeblockColumnSplit();
+
+  /*
+    세 패널은 같은 체크리스트 항목을 서로 다른 각도로 보여 준다 — 타임블록은 그 항목의
+    마감으로 블록 색을 칠하고, 간트는 기간 바로, 배치 레일은 미배치·지연 판정으로.
+    그래서 어느 한 곳에서 날짜가 바뀌면 나머지 둘이 곧바로 낡는다.
+
+    변경 주체가 축을 넘나드는 이동(레일↔간트↔백로그↔타임블록)일 수도, 간트 안에서의
+    바 드래그일 수도 있어 소유자가 제각각이다. 그래서 신호를 이 한 곳으로 모은다 —
+    누가 고쳤든 requestAxisRefresh 한 번이면 세 패널이 같이 따라온다.
+
+    페이지의 두 카운터(WS 계통 panel · 로컬 액션 계통 key)는 일부러 합치지 않는다.
+    합치면 지금은 조용한 타임블록이 WS 이벤트 12경로에 전부 물려 남의 변경마다 재조회한다.
+  */
+  const [axisRefreshTick, setAxisRefreshTick] = useState(0);
+  useAxisRefresh(useCallback(() => setAxisRefreshTick((v) => v + 1), []));
+
   // 마일스톤 id → 색 (일정 탭과 같은 규칙으로 만들어 색 일관성 유지)
-  const milestoneColorMap = useMemo(
-    () => buildMilestoneColorMap(milestones),
-    [milestones],
-  );
+  const milestoneColorMap = useMemo(() => buildMilestoneColorMap(milestones), [milestones]);
 
   // 뷰어는 타임블록·워크로드에 열이 생기지 않으므로 선택 대상에서 뺀다
   const selectableMembers = useMemo(
-    () => boardMembersData.filter((m) => m.role !== "viewer"),
+    () => boardMembersData.filter((m) => m.role !== 'viewer'),
     [boardMembersData],
   );
 
@@ -107,8 +138,7 @@ export function DashboardView({
   // 멤버 목록이 늦게 도착하므로, 도착한 뒤 유효하지 않은 스코프는 나로 되돌린다
   useEffect(() => {
     if (!selectableMembers.length) return;
-    const valid =
-      scopeUserId && selectableMembers.some((m) => m.userId === scopeUserId);
+    const valid = scopeUserId && selectableMembers.some((m) => m.userId === scopeUserId);
     if (!valid && scopeUserId !== userId) setScopeUserId(userId);
   }, [selectableMembers, scopeUserId, userId]);
 
@@ -131,7 +161,7 @@ export function DashboardView({
   );
 
   // 남의 대시보드는 읽기 전용 — 기존 뷰어 게이팅을 그대로 재사용한다
-  const effectiveRole = isOtherScope ? "viewer" : currentUserRole;
+  const effectiveRole = isOtherScope ? 'viewer' : currentUserRole;
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-bridge-dark">
@@ -148,33 +178,68 @@ export function DashboardView({
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+      {/*
+        xl 이상에서는 화면이 곧 레이아웃이다 — 페이지는 스크롤하지 않고,
+        왼쪽 오늘이 뷰포트 높이를 그대로 쓰고 오른쪽은 워크로드가 필요한 만큼만
+        가져간 뒤 나머지를 전부 큐가 받는다.
+
+        xl 미만에서는 두 열이 한 줄로 접힌다. 이때는 화면 높이를 나눠 가질 수 없으므로
+        각 블록에 높이를 주고 페이지 쪽이 스크롤한다 — 안 그러면 타임블록·간트처럼
+        "부모가 준 높이를 채우는" 뷰가 0으로 무너진다.
+      */}
+      <div className="flex-1 min-h-0 overflow-y-auto xl:overflow-hidden custom-scrollbar">
         {/* 스코프 행이 없을 때는 원래대로 위 여백을 준다 */}
         <div
-          className={`px-3 md:px-5 pb-3 md:pb-5 flex flex-col gap-3 ${
-            selectableMembers.length > 1 ? "" : "pt-3 md:pt-5"
+          className={`xl:h-full px-3 md:px-5 pb-3 md:pb-5 ${
+            selectableMembers.length > 1 ? '' : 'pt-3 md:pt-5'
           }`}
         >
-          {/* 타임블록 │ 워크로드 + 내 태스크 */}
-          <div className="grid grid-cols-1 xl:grid-cols-[380px_minmax(0,1fr)] gap-3 items-start">
-            <TodayTimeblockWidget
-              boardId={boardId}
-              organizationId={organizationId}
-              boardMembers={boardMembersData}
-              userId={scopeUserId}
-              scopeName={isOtherScope ? scopeMember?.name : undefined}
-              memberColorMap={memberColorMap}
-              milestoneColorMap={milestoneColorMap}
-              currentUserRole={effectiveRole}
-              refreshTrigger={scheduleRefreshKey}
-              wsChecklistEvent={wsChecklistEvent}
-              onViewFeature={onViewFeatureById}
-              onViewTask={onViewTaskWithChecklist}
-              onViewMeeting={(_meetingId, date) => onNavigateToMeeting(date)}
-              onOpenSchedule={onOpenSchedule}
+          {/* 오늘 │ (워크로드 + 배치 대기) │ 백로그 */}
+          {/*
+            왼쪽 폭은 CSS 변수로 들어간다 — 드래그 중에는 이 변수만 갈아 끼워
+            리렌더 없이 폭이 따라오고, xl 미만의 한 줄 배치는 그대로 남는다.
+          */}
+          <div
+            ref={gridRef}
+            style={{ [TIMEBLOCK_WIDTH_VAR]: `${timeblockWidth}px` } as CSSProperties}
+            /* 변수명은 리터럴로 적는다 — Tailwind 스캐너가 문자열을 그대로 읽는다 */
+            className="grid grid-cols-1 gap-3 xl:h-full xl:min-h-0 xl:gap-0
+              xl:grid-cols-[var(--dash-timeblock-w)_auto_minmax(0,1fr)]"
+          >
+            <div className="h-[520px] xl:h-full min-h-0">
+              <TodayTimeblockWidget
+                boardId={boardId}
+                organizationId={organizationId}
+                boardMembers={boardMembersData}
+                userId={scopeUserId}
+                scopeName={isOtherScope ? scopeMember?.name : undefined}
+                memberColorMap={memberColorMap}
+                milestoneColorMap={milestoneColorMap}
+                currentUserRole={effectiveRole}
+                refreshTrigger={scheduleRefreshKey + axisRefreshTick}
+                wsChecklistEvent={wsChecklistEvent}
+                onViewFeature={onViewFeatureById}
+                onViewTask={onViewTaskWithChecklist}
+                onViewMeeting={(_meetingId, date) => onNavigateToMeeting(date)}
+                onOpenSchedule={onOpenSchedule}
+              />
+            </div>
+
+            {/* 한 줄로 접히면 좌우가 없으므로 손잡이도 없다 */}
+            <SplitHandle
+              orientation="vertical"
+              value={timeblockWidth}
+              min={MIN_TIMEBLOCK_WIDTH}
+              max={maxTimeblockWidth}
+              label={t('boardDashboard.splitColumns', '타임블록 열 폭 조절')}
+              onPointerDown={onColumnPointerDown}
+              onKeyDown={onColumnKeyDown}
+              onReset={resetColumnSplit}
+              className="hidden xl:flex"
             />
 
-            <div className="flex flex-col gap-3 min-w-0">
+            {/* 한 줄로 접힌 화면에서는 카드 셋이 각자 높이를 갖고 이 블록이 늘어난다 */}
+            <div className="min-w-0 min-h-0 xl:h-full">
               <MyWorkloadWidget
                 boardId={boardId}
                 boardMembers={boardMembersData}
@@ -185,38 +250,21 @@ export function DashboardView({
                 memberColorMap={memberColorMap}
                 jobRoles={jobRoles}
                 features={allFeatures}
-                refreshTrigger={scheduleRefreshPanel}
+                refreshTrigger={scheduleRefreshPanel + axisRefreshTick}
                 currentUserRole={effectiveRole}
                 onViewTask={onViewTaskWithChecklist}
                 onMilestoneClick={onMilestoneClick}
-                onUpdateMilestoneDates={
-                  isOtherScope ? undefined : onUpdateMilestoneDates
-                }
+                onUpdateMilestoneDates={isOtherScope ? undefined : onUpdateMilestoneDates}
                 onOpenContractorManager={onOpenContractorManager}
                 onOpenResourceView={onOpenResourceView}
                 onOpenKanban={onOpenKanban}
+                /* 남의 백로그는 볼 수만 있다 — 적기·승격·강등이 전부 사라진다 */
+                backlogReadOnly={isOtherScope}
+                selectedMilestoneId={selectedMilestoneId}
+                onRefreshAfterPromote={onRefreshAfterPromote}
               />
             </div>
           </div>
-
-          {/*
-            백로그 레일 — 대시보드 맨 아래 한 층.
-            sticky로 붙여 스크롤 위치와 무관하게 항상 보이게 한다(안 보이는 백로그는 안 쓰인다).
-            남의 대시보드를 보는 중이면 개인 데이터이므로 아예 렌더하지 않는다 —
-            읽기 전용이 아니라 부재다.
-          */}
-          {!isOtherScope && (
-            <div className="sticky bottom-0 z-10 pb-1 shadow-[0_-10px_26px_rgba(0,0,0,0.14)] rounded-2xl">
-              <BacklogRail
-                boardId={boardId}
-                userId={userId}
-                features={allFeatures}
-                milestones={milestones}
-                selectedMilestoneId={selectedMilestoneId}
-                onPromoted={onRefreshAfterPromote}
-              />
-            </div>
-          )}
         </div>
       </div>
     </div>

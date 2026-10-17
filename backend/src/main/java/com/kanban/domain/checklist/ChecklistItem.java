@@ -1,6 +1,7 @@
 package com.kanban.domain.checklist;
 
 import com.kanban.domain.contractor.entity.BoardContractor;
+import com.kanban.domain.sprint.Sprint;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
@@ -17,7 +18,8 @@ import java.util.UUID;
 @Table(name = "checklist_items", indexes = {
     @Index(name = "idx_checklist_task_id", columnList = "task_id"),
     @Index(name = "idx_checklist_assignee_id", columnList = "assignee_id"),
-    @Index(name = "idx_checklist_task_position", columnList = "task_id, position")
+    @Index(name = "idx_checklist_task_position", columnList = "task_id, position"),
+    @Index(name = "idx_checklist_sprint", columnList = "sprint_id")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -52,6 +54,15 @@ public class ChecklistItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "completed_by")
     private User completedBy;
+
+    /**
+     * 줄 단위 스프린트 지정(오버라이드). null이면 부모 태스크의 스프린트를 따라간다.
+     * 태스크 하나의 체크리스트 중 일부만 다른 스프린트에서 해야 할 때 태스크를 쪼개지 않고
+     * 줄만 보내기 위한 값 — 실제 귀속은 {@link #effectiveSprint()}가 결정한다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sprint_id")
+    private Sprint sprint;
 
     @Column(name = "start_date")
     private LocalDate startDate;
@@ -176,12 +187,40 @@ public class ChecklistItem {
     }
 
     /**
-     * 스프린트 멤버십은 이 엔티티가 아니라 부모 {@link Task}가 들고 있다.
-     * 체크리스트는 태스크에 딸린 내용물이므로, 태스크가 스프린트에 담겨 있으면 여기 추가되는
-     * 항목도 별도 조작 없이 같은 스프린트 안에 함께 있게 된다.
-     * (checklist_items.sprint_id 컬럼은 롤백 대비로 DB에만 남아 있고 매핑하지 않는다)
+     * 이 줄이 실제로 속한 스프린트 — 지정값이 있으면 그것, 없으면 부모 태스크의 스프린트.
+     * 스프린트 게이지·부분 카드·이월이 전부 이 판정 하나를 본다.
      */
+    public Sprint effectiveSprint() {
+        if (this.sprint != null) {
+            return this.sprint;
+        }
+        return this.task != null ? this.task.getSprint() : null;
+    }
+
+    /** 지정값이 태스크의 스프린트와 같은가(=지정이 무의미한가). 정규화 판단용. */
+    public boolean isSprintOverridden() {
+        return this.sprint != null;
+    }
+
+    /**
+     * 줄의 스프린트를 지정한다. 태스크의 스프린트와 같은 값이면 지정을 지워 상속으로 되돌린다 —
+     * "태스크 따라가기"가 기본 상태이고, 지정은 예외일 때만 남아야 화면의 칩도 예외만 보여줄 수 있다.
+     */
+    public void assignSprint(Sprint target) {
+        if (target == null) {
+            this.sprint = null;
+            return;
+        }
+        Sprint taskSprint = this.task != null ? this.task.getSprint() : null;
+        if (taskSprint != null && taskSprint.getId().equals(target.getId())) {
+            this.sprint = null;
+        } else {
+            this.sprint = target;
+        }
+    }
+
+    /** 체크리스트가 스프린트 스코프 안에 있는가 (지정 또는 태스크 상속). */
     public boolean isInSprint() {
-        return this.task != null && this.task.isInSprint();
+        return effectiveSprint() != null;
     }
 }

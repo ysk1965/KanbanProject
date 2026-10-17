@@ -1,7 +1,15 @@
-import { BarChart3, CheckCircle, Hash, DollarSign, Flag, PlusCircle } from "lucide-react";
-import type { OkrKeyResult } from "../../../types";
+import {
+  BarChart3,
+  CheckCircle,
+  Hash,
+  DollarSign,
+  Flag,
+  PlusCircle,
+  type LucideIcon,
+} from 'lucide-react';
+import type { OkrKeyResult } from '../../../types';
 
-const metricIcons: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+const metricIcons: Record<string, LucideIcon> = {
   PERCENTAGE: BarChart3,
   NUMBER: Hash,
   CURRENCY: DollarSign,
@@ -30,27 +38,18 @@ export function OkrKeyResultRow({ kr, onCheckIn, compact }: OkrKeyResultRowProps
 
   return (
     <div
-      className={`flex items-center gap-2 ${compact ? "py-1 px-1" : "py-1.5 px-2"} rounded-lg hover:bg-foreground/5 group/kr transition-colors`}
+      className={`flex items-center gap-2 ${compact ? 'py-1 px-1' : 'py-1.5 px-2'} rounded-lg hover:bg-foreground/5 group/kr transition-colors`}
     >
       <MetricIcon size={compact ? 10 : 12} className="text-slate-400 shrink-0" />
-      <span
-        className={`${compact ? "text-xs" : "text-xs"} text-foreground truncate flex-1`}
-      >
+      <span className={`${compact ? 'text-xs' : 'text-xs'} text-foreground truncate flex-1`}>
         {kr.title}
       </span>
-      <span
-        className={`${compact ? "text-xs" : "text-xs"} font-bold text-bridge-accent shrink-0`}
-      >
+      <span className={`${compact ? 'text-xs' : 'text-xs'} font-bold text-bridge-accent shrink-0`}>
         {formatValue(kr.current_value)}/{formatValue(kr.target_value)}
-        {kr.unit || ""}
+        {kr.unit || ''}
       </span>
-      <div
-        className={`${compact ? "w-8" : "w-12"} h-1 rounded-full bg-foreground/[0.06] shrink-0`}
-      >
-        <div
-          className="h-full rounded-full bg-bridge-accent"
-          style={{ width: `${progress}%` }}
-        />
+      <div className={`${compact ? 'w-8' : 'w-12'} h-1 rounded-full bg-foreground/[0.06] shrink-0`}>
+        <div className="h-full rounded-full bg-bridge-accent" style={{ width: `${progress}%` }} />
       </div>
       {!compact && (
         <button

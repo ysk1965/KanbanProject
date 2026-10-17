@@ -1,6 +1,6 @@
-import { motion, AnimatePresence } from "framer-motion";
-import type { OkrObjective } from "../../../types";
-import { OkrObjectiveNode } from "./OkrObjectiveNode";
+import { motion, AnimatePresence } from 'framer-motion';
+import type { OkrObjective } from '../../../types';
+import { OkrObjectiveNode } from './OkrObjectiveNode';
 
 interface OkrChildrenRowProps {
   objectives: OkrObjective[];
@@ -32,7 +32,7 @@ export function OkrChildrenRow({
           className="absolute top-0 left-1/2 -translate-x-1/2"
           style={{
             width: `calc(100% - ${100 / count}%)`,
-            height: "1px",
+            height: '1px',
           }}
         >
           <div className="absolute inset-0 bg-foreground/10" />
@@ -46,11 +46,7 @@ export function OkrChildrenRow({
           const hasChildren = obj.children && obj.children.length > 0;
 
           return (
-            <div
-              key={obj.id}
-              className="flex flex-col items-center"
-              style={{ minWidth: "220px" }}
-            >
+            <div key={obj.id} className="flex flex-col items-center" style={{ minWidth: '220px' }}>
               {/* Vertical connector (above node) */}
               <div className="w-px h-4 bg-foreground/10" />
 
@@ -70,7 +66,7 @@ export function OkrChildrenRow({
                 {hasChildren && !isCollapsed && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
+                    animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.2 }}
                     className="flex flex-col items-center overflow-hidden"

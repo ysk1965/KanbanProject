@@ -1,8 +1,19 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useEscClose } from '../../../hooks/useEscClose';
+import { useBlockBrowserZoom, wheelToZoomFactor } from '../../../hooks/useBlockBrowserZoom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Trash2, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Loader2 } from 'lucide-react';
+import {
+  Download,
+  Trash2,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Loader2,
+} from 'lucide-react';
 import type { OrgPhoto } from '../../../types';
 import { resolveFileUrl } from '../../../utils/api';
 
@@ -61,6 +72,10 @@ export function PhotoLightbox({
   const hasPannedRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const imageContainerRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // 열려 있는 동안 브라우저 핀치/ctrl+wheel 줌 차단 (fixed 레이아웃 깨짐 방지)
+  useBlockBrowserZoom(!!photo);
 
   // Pinch zoom refs
   const lastPinchDistRef = useRef<number | null>(null);
@@ -109,21 +124,18 @@ export function PhotoLightbox({
     });
   }, []);
 
-  const clampPan = useCallback(
-    (x: number, y: number, currentZoom: number) => {
-      if (currentZoom <= 1) return { x: 0, y: 0 };
-      const container = imageContainerRef.current;
-      if (!container) return { x, y };
-      const rect = container.getBoundingClientRect();
-      const maxX = (rect.width * (currentZoom - 1)) / 2;
-      const maxY = (rect.height * (currentZoom - 1)) / 2;
-      return {
-        x: Math.max(-maxX, Math.min(maxX, x)),
-        y: Math.max(-maxY, Math.min(maxY, y)),
-      };
-    },
-    [],
-  );
+  const clampPan = useCallback((x: number, y: number, currentZoom: number) => {
+    if (currentZoom <= 1) return { x: 0, y: 0 };
+    const container = imageContainerRef.current;
+    if (!container) return { x, y };
+    const rect = container.getBoundingClientRect();
+    const maxX = (rect.width * (currentZoom - 1)) / 2;
+    const maxY = (rect.height * (currentZoom - 1)) / 2;
+    return {
+      x: Math.max(-maxX, Math.min(maxX, x)),
+      y: Math.max(-maxY, Math.min(maxY, y)),
+    };
+  }, []);
 
   const goPrev = useCallback(() => {
     if (currentIndex > 0) {
@@ -245,19 +257,23 @@ export function PhotoLightbox({
     [goPrev, goNext, isZoomed],
   );
 
-  // Mouse wheel zoom
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
+  // Mouse wheel / trackpad pinch zoom
+  // React 의 onWheel 은 passive 리스너라 preventDefault 가 무시된다 → 네이티브 non-passive 로 부착
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || !photo) return;
+    const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.3 : 0.3;
+      const updater = wheelToZoomFactor(e, 0.3);
       setZoom((z) => {
-        const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z + delta));
+        const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, updater(z)));
         if (next <= 1) setPan({ x: 0, y: 0 });
         return next;
       });
-    },
-    [],
-  );
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [photo]);
 
   // Mouse drag panning
   const handleMouseDown = useCallback(
@@ -292,7 +308,11 @@ export function PhotoLightbox({
   const handleDoubleTap = useCallback(
     (e: React.TouchEvent) => {
       const now = Date.now();
-      if (now - lastTapRef.current < 300 && e.changedTouches.length === 1 && !hasPannedRef.current) {
+      if (
+        now - lastTapRef.current < 300 &&
+        e.changedTouches.length === 1 &&
+        !hasPannedRef.current
+      ) {
         e.preventDefault();
         if (isZoomed) {
           resetZoom();
@@ -372,6 +392,7 @@ export function PhotoLightbox({
     <AnimatePresence>
       {photo && (
         <motion.div
+          ref={rootRef}
           className="fixed inset-0 z-50 bg-black/95 flex flex-col"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -440,7 +461,9 @@ export function PhotoLightbox({
               <button
                 onClick={isZoomed ? resetZoom : onClose}
                 className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                title={isZoomed ? t('photoGallery.resetZoom', 'Reset zoom') : t('common.close', 'Close')}
+                title={
+                  isZoomed ? t('photoGallery.resetZoom', 'Reset zoom') : t('common.close', 'Close')
+                }
                 aria-label="닫기"
               >
                 <X size={18} />
@@ -453,7 +476,6 @@ export function PhotoLightbox({
             ref={imageContainerRef}
             className="flex-1 flex items-center justify-center px-4 sm:px-12 py-4 overflow-hidden touch-none"
             style={{ cursor: isZoomed ? (isPanningRef.current ? 'grabbing' : 'grab') : 'default' }}
-            onWheel={handleWheel}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={(e) => {

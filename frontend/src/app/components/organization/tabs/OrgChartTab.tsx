@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useTranslation } from "react-i18next";
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Search,
   Network,
@@ -12,10 +12,10 @@ import {
   UserPlus,
   Building2,
   Briefcase,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { organizationService } from "../../../utils/services";
-import { resolveFileUrl } from "../../../utils/api";
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { organizationService } from '../../../utils/services';
+import { resolveFileUrl } from '../../../utils/api';
 import type {
   OrgChartData,
   OrgChartMemberNode,
@@ -27,11 +27,11 @@ import type {
   OrgTitle,
   OrgGrade,
   OrgStructureSettings,
-} from "../../../types";
-import { MemberDetailModal } from "../MemberDetailModal";
+} from '../../../types';
+import { MemberDetailModal } from '../MemberDetailModal';
 
-type ViewMode = "tree" | "list";
-type GroupMode = "department" | "jobGroup";
+type ViewMode = 'tree' | 'list';
+type GroupMode = 'department' | 'jobGroup';
 
 interface OrgChartTabProps {
   orgId: string;
@@ -59,19 +59,17 @@ export function OrgChartTab({
   hrSystemEnabled,
 }: OrgChartTabProps) {
   const { t } = useTranslation();
-  const isAdmin = myRole === "OWNER" || myRole === "ADMIN";
+  const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
 
   const [chartData, setChartData] = useState<OrgChartData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>("tree");
-  const [groupMode, setGroupMode] = useState<GroupMode>("department");
-  const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>('tree');
+  const [groupMode, setGroupMode] = useState<GroupMode>('department');
+  const [search, setSearch] = useState('');
   const [collapsedDepts, setCollapsedDepts] = useState<Set<string>>(new Set());
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [managerEditMemberId, setManagerEditMemberId] = useState<string | null>(
-    null,
-  );
-  const [managerSearch, setManagerSearch] = useState("");
+  const [managerEditMemberId, setManagerEditMemberId] = useState<string | null>(null);
+  const [managerSearch, setManagerSearch] = useState('');
   const [updatingManager, setUpdatingManager] = useState(false);
 
   const fetchChart = useCallback(async () => {
@@ -80,7 +78,7 @@ export function OrgChartTab({
       const data = await organizationService.getChart(orgId);
       setChartData(data);
     } catch (error) {
-      console.warn("Failed to fetch chart:", error);
+      console.warn('Failed to fetch chart:', error);
     } finally {
       setLoading(false);
     }
@@ -155,7 +153,7 @@ export function OrgChartTab({
         leader: null,
         children: [],
         members,
-      })
+      }),
     );
 
     return {
@@ -167,14 +165,11 @@ export function OrgChartTab({
   }, [chartData]);
 
   // Pick data based on groupMode
-  const activeChartData = groupMode === "jobGroup" ? jobGroupChartData : chartData;
+  const activeChartData = groupMode === 'jobGroup' ? jobGroupChartData : chartData;
 
   // Filter department tree by search
   const filterDeptNode = useCallback(
-    (
-      dept: OrgChartDepartmentNode,
-      query: string,
-    ): OrgChartDepartmentNode | null => {
+    (dept: OrgChartDepartmentNode, query: string): OrgChartDepartmentNode | null => {
       const q = query.toLowerCase();
       const nameMatch = dept.name.toLowerCase().includes(q);
       const leaderMatch = dept.leader?.user_name.toLowerCase().includes(q);
@@ -183,9 +178,7 @@ export function OrgChartTab({
         .map((c) => filterDeptNode(c, query))
         .filter(Boolean) as OrgChartDepartmentNode[];
 
-      const filterMemberNode = (
-        node: OrgChartMemberNode,
-      ): OrgChartMemberNode | null => {
+      const filterMemberNode = (node: OrgChartMemberNode): OrgChartMemberNode | null => {
         const selfMatch =
           node.user_name.toLowerCase().includes(q) ||
           (node.job_title && node.job_title.toLowerCase().includes(q));
@@ -205,12 +198,7 @@ export function OrgChartTab({
         .map(filterMemberNode)
         .filter(Boolean) as OrgChartMemberNode[];
 
-      if (
-        nameMatch ||
-        leaderMatch ||
-        filteredChildren.length > 0 ||
-        filteredMembers.length > 0
-      ) {
+      if (nameMatch || leaderMatch || filteredChildren.length > 0 || filteredMembers.length > 0) {
         return {
           ...dept,
           children: nameMatch ? dept.children : filteredChildren,
@@ -230,13 +218,10 @@ export function OrgChartTab({
       .map((d) => filterDeptNode(d, q))
       .filter(Boolean) as OrgChartDepartmentNode[];
 
-    const filterMember = (
-      node: OrgChartMemberNode,
-    ): OrgChartMemberNode | null => {
+    const filterMember = (node: OrgChartMemberNode): OrgChartMemberNode | null => {
       const selfMatch =
         node.user_name.toLowerCase().includes(q.toLowerCase()) ||
-        (node.job_title &&
-          node.job_title.toLowerCase().includes(q.toLowerCase()));
+        (node.job_title && node.job_title.toLowerCase().includes(q.toLowerCase()));
       const filteredReports = node.reports
         .map(filterMember)
         .filter(Boolean) as OrgChartMemberNode[];
@@ -277,38 +262,23 @@ export function OrgChartTab({
     setCollapsedDepts(ids);
   };
 
-  const handleUpdateManager = async (
-    memberId: string,
-    managerId: string | null,
-  ) => {
+  const handleUpdateManager = async (memberId: string, managerId: string | null) => {
     try {
       setUpdatingManager(true);
       await organizationService.updateManager(orgId, memberId, {
         manager_id: managerId,
       });
       setManagerEditMemberId(null);
-      setManagerSearch("");
+      setManagerSearch('');
       await fetchChart();
     } catch (error: unknown) {
       const err = error as { code?: string };
-      if (err.code === "SELF_MANAGER_NOT_ALLOWED") {
-        alert(
-          t(
-            "organization.chart.error.selfManager",
-            "Cannot assign yourself as manager",
-          ),
-        );
-      } else if (err.code === "CIRCULAR_MANAGER_REFERENCE") {
-        alert(
-          t(
-            "organization.chart.error.circular",
-            "Circular manager reference detected",
-          ),
-        );
+      if (err.code === 'SELF_MANAGER_NOT_ALLOWED') {
+        alert(t('organization.chart.error.selfManager', 'Cannot assign yourself as manager'));
+      } else if (err.code === 'CIRCULAR_MANAGER_REFERENCE') {
+        alert(t('organization.chart.error.circular', 'Circular manager reference detected'));
       } else {
-        alert(
-          t("organization.chart.error.generic", "Failed to update manager"),
-        );
+        alert(t('organization.chart.error.generic', 'Failed to update manager'));
       }
     } finally {
       setUpdatingManager(false);
@@ -319,10 +289,7 @@ export function OrgChartTab({
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="h-24 bg-bridge-obsidian rounded-2xl animate-pulse"
-          />
+          <div key={i} className="h-24 bg-bridge-obsidian rounded-2xl animate-pulse" />
         ))}
       </div>
     );
@@ -335,18 +302,12 @@ export function OrgChartTab({
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <div className="relative flex-1 w-full sm:max-w-xs">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-          />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={t(
-              "organization.chart.searchPlaceholder",
-              "Search members...",
-            )}
+            placeholder={t('organization.chart.searchPlaceholder', 'Search members...')}
             className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 pl-9 pr-4 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
           />
         </div>
@@ -354,65 +315,65 @@ export function OrgChartTab({
           {/* Group mode toggle */}
           <div className="flex items-center bg-foreground/[0.03] rounded-xl border border-foreground/10 p-0.5">
             <button
-              onClick={() => setGroupMode("department")}
+              onClick={() => setGroupMode('department')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                groupMode === "department"
-                  ? "bg-bridge-accent text-white"
-                  : "text-slate-500 hover:text-foreground"
+                groupMode === 'department'
+                  ? 'bg-bridge-accent text-white'
+                  : 'text-slate-500 hover:text-foreground'
               }`}
             >
               <Building2 size={14} />
-              {t("organization.chart.byDepartment", "부서별")}
+              {t('organization.chart.byDepartment', '부서별')}
             </button>
             <button
-              onClick={() => setGroupMode("jobGroup")}
+              onClick={() => setGroupMode('jobGroup')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                groupMode === "jobGroup"
-                  ? "bg-bridge-accent text-white"
-                  : "text-slate-500 hover:text-foreground"
+                groupMode === 'jobGroup'
+                  ? 'bg-bridge-accent text-white'
+                  : 'text-slate-500 hover:text-foreground'
               }`}
             >
               <Briefcase size={14} />
-              {t("organization.chart.byJobGroup", "직군별")}
+              {t('organization.chart.byJobGroup', '직군별')}
             </button>
           </div>
 
           {/* View mode toggle */}
           <div className="flex items-center bg-foreground/[0.03] rounded-xl border border-foreground/10 p-0.5">
             <button
-              onClick={() => setViewMode("tree")}
+              onClick={() => setViewMode('tree')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                viewMode === "tree"
-                  ? "bg-bridge-accent text-white"
-                  : "text-slate-500 hover:text-foreground"
+                viewMode === 'tree'
+                  ? 'bg-bridge-accent text-white'
+                  : 'text-slate-500 hover:text-foreground'
               }`}
             >
               <Network size={14} />
-              {t("organization.chart.treeView", "Tree")}
+              {t('organization.chart.treeView', 'Tree')}
             </button>
             <button
-              onClick={() => setViewMode("list")}
+              onClick={() => setViewMode('list')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                viewMode === "list"
-                  ? "bg-bridge-accent text-white"
-                  : "text-slate-500 hover:text-foreground"
+                viewMode === 'list'
+                  ? 'bg-bridge-accent text-white'
+                  : 'text-slate-500 hover:text-foreground'
               }`}
             >
               <List size={14} />
-              {t("organization.chart.listView", "List")}
+              {t('organization.chart.listView', 'List')}
             </button>
           </div>
           <button
             onClick={expandAll}
             className="px-3 py-2 text-xs font-medium text-slate-500 hover:text-foreground hover:bg-foreground/5 rounded-xl transition-colors"
           >
-            {t("organization.chart.expandAll", "Expand All")}
+            {t('organization.chart.expandAll', 'Expand All')}
           </button>
           <button
             onClick={collapseAll}
             className="px-3 py-2 text-xs font-medium text-slate-500 hover:text-foreground hover:bg-foreground/5 rounded-xl transition-colors"
           >
-            {t("organization.chart.collapseAll", "Collapse All")}
+            {t('organization.chart.collapseAll', 'Collapse All')}
           </button>
         </div>
       </div>
@@ -421,24 +382,24 @@ export function OrgChartTab({
       <div className="flex items-center gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
           <UsersIcon size={14} />
-          {t("organization.chart.totalMembers", "{{count}} members", {
+          {t('organization.chart.totalMembers', '{{count}} members', {
             count: activeChartData?.total_members ?? 0,
           })}
         </span>
         <span className="flex items-center gap-1">
-          {groupMode === "jobGroup" ? <Briefcase size={14} /> : <Building2 size={14} />}
-          {groupMode === "jobGroup"
-            ? t("organization.chart.totalJobGroups", "{{count}}개 직군", {
+          {groupMode === 'jobGroup' ? <Briefcase size={14} /> : <Building2 size={14} />}
+          {groupMode === 'jobGroup'
+            ? t('organization.chart.totalJobGroups', '{{count}}개 직군', {
                 count: activeChartData?.departments.length ?? 0,
               })
-            : t("organization.chart.totalDepts", "{{count}} departments", {
+            : t('organization.chart.totalDepts', '{{count}} departments', {
                 count: chartData?.departments.length ?? 0,
               })}
         </span>
       </div>
 
       {/* Content */}
-      {viewMode === "tree" ? (
+      {viewMode === 'tree' ? (
         <DepartmentTreeView
           data={filteredData}
           collapsedDepts={collapsedDepts}
@@ -512,18 +473,15 @@ function DepartmentTreeView({
       <div className="flex flex-col items-center min-w-[400px] md:min-w-0">
         {/* Organization Root */}
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] px-6 py-4 text-center shadow-sm">
-          <div className="text-sm font-bold text-foreground">
-            {data.organization_name}
-          </div>
+          <div className="text-sm font-bold text-foreground">{data.organization_name}</div>
           <div className="text-xs text-muted-foreground mt-0.5">
             <span className="flex items-center justify-center gap-1">
               <UsersIcon size={12} />
               {data.total_members}
-              {t("organization.chart.members", "members")} ·{" "}
-              {data.departments.length}
-              {groupMode === "jobGroup"
-                ? t("organization.chart.jobGroups", "직군")
-                : t("organization.chart.depts", "depts")}
+              {t('organization.chart.members', 'members')} · {data.departments.length}
+              {groupMode === 'jobGroup'
+                ? t('organization.chart.jobGroups', '직군')
+                : t('organization.chart.depts', 'depts')}
             </span>
           </div>
         </div>
@@ -552,7 +510,7 @@ function DepartmentTreeView({
               <div className="flex items-center gap-2 justify-center">
                 <User size={14} className="text-slate-400" />
                 <span className="text-xs font-bold text-foreground">
-                  {t("organization.chart.unassigned", "Unassigned")}
+                  {t('organization.chart.unassigned', 'Unassigned')}
                 </span>
                 <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-500">
                   {data.unassigned.length}
@@ -587,7 +545,7 @@ function DeptChildrenRow({
           className="absolute top-0 left-1/2 -translate-x-1/2"
           style={{
             width: `calc(100% - ${100 / depts.length}%)`,
-            height: "1px",
+            height: '1px',
           }}
         >
           <div className="absolute inset-0 bg-foreground/10" />
@@ -609,9 +567,7 @@ function DeptChildrenRow({
   );
 }
 
-function flattenMemberNodes(
-  members: OrgChartMemberNode[],
-): OrgChartMemberNode[] {
+function flattenMemberNodes(members: OrgChartMemberNode[]): OrgChartMemberNode[] {
   const result: OrgChartMemberNode[] = [];
   const collect = (m: OrgChartMemberNode) => {
     result.push(m);
@@ -649,7 +605,7 @@ function DepartmentTreeNode({
         className="relative bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] min-w-[140px] max-w-[180px] md:min-w-[180px] md:max-w-[220px] shadow-sm hover:border-foreground/[0.12] transition-colors group"
       >
         <div
-          className={`px-4 py-3 ${hasChildren ? "cursor-pointer" : ""}`}
+          className={`px-4 py-3 ${hasChildren ? 'cursor-pointer' : ''}`}
           onClick={() => hasChildren && onToggleDept(dept.id)}
         >
           <div className="flex items-start justify-between gap-2">
@@ -662,8 +618,7 @@ function DepartmentTreeNode({
                   className="w-8 h-8 rounded-full object-cover shrink-0 cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (dept.leader?.member_id)
-                      onMemberClick(dept.leader.member_id);
+                    if (dept.leader?.member_id) onMemberClick(dept.leader.member_id);
                   }}
                 />
               ) : dept.leader ? (
@@ -671,17 +626,16 @@ function DepartmentTreeNode({
                   className="w-8 h-8 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0 cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (dept.leader?.member_id)
-                      onMemberClick(dept.leader.member_id);
+                    if (dept.leader?.member_id) onMemberClick(dept.leader.member_id);
                   }}
                 >
                   <span className="text-xs font-bold text-bridge-accent">
-                    {dept.leader.user_name?.charAt(0)?.toUpperCase() || "?"}
+                    {dept.leader.user_name?.charAt(0)?.toUpperCase() || '?'}
                   </span>
                 </div>
               ) : (
                 <div className="w-8 h-8 rounded-full bg-foreground/[0.03] flex items-center justify-center shrink-0">
-                  {groupMode === "jobGroup" ? (
+                  {groupMode === 'jobGroup' ? (
                     <Briefcase size={14} className="text-slate-400" />
                   ) : (
                     <Building2 size={14} className="text-slate-400" />
@@ -689,9 +643,7 @@ function DepartmentTreeNode({
                 </div>
               )}
               <div className="min-w-0">
-                <div className="text-xs font-bold text-foreground truncate">
-                  {dept.name}
-                </div>
+                <div className="text-xs font-bold text-foreground truncate">{dept.name}</div>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <UsersIcon size={10} />
                   <span>{dept.total_member_count}</span>
@@ -729,13 +681,11 @@ function DepartmentTreeNode({
                   ) : (
                     <div className="w-5 h-5 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0">
                       <span className="text-xs font-bold text-bridge-accent">
-                        {member.user_name?.charAt(0)?.toUpperCase() || "?"}
+                        {member.user_name?.charAt(0)?.toUpperCase() || '?'}
                       </span>
                     </div>
                   )}
-                  <span className="text-xs text-foreground truncate">
-                    {member.user_name}
-                  </span>
+                  <span className="text-xs text-foreground truncate">{member.user_name}</span>
                   {member.job_title && (
                     <span className="text-xs text-muted-foreground truncate hidden md:inline">
                       {member.job_title}
@@ -754,7 +704,7 @@ function DepartmentTreeNode({
               {dept.child_dept_count}
               <ChevronDown
                 size={10}
-                className={`transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                className={`transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
               />
             </span>
           </div>
@@ -766,7 +716,7 @@ function DepartmentTreeNode({
         {hasChildren && !isCollapsed && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
+            animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
             className="flex flex-col items-center overflow-hidden"
@@ -806,12 +756,7 @@ function flattenDepts(
     result.push({ dept, depth, visible });
     const isCollapsed = collapsedDepts.has(dept.id);
     result.push(
-      ...flattenDepts(
-        dept.children,
-        collapsedDepts,
-        depth + 1,
-        parentCollapsed || isCollapsed,
-      ),
+      ...flattenDepts(dept.children, collapsedDepts, depth + 1, parentCollapsed || isCollapsed),
     );
   }
   return result;
@@ -875,30 +820,20 @@ function ListView({
               >
                 {hasChildren || dept.members.length > 0 ? (
                   isCollapsed ? (
-                    <ChevronRight
-                      size={16}
-                      className="text-muted-foreground shrink-0"
-                    />
+                    <ChevronRight size={16} className="text-muted-foreground shrink-0" />
                   ) : (
-                    <ChevronDown
-                      size={16}
-                      className="text-muted-foreground shrink-0"
-                    />
+                    <ChevronDown size={16} className="text-muted-foreground shrink-0" />
                   )
                 ) : (
                   <div className="w-4 shrink-0" />
                 )}
-                {groupMode === "jobGroup" ? (
+                {groupMode === 'jobGroup' ? (
                   <Briefcase size={16} className="text-bridge-accent shrink-0" />
                 ) : (
                   <Building2 size={16} className="text-bridge-accent shrink-0" />
                 )}
-                <span className="text-sm font-bold text-foreground">
-                  {dept.name}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  ({dept.total_member_count})
-                </span>
+                <span className="text-sm font-bold text-foreground">{dept.name}</span>
+                <span className="text-xs text-muted-foreground">({dept.total_member_count})</span>
                 {dept.leader && (
                   <span className="text-xs text-muted-foreground hidden sm:inline">
                     · {dept.leader.user_name}
@@ -916,7 +851,7 @@ function ListView({
                 {!isCollapsed && dept.members.length > 0 && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
+                    animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.15 }}
                     className="overflow-hidden"
@@ -951,34 +886,26 @@ function ListView({
       {data.unassigned.length > 0 && (
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
           <button
-            onClick={() => onToggleDept("__unassigned__")}
+            onClick={() => onToggleDept('__unassigned__')}
             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-foreground/5 transition-colors"
           >
-            {collapsedDepts.has("__unassigned__") ? (
-              <ChevronRight
-                size={16}
-                className="text-muted-foreground shrink-0"
-              />
+            {collapsedDepts.has('__unassigned__') ? (
+              <ChevronRight size={16} className="text-muted-foreground shrink-0" />
             ) : (
-              <ChevronDown
-                size={16}
-                className="text-muted-foreground shrink-0"
-              />
+              <ChevronDown size={16} className="text-muted-foreground shrink-0" />
             )}
             <User size={16} className="text-slate-400 shrink-0" />
             <span className="text-sm font-bold text-foreground">
-              {t("organization.chart.unassigned", "Unassigned")}
+              {t('organization.chart.unassigned', 'Unassigned')}
             </span>
-            <span className="text-xs text-muted-foreground">
-              ({data.unassigned.length})
-            </span>
+            <span className="text-xs text-muted-foreground">({data.unassigned.length})</span>
           </button>
 
           <AnimatePresence>
-            {!collapsedDepts.has("__unassigned__") && (
+            {!collapsedDepts.has('__unassigned__') && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
+                animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.15 }}
                 className="overflow-hidden"
@@ -1041,26 +968,25 @@ function MemberListNode({
   const isEditing = managerEditMemberId === member.id;
 
   const CONTRACT_LABELS: Record<string, string> = {
-    FULL_TIME: t("organization.chart.fullTime", "Full-time"),
-    CONTRACT: t("organization.chart.contract", "Contract"),
-    INTERN: t("organization.chart.intern", "Intern"),
-    PART_TIME: t("organization.chart.partTime", "Part-time"),
+    FULL_TIME: t('organization.chart.fullTime', 'Full-time'),
+    CONTRACT: t('organization.chart.contract', 'Contract'),
+    INTERN: t('organization.chart.intern', 'Intern'),
+    PART_TIME: t('organization.chart.partTime', 'Part-time'),
   };
 
   const CONTRACT_COLORS: Record<string, string> = {
-    FULL_TIME: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-    CONTRACT: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-    INTERN: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-    PART_TIME: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
+    FULL_TIME: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+    CONTRACT: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+    INTERN: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+    PART_TIME: 'bg-purple-500/15 text-purple-600 dark:text-purple-400',
   };
 
   const filteredManagerCandidates = allMembers.filter(
     (m) =>
       m.id !== member.id &&
-      (managerSearch === "" ||
+      (managerSearch === '' ||
         m.user_name.toLowerCase().includes(managerSearch.toLowerCase()) ||
-        (m.job_title &&
-          m.job_title.toLowerCase().includes(managerSearch.toLowerCase()))),
+        (m.job_title && m.job_title.toLowerCase().includes(managerSearch.toLowerCase()))),
   );
 
   return (
@@ -1069,11 +995,7 @@ function MemberListNode({
         className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors group"
         style={{ paddingLeft: `${12 + depth * 24}px` }}
       >
-        {depth > 0 && (
-          <div className="text-muted-foreground text-xs select-none">
-            |--
-          </div>
-        )}
+        {depth > 0 && <div className="text-muted-foreground text-xs select-none">|--</div>}
 
         <button
           onClick={() => onMemberClick(member.id)}
@@ -1088,7 +1010,7 @@ function MemberListNode({
           ) : (
             <div className="w-8 h-8 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0">
               <span className="text-xs font-bold text-bridge-accent">
-                {member.user_name?.charAt(0)?.toUpperCase() || "?"}
+                {member.user_name?.charAt(0)?.toUpperCase() || '?'}
               </span>
             </div>
           )}
@@ -1104,10 +1026,9 @@ function MemberListNode({
               )}
               {!hrSystemEnabled && member.contract_type && (
                 <span
-                  className={`text-xs font-bold px-1.5 py-0.5 rounded-full hidden sm:inline ${CONTRACT_COLORS[member.contract_type] || "bg-slate-500/15 text-slate-500"}`}
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded-full hidden sm:inline ${CONTRACT_COLORS[member.contract_type] || 'bg-slate-500/15 text-slate-500'}`}
                 >
-                  {CONTRACT_LABELS[member.contract_type] ||
-                    member.contract_type}
+                  {CONTRACT_LABELS[member.contract_type] || member.contract_type}
                 </span>
               )}
             </div>
@@ -1126,7 +1047,7 @@ function MemberListNode({
                 onClick={() => onUpdateManager(member.id, null)}
                 disabled={updatingManager}
                 className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                title={t("organization.chart.removeManager", "Remove Manager")}
+                title={t('organization.chart.removeManager', 'Remove Manager')}
               >
                 <UserMinus size={12} />
               </button>
@@ -1134,10 +1055,10 @@ function MemberListNode({
               <button
                 onClick={() => {
                   onManagerEdit(member.id);
-                  onManagerSearchChange("");
+                  onManagerSearchChange('');
                 }}
                 className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-bridge-accent hover:bg-bridge-accent/10 rounded-lg transition-colors"
-                title={t("organization.chart.assignManager", "Assign Manager")}
+                title={t('organization.chart.assignManager', 'Assign Manager')}
               >
                 <UserPlus size={12} />
               </button>
@@ -1156,10 +1077,7 @@ function MemberListNode({
             autoFocus
             value={managerSearch}
             onChange={(e) => onManagerSearchChange(e.target.value)}
-            placeholder={t(
-              "organization.chart.searchManager",
-              "Search manager...",
-            )}
+            placeholder={t('organization.chart.searchManager', 'Search manager...')}
             className="w-full bg-transparent text-sm text-foreground placeholder-slate-500 outline-none mb-2 px-1"
           />
           <div className="max-h-40 overflow-y-auto space-y-0.5">
@@ -1179,7 +1097,7 @@ function MemberListNode({
                 ) : (
                   <div className="w-6 h-6 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0">
                     <span className="text-xs font-bold text-bridge-accent">
-                      {candidate.user_name?.charAt(0)?.toUpperCase() || "?"}
+                      {candidate.user_name?.charAt(0)?.toUpperCase() || '?'}
                     </span>
                   </div>
                 )}
@@ -1197,7 +1115,7 @@ function MemberListNode({
             ))}
             {filteredManagerCandidates.length === 0 && (
               <div className="text-xs text-muted-foreground text-center py-2">
-                {t("organization.chart.noResults", "No results")}
+                {t('organization.chart.noResults', 'No results')}
               </div>
             )}
           </div>
@@ -1205,7 +1123,7 @@ function MemberListNode({
             onClick={() => onManagerEdit(null)}
             className="w-full mt-1 text-xs text-muted-foreground hover:text-foreground text-center py-1"
           >
-            {t("common.cancel", "Cancel")}
+            {t('common.cancel', 'Cancel')}
           </button>
         </div>
       )}

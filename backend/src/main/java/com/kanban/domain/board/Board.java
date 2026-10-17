@@ -86,6 +86,26 @@ public class Board extends BaseTimeEntity {
     @Builder.Default
     private Integer taskSeq = 0;
 
+    /**
+     * 화면 복잡도 — 시간을 몇 겹으로 묶는가. 1=안 묶음 / 2=주기 / 3=단계▸주기.
+     * 사다리라 건너뛸 수 없고, 올릴 때 기존 카드·주기를 새 구조에 넣는 정리가 따라온다.
+     * 기본값 3은 마이그레이션(기존 보드 보존)용이며 신규 보드는 서비스가 1로 만든다.
+     */
+    @Column(name = "ui_level", nullable = false)
+    @Builder.Default
+    private Integer uiLevel = MIN_UI_LEVEL;
+
+    /**
+     * 레벨과 무관한 직교 옵션(쉼표 구분). {@link UiOption} 참고.
+     * 레벨이 사다리인 것과 달리 이쪽은 순서가 없어 승급 정리가 붙지 않는다.
+     */
+    @Column(name = "ui_options", nullable = false, length = 255)
+    @Builder.Default
+    private String uiOptions = UiOption.defaultOptions();
+
+    public static final int MIN_UI_LEVEL = 1;
+    public static final int MAX_UI_LEVEL = 3;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -93,6 +113,12 @@ public class Board extends BaseTimeEntity {
         }
         if (this.tier == BoardTier.TRIAL && this.trialEndsAt == null) {
             this.trialEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(7);
+        }
+        if (this.uiLevel == null) {
+            this.uiLevel = MIN_UI_LEVEL;
+        }
+        if (this.uiOptions == null) {
+            this.uiOptions = UiOption.defaultOptions();
         }
     }
 
@@ -157,6 +183,20 @@ public class Board extends BaseTimeEntity {
 
     public void updateSelectedMilestone(String milestoneId) {
         this.selectedMilestoneId = milestoneId;
+    }
+
+    /**
+     * 화면 복잡도 갱신. 둘 다 nullable이라 레벨만·옵션만 따로 바꿀 수 있다.
+     * 레벨은 범위 밖 값을 조용히 잘라내고, 옵션은 화이트리스트를 통과시켜 정규화한다 —
+     * 화면 설정은 실패시킬 이유가 없는 값이라 400보다 보정이 낫다.
+     */
+    public void updateUiConfig(Integer level, String options) {
+        if (level != null) {
+            this.uiLevel = Math.max(MIN_UI_LEVEL, Math.min(MAX_UI_LEVEL, level));
+        }
+        if (options != null) {
+            this.uiOptions = UiOption.sanitize(options);
+        }
     }
 
     /**

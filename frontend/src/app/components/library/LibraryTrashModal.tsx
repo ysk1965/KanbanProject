@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from 'react';
 import {
   FileText,
   Folder,
@@ -8,25 +8,17 @@ import {
   RotateCcw,
   Trash2,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
-import {
-  myNoteService,
-  noteService,
-  orgNoteService,
-} from "../../utils/services";
-import type {
-  NoteTrashItem,
-  StorageApi,
-  StorageTrashItem,
-} from "../../utils/api";
-import { formatRelativeTime } from "../../utils/dateUtils";
-import { MotionModal } from "../ui/MotionModal";
+import { myNoteService, noteService, orgNoteService } from '../../utils/services';
+import type { NoteTrashItem, StorageApi, StorageTrashItem } from '../../utils/api';
+import { formatRelativeTime } from '../../utils/dateUtils';
+import { MotionModal } from '../ui/MotionModal';
 
 interface LibraryTrashModalProps {
   open: boolean;
   onClose: () => void;
-  scopeType: "board" | "org" | "personal";
+  scopeType: 'board' | 'org' | 'personal';
   scopeId: string;
   storageApi: StorageApi;
   canPermanentDelete: boolean;
@@ -35,14 +27,14 @@ interface LibraryTrashModalProps {
 
 type Row =
   | {
-      kind: "note";
+      kind: 'note';
       id: string;
       title: string;
       when: string | null;
       type: string;
     }
   | {
-      kind: "file";
+      kind: 'file';
       id: string;
       title: string;
       when: string | null;
@@ -63,11 +55,7 @@ export function LibraryTrashModal({
   onChanged,
 }: LibraryTrashModalProps) {
   const svc =
-    scopeType === "personal"
-      ? myNoteService
-      : scopeType === "org"
-        ? orgNoteService
-        : noteService;
+    scopeType === 'personal' ? myNoteService : scopeType === 'org' ? orgNoteService : noteService;
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,14 +70,14 @@ export function LibraryTrashModal({
       ]);
       setRows([
         ...notes.map((n: NoteTrashItem): Row => ({
-          kind: "note",
+          kind: 'note',
           id: n.id,
           title: n.title,
           when: n.deleted_at,
           type: n.type,
         })),
         ...files.map((f: StorageTrashItem): Row => ({
-          kind: "file",
+          kind: 'file',
           id: f.id,
           title: f.name,
           when: f.deleted_at,
@@ -108,9 +96,9 @@ export function LibraryTrashModal({
   const restore = async (row: Row) => {
     setBusyId(row.id);
     try {
-      if (row.kind === "note") {
+      if (row.kind === 'note') {
         await svc.restoreFromTrash(scopeId, row.id);
-      } else if (row.type === "FOLDER") {
+      } else if (row.type === 'FOLDER') {
         await storageApi.restoreFolder(row.id);
       } else {
         await storageApi.restoreFile(row.id);
@@ -118,7 +106,7 @@ export function LibraryTrashModal({
       await load();
       onChanged();
     } catch (err) {
-      console.error("Failed to restore from library trash:", err);
+      console.error('Failed to restore from library trash:', err);
     } finally {
       setBusyId(null);
     }
@@ -128,9 +116,9 @@ export function LibraryTrashModal({
     if (!window.confirm(`"${row.title}"을(를) 영구 삭제할까요?`)) return;
     setBusyId(row.id);
     try {
-      if (row.kind === "note") {
+      if (row.kind === 'note') {
         await svc.permanentDelete(scopeId, row.id);
-      } else if (row.type === "FOLDER") {
+      } else if (row.type === 'FOLDER') {
         await storageApi.permanentDeleteFolder(row.id);
       } else {
         await storageApi.permanentDeleteFile(row.id);
@@ -138,24 +126,22 @@ export function LibraryTrashModal({
       await load();
       onChanged();
     } catch (err) {
-      console.error("Failed to permanently delete:", err);
+      console.error('Failed to permanently delete:', err);
     } finally {
       setBusyId(null);
     }
   };
 
   const iconOf = (row: Row) => {
-    if (row.kind === "file") {
-      return row.type === "FOLDER" ? (
+    if (row.kind === 'file') {
+      return row.type === 'FOLDER' ? (
         <Folder className="w-4 h-4 text-bridge-secondary" />
       ) : (
         <ImageIcon className="w-4 h-4 text-bridge-secondary" />
       );
     }
-    if (row.type === "FOLDER")
-      return <Folder className="w-4 h-4 text-bridge-accent" />;
-    if (row.type === "BOARD")
-      return <PenTool className="w-4 h-4 text-bridge-accent" />;
+    if (row.type === 'FOLDER') return <Folder className="w-4 h-4 text-bridge-accent" />;
+    if (row.type === 'BOARD') return <PenTool className="w-4 h-4 text-bridge-accent" />;
     return <FileText className="w-4 h-4 text-slate-400" />;
   };
 
@@ -169,9 +155,7 @@ export function LibraryTrashModal({
     >
       <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
         <Trash2 className="w-4 h-4 text-bridge-accent" />
-        <span className="text-sm font-bold text-foreground flex-1">
-          휴지통 — 노트와 파일
-        </span>
+        <span className="text-sm font-bold text-foreground flex-1">휴지통 — 노트와 파일</span>
         <button
           type="button"
           onClick={onClose}
@@ -188,9 +172,7 @@ export function LibraryTrashModal({
             <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
           </div>
         ) : rows.length === 0 ? (
-          <p className="text-xs text-slate-500 text-center py-10">
-            휴지통이 비어 있습니다
-          </p>
+          <p className="text-xs text-slate-500 text-center py-10">휴지통이 비어 있습니다</p>
         ) : (
           rows.map((row) => (
             <div
@@ -198,23 +180,20 @@ export function LibraryTrashModal({
               className="flex items-center gap-2.5 rounded-xl border border-foreground/[0.08] px-3 py-2.5"
             >
               {iconOf(row)}
-              <span
-                className="flex-1 min-w-0 truncate text-xs text-foreground"
-                title={row.title}
-              >
+              <span className="flex-1 min-w-0 truncate text-xs text-foreground" title={row.title}>
                 {row.title}
               </span>
               <span
                 className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
-                  row.kind === "note"
-                    ? "bg-bridge-accent/15 text-bridge-accent"
-                    : "bg-bridge-secondary/15 text-bridge-secondary"
+                  row.kind === 'note'
+                    ? 'bg-bridge-accent/15 text-bridge-accent'
+                    : 'bg-bridge-secondary/15 text-bridge-secondary'
                 }`}
               >
-                {row.kind === "note" ? "노트" : "파일"}
+                {row.kind === 'note' ? '노트' : '파일'}
               </span>
               <span className="text-xs text-slate-500 tabular-nums">
-                {row.when ? formatRelativeTime(row.when) : "—"}
+                {row.when ? formatRelativeTime(row.when) : '—'}
               </span>
               <button
                 type="button"

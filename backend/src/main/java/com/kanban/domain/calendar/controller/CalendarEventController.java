@@ -47,6 +47,17 @@ public class CalendarEventController {
                 calendarEventService.updateEvent(boardId, eventId, userPrincipal.getUserId(), request));
     }
 
+    @PutMapping("/{eventId}/memo")
+    public ResponseEntity<CalendarEventResponse.Item> updateMemo(
+            @PathVariable String boardId,
+            @PathVariable String eventId,
+            @Valid @RequestBody CalendarEventRequest.UpdateMemo request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(
+                calendarEventService.updateMemo(boardId, eventId, userPrincipal.getUserId(), request));
+    }
+
     @DeleteMapping("/{eventId}")
     public ResponseEntity<Void> deleteEvent(
             @PathVariable String boardId,

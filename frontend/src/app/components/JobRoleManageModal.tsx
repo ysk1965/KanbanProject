@@ -108,7 +108,7 @@ function SortableJobRoleRow({
       </button>
       <span
         className="w-3 h-3 rounded-full shrink-0"
-        style={{ backgroundColor: isEditing ? editColor : (role.color || '#6366F1') }}
+        style={{ backgroundColor: isEditing ? editColor : role.color || '#6366F1' }}
       />
       {isEditing ? (
         <>
@@ -161,11 +161,7 @@ function SortableJobRoleRow({
             </span>
           )}
           {canManage && (
-            <IconButton
-              aria-label={t('common.delete')}
-              onClick={() => onDelete(role)}
-              size="sm"
-            >
+            <IconButton aria-label={t('common.delete')} onClick={() => onDelete(role)} size="sm">
               <Trash2 />
             </IconButton>
           )}
@@ -193,9 +189,7 @@ export function JobRoleManageModal({
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState<string>('');
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -291,9 +285,7 @@ export function JobRoleManageModal({
 
   const handleDelete = async (role: JobRole) => {
     const count = role.member_count || 0;
-    const msg = count > 0
-      ? t('jobRole.deleteConfirm', { count })
-      : t('jobRole.deleteConfirmEmpty');
+    const msg = count > 0 ? t('jobRole.deleteConfirm', { count }) : t('jobRole.deleteConfirmEmpty');
     if (!confirm(msg)) return;
     try {
       await jobRoleService.remove(boardId, role.id);
@@ -316,9 +308,7 @@ export function JobRoleManageModal({
           <h2 className="text-sm md:text-base font-bold text-foreground tracking-tight">
             {t('jobRole.manage')}
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {t('jobRole.manageDesc')}
-          </p>
+          <p className="text-xs text-slate-500 mt-0.5">{t('jobRole.manageDesc')}</p>
         </div>
         <IconButton aria-label={t('common.close')} onClick={onClose} size="sm">
           <X />
@@ -376,13 +366,9 @@ export function JobRoleManageModal({
         )}
 
         {loading && roles.length === 0 ? (
-          <div className="py-8 text-center text-xs text-slate-500">
-            {t('common.loading')}
-          </div>
+          <div className="py-8 text-center text-xs text-slate-500">{t('common.loading')}</div>
         ) : roles.length === 0 ? (
-          <div className="py-8 text-center text-xs text-slate-500">
-            {t('jobRole.empty')}
-          </div>
+          <div className="py-8 text-center text-xs text-slate-500">{t('jobRole.empty')}</div>
         ) : (
           <DndContext
             sensors={sensors}
@@ -390,10 +376,7 @@ export function JobRoleManageModal({
             onDragEnd={handleDragEnd}
             modifiers={[restrictToVerticalAxis, restrictToParentElement]}
           >
-            <SortableContext
-              items={roles.map((r) => r.id)}
-              strategy={verticalListSortingStrategy}
-            >
+            <SortableContext items={roles.map((r) => r.id)} strategy={verticalListSortingStrategy}>
               <ul className="space-y-1.5">
                 {roles.map((role) => (
                   <SortableJobRoleRow

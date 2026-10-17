@@ -11,6 +11,9 @@
     "addImage": "Imagen",
     "addVideo": "Vídeo",
     "empty": "Añade un nodo desde la barra de herramientas para empezar",
+    "selectedCount": "{{count}} seleccionados",
+    "scaleDown": "Reducir selección",
+    "scaleUp": "Ampliar selección",
     "emptyReadOnly": "Este flujo está vacío",
     "dropHere": "Suelta imágenes o vídeos aquí",
     "mediaUploadFailed": "Error al subir el archivo. Comprueba el tamaño o el formato.",
@@ -105,7 +108,7 @@
       },
       "personal": {
         "title": "Personal Productivity Hub",
-        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+        "desc": "Eisenhower Matrix task board and habit tracker with streaks — your personal growth toolkit lives right next to your team workspace."
       }
     },
     "myspace": {
@@ -116,8 +119,7 @@
       "tabs": {
         "overview": "Overview",
         "matrix": "Matrix",
-        "habits": "Habits",
-        "diary": "AI Diary"
+        "habits": "Habits"
       },
       "matrix": {
         "title": "Eisenhower Matrix",
@@ -126,10 +128,6 @@
       "habits": {
         "title": "Habit Tracker",
         "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
-      },
-      "diary": {
-        "title": "AI Diary",
-        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
       },
       "calendar": {
         "title": "Personal Calendar",
@@ -210,11 +208,7 @@
       },
       "subtitle": "Más allá de dashboards y gráficos. La IA analiza tus tareas, bloques de tiempo, checklists y comentarios para generar insights narrativos que conectan lo que las personas podrían pasar por alto.",
       "titleLine1": "La IA lee el",
-      "titleLine2": "full context",
-      "diary": {
-        "title": "AI Conversational Diary",
-        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
-      }
+      "titleLine2": "full context"
     },
     "pricing": {
       "badge": "PREMIUM 7 DÍAS DE PRUEBA GRATIS",
@@ -369,7 +363,7 @@
     "searchPlaceholder": "Buscar proyectos...",
     "logout": "Cerrar sesión",
     "mySpace": "Mi espacio",
-    "mySpaceDesc": "Agenda personal y diario con IA",
+    "mySpaceDesc": "Agenda personal y hábitos",
     "mySpaceSetup": "Crea tu espacio personal",
     "mySpaceCreate": "Crear",
     "mySpaceIntroTitle": "Mi espacio",
@@ -380,8 +374,6 @@
     "mySpaceIntroHabitDesc": "Sigue tus hábitos diarios y crece de forma constante",
     "mySpaceIntroEventTitle": "Events",
     "mySpaceIntroEventDesc": "Gestiona horarios y eventos de un vistazo",
-    "mySpaceIntroDiaryTitle": "AI Diary",
-    "mySpaceIntroDiaryDesc": "Escribe un diario personal con ayuda de IA",
     "mySpaceIntroStart": "Comenzar",
     "mySpaceIntroClose": "Cerrar",
     "yourProjects": "Mis proyectos",
@@ -874,7 +866,9 @@
     "breakTime": "Hora de descanso",
     "breakTimeDesc": "El tiempo de descanso se excluye de las horas laborales",
     "effectiveHours": "Efectivas:",
-    "excludingBreak": "(sin {{hours}}h de descanso)"
+    "excludingBreak": "(sin {{hours}}h de descanso)",
+    "unplaceNotChecklist": "Solo se pueden devolver los bloques vinculados a un elemento de la lista.",
+    "unplaceFailed": "No se pudo mover a sin asignar."
   },
   "dailySummary": {
     "summaryButton": "Resumen",
@@ -1172,6 +1166,20 @@
     "progress": "Progreso del mantenimiento {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
   },
+  "serverDown": {
+    "title": "No se puede conectar con el servidor",
+    "subtitle": "El servidor se está actualizando o no responde temporalmente. La conexión se restablecerá automáticamente.",
+    "offlineTitle": "No tienes conexión a internet",
+    "offlineSubtitle": "Comprueba tu red. Volveremos a intentarlo automáticamente cuando vuelvas a estar en línea.",
+    "elapsed": "Desconectado",
+    "statusLabel": "Estado del servidor",
+    "statusUnreachable": "Sin respuesta",
+    "statusOffline": "Red perdida",
+    "checking": "Comprobando...",
+    "checkNow": "Reintentar ahora",
+    "autoRefresh": "Reconectando automáticamente cada 5 segundos",
+    "hint": "Los cambios sin guardar pueden haberse perdido. Esta pantalla se cerrará sola cuando el servidor vuelva."
+  },
   "nightShutdown": {
     "title": "Fuera del horario de servicio",
     "subtitle": "El mantenimiento del servidor se realiza a diario de 03:30 a 08:30 (KST)",
@@ -1379,6 +1387,7 @@
     "changeStatus": "Cambiar estado",
     "description": "Descripción",
     "noDescription": "Sin descripción",
+    "jiraDescriptionLocked": "Esta descripción la gestiona JIRA. Edítala en la incidencia de JIRA.",
     "period": "Período",
     "startDateTbd": "Fecha de inicio por definir",
     "endDateTbd": "Fecha de fin por definir",
@@ -1464,7 +1473,7 @@
     },
     "moveChecklistToTaskTitle": "Mover elemento de checklist",
     "moveCompletedSection": "Completadas",
-    "moveChecklistToTaskDesc": "Selecciona un task al que mover.",
+    "moveChecklistToTaskDesc": "Selecciona un task al que mover o crea uno nuevo.",
     "deleteChecklistTitle": "¿Eliminar elemento de lista de verificación?",
     "deleteChecklistDesc": "Los elementos eliminados no se pueden recuperar.",
     "date": "Fecha",
@@ -1522,7 +1531,8 @@
     "aiDecisions": "Decisiones",
     "aiOpenQuestions": "Preguntas Pendientes",
     "aiActionItems": "Elementos de Acción",
-    "checklist": "Checklist"
+    "checklist": "Checklist",
+    "download": "Descargar"
   },
   "mentionGroup": {
     "create": "Crear grupo de mención",
@@ -1685,7 +1695,6 @@
       "personalBoards": "Tableros Personales",
       "adoptionRate": "Tasa de Adopción",
       "activePersonalBoards": "Activos (30d)",
-      "totalDiaryEntries": "Entradas de Diario",
       "boardTypeDistribution": "Distribución de Tipos de Tablero"
     },
     "analytics": {
@@ -1721,11 +1730,6 @@
       "totalPersonalBoards": "Total Personal Boards",
       "adoptionRateLabel": "Tasa de adopción",
       "pbCreated": "PB creados",
-      "diaryEngagement": "Participación del diario",
-      "totalDiaryEntries": "Total entradas",
-      "diaryCompletionRate": "Tasa de finalización",
-      "diaryActiveUsers": "Usuarios activos",
-      "diaryEntries": "Entradas de diario",
       "pbConversion": "Conversión de Personal Board",
       "personalOnly": "Solo Personal",
       "personalAndTeam": "Personal + Team",
@@ -1992,8 +1996,6 @@
       "seatCountUpdateSuccess": "La cantidad de puestos se actualizó a {{count}}.",
       "updateSeatCount": "Actualizar puestos",
       "personalActivity": "Actividad Personal",
-      "diaryEntries": "Diario",
-      "completionRate": "{{rate}}% Completado",
       "events": "Eventos",
       "lastActivity": "Última Actividad"
     },
@@ -2350,7 +2352,8 @@
     "nextDay": "día siguiente",
     "custom": "Bloque personalizado",
     "orgScheduleLabel": "{{boardName}}",
-    "orgScheduleReadOnly": "Solo lectura (otro tablero)"
+    "orgScheduleReadOnly": "Solo lectura (otro tablero)",
+    "willUnplace": "Mover a sin asignar"
   },
   "scheduleDetail": {
     "title": "Detalles del bloque de tiempo",
@@ -2376,7 +2379,9 @@
     "editCustom": "Editar bloque",
     "titlePlaceholder": "Ingrese el nombre del horario",
     "viewMeeting": "Ver detalle de reunión",
-    "escClose": "Esc para cerrar"
+    "escClose": "Esc para cerrar",
+    "unplace": "Mover a sin asignar",
+    "unplaceHint": "Elimina los bloques de tiempo de este día y borra las fechas"
   },
   "emptyBoard": {
     "heading": "Comienza con tu tablero",
@@ -3164,7 +3169,76 @@
       "schedule": "Horario",
       "calendar": "Calendario",
       "notes": "Notas",
-      "diary": "Diario IA"
+      "features": "Funciones"
+    },
+    "features": {
+      "timetable": "Horario",
+      "timetable_new": "Nuevo horario",
+      "timetable_default_title": "Nuevo horario",
+      "songlist": "Lista de canciones",
+      "attendance": "Asistencia",
+      "soon": "Próximamente",
+      "soon_toast": "Próximamente",
+      "empty_title": "Crea tu primer horario",
+      "empty_desc": "Organiza ensayos y el orden del culto en una tabla y expórtala a PDF",
+      "saved_ago": "Guardado",
+      "saving": "Guardando…",
+      "duplicate": "Duplicar",
+      "export_pdf": "Exportar PDF",
+      "delete": "Eliminar",
+      "delete_confirm_title": "¿Eliminar este horario?",
+      "delete_confirm_desc": "Esta acción no se puede deshacer",
+      "untitled": "Sin título",
+      "timetable_editor": {
+        "add_column": "Añadir columna",
+        "add_day": "Añadir fecha",
+        "add_row": "Añadir fila",
+        "auto_merge": "Combinar iguales automáticamente",
+        "auto_merge_none": "No hay celdas consecutivas con el mismo valor",
+        "auto_merge_title": "Combina de una vez las celdas consecutivas de una columna con el mismo valor y color",
+        "auto_merged": "Se combinaron {{count}} lugares. Cada uno se deshace con “Separar”",
+        "cell_color": "Color de celda",
+        "color_default": "Predeterminado",
+        "column_deleted": "Columna eliminada",
+        "date": "Fecha",
+        "delete_column": "Eliminar columna",
+        "delete_day": "Eliminar fecha",
+        "delete_day_title": "Eliminar bloque de fecha",
+        "delete_row": "Eliminar fila",
+        "hint_idle": "Elige una celda y luego un color · arrastra o Shift+clic para seleccionar el rango a combinar",
+        "hint_selected": "Cambia el color o arrastra / Shift+clic para seleccionar un rango y combinar",
+        "merge": "Combinar celdas",
+        "merge_same_column_only": "Solo se puede combinar dentro de una misma columna",
+        "merged_rows": "Se combinaron {{count}} filas. “Separar” las restaura",
+        "move_left": "Mover columna a la izquierda",
+        "move_right": "Mover columna a la derecha",
+        "new_column": "Nueva columna",
+        "no_date": "Sin fecha",
+        "pick_cell_first": "Primero elige la celda a colorear",
+        "stat": "{{days}} días · {{rows}} filas · {{cols}} columnas · {{merged}} combinaciones",
+        "term_forgotten": "Se olvidó “{{value}}”",
+        "time_hint_filled": "Rellenado desde la hora de fin de la fila anterior",
+        "time_inverted": "El fin es anterior al inicio",
+        "unmerge": "Separar",
+        "unmerged": "Separado. Los valores ocultos vuelven tal como estaban",
+        "weekdays": "Dom,Lun,Mar,Mié,Jue,Vie,Sáb",
+        "time_cascaded": "Se desplazaron las {{count}} filas siguientes",
+        "insert_row_below": "Insertar fila debajo",
+        "drag_row": "Arrastrar para reordenar la fila",
+        "move_row_merged": "Primero separa las filas combinadas",
+        "pasted_grid": "Se pegaron {{rows}}×{{cols}} celdas",
+        "time_overlap": "Se solapa con la fila de arriba",
+        "sum_hours": "{{h}} h",
+        "sum_minutes": "{{m}} min",
+        "sum_hours_minutes": "{{h}} h {{m}} min",
+        "sum_breaks": "descansos {{d}}",
+        "undo": "Deshacer",
+        "redo": "Rehacer",
+        "copy_image": "Copiar como imagen",
+        "copy_image_done": "Imagen copiada al portapapeles",
+        "copy_image_saved": "No se pudo usar el portapapeles; se guardó como archivo",
+        "copy_image_failed": "No se pudo crear la imagen"
+      }
     },
     "overview": {
       "noEvents": "No hay eventos hoy",
@@ -3254,11 +3328,6 @@
       "checkInConfirm": "¿Completar \"{{name}}\" para hoy?",
       "checkInStreak": "¡Será una racha de {{count}} días!",
       "checkInComplete": "Completar"
-    },
-    "diary": {
-      "completionSuggestion": "Parece que hemos compartido mucho hoy. ¿Lo convertimos en una entrada de diario? ✨",
-      "continueChat": "Seguir hablando",
-      "dayCutoffHint": "Las entradas antes de las 5 AM cuentan como el día anterior"
     },
     "schedule": {
       "overlapWarning": "Se superpone con {{count}} evento(s)",
@@ -4571,6 +4640,11 @@
     "deleteAlbumConfirm": "¿Eliminar álbum?",
     "deleteAlbumWarning": "Eliminar este álbum también eliminará todas las fotos.",
     "deleteAlbumButton": "Eliminar",
+    "deletingAlbum": "Eliminando...",
+    "uploadedPhotos": "Fotos de este álbum",
+    "confirmDeletePhoto": "Toca de nuevo para eliminar",
+    "confirmDeleteShort": "¿Eliminar?",
+    "deletePhoto": "Eliminar foto",
     "deletePhotosConfirm": "¿Eliminar fotos?",
     "deletePhotosWarning": "Se eliminarán {{count}} fotos seleccionadas.",
     "photoDeleted": "Foto eliminada",
@@ -4653,7 +4727,24 @@
       "7d": "7 días",
       "30d": "30 días",
       "never": "Nunca"
-    }
+    },
+    "removeSelected": "Quitar",
+    "moreSelected": "+{{count}} más",
+    "failUnsupported": "Formato no compatible",
+    "failTooLarge": "Supera 30MB",
+    "failNetwork": "Error de red",
+    "failGeneric": "Error al subir",
+    "queueUploading": "Subidas {{done}} de {{total}}",
+    "queueDone": "{{count}} fotos subidas",
+    "queueKeepsRunning": "La subida continúa aunque cierres esta ventana",
+    "queueFailedCount": "{{count}} fallidas",
+    "queueAllDone": "Todas las fotos están en el álbum",
+    "retryFailed": "Reintentar {{count}} fallidas",
+    "showFailures": "Detalles",
+    "filesSkipped": "Se omitieron {{count}} archivos (formato no compatible o más de 30MB)",
+    "uploadStarted": "Subiendo {{count}} fotos. Puedes cerrar esta ventana.",
+    "clearAll": "Borrar todo",
+    "addToQueue": "Añadir {{count}} a la subida"
   },
   "listViewGroupBy": "Agrupar",
   "listViewSortBy": "Ordenar",
@@ -4676,11 +4767,13 @@
     "filterMyTasks": "Solo mis tareas",
     "toggleExpand": "Expandir/Contraer",
     "focusSearch": "Enfocar búsqueda",
+    "viewDashboard": "Vista panel",
     "viewKanban": "Vista Kanban",
     "viewList": "Vista de lista",
     "viewGantt": "Vista Gantt",
     "viewCalendar": "Vista calendario",
     "viewMilestone": "Vista hitos",
+    "viewMindmap": "Vista mapa mental",
     "addFeature": "Añadir Feature",
     "addBlock": "Añadir bloque",
     "resetFilters": "Restablecer filtros",
@@ -4755,5 +4848,53 @@
     "noSearchResults": "Sin resultados de búsqueda",
     "clearSearch": "Borrar búsqueda",
     "excludeFeature": "Quitar del mapa mental"
+  },
+  "checklistDetail": {
+    "open": "Abrir detalle",
+    "title": "Detalle del elemento",
+    "info": "Información",
+    "gallery": "Imágenes {{count}}",
+    "galleryHint": "De los comentarios",
+    "noImages": "Las imágenes de los comentarios aparecen aquí",
+    "comments": "Comentarios {{count}}",
+    "placeholder": "Comenta en este elemento…",
+    "empty": "Aún no hay conversación",
+    "emptyHint": "Deja el primer comentario",
+    "backToTask": "Ver todos los comentarios de la tarea",
+    "deletedBanner": "Elemento eliminado · solo lectura",
+    "chip": "Lista · {{title}}",
+    "unknownItem": "Elemento eliminado"
+  },
+  "inAppBrowser": {
+    "bannerText": "No se pueden guardar fotos dentro de {{app}}. Abre esta página en Safari o Chrome.",
+    "openButton": "Abrir en el navegador",
+    "howButton": "Cómo abrir",
+    "guideTitle": "Ábrelo en tu navegador",
+    "guideBody": "No se pueden guardar fotos dentro de {{app}}. Abre esta página en Safari o Chrome para guardarlas.",
+    "manualSteps": "Toca el menú ··· o de compartir en la parte superior o inferior de la pantalla y elige 'Abrir en Safari' (Abrir en navegador externo).",
+    "copyHint": "Si no hay ese menú, copia el enlace y pégalo en la barra de direcciones de Safari.",
+    "copyHintAuto": "Si el navegador no se abre, copia el enlace y pégalo en Safari o Chrome.",
+    "copyLink": "Copiar enlace",
+    "copied": "Copiado",
+    "apps": {
+      "kakaotalk": "KakaoTalk",
+      "line": "LINE",
+      "naver": "la app de NAVER",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "band": "BAND",
+      "daum": "la app de Daum",
+      "webview": "esta app"
+    }
+  },
+  "photoSave": {
+    "preparing": "Preparando fotos {{current}}/{{total}}",
+    "ready": "{{count}} listas para guardar",
+    "saveButton": "Guardar en Fotos",
+    "hint": "Toca 'Guardar imagen' en el menú de compartir para guardarlas en Fotos.",
+    "done": "{{count}} guardadas",
+    "cancelled": "Guardado cancelado",
+    "chunk": "Lote {{current}}/{{total}}",
+    "failed": "No se pudieron cargar {{count}}"
   }
 }

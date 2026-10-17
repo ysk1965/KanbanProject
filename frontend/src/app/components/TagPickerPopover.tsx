@@ -2,11 +2,7 @@ import { useState } from 'react';
 import { Tag } from '../types';
 import { Tags, Check, Search, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from './ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { TagManagementModal } from './TagManagementModal';
 
 interface TagPickerPopoverProps {
@@ -34,7 +30,7 @@ export function TagPickerPopover({
   const [isOpen, setIsOpen] = useState(false);
 
   const filteredTags = availableTags.filter((tag) =>
-    tag.name.toLowerCase().includes(search.toLowerCase())
+    tag.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -86,9 +82,7 @@ export function TagPickerPopover({
                       style={{ backgroundColor: tag.color }}
                     />
                     <span className="text-xs text-foreground flex-1 truncate">{tag.name}</span>
-                    {isSelected && (
-                      <Check size={14} className="text-bridge-accent flex-shrink-0" />
-                    )}
+                    {isSelected && <Check size={14} className="text-bridge-accent flex-shrink-0" />}
                   </button>
                 );
               })

@@ -116,8 +116,11 @@ module "rds" {
 }
 
 # Infrastructure Scheduler - Off-peak shutdown (KST 03:30~08:30, maintenance window)
-# Saves cost by stopping EC2 (EB) and RDS during the nightly maintenance window.
-# Startup fires at 08:15 (15min early) so RDS+EB are ready by the 08:30 resume time.
+# Saves cost by scaling EC2 (EB) to 0 during the nightly maintenance window.
+# RDS is kept running (stop_rds = false): on 2026-10-04 the morning start failed with
+# InsufficientDBInstanceCapacity (db.t4g.micro, ap-northeast-2b) and dev was down ~7h.
+# Stopping it only saved ~$3-4/month. A 10-min ensure_rds check restarts it if found stopped.
+# Startup fires at 08:15 (15min early) so EB is ready by the 08:30 resume time.
 module "infra_scheduler" {
   source = "../../modules/infra-scheduler"
 
@@ -130,6 +133,7 @@ module "infra_scheduler" {
   eb_min_instances    = 1
   eb_max_instances    = 2
   rds_instance_id     = "${var.project_name}-${var.environment}-db"
+  stop_rds            = false
   notification_email  = var.notification_email
 
   depends_on = [module.elastic_beanstalk, module.rds]
@@ -198,25 +202,27 @@ module "elastic_beanstalk" {
   alb_security_group_id = module.security_groups.alb_security_group_id
   ec2_security_group_id = module.security_groups.eb_ec2_security_group_id
 
-  instance_type       = "t3.small"
+  # t3.medium(4GB): 2026-10-06 t3.small(2GB) 에서 문서 미리보기(LibreOffice) 변환이 메모리를 바닥내
+  # 인스턴스를 하루 4번 마비시킴. JVM(~1.1GB) 과 soffice 가 공존할 여유를 둔다.
+  instance_type       = "t3.medium"
   min_instances       = 1
   max_instances       = 2
   associate_public_ip = "true" # Public subnet, no NAT
 
-  spring_profile        = "dev"
-  database_url          = module.rds.jdbc_url
-  db_username           = "kanban_admin"
-  db_password           = local.secret.db_password
-  redis_host            = ""
-  redis_port            = ""
-  jwt_secret            = local.secret.jwt_secret
-  claude_api_key        = local.secret.claude_api_key
-  openai_api_key        = local.secret.openai_api_key
-  openai_admin_key      = local.secret.openai_admin_key
-  mail_username         = local.secret.mail_username
-  mail_password         = local.secret.mail_password
-  google_client_id      = var.google_client_id
-  google_client_secret  = local.secret.google_client_secret
+  spring_profile       = "dev"
+  database_url         = module.rds.jdbc_url
+  db_username          = "kanban_admin"
+  db_password          = local.secret.db_password
+  redis_host           = ""
+  redis_port           = ""
+  jwt_secret           = local.secret.jwt_secret
+  claude_api_key       = local.secret.claude_api_key
+  openai_api_key       = local.secret.openai_api_key
+  openai_admin_key     = local.secret.openai_admin_key
+  mail_username        = local.secret.mail_username
+  mail_password        = local.secret.mail_password
+  google_client_id     = var.google_client_id
+  google_client_secret = local.secret.google_client_secret
   # domain_name(bridgespots.com)은 인증서/DNS/CloudFront alias 용도로 유지하고,
   # 백엔드가 생성하는 프론트 링크(리포트 /r/, 이메일, 슬랙·디스코드 알림, OAuth 리다이렉트 등)는
   # milkyway.pe.kr로 통일한다. 두 도메인 모두 같은 CloudFront/S3에서 서빙되므로 링크는 정상 동작한다.
@@ -341,6 +347,9 @@ locals {
 # S3 + CloudFront Module
 module "s3_cloudfront" {
   source = "../../modules/s3-cloudfront"
+
+  # 한국 공개 서비스 — 한국·일본 엣지 포함 (모듈 dev 기본값 PriceClass_100은 한국 사용자를 SFO로 보냄)
+  price_class = "PriceClass_200"
 
   # og-preview Lambda@Edge는 us-east-1에 생성해야 하므로 전용 provider를 전달한다.
   providers = {
@@ -614,7 +623,7 @@ resource "aws_cloudfront_response_headers_policy" "attachments_cors" {
 resource "aws_cloudfront_distribution" "attachments" {
   enabled         = true
   is_ipv6_enabled = true
-  price_class     = "PriceClass_100"
+  price_class     = "PriceClass_200" # 한국 공개 서비스 — 한국·일본 엣지 포함 (100은 한국 사용자를 SFO로 보냄)
   comment         = "${var.project_name} ${var.environment} attachments CDN"
 
   origin {

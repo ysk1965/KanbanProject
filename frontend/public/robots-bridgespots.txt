@@ -1,0 +1,14 @@
+# BRIDGE SPOTS - robots.txt
+User-agent: *
+Allow: /
+Disallow: /boards
+Disallow: /boards/*
+Disallow: /settings
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /email-pending
+Disallow: /verify-email/*
+Disallow: /reset-password/*
+Disallow: /invite/*
+
+Sitemap: https://bridgespots.com/sitemap.xml

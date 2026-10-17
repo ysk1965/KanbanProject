@@ -33,6 +33,27 @@ public class NoteRequest {
 
         private String content;
         private List<String> tagIds;
+
+        /** 이번 저장으로 버전이 만들어질 때 붙일 메모 (JSON: version_note). 선택. */
+        @Size(max = 500, message = "버전 메모는 500자 이내여야 합니다")
+        private String versionNote;
+    }
+
+    /** PATCH .../versions/{versionId}/note */
+    @Getter
+    @NoArgsConstructor
+    public static class VersionNote {
+        /** null/공백이면 메모를 지운다 */
+        @Size(max = 500, message = "버전 메모는 500자 이내여야 합니다")
+        private String note;
+    }
+
+    /** PUT .../notes/{noteId}/status */
+    @Getter
+    @NoArgsConstructor
+    public static class Status {
+        /** DRAFT | IN_REVIEW | DONE | null(해제) */
+        private String status;
     }
 
     @Getter

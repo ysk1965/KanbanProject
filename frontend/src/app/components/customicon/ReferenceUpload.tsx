@@ -9,25 +9,36 @@ interface ReferenceUploadProps {
   isUploading: boolean;
 }
 
-export function ReferenceUpload({ referenceId, referenceUrl, onUpload, isUploading }: ReferenceUploadProps) {
+export function ReferenceUpload({
+  referenceId,
+  referenceUrl,
+  onUpload,
+  isUploading,
+}: ReferenceUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      onUpload(file);
-    }
-  }, [onUpload]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) {
+        onUpload(file);
+      }
+    },
+    [onUpload],
+  );
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onUpload(file);
-    }
-    e.target.value = '';
-  }, [onUpload]);
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        onUpload(file);
+      }
+      e.target.value = '';
+    },
+    [onUpload],
+  );
 
   return (
     <div className="space-y-3">
@@ -50,15 +61,20 @@ export function ReferenceUpload({ referenceId, referenceUrl, onUpload, isUploadi
         </div>
       ) : (
         <div
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
           className={`
             relative flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed
             transition-all cursor-pointer
-            ${isDragging
-              ? 'border-bridge-accent bg-bridge-accent/10'
-              : 'border-white/10 hover:border-white/20 hover:bg-white/5'}
+            ${
+              isDragging
+                ? 'border-bridge-accent bg-bridge-accent/10'
+                : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+            }
           `}
         >
           <input

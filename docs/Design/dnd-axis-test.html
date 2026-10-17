@@ -1,0 +1,1475 @@
+<meta charset="utf-8">
+<title>확정도 축 드래그앤드롭 — 시연 보드</title>
+
+<style>
+  :root {
+    color-scheme: light;
+    --ground: #FBF7F0;
+    --panel: #FFFFFF;
+    --panel-2: #F3EDE3;
+    --sunk: #EDE5D8;
+    --ink: #2B2434;
+    --ink-2: #5C5568;
+    --muted: #85808F;
+    --line: #E3DACC;
+    --line-2: #D3C8B6;
+
+    --workload: #4F4FD4;
+    --rail: #0E9F91;
+    --timeblock: #C97A18;
+    --backlog: #7C5CD6;
+    --danger: #D4304C;
+
+    --shadow: 0 1px 2px rgba(43, 36, 52, .06), 0 8px 24px -16px rgba(43, 36, 52, .22);
+
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard,
+      "Apple SD Gothic Neo", "Segoe UI", "Noto Sans KR", system-ui, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --ground: #191f2d;
+      --panel: #151B28;
+      --panel-2: #1E2637;
+      --sunk: #121824;
+      --ink: #E9EBF3;
+      --ink-2: #A8AFC4;
+      --muted: #7C86A0;
+      --line: #2A3348;
+      --line-2: #3A4560;
+      --workload: #8A8AFF;
+      --rail: #2DD4BF;
+      --timeblock: #F2A33C;
+      --backlog: #B79CFF;
+      --danger: #FF6B85;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -20px rgba(0, 0, 0, .8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #191f2d;
+    --panel: #151B28;
+    --panel-2: #1E2637;
+    --sunk: #121824;
+    --ink: #E9EBF3;
+    --ink-2: #A8AFC4;
+    --muted: #7C86A0;
+    --line: #2A3348;
+    --line-2: #3A4560;
+    --workload: #8A8AFF;
+    --rail: #2DD4BF;
+    --timeblock: #F2A33C;
+    --backlog: #B79CFF;
+    --danger: #FF6B85;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -20px rgba(0, 0, 0, .8);
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --ground: #FBF7F0;
+    --panel: #FFFFFF;
+    --panel-2: #F3EDE3;
+    --sunk: #EDE5D8;
+    --ink: #2B2434;
+    --ink-2: #5C5568;
+    --muted: #85808F;
+    --line: #E3DACC;
+    --line-2: #D3C8B6;
+    --workload: #4F4FD4;
+    --rail: #0E9F91;
+    --timeblock: #C97A18;
+    --backlog: #7C5CD6;
+    --danger: #D4304C;
+    --shadow: 0 1px 2px rgba(43, 36, 52, .06), 0 8px 24px -16px rgba(43, 36, 52, .22);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 20px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 52px;
+  }
+
+  /* ── 머리말 ── */
+  .masthead { display: flex; flex-direction: column; gap: 16px; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(27px, 4vw, 38px);
+    line-height: 1.18;
+    letter-spacing: -.025em;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+
+  .lede { margin: 0; max-width: 64ch; color: var(--ink-2); font-size: 16px; }
+
+  h2 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  h3 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+  p { margin: 0; }
+  section { display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── 진행 계기 ── */
+  .meter {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 18px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+  }
+
+  .meter-track { flex: 1; height: 6px; border-radius: 99px; background: var(--panel-2); overflow: hidden; }
+
+  .meter-fill {
+    height: 100%; width: 0%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--rail), var(--workload));
+    transition: width .35s cubic-bezier(.4, 0, .2, 1);
+  }
+
+  .meter-num {
+    font-family: var(--mono); font-size: 13px;
+    font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap;
+  }
+
+  .btn {
+    font: inherit; font-size: 12px; font-weight: 700;
+    color: var(--ink-2); background: none;
+    border: 1px solid var(--line-2); border-radius: 8px;
+    padding: 4px 11px; cursor: pointer; white-space: nowrap;
+  }
+
+  .btn:hover { color: var(--ink); border-color: var(--ink-2); }
+
+  /* ── 시연 보드 ── */
+  .stage {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .stage-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 16px; border-bottom: 1px solid var(--line);
+    background: var(--panel-2);
+    min-height: 50px;
+  }
+
+  .stage-bar .hint { font-size: 12.5px; color: var(--muted); }
+
+  #notice { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; font-size: 13px; }
+  #notice .msg { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #notice.ok .msg { color: var(--ink); }
+  #notice.bad .msg { color: var(--danger); font-weight: 700; }
+
+  .board {
+    display: grid;
+    grid-template-columns: 292px 1fr;
+    gap: 12px;
+    padding: 12px;
+    background: var(--sunk);
+    align-items: start;
+  }
+
+  .col-right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+  .zone {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    display: flex; flex-direction: column;
+    min-width: 0;
+    transition: border-color .15s ease, background .15s ease;
+  }
+
+  .zone.armed { border-color: color-mix(in srgb, var(--workload) 50%, var(--line)); }
+  .zone.over { border-color: var(--workload); background: color-mix(in srgb, var(--workload) 9%, var(--panel)); }
+  .zone.deny { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, var(--panel)); }
+
+  .zone-head {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 9px 12px; border-bottom: 1px solid var(--line);
+    flex: none;
+  }
+
+  .zone-head b { font-size: 13px; font-weight: 700; }
+  .zone-head .slug { font-family: var(--mono); font-size: 10.5px; color: var(--muted); letter-spacing: .06em; }
+  .zone-head .cnt { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+  /* 타임블록 */
+  #timeblock { height: 520px; }
+  .tb-scroll { flex: 1; min-height: 0; overflow-y: auto; position: relative; }
+  .tb-grid { position: relative; }
+
+  .tb-row { display: flex; height: 26px; border-bottom: 1px solid var(--line); }
+
+  .tb-time {
+    width: 46px; flex: none; padding-right: 7px;
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    text-align: right; line-height: 26px; border-right: 1px solid var(--line);
+  }
+
+  .tb-slot { flex: 1; min-width: 0; }
+  .tb-slot.lunch {
+    background-image: repeating-linear-gradient(45deg, transparent, transparent 4px,
+      color-mix(in srgb, var(--timeblock) 22%, transparent) 4px,
+      color-mix(in srgb, var(--timeblock) 22%, transparent) 8px);
+  }
+  .tb-slot.hit { background: color-mix(in srgb, var(--workload) 32%, transparent); }
+  .tb-slot.hit-bad { background: color-mix(in srgb, var(--danger) 26%, transparent); }
+
+  .tb-blocks { position: absolute; inset: 0 0 0 46px; pointer-events: none; }
+
+  .tb-block {
+    position: absolute; left: 4px; right: 4px;
+    border-radius: 6px; padding: 3px 7px;
+    font-size: 11.5px; font-weight: 700; line-height: 1.3;
+    color: #10131c; overflow: hidden;
+    pointer-events: auto; cursor: grab; touch-action: none;
+    border: 1px solid rgba(0, 0, 0, .18);
+  }
+
+  .tb-block small { display: block; font-weight: 400; opacity: .78; font-size: 10.5px; }
+
+  /* 간트 — 좁은 화면에서는 날짜 칸이 뭉개지므로 가로로만 스크롤한다 */
+  #gantt { min-height: 168px; }
+  .gt-scroll { overflow-x: auto; }
+  .gt-inner { min-width: 520px; }
+  .gt-head { display: flex; padding: 0 10px; border-bottom: 1px solid var(--line); }
+  .gt-name { width: 74px; flex: none; }
+  .gt-day {
+    flex: 1; text-align: center; padding: 5px 0;
+    font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
+    border-left: 1px solid var(--line);
+  }
+  .gt-day.today { color: var(--workload); font-weight: 700; }
+  .gt-day.weekend { color: color-mix(in srgb, var(--muted) 70%, transparent); }
+
+  .gt-body { display: flex; padding: 0 10px 10px; }
+  .gt-owner { width: 74px; flex: none; padding-top: 12px; font-size: 12px; font-weight: 700; }
+  .gt-track { flex: 1; position: relative; min-height: 66px; }
+  .gt-cells { position: absolute; inset: 0; display: flex; }
+  .gt-cell { flex: 1; border-left: 1px solid var(--line); }
+  .gt-cell.today { background: color-mix(in srgb, var(--workload) 7%, transparent); }
+  .gt-cell.hit { background: color-mix(in srgb, var(--workload) 26%, transparent); }
+
+  .gt-bar {
+    position: absolute; height: 22px; border-radius: 6px;
+    padding: 0 8px; font-size: 11.5px; font-weight: 700; line-height: 22px;
+    color: #10131c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    cursor: grab; touch-action: none; border: 1px solid rgba(0, 0, 0, .18);
+  }
+
+  .gt-empty, .list-empty {
+    padding: 16px 12px; font-size: 12.5px; color: var(--muted); text-align: center;
+  }
+
+  /* 레일 · 백로그 */
+  #rail { min-height: 132px; }
+  .rail-list { flex: 1; min-height: 0; max-height: 168px; overflow-y: auto; }
+
+  .rail-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-bottom: 1px solid var(--line);
+    cursor: grab; touch-action: none; font-size: 12.5px;
+  }
+
+  .rail-row:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+  .rail-row .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rail-row .task { flex: none; font-size: 11px; color: var(--muted); }
+
+  .chip {
+    flex: none; display: inline-flex; align-items: center; gap: 5px;
+    max-width: 116px; padding: 1px 8px 1px 6px; border-radius: 99px;
+    font-size: 11px; font-weight: 700;
+  }
+  .chip i { width: 6px; height: 6px; border-radius: 2px; flex: none; }
+  .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  #backlog .bl-list { display: flex; gap: 8px; padding: 10px 12px; overflow-x: auto; }
+
+  .bl-card {
+    flex: none; width: 168px; padding: 8px 10px;
+    background: color-mix(in srgb, var(--backlog) 12%, var(--panel));
+    border: 1px solid color-mix(in srgb, var(--backlog) 36%, transparent);
+    border-radius: 9px; font-size: 12px; line-height: 1.45;
+    cursor: grab; touch-action: none;
+  }
+
+  /* 드래그 잔상 */
+  #ghost {
+    position: fixed; z-index: 90; pointer-events: none;
+    display: none; align-items: center; gap: 7px;
+    max-width: 240px; padding: 6px 11px;
+    background: var(--panel); border: 1px solid var(--line-2);
+    border-radius: 9px; box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .5);
+    font-size: 12px; font-weight: 700; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* 승격 모달 */
+  #modal {
+    position: fixed; inset: 0; z-index: 100;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(6, 8, 14, .55); padding: 20px;
+  }
+  #modal.open { display: flex; }
+
+  .modal-box {
+    width: 100%; max-width: 380px;
+    background: var(--panel); border: 1px solid var(--line-2);
+    border-radius: 14px; overflow: hidden; box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .7);
+  }
+
+  .modal-box header { padding: 14px 18px 10px; border-bottom: 1px solid var(--line); }
+  .modal-box header b { font-size: 14px; }
+  .modal-box header p { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .modal-opts { display: flex; flex-direction: column; padding: 8px; gap: 4px; }
+
+  .modal-opts button {
+    font: inherit; font-size: 13px; text-align: left;
+    padding: 9px 12px; border-radius: 9px;
+    background: none; border: 1px solid transparent; color: var(--ink); cursor: pointer;
+  }
+  .modal-opts button:hover { background: color-mix(in srgb, var(--workload) 14%, transparent); border-color: color-mix(in srgb, var(--workload) 40%, transparent); }
+  .modal-foot { display: flex; justify-content: flex-end; padding: 10px 14px; border-top: 1px solid var(--line); }
+
+  /* ── 경로 현황 ── */
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 12px 5px 6px; border-radius: 99px;
+    border: 1px solid var(--line-2); background: var(--panel);
+    font-size: 12.5px; color: var(--ink-2); cursor: pointer;
+    transition: all .15s ease;
+  }
+
+  .pill .n {
+    display: grid; place-items: center;
+    width: 19px; height: 19px; border-radius: 6px;
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    background: var(--panel-2); color: var(--muted);
+  }
+
+  .pill.done { border-color: var(--rail); color: var(--ink); }
+  .pill.done .n { background: var(--rail); color: #0b1512; }
+  .pill:hover, .pill.is-hot { border-color: var(--workload); color: var(--ink); }
+
+  /* ── 표 ── */
+  .matrix-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 580px; font-size: 13.5px; }
+  th, td { padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--line); }
+  thead th { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; white-space: nowrap; }
+  tbody th { font-weight: 700; white-space: nowrap; }
+  td { color: var(--ink-2); }
+  td.yes { color: var(--ink); }
+  td.self { color: var(--muted); background: color-mix(in srgb, var(--panel-2) 60%, transparent); }
+
+  .ref {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 19px; height: 19px; padding: 0 5px; margin-right: 7px;
+    border-radius: 6px; font-family: var(--mono); font-size: 11px; font-weight: 700;
+    color: #fff; vertical-align: 1px;
+  }
+
+  /* ── 경로 카드 ── */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; }
+
+  .card {
+    display: flex; flex-direction: column; gap: 13px; padding: 17px;
+    background: var(--panel); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent, var(--line-2));
+    border-radius: 14px; box-shadow: var(--shadow);
+    transition: border-color .18s ease, transform .18s ease;
+    scroll-margin-top: 24px;
+  }
+
+  .card.is-hot { transform: translateY(-2px); border-color: var(--accent); }
+  .card.is-done .card-head .ref { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+
+  .card-head { display: flex; align-items: flex-start; gap: 11px; }
+  .card-head .ref { background: var(--accent); flex: none; margin: 3px 0 0; }
+  .card-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .route { font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em; color: var(--muted); }
+  .route b { color: var(--accent); font-weight: 700; }
+
+  .state {
+    flex: none; font-size: 11px; font-weight: 700; padding: 2px 9px;
+    border-radius: 99px; border: 1px solid var(--line-2); color: var(--muted);
+    white-space: nowrap;
+  }
+  .card.is-done .state { border-color: var(--rail); color: var(--rail); }
+
+  dl { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  .row { display: grid; grid-template-columns: 58px 1fr; gap: 12px; align-items: baseline; }
+  dt { font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+  dd { margin: 0; font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
+  dd strong { color: var(--ink); font-weight: 700; }
+  .warn { color: var(--danger); }
+
+  .foot { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 11px; border-top: 1px solid var(--line); }
+
+  .tag {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em;
+    padding: 2px 7px; border-radius: 6px;
+    background: var(--panel-2); color: var(--muted); border: 1px solid var(--line);
+  }
+  .tag.new { color: var(--rail); border-color: color-mix(in srgb, var(--rail) 45%, transparent); }
+
+  /* ── 메모 ── */
+  .notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+
+  .note {
+    padding: 17px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .note h3 { font-size: 14.5px; }
+  .note ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 7px; }
+  .note li { font-size: 13.5px; color: var(--ink-2); }
+  .note li b { color: var(--ink); font-weight: 700; }
+
+  .caveat {
+    padding: 16px 18px; border: 1px dashed var(--line-2); border-radius: 14px;
+    font-size: 13.5px; color: var(--ink-2); max-width: 76ch;
+  }
+
+  :focus-visible { outline: 2px solid var(--workload); outline-offset: 2px; border-radius: 6px; }
+
+  body.dragging { cursor: grabbing; user-select: none; }
+  body.dragging * { cursor: grabbing !important; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  @media (max-width: 860px) {
+    .board { grid-template-columns: 1fr; }
+    #timeblock { height: 420px; }
+  }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 28px 14px 72px; gap: 40px; }
+    .row { grid-template-columns: 1fr; gap: 2px; }
+    .rail-row .task { display: none; }
+    .stage-bar { flex-wrap: wrap; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Bridge · 대시보드 확정도 축</p>
+    <h1>끌어서 옮겨 보는 타임블록 · 미배치 · 워크로드</h1>
+    <p class="lede">
+      네 영역은 “얼마나 정해졌는가”로 한 줄에 놓여 있습니다. 아직 아무것도 아닌 <b>백로그</b>,
+      태스크에는 붙었지만 날짜가 없는 <b>미배치</b>, 며칠에 할지 정해진 <b>워크로드</b>,
+      몇 시에 할지까지 정해진 <b>타임블록</b>. 아래 보드는 실제 규칙을 그대로 옮겨 놓은 것입니다 —
+      직접 끌어 보면 그 경로가 목록에서 켜집니다.
+    </p>
+    <div class="meter">
+      <div class="meter-track"><div class="meter-fill" id="fill"></div></div>
+      <span class="meter-num" id="count">0 / 9 해 봄</span>
+      <button type="button" class="btn" id="resetProgress">진행 초기화</button>
+    </div>
+  </header>
+
+  <section>
+    <h2>시연 보드</h2>
+
+    <div class="stage">
+      <div class="stage-bar">
+        <div id="notice">
+          <span class="msg hint">막대와 행을 잡아 다른 영역으로 끌어 보세요. 막힌 방향은 빨갛게 거절합니다.</span>
+          <button type="button" class="btn" id="undo" style="display: none">되돌리기</button>
+        </div>
+        <button type="button" class="btn" id="resetBoard">보드 처음으로</button>
+      </div>
+
+      <div class="board">
+        <div class="zone" id="timeblock" data-zone="timeblock">
+          <div class="zone-head">
+            <b>오늘의 타임블록</b>
+            <span class="slug">timeblock</span>
+            <span class="cnt">8/7 (금)</span>
+          </div>
+          <div class="tb-scroll">
+            <div class="tb-grid" id="tbGrid"></div>
+          </div>
+        </div>
+
+        <div class="col-right">
+          <div class="zone" id="gantt" data-zone="gantt">
+            <div class="zone-head">
+              <b>내 워크로드</b>
+              <span class="slug">workload</span>
+              <span class="cnt" id="ganttCount"></span>
+            </div>
+            <div class="gt-scroll">
+              <div class="gt-inner">
+                <div class="gt-head" id="gtHead"></div>
+                <div class="gt-body">
+                  <div class="gt-owner">유상건</div>
+                  <div class="gt-track" id="gtTrack"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="zone" id="rail" data-zone="rail">
+            <div class="zone-head">
+              <b>미배치 레일</b>
+              <span class="slug">placement</span>
+              <span class="cnt" id="railCount"></span>
+            </div>
+            <div class="rail-list" id="railList"></div>
+          </div>
+
+          <div class="zone" id="backlog" data-zone="backlog">
+            <div class="zone-head">
+              <b>내 백로그</b>
+              <span class="slug">backlog</span>
+              <span class="cnt" id="backlogCount"></span>
+            </div>
+            <div class="bl-list" id="blList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pills" id="pills"></div>
+  </section>
+
+  <section>
+    <h2>방향 정리</h2>
+    <div class="matrix-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>출발 ↓ / 도착 →</th>
+            <th>워크로드</th>
+            <th>미배치</th>
+            <th>타임블록</th>
+            <th>백로그</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>워크로드 바</th>
+            <td class="self">날짜 이동 · 기간 조절 · 담당자 행 변경</td>
+            <td class="yes"><span class="ref" style="background: var(--workload)">2</span>일정 해제</td>
+            <td class="yes"><span class="ref" style="background: var(--workload)">4</span>블록 생성 + 날짜 재배치</td>
+            <td class="yes"><span class="ref" style="background: var(--workload)">8</span>강등</td>
+          </tr>
+          <tr>
+            <th>미배치 행</th>
+            <td class="yes"><span class="ref" style="background: var(--rail)">1</span>날짜 배치</td>
+            <td class="self">—</td>
+            <td class="yes"><span class="ref" style="background: var(--rail)">3</span>블록 생성 + 날짜 배치</td>
+            <td class="yes"><span class="ref" style="background: var(--rail)">6</span>강등</td>
+          </tr>
+          <tr>
+            <th>타임블록 블록</th>
+            <td>막힘</td>
+            <td class="yes"><span class="ref" style="background: var(--timeblock)">5</span>블록 삭제 + 일정 해제</td>
+            <td class="self">시간 이동 · 길이 조절 · 분할</td>
+            <td>막힘</td>
+          </tr>
+          <tr>
+            <th>백로그 카드</th>
+            <td class="yes"><span class="ref" style="background: var(--backlog)">9</span>승격 (날짜까지)</td>
+            <td class="yes"><span class="ref" style="background: var(--backlog)">7</span>승격 (날짜 없이)</td>
+            <td>막힘</td>
+            <td class="self">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caveat">
+      막힌 세 칸은 버그가 아니라 설계입니다. 블록이 나갈 수 있는 곳은 미배치 레일 하나뿐이고,
+      아직 태스크도 아닌 백로그 카드는 시각까지 한 번에 정할 수 없습니다.
+      백로그에서 타임블록으로 가려면 레일이나 간트를 한 번 거쳐야 합니다.
+    </p>
+  </section>
+
+  <section>
+    <h2>경로별 실제 동작</h2>
+    <div class="cards" id="cards">
+
+      <article class="card" data-path="1" style="--accent: var(--rail)">
+        <div class="card-head">
+          <span class="ref">1</span>
+          <div class="card-title">
+            <h3>미배치 행을 간트 날짜 칸에 놓기</h3>
+            <span class="route"><b>placement</b> → workload</span>
+          </div>
+          <span class="state">안 해 봄</span>
+        </div>
+        <dl>
+          <div class="row"><dt>조작</dt><dd>레일의 행을 아무 데나 잡아 간트의 <strong>담당자 행 × 날짜 칸</strong>에 떨어뜨립니다. 「오늘」·「내일」 버튼 위를 잡으면 끌리지 않습니다.</dd></div>
+          <div class="row"><dt>결과</dt><dd>그 날짜로 시작·마감이 잡히고 바가 생깁니다. 시작일이 이미 그 날짜보다 앞서 있으면 <strong>기간을 살리고 마감만</strong> 옮깁니다. 놓은 행의 담당자로 재배정됩니다.</dd></div>
+          <div class="row"><dt>확인</dt><dd>위쪽에 「…에 배치됨」 안내와 <strong>되돌리기</strong>가 8초간 뜹니다.</dd></div>
+          <div class="row"><dt>대체</dt><dd>행의 <strong>「오늘」 「내일」</strong> 버튼 — 담당자는 건드리지 않습니다.</dd></div>
+        </dl>
+        <div class="foot"><span class="tag">HTML5 드래그</span><span class="tag">application/checklist-item</span></div>
+      </article>
+
+      <article class="card" data-path="2" style="--accent: var(--workload)">
+        <div class="card-head">
+          <span class="ref">2</span>
+          <div class="card-title">
+            <h3>간트 바를 미배치 레일로 내리기</h3>
+            <span class="route"><b>workload</b> → placement</span>
+          </div>
+          <span class="state">안 해 봄</span>
+        </div>
+        <dl>
+          <div class="row"><dt>조작</dt><dd>바 가운데를 잡아(양 끝 8px은 기간 조절 손잡이입니다) 아래 레일 위에서 놓습니다. 레일이 옅게 켜지고 「여기에 놓으면 일정 없이 카드로 돌아옵니다」가 뜹니다.</dd></div>
+          <div class="row"><dt>결과</dt><dd>시작·마감만 비워집니다. <strong>담당자 · 마일스톤 · 체크리스트는 그대로</strong>이고, 바가 사라진 자리에 미배치 행이 나타납니다.</dd></div>
+          <div class="row"><dt>확인</dt><dd>「일정 해제됨 · 담당자와 체크리스트는 그대로입니다」 + 되돌리기.</dd></div>
+          <div class="row"><dt>대체</dt><dd>바 <strong>우클릭 → 일정에서 제거</strong>.</dd></div>
+        </dl>
+        <div class="foot"><span class="tag">마우스 드래그</span><span class="tag">6px 이상 움직여야 시작</span></div>
+      </article>
+
+      <article class="card" data-path="3" style="--accent: var(--rail)">
+        <div class="card-head">
+          <span class="ref">3</span>
+          <div class="card-title">
+            <h3>미배치 행을 타임블록 시간 칸에 놓기</h3>
+            <span class="route"><b>placement</b> → timeblock</span>
+          </div>
+          <span class="state">안 해 봄</span>
+        </div>
+        <dl>
+          <div class="row"><dt>조작</dt><dd>행을 왼쪽 타임블록의 시간 칸으로. 놓일 자리가 <strong>액센트로 미리 칠해집니다</strong>.</dd></div>
+          <div class="row"><dt>결과</dt><dd>그 시각부터 <strong>기본 1시간</strong>(30분 칸 2개) 블록이 생깁니다. 겹치는 블록과 점심시간은 알아서 피해 조각냅니다. 오늘의 체크리스트에도 올라가고, 그다음 날짜가 <strong>타임블록이 보고 있는 날</strong>로 잡힙니다.</dd></div>
+          <div class="row"><dt>실패</dt><dd class="warn">점심 칸 → 「점심시간에는 넣을 수 없습니다」 · 자리가 없으면 → 「그 시간에는 빈자리가 없습니다」. 둘 다 블록도 날짜도 안 바뀝니다.</dd></div>
+          <div class="row"><dt>대체</dt><dd>행의 <strong>「지금」</strong> 버튼 — 오늘로 옮긴 뒤 현재 시각부터 넣습니다.</dd></div>
+        </dl>
+        <div class="foot"><span class="tag">HTML5 드래그</span><span class="tag">블록 먼저, 날짜 나중</span></div>
+      </article>
+
+      <article class="card" data-path="4" style="--accent: var(--workload)">
+        <div class="card-head">
+          <span class="ref">4</span>
+          <div class="card-title">
+            <h3>간트 바를 타임블록 시간 칸에 놓기</h3>
+            <span class="route"><b>workload</b> → timeblock</span>
+          </div>
+          <span class="state">안 해 봄</span>
+        </div>
+        <dl>
+          <div class="row"><dt>조작</dt><dd>바를 잡아 왼쪽 타임블록 그리드로 끌고 갑니다. 커서가 지나는 <strong>시간 칸이 액센트로</strong> 따라 칠해집니다.</dd></div>
+          <div class="row"><dt>결과</dt><dd>③과 같은 규칙으로 블록이 생기고, 항목의 날짜가 <strong>타임블록이 보고 있는 날</strong>로 다시 잡힙니다. 시작일이 그 날보다 앞서면 기간을 살리고 마감만 옮깁니다.</dd></div>
+          <div class="row"><dt>주의</dt><dd class="warn">왼쪽 <strong>시간 라벨 열</strong>이나 점심 칸에서 놓으면 몇 시인지 정해지지 않아 아무 일도 일어나지 않습니다. 바의 날짜도 그대로입니다.</dd></div>
+          <div class="row"><dt>확인</dt><dd>「… 타임블록으로 옮김 · 되돌리면 날짜만 되돌아갑니다」. 되돌려도 <strong>만들어진 블록은 남습니다</strong>.</dd></div>
+          <div class="row"><dt>대체</dt><dd>바 <strong>우클릭 → 지금 타임블록에 넣기</strong> (오늘 + 현재 시각).</dd></div>
+        </dl>
+        <div class="foot"><span class="tag new">이번에 추가됨</span><span class="tag">마우스 드래그</span></div>
+      </article>
+
+      <article class="card" data-path="5" style="--accent: var(--timeblock)">
+        <div class="card-head">
+          <span class="ref">5</span>
+          <div class="card-title">
+            <h3>타임블록 블록을 미배치 레일로 빼기</h3>
+            <span class="route"><b>timeblock</b> → placement</span>
+          </div>
+          <span class="state">안 해 봄</span>
+        </div>
+        <dl>
+          <div class="row"><dt>조작</dt><dd>블록을 <strong>0.15초 누르고 있다가</strong> 오른쪽 레일로 끕니다. 곧바로 끌면 시간 이동으로 잡힙니다.</dd></div>
+          <div class="row"><dt>결과</dt><dd>그날 같은 항목의 <strong>조각 블록을 전부</strong> 지우고, 오늘의 체크리스트에서도 빼고, 시작·마감을 해제합니다.</dd></div>
+          <div class="row"><dt>제약</dt><dd class="warn">체크리스트가 붙은 블록만 됩니다. 회의·직접 만든 블록은 「체크리스트가 연결된 블록만 미배치로 뺄 수 있습니다」. 그리고 <strong>대시보드에서만</strong> — 일정 탭에는 받아 줄 레일이 없어 잠겨 있습니다.</dd></div>
+          <div class="row"><dt>확인</dt><dd>「타임블록에서 빠짐 · 되돌리면 날짜만 돌아옵니다」. <strong>지운 블록은 되돌려도 안 돌아옵니다.</strong></dd></div>
+          <div class="row"><dt>대체</dt><dd>블록을 눌러 <strong>상세 패널 → 미배치로 빼기</strong>.</dd></div>
+        </dl>
+        <div class="foot"><span class="tag">마우스 드래그</span><span class="tag">길게 눌러 시작</span></div>
+      </article>
+
+      <article class="card" data-path="6" style="--accent: var(--rail)">
+        <div class="card-head">
+          <span class="ref">6</span>
+          <div class="card-title">
+            <h3>미배치 행을 백로그로 내리기</h3>
+            <span class="route"><b>placement</b> → backlog</span>
+          </div>
+          <span class="state">안 해 봄</span>
+        </div>
+        <dl>
+          <div class="row"><dt>조작</dt><dd>행을 큐 바닥의 백로그 독 위로 끕니다.</dd></div>
+          <div class="row"><dt>결과</dt><dd>체크리스트 항목이 <strong>나만 보이는 백로그 카드</strong>로 내려갑니다. 되돌리기가 잠깐 뜹니다.</dd></div>
+          <div class="row"><dt>대체</dt><dd>행에 마우스를 올리면 나오는 <strong>「백로그」</strong> 버튼.</dd></div>
+          <div class="row"><dt>참고</dt><dd>남의 대시보드를 볼 때는 백로그가 개인 데이터라 <strong>아예 그려지지 않습니다</strong>. 이 경로도 함께 사라집니다.</dd></div>
+        </dl>
+        <div class="foot"><span class="tag">HTML5 드래그</span><span class="tag">강등</span></div>
+      </article>
+
+      <article class="card" data-path="7" style="--accent: var(--backlog)">
+        <div class="card-head">
+          <span class="ref">7</span>
+          <div class="card-title">
+            <h3>백로그 카드를 미배치 레일로 올리기</h3>
+            <span class="route"><b>backlog</b> → placement</span>
+          </div>
+          <span class="state">안 해 봄</span>
+        </div>
+        <dl>
+          <div class="row"><dt>조작</dt><dd>카드를 위 레일로 끕니다. 이미 승격된 카드는 끌리지 않습니다.</dd></div>
+          <div class="row"><dt>결과</dt><dd>붙일 곳을 고르는 <strong>승격 모달</strong>이 뜹니다. 체크리스트 항목으로 승격되며 <strong>날짜는 붙지 않아</strong> 미배치 행으로 나타납니다.</dd></div>
+          <div class="row"><dt>대체</dt><dd>카드의 승격 버튼. 되돌리려면 「승격됨」 탭에서 되돌립니다.</dd></div>
+        </dl>
+        <div class="foot"><span class="tag">HTML5 드래그</span><span class="tag">승격 모달</span></div>
+      </article>
+
+      <article class="card" data-path="8" style="--accent: var(--workload)">
+        <div class="card-head">
+          <span class="ref">8</span>
+          <div class="card-title">
+            <h3>간트 바를 백로그로 내리기</h3>
+            <span class="route"><b>workload</b> → backlog</span>
+          </div>
+          <span class="state">안 해 봄</span>
+        </div>
+        <dl>
+          <div class="row"><dt>조작</dt><dd>바를 레일을 지나 백로그 독까지 끌고 내려갑니다. 두 존이 함께 켜지므로 <strong>어디서 손을 놓는지</strong>가 결과를 가릅니다.</dd></div>
+          <div class="row"><dt>결과</dt><dd>일정 해제에서 한 단계 더 내려가, 체크리스트 항목이 백로그 카드가 됩니다.</dd></div>
+          <div class="row"><dt>대체</dt><dd>바 <strong>우클릭 → 백로그로 내리기</strong>. 이 항목은 백로그가 화면에 있을 때만 보입니다.</dd></div>
+        </dl>
+        <div class="foot"><span class="tag">마우스 드래그</span><span class="tag">강등</span></div>
+      </article>
+
+      <article class="card" data-path="9" style="--accent: var(--backlog)">
+        <div class="card-head">
+          <span class="ref">9</span>
+          <div class="card-title">
+            <h3>백로그 카드를 간트 날짜 칸에 놓기</h3>
+            <span class="route"><b>backlog</b> → workload</span>
+          </div>
+          <span class="state">안 해 봄</span>
+        </div>
+        <dl>
+          <div class="row"><dt>조작</dt><dd>카드를 레일을 지나 간트의 날짜 칸까지 올립니다.</dd></div>
+          <div class="row"><dt>결과</dt><dd>승격 모달이 뜨는데, <strong>놓은 날짜가 이미 채워져</strong> 있습니다. 붙일 곳만 고르면 그 날짜의 바로 바로 나타납니다.</dd></div>
+          <div class="row"><dt>참고</dt><dd>모달을 닫으면 아무것도 만들어지지 않습니다.</dd></div>
+        </dl>
+        <div class="foot"><span class="tag">HTML5 드래그</span><span class="tag">날짜 미리 채움</span></div>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>같이 봐 둘 것</h2>
+    <div class="notes">
+      <div class="note">
+        <h3>존 안에서의 드래그</h3>
+        <ul>
+          <li><b>간트 바</b> — 좌우로 끌면 날짜 이동, 양 끝 손잡이는 기간 조절, 위아래로 끌면 담당자 행 변경.</li>
+          <li><b>빈 행</b>을 가로로 끌면 그 기간의 새 업무를 만듭니다.</li>
+          <li><b>타임블록 빈 영역</b>을 세로로 끌면 새 블록, <b>블록</b>은 세로 이동·길이 조절·분할.</li>
+        </ul>
+      </div>
+      <div class="note">
+        <h3>드래그를 못 쓸 때</h3>
+        <ul>
+          <li>미배치 행: <b>지금 · 오늘 · 내일 · 백로그</b> 버튼.</li>
+          <li>간트 바 우클릭: <b>지금 타임블록에 넣기 · 일정에서 제거 · 백로그로 내리기</b>.</li>
+          <li>타임블록 블록: 눌러서 <b>상세 패널 → 미배치로 빼기</b>.</li>
+          <li>모두 드래그와 같은 코드를 타므로 결과도 같습니다.</li>
+        </ul>
+      </div>
+      <div class="note">
+        <h3>안 되면 여기부터</h3>
+        <ul>
+          <li><b>뷰어</b>는 전부 잠깁니다 — 레일에 「읽기 전용」이 뜹니다.</li>
+          <li><b>일정 탭</b>에는 레일도 백로그도 없어 ②③④⑤⑥⑦⑧⑨가 모두 없습니다. 대시보드에서 확인하세요.</li>
+          <li>타임블록이 <b>오늘이 아닌 날</b>을 보고 있으면 ③④는 그 날짜로 잡힙니다.</li>
+          <li>태스크가 없는 항목은 돌아갈 자리가 없어 끌리지 않습니다.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <p class="caveat">
+    시연 보드는 실제 화면이 아니라 <b>같은 규칙을 옮겨 놓은 모형</b>입니다. 옮겨 놓은 것은
+    무엇이 어디로 갈 수 있는지, 날짜·블록이 어떻게 잡히는지, 무엇이 거절되는지까지고,
+    잡는 방식(간트 바·블록은 마우스 드래그, 레일·백로그 행은 HTML5 드래그)은 보드에서 하나로 합쳤습니다.
+    ①②③⑤⑥⑦⑧⑨는 이미 쓰이던 길이고 <b>④</b>는 이번에 새로 낸 길이라,
+    실제 대시보드에서는 ④부터 확인해 주세요.
+  </p>
+
+</div>
+
+<div id="ghost"></div>
+
+<div id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-box">
+    <header>
+      <b id="modalTitle">어느 태스크에 붙일까요?</b>
+      <p id="modalSub"></p>
+    </header>
+    <div class="modal-opts" id="modalOpts"></div>
+    <div class="modal-foot"><button type="button" class="btn" id="modalCancel">취소</button></div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    /* ── 무대 설정 ────────────────────────────────── */
+    var DAYS = [
+      { label: '8/3', dow: '월' }, { label: '8/4', dow: '화' }, { label: '8/5', dow: '수' },
+      { label: '8/6', dow: '목' }, { label: '8/7', dow: '금' }, { label: '8/8', dow: '토' },
+      { label: '8/9', dow: '일' }
+    ];
+    var TODAY = 4;                 // 타임블록이 보고 있는 날 = 8/7 (금)
+    var START_HOUR = 9;
+    var SLOTS = 20;                // 09:00~19:00, 30분 칸
+    var SLOT_PX = 26;
+    var LUNCH = [6, 7];            // 12:00, 12:30
+    var SPAN = 2;                  // 놓았을 때 잡아 주는 기본 길이 = 1시간
+    var TASKS = ['테스트 런칭 QA', '사운드 · 연출', '설정 · 시스템'];
+
+    var MS = {
+      m1: { name: '4.테스트런칭', hex: '#2DD4BF' },
+      m2: { name: '5.정식런칭', hex: '#A78BFA' }
+    };
+
+    function seed() {
+      return {
+        items: [
+          { id: 'i1', title: '[맞춤법] Dialogue 시트 오탈자 정리', task: '테스트 런칭 QA', ms: 'm1', zone: 'rail', start: null, due: null },
+          { id: 'i2', title: '[사운드] 초월/돌파 사운드 미출력', task: '사운드 · 연출', ms: 'm1', zone: 'rail', start: null, due: null },
+          { id: 'i3', title: '[스토리] 5챕터 UI 오픈 조건', task: '테스트 런칭 QA', ms: 'm2', zone: 'rail', start: null, due: null },
+          { id: 'i4', title: '[버그] 발월/매모라 이슈 점검', task: '테스트 런칭 QA', ms: 'm1', zone: 'gantt', start: 0, due: 3 },
+          { id: 'i5', title: '사운드 작업 정리', task: '사운드 · 연출', ms: 'm1', zone: 'gantt', start: 4, due: 4 },
+          { id: 'i6', title: 'QA 요구사항 정리', task: '테스트 런칭 QA', ms: null, zone: 'gantt', start: 4, due: 4 },
+          { id: 'i7', title: '[설정] 지원 목록 노출 오류', task: '설정 · 시스템', ms: 'm2', zone: 'gantt', start: 3, due: 5 },
+          { id: 'i8', title: '[스토리] 추천 편성 버튼 상시 노출', task: null, ms: null, zone: 'backlog', start: null, due: null },
+          { id: 'i9', title: '전투에서 스탯 증분 표현 개선', task: null, ms: null, zone: 'backlog', start: null, due: null },
+          { id: 'i10', title: '[택티스] 불 시너지 보상 미적용', task: null, ms: null, zone: 'backlog', start: null, due: null }
+        ],
+        blocks: [
+          { id: 'b1', itemId: 'i5', s: 2, e: 4 },
+          { id: 'b2', itemId: 'i6', s: 10, e: 12 }
+        ],
+        seq: 100
+      };
+    }
+
+    var state = seed();
+    var undoSnap = null;
+
+    /* ── 규칙표 ───────────────────────────────────── */
+    var PATH = {
+      'rail>gantt': 1, 'gantt>rail': 2, 'rail>timeblock': 3, 'gantt>timeblock': 4,
+      'timeblock>rail': 5, 'rail>backlog': 6, 'backlog>rail': 7,
+      'gantt>backlog': 8, 'backlog>gantt': 9
+    };
+
+    var BLOCKED = {
+      'timeblock>gantt': '블록이 나갈 수 있는 곳은 미배치 레일뿐입니다.',
+      'timeblock>backlog': '블록은 백로그로 바로 못 내려갑니다 — 미배치를 거치세요.',
+      'backlog>timeblock': '아직 태스크도 아닌 카드는 시각까지 정할 수 없습니다 — 레일이나 간트를 거치세요.'
+    };
+
+    /* ── 도우미 ───────────────────────────────────── */
+    function $(id) { return document.getElementById(id); }
+    function clone(v) { return JSON.parse(JSON.stringify(v)); }
+    function item(id) { return state.items.filter(function (i) { return i.id === id; })[0]; }
+    function dayLabel(i) { return DAYS[i].label + ' (' + DAYS[i].dow + ')'; }
+    function slotTime(i) {
+      var m = START_HOUR * 60 + i * 30;
+      return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    }
+    function hexOf(it) { return it.ms ? MS[it.ms].hex : '#8B93A7'; }
+    function nextId(p) { state.seq += 1; return p + state.seq; }
+
+    /**
+     * 놓은 자리에서 실제로 만들 수 있는 조각들.
+     * 점심시간과 이미 있는 블록을 빼고 남는 구간만 돌려준다 — 실제 computeSegments와 같은 규칙이다.
+     */
+    function segments(from, ignoreItemId) {
+      var busy = {};
+      LUNCH.forEach(function (i) { busy[i] = 1; });
+      state.blocks.forEach(function (b) {
+        if (b.itemId === ignoreItemId) return;
+        for (var i = b.s; i < b.e; i++) busy[i] = 1;
+      });
+      var out = [], cur = null, end = Math.min(from + SPAN, SLOTS);
+      for (var i = from; i < end; i++) {
+        if (busy[i]) { if (cur) { out.push(cur); cur = null; } }
+        else if (!cur) cur = { s: i, e: i + 1 };
+        else cur.e = i + 1;
+      }
+      if (cur) out.push(cur);
+      return out;
+    }
+
+    /* ── 안내 ─────────────────────────────────────── */
+    var noticeTimer = null;
+
+    function notify(text, kind, undoable) {
+      var box = $('notice');
+      box.className = kind === 'bad' ? 'bad' : 'ok';
+      box.querySelector('.msg').textContent = text;
+      $('undo').style.display = undoable ? '' : 'none';
+      if (noticeTimer) clearTimeout(noticeTimer);
+      noticeTimer = setTimeout(resetNotice, 9000);
+    }
+
+    function resetNotice() {
+      var box = $('notice');
+      box.className = '';
+      box.querySelector('.msg').className = 'msg hint';
+      box.querySelector('.msg').textContent =
+        '막대와 행을 잡아 다른 영역으로 끌어 보세요. 막힌 방향은 빨갛게 거절합니다.';
+      $('undo').style.display = 'none';
+      undoSnap = null;
+    }
+
+    /* ── 진행 기록 ────────────────────────────────── */
+    var KEY = 'bridge-dnd-demo-v1';
+    var done = {};
+    try { done = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { done = {}; }
+
+    function saveDone() {
+      try { localStorage.setItem(KEY, JSON.stringify(done)); } catch (e) { /* 저장이 막혀도 이번 세션은 그대로 */ }
+    }
+
+    var PILL_LABEL = {
+      1: '미배치 → 간트', 2: '간트 → 미배치', 3: '미배치 → 타임블록',
+      4: '간트 → 타임블록', 5: '블록 → 미배치', 6: '미배치 → 백로그',
+      7: '백로그 → 미배치', 8: '간트 → 백로그', 9: '백로그 → 간트'
+    };
+
+    function buildPills() {
+      var host = $('pills');
+      host.innerHTML = '';
+      for (var n = 1; n <= 9; n++) {
+        (function (n) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'pill';
+          b.dataset.path = String(n);
+          b.innerHTML = '<span class="n">' + n + '</span>' + PILL_LABEL[n];
+          b.addEventListener('click', function () {
+            var card = document.querySelector('.card[data-path="' + n + '"]');
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          });
+          host.appendChild(b);
+        })(n);
+      }
+    }
+
+    function renderProgress() {
+      var n = 0;
+      for (var k = 1; k <= 9; k++) if (done[k]) n++;
+      $('fill').style.width = (n / 9 * 100) + '%';
+      $('count').textContent = n + ' / 9 해 봄';
+      Array.prototype.forEach.call(document.querySelectorAll('.pill'), function (p) {
+        p.classList.toggle('done', !!done[p.dataset.path]);
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('.card'), function (c) {
+        var on = !!done[c.dataset.path];
+        c.classList.toggle('is-done', on);
+        c.querySelector('.state').textContent = on ? '해 봄' : '안 해 봄';
+      });
+    }
+
+    function markDone(n) {
+      if (!n || done[n]) return;
+      done[n] = true;
+      saveDone();
+      renderProgress();
+    }
+
+    /* ── 그리기 ───────────────────────────────────── */
+    function chip(it) {
+      var hex = hexOf(it);
+      var name = it.ms ? MS[it.ms].name : '마일스톤 없음';
+      return '<span class="chip" style="background: color-mix(in srgb, ' + hex + ' 18%, transparent); color: ' + hex + '" title="' + name + '">' +
+        '<i style="background: ' + hex + '"></i><span>' + name + '</span></span>';
+    }
+
+    function renderTimeblock() {
+      var grid = $('tbGrid');
+      var html = '';
+      for (var i = 0; i < SLOTS; i++) {
+        var lunch = LUNCH.indexOf(i) >= 0;
+        html += '<div class="tb-row">' +
+          '<div class="tb-time">' + (slotTime(i).slice(3) === '00' ? slotTime(i) : '') + '</div>' +
+          '<div class="tb-slot' + (lunch ? ' lunch' : '') + '" data-slot="' + i + '"></div>' +
+          '</div>';
+      }
+      html += '<div class="tb-blocks">';
+      state.blocks.forEach(function (b) {
+        var it = item(b.itemId);
+        if (!it) return;
+        var hex = hexOf(it);
+        html += '<div class="tb-block" data-drag="timeblock" data-item="' + it.id + '"' +
+          ' style="top: ' + (b.s * SLOT_PX + 2) + 'px; height: ' + ((b.e - b.s) * SLOT_PX - 4) + 'px;' +
+          ' background: ' + hex + '">' + it.title +
+          '<small>' + slotTime(b.s) + ' – ' + slotTime(b.e) + '</small></div>';
+      });
+      html += '</div>';
+      grid.innerHTML = html;
+      grid.style.height = (SLOTS * SLOT_PX) + 'px';
+    }
+
+    function renderGantt() {
+      var head = '<div class="gt-name"></div>';
+      DAYS.forEach(function (d, i) {
+        var cls = 'gt-day' + (i === TODAY ? ' today' : '') + (i >= 5 ? ' weekend' : '');
+        head += '<div class="' + cls + '">' + d.label + '<br>' + d.dow + '</div>';
+      });
+      $('gtHead').innerHTML = head;
+
+      var bars = state.items.filter(function (i) { return i.zone === 'gantt'; })
+        .sort(function (a, b) { return a.start - b.start; });
+
+      // 겹치는 바는 레인을 나눠 쌓는다
+      var lanes = [];
+      bars.forEach(function (it) {
+        var placed = false;
+        for (var l = 0; l < lanes.length; l++) {
+          if (lanes[l] < it.start) { it._lane = l; lanes[l] = it.due; placed = true; break; }
+        }
+        if (!placed) { it._lane = lanes.length; lanes.push(it.due); }
+      });
+
+      var cells = '<div class="gt-cells">';
+      DAYS.forEach(function (d, i) {
+        cells += '<div class="gt-cell' + (i === TODAY ? ' today' : '') + '" data-day="' + i + '"></div>';
+      });
+      cells += '</div>';
+
+      var html = cells;
+      bars.forEach(function (it) {
+        var l = it.start / DAYS.length * 100;
+        var w = (it.due - it.start + 1) / DAYS.length * 100;
+        html += '<div class="gt-bar" data-drag="gantt" data-item="' + it.id + '"' +
+          ' style="left: ' + l + '%; width: calc(' + w + '% - 4px); margin-left: 2px;' +
+          ' top: ' + (8 + it._lane * 27) + 'px; background: ' + hexOf(it) + '"' +
+          ' title="' + it.title + ' · ' + dayLabel(it.start) + ' ~ ' + dayLabel(it.due) + '">' +
+          it.title + '</div>';
+      });
+
+      var track = $('gtTrack');
+      track.innerHTML = html;
+      track.style.minHeight = Math.max(66, 16 + Math.max(1, lanes.length) * 27) + 'px';
+      $('ganttCount').textContent = bars.length + '건';
+    }
+
+    function renderRail() {
+      var rows = state.items.filter(function (i) { return i.zone === 'rail'; });
+      var html = '';
+      rows.forEach(function (it) {
+        html += '<div class="rail-row" data-drag="rail" data-item="' + it.id + '">' +
+          chip(it) +
+          '<span class="title">' + it.title + '</span>' +
+          '<span class="task">' + (it.task || '미분류') + '</span></div>';
+      });
+      $('railList').innerHTML = html || '<p class="list-empty">모두 배치했습니다.</p>';
+      $('railCount').textContent = rows.length + '건';
+    }
+
+    function renderBacklog() {
+      var cards = state.items.filter(function (i) { return i.zone === 'backlog'; });
+      var html = '';
+      cards.forEach(function (it) {
+        html += '<div class="bl-card" data-drag="backlog" data-item="' + it.id + '">' + it.title + '</div>';
+      });
+      $('blList').innerHTML = html || '<p class="list-empty">백로그가 비었습니다.</p>';
+      $('backlogCount').textContent = cards.length + '건';
+    }
+
+    function render() {
+      renderTimeblock();
+      renderGantt();
+      renderRail();
+      renderBacklog();
+    }
+
+    /* ── 실제 이동 ────────────────────────────────── */
+    function snapshot() { undoSnap = clone(state); }
+
+    function dropBlocks(itemId) {
+      state.blocks = state.blocks.filter(function (b) { return b.itemId !== itemId; });
+    }
+
+    /** 타임블록에 넣기 — 성공하면 true. 자리가 없으면 아무것도 바꾸지 않는다 */
+    function placeIntoTimeblock(it, slot, from) {
+      if (LUNCH.indexOf(slot) >= 0) {
+        notify('점심시간에는 넣을 수 없습니다.', 'bad', false);
+        return false;
+      }
+      var segs = segments(slot, it.id);
+      if (!segs.length) {
+        notify('그 시간에는 빈자리가 없습니다.', 'bad', false);
+        return false;
+      }
+
+      snapshot();
+      if (from === 'timeblock') dropBlocks(it.id);
+      segs.forEach(function (s) {
+        state.blocks.push({ id: nextId('b'), itemId: it.id, s: s.s, e: s.e });
+      });
+
+      // 블록이 생긴 다음에야 날짜가 잡힌다 — 실제 순서와 같다
+      var hadDates = it.start !== null;
+      if (from !== 'timeblock') {
+        it.start = (it.start !== null && it.start <= TODAY) ? it.start : TODAY;
+        it.due = TODAY;
+        it.zone = 'gantt';
+      }
+
+      var when = slotTime(segs[0].s);
+      var text;
+      if (from === 'timeblock') {
+        text = '「' + it.title + '」 ' + when + '으로 옮김';
+      } else if (hadDates) {
+        // 날짜가 이미 있던 건은 되돌려도 "풀리는" 게 아니라 이전 날짜로 돌아간다
+        text = '「' + it.title + '」 ' + dayLabel(TODAY) + ' ' + when + ' 타임블록으로 옮김 · 되돌리면 날짜만 되돌아갑니다';
+      } else {
+        text = '「' + it.title + '」 ' + dayLabel(TODAY) + ' ' + when + ' 타임블록에 배치됨 · 되돌리면 날짜만 풀립니다';
+      }
+      if (segs.length > 1) text += ' (겹치는 자리를 피해 ' + segs.length + '조각으로 나뉨)';
+      notify(text, 'ok', true);
+      return true;
+    }
+
+    function apply(from, itemId, to, arg) {
+      var it = item(itemId);
+      if (!it) return;
+
+      // 존 안에서의 이동 — 아홉 갈래에는 안 들어가지만 보드에서는 되어야 한다
+      if (from === to) {
+        if (to === 'gantt' && arg !== null) {
+          snapshot();
+          var dur = it.due - it.start;
+          it.start = Math.min(arg, DAYS.length - 1 - dur);
+          it.due = it.start + dur;
+          notify('「' + it.title + '」 ' + dayLabel(it.start) + '로 이동', 'ok', true);
+          render();
+        } else if (to === 'timeblock' && arg !== null) {
+          if (placeIntoTimeblock(it, arg, 'timeblock')) render();
+        }
+        return;
+      }
+
+      var key = from + '>' + to;
+
+      if (BLOCKED[key]) {
+        notify(BLOCKED[key], 'bad', false);
+        return;
+      }
+
+      // 백로그에서 올라오는 건 붙일 태스크를 먼저 고른다
+      if (from === 'backlog') {
+        openModal(it, to, arg);
+        return;
+      }
+
+      if (to === 'timeblock') {
+        if (placeIntoTimeblock(it, arg, from)) { markDone(PATH[key]); render(); }
+        return;
+      }
+
+      snapshot();
+
+      if (to === 'gantt') {
+        it.start = (it.start !== null && it.start <= arg) ? it.start : arg;
+        it.due = arg;
+        it.zone = 'gantt';
+        notify('「' + it.title + '」 ' + dayLabel(arg) + '에 배치됨', 'ok', true);
+      } else if (to === 'rail') {
+        var wasBlock = from === 'timeblock';
+        if (wasBlock) dropBlocks(it.id);
+        it.start = null; it.due = null; it.zone = 'rail';
+        notify(wasBlock
+          ? '「' + it.title + '」 타임블록에서 빠짐 · 되돌리면 날짜만 돌아옵니다'
+          : '「' + it.title + '」 일정 해제됨 · 담당자와 체크리스트는 그대로입니다', 'ok', true);
+      } else if (to === 'backlog') {
+        dropBlocks(it.id);
+        it.start = null; it.due = null; it.task = null; it.ms = null; it.zone = 'backlog';
+        notify('「' + it.title + '」 백로그로 내려감', 'ok', true);
+      }
+
+      markDone(PATH[key]);
+      render();
+    }
+
+    /* ── 승격 모달 ────────────────────────────────── */
+    var pending = null;
+
+    function openModal(it, to, arg) {
+      pending = { id: it.id, to: to, arg: arg };
+      $('modalSub').textContent = '「' + it.title + '」' +
+        (to === 'gantt' ? ' · ' + dayLabel(arg) + '로 배치됩니다' : ' · 날짜 없이 미배치로 올라갑니다');
+      var host = $('modalOpts');
+      host.innerHTML = '';
+      TASKS.forEach(function (t) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = t;
+        b.addEventListener('click', function () { confirmPromote(t); });
+        host.appendChild(b);
+      });
+      $('modal').classList.add('open');
+      host.firstChild.focus();
+    }
+
+    function closeModal() {
+      $('modal').classList.remove('open');
+      pending = null;
+    }
+
+    function confirmPromote(task) {
+      if (!pending) return;
+      var p = pending, it = item(p.id);
+      closeModal();
+      if (!it) return;
+
+      snapshot();
+      it.task = task;
+      it.ms = it.ms || 'm1';
+      if (p.to === 'gantt') {
+        it.start = p.arg; it.due = p.arg; it.zone = 'gantt';
+        notify('「' + it.title + '」 승격 · ' + dayLabel(p.arg) + '에 배치됨', 'ok', true);
+      } else {
+        it.start = null; it.due = null; it.zone = 'rail';
+        notify('「' + it.title + '」 승격 · 날짜 없이 미배치로', 'ok', true);
+      }
+      markDone(PATH['backlog>' + p.to]);
+      render();
+    }
+
+    $('modalCancel').addEventListener('click', function () {
+      closeModal();
+      notify('모달을 닫아 아무것도 만들어지지 않았습니다.', 'ok', false);
+    });
+
+    $('modal').addEventListener('click', function (e) {
+      if (e.target === $('modal')) { closeModal(); }
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && $('modal').classList.contains('open')) closeModal();
+    });
+
+    /* ── 끌기 ─────────────────────────────────────── */
+    var drag = null;
+    var ghost = $('ghost');
+
+    document.addEventListener('pointerdown', function (e) {
+      var src = e.target.closest ? e.target.closest('[data-drag]') : null;
+      if (!src || e.button === 2) return;
+      drag = {
+        from: src.dataset.drag,
+        id: src.dataset.item,
+        x0: e.clientX, y0: e.clientY,
+        live: false
+      };
+    });
+
+    document.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+
+      if (!drag.live) {
+        if (Math.abs(e.clientX - drag.x0) < 6 && Math.abs(e.clientY - drag.y0) < 6) return;
+        drag.live = true;
+        document.body.classList.add('dragging');
+        var it = item(drag.id);
+        ghost.style.display = 'flex';
+        ghost.textContent = it ? it.title : '';
+      }
+
+      ghost.style.left = (e.clientX + 12) + 'px';
+      ghost.style.top = (e.clientY + 14) + 'px';
+      paintTarget(e.clientX, e.clientY);
+    });
+
+    document.addEventListener('pointerup', function (e) {
+      if (!drag) return;
+      var d = drag;
+      drag = null;
+      ghost.style.display = 'none';
+      document.body.classList.remove('dragging');
+      clearPaint();
+      if (!d.live) return;
+
+      var t = targetAt(e.clientX, e.clientY);
+      if (!t) return;
+      apply(d.from, d.id, t.zone, t.arg);
+    });
+
+    document.addEventListener('pointercancel', function () {
+      drag = null;
+      ghost.style.display = 'none';
+      document.body.classList.remove('dragging');
+      clearPaint();
+    });
+
+    /** 커서 아래의 목적지 — 존과, 그 존이 아는 자리(며칠·몇 시)까지 */
+    function targetAt(x, y) {
+      ghost.style.display = 'none';
+      var el = document.elementFromPoint(x, y);
+      if (drag && drag.live) ghost.style.display = 'flex';
+      if (!el || !el.closest) return null;
+
+      var zoneEl = el.closest('[data-zone]');
+      if (!zoneEl) return null;
+      var zone = zoneEl.dataset.zone;
+
+      var arg = null;
+      if (zone === 'timeblock') {
+        var slot = el.closest('[data-slot]');
+        // 블록 위에 놓아도 그 자리의 칸을 집어낸다
+        if (!slot) {
+          var blk = el.closest('.tb-block');
+          if (blk) {
+            var box = $('tbGrid').getBoundingClientRect();
+            var idx = Math.floor((y - box.top) / SLOT_PX);
+            if (idx >= 0 && idx < SLOTS) arg = idx;
+          }
+        } else {
+          arg = Number(slot.dataset.slot);
+        }
+        if (arg === null) return null;   // 시간 라벨 열 — 몇 시인지 알 수 없다
+      } else if (zone === 'gantt') {
+        var cell = el.closest('[data-day]');
+        if (cell) arg = Number(cell.dataset.day);
+        else {
+          var bar = el.closest('.gt-bar');
+          if (bar) {
+            var t = $('gtTrack').getBoundingClientRect();
+            arg = Math.min(DAYS.length - 1, Math.max(0, Math.floor((x - t.left) / (t.width / DAYS.length))));
+          }
+        }
+        if (arg === null) return null;
+      }
+      return { zone: zone, arg: arg };
+    }
+
+    function clearPaint() {
+      Array.prototype.forEach.call(document.querySelectorAll('.zone'), function (z) {
+        z.classList.remove('armed', 'over', 'deny');
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('.tb-slot.hit, .tb-slot.hit-bad, .gt-cell.hit'), function (c) {
+        c.classList.remove('hit', 'hit-bad');
+      });
+    }
+
+    function paintTarget(x, y) {
+      clearPaint();
+      if (!drag) return;
+
+      // 받아 줄 수 있는 존에만 불을 켠다 — 막힌 방향은 올라가 봐야 거절이므로 켜지 않는다
+      Array.prototype.forEach.call(document.querySelectorAll('.zone'), function (z) {
+        var to = z.dataset.zone;
+        if (to === drag.from) return;
+        if (BLOCKED[drag.from + '>' + to]) return;
+        z.classList.add('armed');
+      });
+
+      var t = targetAt(x, y);
+      if (!t) return;
+      var zoneEl = document.querySelector('.zone[data-zone="' + t.zone + '"]');
+      var blocked = !!BLOCKED[drag.from + '>' + t.zone];
+      zoneEl.classList.remove('armed');
+      zoneEl.classList.add(blocked ? 'deny' : 'over');
+      if (blocked) return;
+
+      if (t.zone === 'timeblock' && t.arg !== null) {
+        var bad = LUNCH.indexOf(t.arg) >= 0;
+        for (var i = t.arg; i < Math.min(t.arg + SPAN, SLOTS); i++) {
+          var s = document.querySelector('.tb-slot[data-slot="' + i + '"]');
+          if (s) s.classList.add(bad ? 'hit-bad' : 'hit');
+        }
+      } else if (t.zone === 'gantt' && t.arg !== null) {
+        var c = document.querySelector('.gt-cell[data-day="' + t.arg + '"]');
+        if (c) c.classList.add('hit');
+      }
+    }
+
+    /* ── 조작 버튼 ────────────────────────────────── */
+    $('undo').addEventListener('click', function () {
+      if (!undoSnap) return;
+      state = undoSnap;
+      undoSnap = null;
+      render();
+      notify('되돌렸습니다.', 'ok', false);
+    });
+
+    $('resetBoard').addEventListener('click', function () {
+      state = seed();
+      undoSnap = null;
+      render();
+      resetNotice();
+    });
+
+    $('resetProgress').addEventListener('click', function () {
+      done = {};
+      saveDone();
+      renderProgress();
+    });
+
+    /* 카드에 올리면 같은 번호의 알약이 함께 켜진다 */
+    Array.prototype.forEach.call(document.querySelectorAll('.card'), function (card) {
+      var n = card.dataset.path;
+      card.addEventListener('mouseenter', function () {
+        var p = document.querySelector('.pill[data-path="' + n + '"]');
+        if (p) p.classList.add('is-hot');
+        card.classList.add('is-hot');
+      });
+      card.addEventListener('mouseleave', function () {
+        var p = document.querySelector('.pill[data-path="' + n + '"]');
+        if (p) p.classList.remove('is-hot');
+        card.classList.remove('is-hot');
+      });
+    });
+
+    buildPills();
+    renderProgress();
+    render();
+  })();
+</script>

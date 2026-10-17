@@ -2,7 +2,7 @@
 // Matches elements by id and classifies each into added/removed/modified/unchanged,
 // then returns a merged element list with visual overrides applied for read-only display.
 
-export type DiffStatus = "added" | "removed" | "modified" | "unchanged";
+export type DiffStatus = 'added' | 'removed' | 'modified' | 'unchanged';
 
 export interface DiffStats {
   added: number;
@@ -18,9 +18,9 @@ export interface SceneDiffResult {
   stats: DiffStats;
 }
 
-const COLOR_ADDED = "#10b981";
-const COLOR_REMOVED = "#ef4444";
-const COLOR_MODIFIED = "#6366f1";
+const COLOR_ADDED = '#10b981';
+const COLOR_REMOVED = '#ef4444';
+const COLOR_MODIFIED = '#6366f1';
 
 function parseScene(raw: string | null | undefined): {
   elements: any[];
@@ -45,22 +45,22 @@ function parseScene(raw: string | null | undefined): {
 function isModified(prev: any, curr: any): boolean {
   if (prev.version !== curr.version) return true;
   const keys = [
-    "x",
-    "y",
-    "width",
-    "height",
-    "angle",
-    "text",
-    "originalText",
-    "fontSize",
-    "fontFamily",
-    "strokeColor",
-    "backgroundColor",
-    "strokeWidth",
-    "strokeStyle",
-    "fillStyle",
-    "roughness",
-    "opacity",
+    'x',
+    'y',
+    'width',
+    'height',
+    'angle',
+    'text',
+    'originalText',
+    'fontSize',
+    'fontFamily',
+    'strokeColor',
+    'backgroundColor',
+    'strokeWidth',
+    'strokeStyle',
+    'fillStyle',
+    'roughness',
+    'opacity',
   ];
   for (const k of keys) {
     if (prev[k] !== curr[k]) return true;
@@ -70,21 +70,21 @@ function isModified(prev: any, curr: any): boolean {
 
 // Visual override applied to an element for diff display. Mutates a shallow copy.
 function applyDiffStyle(el: any, status: DiffStatus): any {
-  if (status === "unchanged") {
+  if (status === 'unchanged') {
     return { ...el, opacity: Math.min(el.opacity ?? 100, 60) };
   }
-  if (status === "added") {
+  if (status === 'added') {
     return {
       ...el,
       strokeColor: COLOR_ADDED,
       strokeWidth: Math.max(el.strokeWidth ?? 2, 2),
     };
   }
-  if (status === "removed") {
+  if (status === 'removed') {
     return {
       ...el,
       strokeColor: COLOR_REMOVED,
-      strokeStyle: "dashed",
+      strokeStyle: 'dashed',
       opacity: 35,
     };
   }
@@ -119,20 +119,20 @@ export function computeSceneDiff(
   for (const [id, el] of prevMap) {
     if (!currMap.has(id)) {
       stats.removed++;
-      merged.push(applyDiffStyle(el, "removed"));
+      merged.push(applyDiffStyle(el, 'removed'));
     }
   }
   for (const [id, el] of currMap) {
     const prevEl = prevMap.get(id);
     if (!prevEl) {
       stats.added++;
-      merged.push(applyDiffStyle(el, "added"));
+      merged.push(applyDiffStyle(el, 'added'));
     } else if (isModified(prevEl, el)) {
       stats.modified++;
-      merged.push(applyDiffStyle(el, "modified"));
+      merged.push(applyDiffStyle(el, 'modified'));
     } else {
       stats.unchanged++;
-      merged.push(applyDiffStyle(el, "unchanged"));
+      merged.push(applyDiffStyle(el, 'unchanged'));
     }
   }
 

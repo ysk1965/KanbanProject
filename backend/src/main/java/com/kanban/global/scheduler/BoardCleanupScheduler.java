@@ -5,6 +5,7 @@ import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -26,6 +27,7 @@ public class BoardCleanupScheduler {
     private final BoardService boardService;
 
     @Scheduled(cron = "0 0 4 * * *")
+    @SchedulerLock(name = "BoardCleanupScheduler.cleanupExpiredSoftDeletedBoards", lockAtMostFor = "30m", lockAtLeastFor = "5m")
     public void cleanupExpiredSoftDeletedBoards() {
         LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusDays(SOFT_DELETE_RETENTION_DAYS);
         List<Board> expiredBoards = boardRepository.findExpiredSoftDeleted(cutoff);

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Calendar as CalendarIcon,
@@ -7,19 +7,19 @@ import {
   Loader2,
   Trash2,
   X,
-} from "lucide-react";
-import { format } from "date-fns";
-import { ko } from "date-fns/locale";
-import { toast } from "sonner";
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { toast } from 'sonner';
 
-import type { ChecklistItem, Task } from "../types";
-import { MotionModal } from "./ui/MotionModal";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Calendar } from "./ui/calendar";
-import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
-import { formatDate, getTodayDateString } from "../utils/dateUtils";
-import { isChecklistOverdue } from "../utils/checklistStatus";
-import { checklistService } from "../utils/services";
+import type { ChecklistItem, Task } from '../types';
+import { MotionModal } from './ui/MotionModal';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
+import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
+import { formatDate, getTodayDateString } from '../utils/dateUtils';
+import { isChecklistOverdue } from '../utils/checklistStatus';
+import { checklistService } from '../utils/services';
 
 /** 모달 한 줄이 가리키는 지연 항목 — 어느 태스크의 무엇인지까지 들고 있어야 클릭이 카드로 이어진다. */
 interface OverdueRow {
@@ -37,7 +37,7 @@ interface OverdueGroup {
   rows: OverdueRow[];
 }
 
-const UNASSIGNED = "__unassigned__";
+const UNASSIGNED = '__unassigned__';
 
 /** 오늘 − 마감(일). 마감이 미래면 0. */
 function daysOverdue(dueDate: string, today: string): number {
@@ -161,25 +161,23 @@ export function OverdueChecklistModal({
   const completeRow = (row: OverdueRow) =>
     mutate(
       row,
-      (items) =>
-        items.map((i) => (i.id === row.itemId ? { ...i, completed: true } : i)),
+      (items) => items.map((i) => (i.id === row.itemId ? { ...i, completed: true } : i)),
       () => checklistService.toggleItem(boardId, row.taskId, row.itemId),
       `완료 · ${row.title}`,
-      "완료 처리에 실패했습니다",
+      '완료 처리에 실패했습니다',
     );
 
   const changeDue = (row: OverdueRow, due: string | null) => {
     if (due === row.dueDate) return;
     return mutate(
       row,
-      (items) =>
-        items.map((i) => (i.id === row.itemId ? { ...i, due_date: due } : i)),
+      (items) => items.map((i) => (i.id === row.itemId ? { ...i, due_date: due } : i)),
       () =>
         checklistService.updateItem(boardId, row.taskId, row.itemId, {
           due_date: due,
         }),
-      due ? `마감 ${formatDate(due)}로 변경` : "마감일을 지웠습니다",
-      "마감일 변경에 실패했습니다",
+      due ? `마감 ${formatDate(due)}로 변경` : '마감일을 지웠습니다',
+      '마감일 변경에 실패했습니다',
     );
   };
 
@@ -190,7 +188,7 @@ export function OverdueChecklistModal({
       (items) => items.filter((i) => i.id !== row.itemId),
       () => checklistService.deleteItem(boardId, row.taskId, row.itemId),
       `삭제 · ${row.title}`,
-      "삭제에 실패했습니다",
+      '삭제에 실패했습니다',
     );
   };
 
@@ -207,12 +205,10 @@ export function OverdueChecklistModal({
         <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
         <div className="flex flex-col min-w-0 flex-1">
           <h2 className="text-sm md:text-lg font-bold text-foreground tracking-tight">
-            {isLoading ? "지연 항목" : `지연 ${total}건`}
+            {isLoading ? '지연 항목' : `지연 ${total}건`}
           </h2>
           <span className="text-xs text-slate-500">
-            {isLoading
-              ? "보드를 불러오는 중"
-              : `마감이 지난 체크리스트 · 담당 ${groups.length}명`}
+            {isLoading ? '보드를 불러오는 중' : `마감이 지난 체크리스트 · 담당 ${groups.length}명`}
           </span>
         </div>
         <button
@@ -232,13 +228,11 @@ export function OverdueChecklistModal({
             <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
           </div>
         ) : total === 0 ? (
-          <p className="text-sm text-slate-500 text-center py-8">
-            지연된 체크리스트가 없습니다.
-          </p>
+          <p className="text-sm text-slate-500 text-center py-8">지연된 체크리스트가 없습니다.</p>
         ) : (
           <div className="flex flex-col gap-4">
             {groups.map((group) => {
-              const name = group.assignee ?? "미배정";
+              const name = group.assignee ?? '미배정';
               const hex = getAssigneeHex(name);
               return (
                 <section key={name} className="flex flex-col gap-1.5">
@@ -249,9 +243,7 @@ export function OverdueChecklistModal({
                     >
                       {getInitials(name)}
                     </span>
-                    <span className="text-xs font-bold text-foreground truncate">
-                      {name}
-                    </span>
+                    <span className="text-xs font-bold text-foreground truncate">{name}</span>
                     <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 tabular-nums">
                       {group.rows.length}
                     </span>
@@ -284,7 +276,7 @@ export function OverdueChecklistModal({
       <div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
         <span className="text-xs text-slate-600">Esc 닫기</span>
         <span className="text-xs text-slate-600">
-          {canEdit ? "제목을 누르면 카드가 열립니다" : "읽기 전용"}
+          {canEdit ? '제목을 누르면 카드가 열립니다' : '읽기 전용'}
         </span>
       </div>
     </MotionModal>
@@ -345,7 +337,7 @@ function OverdueRowItem({
   return (
     <li
       className={`group flex items-start gap-2 px-2 py-2 rounded-lg border border-foreground/[0.08] hover:border-foreground/[0.12] hover:bg-foreground/5 transition-colors ${
-        busy ? "opacity-50 pointer-events-none" : ""
+        busy ? 'opacity-50 pointer-events-none' : ''
       }`}
     >
       {/* 완료 — 지연 목록에서 가장 흔한 다음 행동이라 가장 큰 타겟(체크박스)에 둔다 */}
@@ -374,9 +366,7 @@ function OverdueRowItem({
           {row.title}
         </button>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-slate-500 truncate max-w-[55%]">
-            {row.taskTitle}
-          </span>
+          <span className="text-xs text-slate-500 truncate max-w-[55%]">{row.taskTitle}</span>
           {canEdit ? (
             <Popover>
               <PopoverTrigger asChild>
@@ -385,9 +375,7 @@ function OverdueRowItem({
                   className="inline-flex items-center gap-1 text-xs px-1 py-0.5 -mx-1 rounded hover:bg-foreground/10 transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                 >
                   <CalendarIcon className="w-3 h-3 text-slate-500" />
-                  <span className="text-slate-500">
-                    마감 {formatDate(row.dueDate)}
-                  </span>
+                  <span className="text-slate-500">마감 {formatDate(row.dueDate)}</span>
                   {row.overdueDays > 0 && (
                     <span className="text-rose-600 dark:text-rose-400 font-bold">
                       · {row.overdueDays}일 지남
@@ -403,9 +391,7 @@ function OverdueRowItem({
                   mode="single"
                   selected={new Date(row.dueDate)}
                   defaultMonth={new Date(row.dueDate)}
-                  onSelect={(d) =>
-                    onChangeDue(d ? format(d, "yyyy-MM-dd") : null)
-                  }
+                  onSelect={(d) => onChangeDue(d ? format(d, 'yyyy-MM-dd') : null)}
                   numberOfMonths={1}
                   locale={ko}
                   className="bg-bridge-obsidian text-foreground"
@@ -417,7 +403,7 @@ function OverdueRowItem({
               마감 {formatDate(row.dueDate)}
               {row.overdueDays > 0 && (
                 <span className="text-rose-600 dark:text-rose-400 font-bold">
-                  {" "}
+                  {' '}
                   · {row.overdueDays}일 지남
                 </span>
               )}

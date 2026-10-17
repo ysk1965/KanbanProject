@@ -22,7 +22,10 @@ export function MemberBoardsTab({ boards, loading, onBoardClick }: MemberBoardsT
     return (
       <div className="px-6 py-4 space-y-3">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-20 bg-black/[0.02] dark:bg-white/[0.02] rounded-xl border border-black/5 dark:border-white/5 animate-pulse" />
+          <div
+            key={i}
+            className="h-20 bg-black/[0.02] dark:bg-white/[0.02] rounded-xl border border-black/5 dark:border-white/5 animate-pulse"
+          />
         ))}
       </div>
     );
@@ -56,7 +59,9 @@ export function MemberBoardsTab({ boards, loading, onBoardClick }: MemberBoardsT
           >
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-bold text-slate-900 dark:text-white">{board.name}</span>
-              <span className="text-xs text-slate-400">{t('organization.boards.memberCount', { count: board.member_count })}</span>
+              <span className="text-xs text-slate-400">
+                {t('organization.boards.memberCount', { count: board.member_count })}
+              </span>
             </div>
             {board.description && (
               <p className="text-xs text-slate-400 truncate">{board.description}</p>

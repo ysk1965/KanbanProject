@@ -1,0 +1,25 @@
+# 백엔드 공통 셋업: Temurin JDK + Gradle 캐시 + gradlew 실행 권한
+# 사용: - uses: ./.github/actions/setup-backend   (checkout 이후에만 가능)
+name: Setup Backend
+description: Set up Temurin JDK with Gradle cache and make gradlew executable
+
+inputs:
+  java-version:
+    description: JDK version
+    required: false
+    default: '21'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ inputs.java-version }}
+        distribution: temurin
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      shell: bash
+      working-directory: backend
+      run: chmod +x gradlew

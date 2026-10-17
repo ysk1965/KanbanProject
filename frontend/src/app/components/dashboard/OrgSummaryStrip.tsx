@@ -53,8 +53,8 @@ export default function OrgSummaryStrip({
     <div className="space-y-5">
       {organizations.map((org, orgIndex) => {
         const group = orgBoardsMap.get(org.id);
-        const orgBoards = [...(group?.boards ?? [])].sort((a, b) =>
-          (b.is_starred ? 1 : 0) - (a.is_starred ? 1 : 0)
+        const orgBoards = [...(group?.boards ?? [])].sort(
+          (a, b) => (b.is_starred ? 1 : 0) - (a.is_starred ? 1 : 0),
         );
 
         return (
@@ -131,8 +131,8 @@ export default function OrgSummaryStrip({
             </motion.button>
 
             {/* Org Boards Grid */}
-            {orgBoards.length > 0 && (
-              viewMode === 'grid' ? (
+            {orgBoards.length > 0 &&
+              (viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {orgBoards.map((board) => (
                     <BoardCard
@@ -157,8 +157,7 @@ export default function OrgSummaryStrip({
                     />
                   ))}
                 </div>
-              )
-            )}
+              ))}
           </div>
         );
       })}
@@ -167,7 +166,12 @@ export default function OrgSummaryStrip({
 }
 
 // Inline list item for org boards (reuses same pattern as Dashboard BoardListItem)
-function OrgBoardListItem({ board, onToggleStar, onClick, onEdit }: {
+function OrgBoardListItem({
+  board,
+  onToggleStar,
+  onClick,
+  onEdit,
+}: {
   board: Board;
   onToggleStar: (id: string) => void;
   onClick: (board: Board) => void;
@@ -184,18 +188,24 @@ function OrgBoardListItem({ board, onToggleStar, onClick, onEdit }: {
       onClick={() => onClick(board)}
       className="flex items-center gap-4 px-4 py-3 rounded-xl bg-foreground/[0.02] border border-bridge-accent/20 hover:border-bridge-accent/40 hover:bg-foreground/[0.03] cursor-pointer transition-all group"
     >
-      <div className="w-10 h-10 rounded-lg shrink-0 overflow-hidden"
+      <div
+        className="w-10 h-10 rounded-lg shrink-0 overflow-hidden"
         style={{ background: getGradient(board.id) }}
       />
       <div className="flex-1 min-w-0">
         <h3 className="text-sm font-bold text-foreground truncate group-hover:text-bridge-secondary transition-colors">
           {board.name}
         </h3>
-        <p className="text-xs text-slate-500 truncate">{board.description || t('dashboard.noDescription')}</p>
+        <p className="text-xs text-slate-500 truncate">
+          {board.description || t('dashboard.noDescription')}
+        </p>
       </div>
       <div className="hidden md:flex items-center gap-2 shrink-0 w-28">
         <div className="flex-1 h-1 bg-foreground/[0.06] rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full" style={{ width: `${progress}%` }} />
+          <div
+            className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full"
+            style={{ width: `${progress}%` }}
+          />
         </div>
         <span className="text-xs font-bold text-muted-foreground w-8 text-right">{progress}%</span>
       </div>
@@ -205,7 +215,10 @@ function OrgBoardListItem({ board, onToggleStar, onClick, onEdit }: {
       </div>
       <IconButton
         aria-label="즐겨찾기"
-        onClick={(e) => { e.stopPropagation(); onToggleStar(board.id); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleStar(board.id);
+        }}
       >
         <Star
           fill={board.is_starred ? '#F59E0B' : 'transparent'}

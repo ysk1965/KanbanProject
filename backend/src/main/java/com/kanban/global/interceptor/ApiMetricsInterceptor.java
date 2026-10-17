@@ -5,21 +5,35 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.HandlerMapping;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Component
 public class ApiMetricsInterceptor implements HandlerInterceptor {
 
     private static final String START_TIME_ATTR = "api.metrics.startTime";
-    private static final int MAX_ENDPOINTS = 500;
+    /**
+     * 키는 라우트 패턴("/api/v1/boards/{boardId}")이라 실제 엔드포인트 수(수백)에 수렴한다.
+     * 그래도 혹시 모를 폭주에 대비해 상한을 두고, 넘으면 새 키는 버린다 (기존 키 집계는 계속).
+     * 맵은 MonitoringService.flushMetricsToDb 가 주기적으로 비우므로 상한에 걸려도 한 주기 안에 풀린다.
+     */
+    private static final int MAX_ENDPOINTS = 2000;
     private static final int RECENT_BUFFER_SIZE = 100;
 
+    /** 라우트 패턴을 못 얻었을 때 URI 의 UUID / 숫자 세그먼트를 {id} 로 접는다. */
+    private static final Pattern UUID_SEGMENT = Pattern.compile(
+            "/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?=/|$)");
+    private static final Pattern NUMERIC_SEGMENT = Pattern.compile("/\\d+(?=/|$)");
+
     private final ConcurrentHashMap<String, EndpointStats> metricsMap = new ConcurrentHashMap<>();
+    private final AtomicBoolean capWarned = new AtomicBoolean(false);
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -37,38 +51,43 @@ public class ApiMetricsInterceptor implements HandlerInterceptor {
 
         long duration = System.currentTimeMillis() - startTime;
         String method = request.getMethod();
-        String path = request.getRequestURI();
-        String key = method + " " + path;
+        String key = method + " " + resolveRoute(request);
 
         int statusCode = response.getStatus();
         boolean isError = statusCode >= 400 || ex != null;
 
         try {
-            enforceMaxEndpoints();
-
-            EndpointStats stats = metricsMap.computeIfAbsent(key, k -> new EndpointStats());
+            EndpointStats stats = metricsMap.get(key);
+            if (stats == null) {
+                if (metricsMap.size() >= MAX_ENDPOINTS) {
+                    if (capWarned.compareAndSet(false, true)) {
+                        log.warn("API metrics endpoint cap ({}) reached; new endpoint keys are dropped until next flush",
+                                MAX_ENDPOINTS);
+                    }
+                    return;
+                }
+                stats = metricsMap.computeIfAbsent(key, k -> new EndpointStats());
+            }
             stats.record(duration, isError, statusCode);
         } catch (Exception e) {
             log.debug("Failed to record API metrics for {}: {}", key, e.getMessage());
         }
     }
 
-    private void enforceMaxEndpoints() {
-        if (metricsMap.size() >= MAX_ENDPOINTS) {
-            // Remove the endpoint with the fewest requests (least active)
-            String leastActiveKey = null;
-            long minRequests = Long.MAX_VALUE;
-            for (Map.Entry<String, EndpointStats> entry : metricsMap.entrySet()) {
-                long requests = entry.getValue().getTotalRequests();
-                if (requests < minRequests) {
-                    minRequests = requests;
-                    leastActiveKey = entry.getKey();
-                }
-            }
-            if (leastActiveKey != null) {
-                metricsMap.remove(leastActiveKey);
-            }
+    /**
+     * 매칭된 핸들러의 라우트 패턴(예: /api/v1/boards/{boardId})을 키로 쓴다.
+     * 실제 URI 를 키로 쓰면 UUID 마다 항목이 생겨 맵이 무한히 자랐다.
+     * 패턴이 없으면(404 등) URI 의 UUID/숫자 세그먼트를 {id} 로 접어 같은 효과를 낸다.
+     */
+    private static String resolveRoute(HttpServletRequest request) {
+        Object pattern = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+        if (pattern instanceof String p && !p.isBlank()) {
+            return p;
         }
+        String uri = request.getRequestURI();
+        if (uri == null) return "/";
+        uri = UUID_SEGMENT.matcher(uri).replaceAll("/{id}");
+        return NUMERIC_SEGMENT.matcher(uri).replaceAll("/{id}");
     }
 
     /**
@@ -77,6 +96,7 @@ public class ApiMetricsInterceptor implements HandlerInterceptor {
     public Map<String, EndpointStats> getAndResetMetrics() {
         Map<String, EndpointStats> snapshot = new HashMap<>(metricsMap);
         metricsMap.clear();
+        capWarned.set(false);
         return snapshot;
     }
 

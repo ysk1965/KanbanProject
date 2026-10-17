@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, Suspense, lazy } from "react";
-import { useTranslation } from "react-i18next";
-import { useEscClose } from "../../hooks/useEscClose";
+import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../../hooks/useEscClose';
 import {
   History,
   RotateCcw,
@@ -10,20 +10,23 @@ import {
   Trash2,
   GitCompare,
   FileText,
-} from "lucide-react";
-import DOMPurify from "dompurify";
-import { useCreateBlockNote } from "@blocknote/react";
-import { noteService, orgNoteService, myNoteService } from "../../utils/services";
-import { formatDateTime } from "../../utils/dateUtils";
-import { useTheme } from "../../contexts/ThemeContext";
-import { NoteVersionDiffView } from "./NoteVersionDiffView";
-import { DIFF_COLORS } from "../../utils/excalidrawDiff";
-import type { NoteVersionInfo, NoteVersionDetail } from "../../utils/api";
-import { contentToHtml } from "../../utils/blocknoteContent";
-import { noteSchema } from "./blocks/schema";
+  Pencil,
+  StickyNote,
+} from 'lucide-react';
+import { IconButton } from '../ui/IconButton';
+import DOMPurify from 'dompurify';
+import { useCreateBlockNote } from '@blocknote/react';
+import { noteService, orgNoteService, myNoteService } from '../../utils/services';
+import { formatDateTime } from '../../utils/dateUtils';
+import { useTheme } from '../../contexts/ThemeContext';
+import { NoteVersionDiffView } from './NoteVersionDiffView';
+import { DIFF_COLORS } from '../../utils/excalidrawDiff';
+import type { NoteVersionInfo, NoteVersionDetail } from '../../utils/api';
+import { contentToHtml } from '../../utils/blocknoteContent';
+import { noteSchema } from './blocks/schema';
 
 const ExcalidrawLazy = lazy(async () => {
-  const mod = await import("@excalidraw/excalidraw");
+  const mod = await import('@excalidraw/excalidraw');
   return { default: mod.Excalidraw };
 });
 
@@ -71,7 +74,7 @@ export function NoteVersionHistory({
   onRestoreFailed,
 }: NoteVersionHistoryProps) {
   const svc = personal ? myNoteService : orgId ? orgNoteService : noteService;
-  const scopeId = personal ? "me" : boardId || orgId || "";
+  const scopeId = personal ? 'me' : boardId || orgId || '';
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   useEscClose(isOpen, () => {
@@ -79,16 +82,53 @@ export function NoteVersionHistory({
     setSelectedVersion(null);
   });
   const [versions, setVersions] = useState<NoteVersionInfo[]>([]);
-  const [selectedVersion, setSelectedVersion] =
-    useState<NoteVersionDetail | null>(null);
-  const [compareVersion, setCompareVersion] =
-    useState<NoteVersionDetail | null>(null);
-  const [compareMode, setCompareMode] = useState<"current" | "version">("current");
+  const [selectedVersion, setSelectedVersion] = useState<NoteVersionDetail | null>(null);
+  const [compareVersion, setCompareVersion] = useState<NoteVersionDetail | null>(null);
+  const [compareMode, setCompareMode] = useState<'current' | 'version'>('current');
   const [diffMode, setDiffMode] = useState(true);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [clearingAll, setClearingAll] = useState(false);
+  // 변경 메모 인라인 편집 — 한 번에 한 버전만
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
+
+  const beginEditNote = useCallback((version: NoteVersionInfo) => {
+    setEditingNoteId(version.id);
+    setNoteDraft(version.note ?? '');
+  }, []);
+
+  const cancelEditNote = useCallback(() => {
+    setEditingNoteId(null);
+    setNoteDraft('');
+  }, []);
+
+  // Enter/blur 저장 — 값이 그대로면 요청 없이 닫는다. 빈 문자열은 null(메모 삭제)로 보낸다.
+  const commitEditNote = useCallback(async () => {
+    const versionId = editingNoteId;
+    if (!versionId) return;
+    const current = versions.find((v) => v.id === versionId);
+    const next = noteDraft.trim().slice(0, 500) || null;
+    if ((current?.note ?? null) === next) {
+      cancelEditNote();
+      return;
+    }
+    setSavingNoteId(versionId);
+    try {
+      await svc.updateVersionNote(scopeId, noteId, versionId, next);
+      setVersions((prev) => prev.map((v) => (v.id === versionId ? { ...v, note: next } : v)));
+      setSelectedVersion((prev) =>
+        prev && prev.id === versionId ? { ...prev, note: next } : prev,
+      );
+      cancelEditNote();
+    } catch (err) {
+      console.error('Failed to update version note:', err);
+    } finally {
+      setSavingNoteId(null);
+    }
+  }, [editingNoteId, versions, noteDraft, svc, scopeId, noteId, cancelEditNote]);
 
   const loadVersions = useCallback(async () => {
     setLoading(true);
@@ -96,7 +136,7 @@ export function NoteVersionHistory({
       const data = await svc.getVersions(scopeId, noteId);
       setVersions(data);
     } catch (err) {
-      console.error("Failed to load versions:", err);
+      console.error('Failed to load versions:', err);
     } finally {
       setLoading(false);
     }
@@ -114,10 +154,10 @@ export function NoteVersionHistory({
         const detail = await svc.getVersionDetail(scopeId, noteId, versionId);
         setSelectedVersion(detail);
         setCompareVersion(null);
-        setCompareMode("current");
+        setCompareMode('current');
         setDiffMode(true);
       } catch (err) {
-        console.error("Failed to load version detail:", err);
+        console.error('Failed to load version detail:', err);
       }
     },
     [scopeId, noteId, svc],
@@ -128,18 +168,13 @@ export function NoteVersionHistory({
       if (hasOtherEditors) {
         window.alert(
           t(
-            "notes.blockRestoreWithEditors",
-            "다른 사용자가 편집 중이라 복원할 수 없어요. 모두 편집을 마친 뒤 다시 시도해 주세요.",
+            'notes.blockRestoreWithEditors',
+            '다른 사용자가 편집 중이라 복원할 수 없어요. 모두 편집을 마친 뒤 다시 시도해 주세요.',
           ),
         );
         return;
       }
-      if (
-        !window.confirm(
-          t("notes.restoreConfirm", "이 버전으로 복원하시겠습니까?"),
-        )
-      )
-        return;
+      if (!window.confirm(t('notes.restoreConfirm', '이 버전으로 복원하시겠습니까?'))) return;
       setRestoring(true);
       onBeforeRestore?.();
       try {
@@ -148,15 +183,13 @@ export function NoteVersionHistory({
           scopeId,
           noteId,
           versionId,
-          live
-            ? { current_title: live.title, current_content: live.content }
-            : undefined,
+          live ? { current_title: live.title, current_content: live.content } : undefined,
         );
         onRestore();
         setIsOpen(false);
         setSelectedVersion(null);
       } catch (err) {
-        console.error("Failed to restore version:", err);
+        console.error('Failed to restore version:', err);
         onRestoreFailed?.();
       } finally {
         setRestoring(false);
@@ -177,12 +210,7 @@ export function NoteVersionHistory({
 
   const handleDeleteVersion = useCallback(
     async (versionId: string) => {
-      if (
-        !window.confirm(
-          t("notes.deleteVersionConfirm", "이 버전을 삭제하시겠습니까?"),
-        )
-      )
-        return;
+      if (!window.confirm(t('notes.deleteVersionConfirm', '이 버전을 삭제하시겠습니까?'))) return;
       setDeletingId(versionId);
       try {
         await svc.deleteVersion(scopeId, noteId, versionId);
@@ -192,7 +220,7 @@ export function NoteVersionHistory({
         }
         onVersionsChanged?.();
       } catch (err) {
-        console.error("Failed to delete version:", err);
+        console.error('Failed to delete version:', err);
       } finally {
         setDeletingId(null);
       }
@@ -204,8 +232,8 @@ export function NoteVersionHistory({
     if (
       !window.confirm(
         t(
-          "notes.clearAllVersionsConfirm",
-          "모든 버전 히스토리를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+          'notes.clearAllVersionsConfirm',
+          '모든 버전 히스토리를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
         ),
       )
     )
@@ -217,16 +245,14 @@ export function NoteVersionHistory({
       setSelectedVersion(null);
       onVersionsChanged?.();
     } catch (err) {
-      console.error("Failed to clear all versions:", err);
+      console.error('Failed to clear all versions:', err);
     } finally {
       setClearingAll(false);
     }
   }, [scopeId, noteId, svc, t, onVersionsChanged]);
 
   // Panel width — wider when showing detail (need room for diff)
-  const panelWidthClass = selectedVersion
-    ? "w-full sm:w-[min(960px,95vw)]"
-    : "w-full sm:w-96";
+  const panelWidthClass = selectedVersion ? 'w-full sm:w-[min(960px,95vw)]' : 'w-full sm:w-96';
 
   return (
     <>
@@ -235,12 +261,8 @@ export function NoteVersionHistory({
         className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded transition-colors"
       >
         <History size={10} />
-        <span className="hidden lg:inline">
-          {t("notes.versionHistory", "버전")}
-        </span>
-        {versionCount > 0 && (
-          <span className="text-bridge-accent font-medium">{versionCount}</span>
-        )}
+        <span className="hidden lg:inline">{t('notes.versionHistory', '버전')}</span>
+        {versionCount > 0 && <span className="text-bridge-accent font-medium">{versionCount}</span>}
       </button>
 
       {/* Version History Panel (Overlay) */}
@@ -264,10 +286,10 @@ export function NoteVersionHistory({
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <History size={14} className="text-bridge-accent" />
                 {selectedVersion
-                  ? compareMode === "version" && compareVersion
+                  ? compareMode === 'version' && compareVersion
                     ? `v${selectedVersion.version_number} → v${compareVersion.version_number}`
-                    : `v${selectedVersion.version_number} → ${t("notes.diff.current", "현재")}`
-                  : t("notes.versionHistory", "버전 히스토리")}
+                    : `v${selectedVersion.version_number} → ${t('notes.diff.current', '현재')}`
+                  : t('notes.versionHistory', '버전 히스토리')}
               </h3>
               <div className="flex items-center gap-1">
                 {canEdit && versions.length > 0 && !selectedVersion && (
@@ -275,14 +297,14 @@ export function NoteVersionHistory({
                     onClick={handleClearAll}
                     disabled={clearingAll}
                     className="flex items-center gap-1 px-2 py-1 text-xs text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded disabled:opacity-50 transition-colors"
-                    aria-label={t("notes.clearAllVersions", "비우기")}
+                    aria-label={t('notes.clearAllVersions', '비우기')}
                   >
                     {clearingAll ? (
                       <Loader2 size={12} className="animate-spin" />
                     ) : (
                       <Trash2 size={12} />
                     )}
-                    <span>{t("notes.clearAllVersions", "비우기")}</span>
+                    <span>{t('notes.clearAllVersions', '비우기')}</span>
                   </button>
                 )}
                 <button
@@ -291,7 +313,7 @@ export function NoteVersionHistory({
                     setSelectedVersion(null);
                   }}
                   className="p-1 text-slate-400 hover:text-foreground hover:bg-foreground/10 rounded"
-                  aria-label={t("common.close", "닫기")}
+                  aria-label={t('common.close', '닫기')}
                 >
                   <X size={14} />
                 </button>
@@ -312,41 +334,52 @@ export function NoteVersionHistory({
                       onClick={() => setSelectedVersion(null)}
                       className="text-xs text-bridge-accent hover:underline"
                     >
-                      ← {t("notes.backToList", "목록으로")}
+                      ← {t('notes.backToList', '목록으로')}
                     </button>
                     <p className="text-xs font-medium text-foreground mt-1 truncate">
-                      v{selectedVersion.version_number} ·{" "}
-                      {selectedVersion.title}
+                      v{selectedVersion.version_number} · {selectedVersion.title}
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      {selectedVersion.created_by?.name} ·{" "}
+                      {selectedVersion.created_by?.name} ·{' '}
                       {formatDateTime(selectedVersion.created_at)}
                     </p>
+                    {selectedVersion.note && (
+                      <p className="text-xs text-slate-500 mt-0.5 flex items-start gap-1">
+                        <StickyNote size={10} className="mt-0.5 flex-shrink-0" />
+                        <span className="break-words">{selectedVersion.note}</span>
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     {/* Compare target selector */}
                     {versions.length > 1 && (
                       <select
-                        value={compareMode === "version" && compareVersion ? compareVersion.id : "__current__"}
+                        value={
+                          compareMode === 'version' && compareVersion
+                            ? compareVersion.id
+                            : '__current__'
+                        }
                         onChange={async (e) => {
                           const val = e.target.value;
-                          if (val === "__current__") {
-                            setCompareMode("current");
+                          if (val === '__current__') {
+                            setCompareMode('current');
                             setCompareVersion(null);
                           } else {
                             try {
                               const detail = await svc.getVersionDetail(scopeId, noteId, val);
                               setCompareVersion(detail);
-                              setCompareMode("version");
+                              setCompareMode('version');
                               setDiffMode(true);
                             } catch (err) {
-                              console.error("Failed to load compare version:", err);
+                              console.error('Failed to load compare version:', err);
                             }
                           }
                         }}
                         className="bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                       >
-                        <option value="__current__">{t("notes.diff.compareToCurrent", "→ 현재")}</option>
+                        <option value="__current__">
+                          {t('notes.diff.compareToCurrent', '→ 현재')}
+                        </option>
                         {versions
                           .filter((v) => v.id !== selectedVersion.id)
                           .map((v) => (
@@ -362,40 +395,38 @@ export function NoteVersionHistory({
                         onClick={() => setDiffMode(true)}
                         className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
                           diffMode
-                            ? "bg-bridge-accent text-white"
-                            : "text-slate-400 hover:text-foreground"
+                            ? 'bg-bridge-accent text-white'
+                            : 'text-slate-400 hover:text-foreground'
                         }`}
-                        title={t("notes.diff.showDiff", "변경 사항 보기")}
+                        title={t('notes.diff.showDiff', '변경 사항 보기')}
                       >
                         <GitCompare size={10} />
                         <span className="hidden md:inline">
-                          {t("notes.diff.diffLabel", "변경")}
+                          {t('notes.diff.diffLabel', '변경')}
                         </span>
                       </button>
                       <button
                         onClick={() => setDiffMode(false)}
                         className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
                           !diffMode
-                            ? "bg-bridge-accent text-white"
-                            : "text-slate-400 hover:text-foreground"
+                            ? 'bg-bridge-accent text-white'
+                            : 'text-slate-400 hover:text-foreground'
                         }`}
-                        title={t("notes.diff.showOriginal", "원본 보기")}
+                        title={t('notes.diff.showOriginal', '원본 보기')}
                       >
                         <FileText size={10} />
                         <span className="hidden md:inline">
-                          {t("notes.diff.originalLabel", "원본")}
+                          {t('notes.diff.originalLabel', '원본')}
                         </span>
                       </button>
                     </div>
                     {canEdit && (
                       <>
                         <button
-                          onClick={() =>
-                            handleDeleteVersion(selectedVersion.id)
-                          }
+                          onClick={() => handleDeleteVersion(selectedVersion.id)}
                           disabled={deletingId === selectedVersion.id}
                           className="flex items-center gap-1 px-2 py-1.5 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg text-xs font-bold disabled:opacity-50 transition-colors"
-                          aria-label={t("notes.deleteVersion", "버전 삭제")}
+                          aria-label={t('notes.deleteVersion', '버전 삭제')}
                         >
                           {deletingId === selectedVersion.id ? (
                             <Loader2 size={10} className="animate-spin" />
@@ -413,7 +444,7 @@ export function NoteVersionHistory({
                           ) : (
                             <RotateCcw size={10} />
                           )}
-                          {t("notes.restore", "복원")}
+                          {t('notes.restore', '복원')}
                         </button>
                       </>
                     )}
@@ -421,16 +452,14 @@ export function NoteVersionHistory({
                 </div>
 
                 {/* Legend bar — only in diff mode */}
-                {diffMode && noteType !== "BOARD" && (
+                {diffMode && noteType !== 'BOARD' && (
                   <div className="px-4 py-2 border-b border-foreground/5 flex items-center gap-3 text-xs flex-wrap">
-                    <span className="text-slate-500 font-bold">
-                      {t("notes.diff.key", "범례")}:
+                    <span className="text-slate-500 font-bold">{t('notes.diff.key', '범례')}:</span>
+                    <span className="note-diff">
+                      <ins>{t('notes.diff.legendAdded', '추가된 내용')}</ins>
                     </span>
                     <span className="note-diff">
-                      <ins>{t("notes.diff.legendAdded", "추가된 내용")}</ins>
-                    </span>
-                    <span className="note-diff">
-                      <del>{t("notes.diff.legendRemoved", "삭제된 내용")}</del>
+                      <del>{t('notes.diff.legendRemoved', '삭제된 내용')}</del>
                     </span>
                   </div>
                 )}
@@ -440,11 +469,19 @@ export function NoteVersionHistory({
                   <NoteVersionDiffView
                     noteType={noteType}
                     previousTitle={selectedVersion.title}
-                    currentTitle={compareMode === "version" && compareVersion ? compareVersion.title : currentTitle}
+                    currentTitle={
+                      compareMode === 'version' && compareVersion
+                        ? compareVersion.title
+                        : currentTitle
+                    }
                     previousContent={selectedVersion.content}
-                    currentContent={compareMode === "version" && compareVersion ? compareVersion.content : currentContent}
+                    currentContent={
+                      compareMode === 'version' && compareVersion
+                        ? compareVersion.content
+                        : currentContent
+                    }
                   />
-                ) : noteType === "BOARD" ? (
+                ) : noteType === 'BOARD' ? (
                   <BoardOriginalView content={selectedVersion.content} />
                 ) : (
                   <DocumentVersionPreview content={selectedVersion.content} />
@@ -455,7 +492,7 @@ export function NoteVersionHistory({
               <div className="flex-1 overflow-y-auto">
                 {versions.length === 0 ? (
                   <div className="text-center text-slate-500 text-xs py-12">
-                    {t("notes.noVersions", "저장된 버전이 없습니다")}
+                    {t('notes.noVersions', '저장된 버전이 없습니다')}
                   </div>
                 ) : (
                   <div className="p-2 space-y-0.5">
@@ -481,10 +518,55 @@ export function NoteVersionHistory({
                             {version.title}
                           </p>
                           <p className="text-xs text-slate-500 mt-0.5">
-                            {version.created_by?.name} ·{" "}
-                            {formatDateTime(version.created_at)}
+                            {version.created_by?.name} · {formatDateTime(version.created_at)}
                           </p>
+                          {editingNoteId !== version.id && version.note && (
+                            <p className="text-xs text-slate-500 mt-1 flex items-start gap-1 pr-6">
+                              <StickyNote size={10} className="mt-0.5 flex-shrink-0" />
+                              <span className="break-words line-clamp-2">{version.note}</span>
+                            </p>
+                          )}
                         </button>
+                        {/* 변경 메모 인라인 편집 — Enter/blur 저장, Esc 취소 */}
+                        {editingNoteId === version.id && (
+                          <div className="px-3 pb-2.5 -mt-1">
+                            <input
+                              autoFocus
+                              value={noteDraft}
+                              maxLength={500}
+                              disabled={savingNoteId === version.id}
+                              onChange={(e) => setNoteDraft(e.target.value)}
+                              onBlur={() => void commitEditNote()}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  void commitEditNote();
+                                }
+                                if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  cancelEditNote();
+                                }
+                              }}
+                              placeholder={t('notes.versionNotePlaceholder', '변경 메모')}
+                              aria-label={t('notes.versionNote', '변경 메모')}
+                              className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 px-2.5 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all disabled:opacity-60"
+                            />
+                          </div>
+                        )}
+                        {canEdit && editingNoteId !== version.id && (
+                          <IconButton
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              beginEditNote(version);
+                            }}
+                            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                            aria-label={t('notes.editVersionNote', '변경 메모 수정')}
+                            title={t('notes.editVersionNote', '변경 메모 수정')}
+                          >
+                            <Pencil />
+                          </IconButton>
+                        )}
                         {canEdit && (
                           <button
                             onClick={(e) => {
@@ -493,7 +575,7 @@ export function NoteVersionHistory({
                             }}
                             disabled={deletingId === version.id}
                             className="absolute bottom-2 right-2 p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
-                            aria-label={t("notes.deleteVersion", "버전 삭제")}
+                            aria-label={t('notes.deleteVersion', '버전 삭제')}
                           >
                             {deletingId === version.id ? (
                               <Loader2 size={12} className="animate-spin" />
@@ -515,16 +597,12 @@ export function NoteVersionHistory({
   );
 }
 
-function DocumentVersionPreview({
-  content,
-}: {
-  content: string | null | undefined;
-}) {
+function DocumentVersionPreview({ content }: { content: string | null | undefined }) {
   // Throwaway BlockNote editor used only to normalize stored content (JSON or
   // legacy HTML) to HTML for the read-only preview. The editor lives for the
   // lifetime of the version drawer, not per-render.
   const converter = useCreateBlockNote({ schema: noteSchema } as any);
-  const [html, setHtml] = useState<string>("");
+  const [html, setHtml] = useState<string>('');
 
   useEffect(() => {
     let cancelled = false;
@@ -547,13 +625,9 @@ function DocumentVersionPreview({
   );
 }
 
-function BoardOriginalView({
-  content,
-}: {
-  content: string | null | undefined;
-}) {
+function BoardOriginalView({ content }: { content: string | null | undefined }) {
   const { isDark } = useTheme();
-  const bgColor = isDark ? "#1e1e1e" : "#ffffff";
+  const bgColor = isDark ? '#1e1e1e' : '#ffffff';
 
   let parsed: any = null;
   try {
@@ -585,7 +659,7 @@ function BoardOriginalView({
         <ExcalidrawLazy
           initialData={initialData}
           viewModeEnabled
-          theme={isDark ? "dark" : "light"}
+          theme={isDark ? 'dark' : 'light'}
           UIOptions={{
             canvasActions: {
               changeViewBackgroundColor: false,

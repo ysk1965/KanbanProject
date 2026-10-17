@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, AlertTriangle } from "lucide-react";
-import { jiraAPI, type JiraStatus } from "../utils/api";
-import { parseUTCDate, formatRelativeTime } from "../utils/dateUtils";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Loader2, AlertTriangle } from 'lucide-react';
+import { jiraAPI, type JiraStatus } from '../utils/api';
+import { parseUTCDate, formatRelativeTime } from '../utils/dateUtils';
 
 /**
  * JIRA 동기화 상태 인디케이터 (스프린트 헤더 · JIRA 뷰 전용).
@@ -73,7 +73,7 @@ export function JiraSyncIndicator({ boardId, status, onStatusRefetch }: Props) {
   );
 
   const lastSyncedDate = parseUTCDate(status.last_synced_at);
-  const hasError = !!status.last_error || status.status === "ERROR";
+  const hasError = !!status.last_error || status.status === 'ERROR';
 
   // 다음 주기까지 남은 초 (0~POLL_SECONDS로 clamp).
   let remainingSec = POLL_SECONDS;
@@ -84,7 +84,7 @@ export function JiraSyncIndicator({ boardId, status, onStatusRefetch }: Props) {
   const fraction = Math.max(0, Math.min(1, remainingSec / POLL_SECONDS));
   const dashOffset = RING_CIRCUMFERENCE * (1 - fraction);
   const mm = Math.floor(remainingSec / 60);
-  const ss = String(remainingSec % 60).padStart(2, "0");
+  const ss = String(remainingSec % 60).padStart(2, '0');
 
   // ── 오류 상태 ──
   if (hasError && !syncing) {
@@ -92,7 +92,7 @@ export function JiraSyncIndicator({ boardId, status, onStatusRefetch }: Props) {
       <button
         type="button"
         onClick={handleSyncNow}
-        title={status.last_error || "JIRA 동기화 실패 — 클릭하면 재시도"}
+        title={status.last_error || 'JIRA 동기화 실패 — 클릭하면 재시도'}
         aria-label="JIRA 동기화 실패, 재시도"
         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium
           border border-amber-500/40 bg-amber-500/[0.08] text-amber-600 dark:text-amber-400
@@ -131,21 +131,15 @@ export function JiraSyncIndicator({ boardId, status, onStatusRefetch }: Props) {
       title={
         relative
           ? `마지막 동기화 ${relative} · 다음 ${mm}:${ss} · 클릭하면 지금 동기화`
-          : "클릭하면 지금 JIRA 동기화"
+          : '클릭하면 지금 JIRA 동기화'
       }
-      aria-label={
-        relative ? `JIRA 마지막 동기화 ${relative}` : "JIRA 동기화 대기"
-      }
+      aria-label={relative ? `JIRA 마지막 동기화 ${relative}` : 'JIRA 동기화 대기'}
       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium
         border border-foreground/10 bg-foreground/[0.04] text-slate-400
         hover:bg-foreground/[0.08] hover:text-foreground transition-colors whitespace-nowrap shrink-0
         focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
     >
-      <svg
-        className="w-3.5 h-3.5 shrink-0 -rotate-90"
-        viewBox="0 0 16 16"
-        aria-hidden="true"
-      >
+      <svg className="w-3.5 h-3.5 shrink-0 -rotate-90" viewBox="0 0 16 16" aria-hidden="true">
         <circle
           cx="8"
           cy="8"
@@ -164,12 +158,10 @@ export function JiraSyncIndicator({ boardId, status, onStatusRefetch }: Props) {
           className="stroke-bridge-secondary"
           strokeDasharray={RING_CIRCUMFERENCE}
           strokeDashoffset={dashOffset}
-          style={{ transition: "stroke-dashoffset 1s linear" }}
+          style={{ transition: 'stroke-dashoffset 1s linear' }}
         />
       </svg>
-      <span className="font-bold text-foreground">
-        {relative ?? "동기화 대기"}
-      </span>
+      <span className="font-bold text-foreground">{relative ?? '동기화 대기'}</span>
       {lastSyncedDate && (
         <span className="text-slate-500 tabular-nums">
           · 다음 {mm}:{ss}

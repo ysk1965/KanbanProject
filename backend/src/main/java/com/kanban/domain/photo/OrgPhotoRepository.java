@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface OrgPhotoRepository extends JpaRepository<OrgPhoto, String> {
 
@@ -44,4 +45,6 @@ public interface OrgPhotoRepository extends JpaRepository<OrgPhoto, String> {
     void deleteByTabId(@Param("tabId") String tabId);
 
     List<OrgPhoto> findByTabId(String tabId);
+
+    Optional<OrgPhoto> findByS3KeyAndTabId(String s3Key, String tabId);
 }

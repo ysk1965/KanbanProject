@@ -2,7 +2,6 @@ package com.kanban.domain.feature.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.activity.ActivityAction;
 import com.kanban.domain.activity.TargetType;
 import com.kanban.domain.activity.service.ActivityService;
@@ -18,15 +17,12 @@ import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.feature.dto.FeatureAIRequest;
 import com.kanban.domain.feature.dto.FeatureAIResponse;
-import com.kanban.domain.monitoring.entity.AiUsageLog;
-import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
-import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
-import com.kanban.global.config.AIProvider;
-import com.kanban.global.config.AIResponse;
+import com.kanban.global.ai.AiInvocationRequest;
+import com.kanban.global.ai.AiInvocationTemplate;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
@@ -37,6 +33,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,8 +44,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class FeatureAIService {
 
-    private final AIProvider aiProvider;
-    private final ObjectMapper objectMapper;
+    private final AiInvocationTemplate aiInvocationTemplate;
+    private final TransactionTemplate transactionTemplate;
     private final FeatureRepository featureRepository;
     private final TaskRepository taskRepository;
     private final ChecklistItemRepository checklistItemRepository;
@@ -57,8 +54,6 @@ public class FeatureAIService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final ActivityService activityService;
-    private final AiUsageLogRepository aiUsageLogRepository;
-    private final AiCreditService aiCreditService;
     private final WebSocketEventService webSocketEventService;
 
     @Value("${ai.provider:claude}")
@@ -89,50 +84,50 @@ public class FeatureAIService {
             Map.entry("pt-BR", "Portuguese (Brazil)")
     );
 
-    @Transactional
+    /**
+     * 트랜잭션 밖에서 실행된다 — 입력 읽기는 {@code transactionTemplate}으로 짧게 묶고, LLM 호출은
+     * {@link AiInvocationTemplate}이 트랜잭션 없이 수행한다(크레딧 차감·사용량 로그는 각자 짧은 트랜잭션).
+     */
     public FeatureAIResponse.TaskDecomposition generateTaskSuggestions(
             String boardId, String featureId, String userId, String language) {
 
-        aiCreditService.consumeCredit(boardId, userId, "FEATURE_DECOMPOSE", 1);
-        boardService.checkMemberOrAbove(boardId, userId);
+        // 1. 입력 읽기 (tx) — Feature.board는 LAZY라 보드 검증까지 여기서 끝낸다
+        PromptInput input = transactionTemplate.execute(status -> {
+            boardService.checkMemberOrAbove(boardId, userId);
 
-        Feature feature = featureRepository.findById(featureId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
+            Feature feature = featureRepository.findById(featureId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
 
-        if (!feature.getBoard().getId().equals(boardId)) {
-            throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
-        }
+            if (!feature.getBoard().getId().equals(boardId)) {
+                throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
+            }
 
-        String title = feature.getTitle();
-        String description = feature.getDescription();
-        if ((title == null || title.isBlank()) && (description == null || description.isBlank())) {
-            throw new BusinessException(ErrorCode.AI_FEATURE_CONTENT_EMPTY);
-        }
+            String title = feature.getTitle();
+            String description = feature.getDescription();
+            if ((title == null || title.isBlank()) && (description == null || description.isBlank())) {
+                throw new BusinessException(ErrorCode.AI_FEATURE_CONTENT_EMPTY);
+            }
 
-        List<Task> existingTasks = taskRepository.findByFeatureIdOrderByPositionAsc(featureId);
-        String existingTasksContext = buildExistingTasksContext(existingTasks);
+            List<Task> existingTasks = taskRepository.findByFeatureIdOrderByPositionAsc(featureId);
+            String existingTasksContext = buildExistingTasksContext(existingTasks);
 
-        String systemPrompt = buildSystemPrompt(language);
-        String userPrompt = buildUserPrompt(title, description, existingTasksContext);
+            return new PromptInput(title,
+                    buildSystemPrompt(language),
+                    buildUserPrompt(title, description, existingTasksContext));
+        });
 
+        // 2. 크레딧 차감 → AI 호출 → 사용량 로그 → 파싱 (트랜잭션 없음)
         log.info("Generating AI task decomposition for feature: {} in board: {}", featureId, boardId);
-        String model = getModel();
-        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS);
+        AiInvocationRequest request = AiInvocationRequest.builder()
+                .boardId(boardId).userId(userId)
+                .featureType("FEATURE_DECOMPOSE").creditCost(1)
+                .systemPrompt(input.systemPrompt()).userPrompt(input.userPrompt())
+                .model(getModel()).maxTokens(MAX_TOKENS)
+                .build();
+        return aiInvocationTemplate.invoke(request, content -> parseAIResponse(content, featureId, input.featureTitle()));
+    }
 
-        try {
-            aiUsageLogRepository.save(AiUsageLog.builder()
-                    .boardId(boardId).userId(userId)
-                    .featureType("FEATURE_DECOMPOSE").provider(provider.toUpperCase())
-                    .model(model)
-                    .inputTokens(aiResult.inputTokens())
-                    .outputTokens(aiResult.outputTokens())
-                    .estimatedCostUsd(AiUsageLog.calculateCost(model, aiResult.inputTokens(), aiResult.outputTokens()))
-                    .build());
-        } catch (Exception e) {
-            log.debug("Failed to save AI usage log: {}", e.getMessage());
-        }
-
-        return parseAIResponse(aiResult.content(), featureId, title);
+    private record PromptInput(String featureTitle, String systemPrompt, String userPrompt) {
     }
 
     @Transactional
@@ -302,8 +297,7 @@ public class FeatureAIService {
 
     private FeatureAIResponse.TaskDecomposition parseAIResponse(String aiResponse, String featureId, String featureTitle) {
         try {
-            String json = extractJson(aiResponse);
-            JsonNode root = objectMapper.readTree(json);
+            JsonNode root = aiInvocationTemplate.readJsonTree(aiResponse);
 
             List<FeatureAIResponse.TaskSuggestion> tasks = new ArrayList<>();
             JsonNode tasksNode = root.get("tasks");
@@ -339,27 +333,6 @@ public class FeatureAIService {
             log.error("Failed to parse AI response for feature: {}", featureId, e);
             throw new BusinessException(ErrorCode.AI_FEATURE_DECOMPOSE_FAILED);
         }
-    }
-
-    private String extractJson(String response) {
-        if (response == null) return "{}";
-        String trimmed = response.trim();
-
-        if (trimmed.startsWith("```")) {
-            int firstNewline = trimmed.indexOf('\n');
-            int lastFence = trimmed.lastIndexOf("```");
-            if (firstNewline > 0 && lastFence > firstNewline) {
-                trimmed = trimmed.substring(firstNewline + 1, lastFence).trim();
-            }
-        }
-
-        int start = trimmed.indexOf('{');
-        int end = trimmed.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            return trimmed.substring(start, end + 1);
-        }
-
-        return trimmed;
     }
 
     private String getTextOrNull(JsonNode node, String field) {

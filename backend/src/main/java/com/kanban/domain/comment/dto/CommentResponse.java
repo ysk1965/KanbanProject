@@ -27,19 +27,36 @@ public class CommentResponse {
         private List<ReactionInfo> reactions;
         private String parentId;
         private String parentAuthorName;
+        /** 이 댓글이 달린 체크리스트 항목. null이면 태스크에 직접 달린 댓글이다. */
+        private String checklistItemId;
+        /** 항목 제목 — 댓글 목록의 칩에 쓴다. 항목을 찾지 못하면 null. */
+        private String checklistItemTitle;
+        /** 항목이 휴지통에 있는지. true면 칩에 취소선을 긋고 클릭을 막는다. */
+        private Boolean checklistItemDeleted;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
         public static Detail of(Comment comment) {
-            return of(comment, Map.of(), null);
+            return of(comment, Map.of(), null, Map.of());
         }
 
         public static Detail of(Comment comment, Map<String, String> customEmojiUrlMap) {
-            return of(comment, customEmojiUrlMap, null);
+            return of(comment, customEmojiUrlMap, null, Map.of());
         }
 
         public static Detail of(Comment comment, Map<String, String> customEmojiUrlMap,
                                  UnaryOperator<String> urlResolver) {
+            return of(comment, customEmojiUrlMap, urlResolver, Map.of());
+        }
+
+        /**
+         * @param checklistRefs 체크리스트 항목 id → 제목/삭제여부. 목록 조회에서 한 번에 로드해 넘긴다
+         *                      (댓글마다 조회하면 N+1). 단건 응답에서는 빈 맵이어도 되며,
+         *                      그때는 id만 실리고 제목은 프론트가 이미 알고 있는 값을 쓴다.
+         */
+        public static Detail of(Comment comment, Map<String, String> customEmojiUrlMap,
+                                 UnaryOperator<String> urlResolver,
+                                 Map<String, ChecklistRef> checklistRefs) {
             List<String> mentionList = comment.getMentions() != null && !comment.getMentions().isEmpty()
                     ? Arrays.asList(comment.getMentions().split(","))
                     : List.of();
@@ -62,6 +79,9 @@ public class CommentResponse {
                             .profileImage(null)
                             .build();
 
+            ChecklistRef ref = comment.getChecklistItemId() != null
+                    ? checklistRefs.get(comment.getChecklistItemId()) : null;
+
             return Detail.builder()
                     .id(comment.getId())
                     .taskId(comment.getTask().getId())
@@ -73,6 +93,9 @@ public class CommentResponse {
                     .parentId(comment.getParent() != null ? comment.getParent().getId() : null)
                     .parentAuthorName(comment.getParent() != null && comment.getParent().getAuthor() != null
                             ? comment.getParent().getAuthor().getName() : null)
+                    .checklistItemId(comment.getChecklistItemId())
+                    .checklistItemTitle(ref != null ? ref.getTitle() : null)
+                    .checklistItemDeleted(ref != null ? ref.isDeleted() : null)
                     .createdAt(comment.getCreatedAt())
                     .updatedAt(comment.getUpdatedAt())
                     .build();
@@ -118,6 +141,18 @@ public class CommentResponse {
         private String id;
         private String name;
         private String profileImage;
+    }
+
+    /**
+     * 댓글에 붙일 체크리스트 항목 참조. 응답 DTO 전용 값이며 엔티티 연관이 아니다
+     * (삭제된 항목도 실어야 하므로 {@code @SQLRestriction}을 우회한 조회 결과를 담는다).
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ChecklistRef {
+        private String title;
+        private boolean deleted;
     }
 
     @Getter
@@ -198,8 +233,15 @@ public class CommentResponse {
 
         public static ListResponse of(List<Comment> comments, Map<String, String> customEmojiUrlMap,
                                        UnaryOperator<String> urlResolver) {
+            return of(comments, customEmojiUrlMap, urlResolver, Map.of());
+        }
+
+        public static ListResponse of(List<Comment> comments, Map<String, String> customEmojiUrlMap,
+                                       UnaryOperator<String> urlResolver,
+                                       Map<String, ChecklistRef> checklistRefs) {
             return ListResponse.builder()
-                    .comments(comments.stream().map(c -> Detail.of(c, customEmojiUrlMap, urlResolver)).toList())
+                    .comments(comments.stream()
+                            .map(c -> Detail.of(c, customEmojiUrlMap, urlResolver, checklistRefs)).toList())
                     .totalCount(comments.size())
                     .build();
         }

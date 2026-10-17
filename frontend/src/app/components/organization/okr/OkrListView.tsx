@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronDown,
   ChevronRight,
@@ -11,11 +11,11 @@ import {
   PlusCircle,
   Plus,
   Target,
-} from "lucide-react";
-import type { OkrObjective, OkrKeyResult } from "../../../types";
-import { IconButton } from "../../ui/IconButton";
-import { OkrProgressBar } from "./OkrProgressBar";
-import { OkrConfidenceBadge } from "./OkrConfidenceBadge";
+} from 'lucide-react';
+import type { OkrObjective, OkrKeyResult } from '../../../types';
+import { IconButton } from '../../ui/IconButton';
+import { OkrProgressBar } from './OkrProgressBar';
+import { OkrConfidenceBadge } from './OkrConfidenceBadge';
 
 interface OkrListViewProps {
   objectives: OkrObjective[];
@@ -53,7 +53,7 @@ export function OkrListView({
   if (objectives.length === 0) {
     return (
       <div className="text-center py-12 text-slate-500 text-sm">
-        {t("okr.allObjectives", "All Objectives")} - {t("common.noData", "No data")}
+        {t('okr.allObjectives', 'All Objectives')} - {t('common.noData', 'No data')}
       </div>
     );
   }
@@ -121,8 +121,8 @@ function ObjectiveRow({
             onClick={() => hasContent && onToggleCollapse(objective.id)}
             className={`shrink-0 p-0.5 rounded-md transition-colors ${
               hasContent
-                ? "text-slate-400 hover:text-foreground hover:bg-foreground/5 cursor-pointer"
-                : "text-transparent cursor-default"
+                ? 'text-slate-400 hover:text-foreground hover:bg-foreground/5 cursor-pointer'
+                : 'text-transparent cursor-default'
             }`}
           >
             {hasContent ? (
@@ -147,10 +147,8 @@ function ObjectiveRow({
             className="flex-1 min-w-0 text-left"
           >
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-foreground truncate">
-                {objective.title}
-              </span>
-              {objective.level === "DEPARTMENT" && objective.department_name && (
+              <span className="text-sm font-bold text-foreground truncate">{objective.title}</span>
+              {objective.level === 'DEPARTMENT' && objective.department_name && (
                 <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent shrink-0 hidden sm:inline">
                   {objective.department_name}
                 </span>
@@ -179,7 +177,7 @@ function ObjectiveRow({
                 e.stopPropagation();
                 onAddChild(objective.id);
               }}
-              aria-label={t("okr.addObjective", "Add Objective")}
+              aria-label={t('okr.addObjective', 'Add Objective')}
               className="opacity-0 group-hover:opacity-100"
             >
               <Plus />
@@ -192,19 +190,14 @@ function ObjectiveRow({
           {!isCollapsed && objective.key_results.length > 0 && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
+              animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.15 }}
               className="overflow-hidden"
             >
               <div className="px-3 pb-2 space-y-0.5">
                 {objective.key_results.map((kr) => (
-                  <KeyResultRow
-                    key={kr.id}
-                    kr={kr}
-                    onCheckIn={onCheckIn}
-                    isAdmin={isAdmin}
-                  />
+                  <KeyResultRow key={kr.id} kr={kr} onCheckIn={onCheckIn} isAdmin={isAdmin} />
                 ))}
               </div>
             </motion.div>
@@ -217,7 +210,7 @@ function ObjectiveRow({
         {!isCollapsed && objective.children.length > 0 && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
+            animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.15 }}
             className="mt-2 space-y-2 overflow-hidden"
@@ -271,24 +264,17 @@ function KeyResultRow({
     <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors group/kr ml-8">
       <BarChart3 size={12} className="text-bridge-secondary shrink-0" />
 
-      <span className="text-xs text-foreground truncate flex-1 min-w-0">
-        {kr.title}
-      </span>
+      <span className="text-xs text-foreground truncate flex-1 min-w-0">{kr.title}</span>
 
       {/* Current / Target */}
       <span className="text-xs text-slate-500 shrink-0 hidden sm:inline">
         {kr.current_value}
-        {kr.unit ? ` ${kr.unit}` : ""} / {kr.target_value}
-        {kr.unit ? ` ${kr.unit}` : ""}
+        {kr.unit ? ` ${kr.unit}` : ''} / {kr.target_value}
+        {kr.unit ? ` ${kr.unit}` : ''}
       </span>
 
       {/* Mini progress */}
-      <OkrProgressBar
-        progress={progress}
-        size="sm"
-        className="w-12 shrink-0"
-        animated={false}
-      />
+      <OkrProgressBar progress={progress} size="sm" className="w-12 shrink-0" animated={false} />
 
       <span className="text-xs font-bold text-foreground w-8 text-right shrink-0">
         {Math.round(progress)}%
@@ -301,7 +287,7 @@ function KeyResultRow({
             e.stopPropagation();
             onCheckIn(kr.id);
           }}
-          aria-label={t("okr.addCheckin", "Check-in")}
+          aria-label={t('okr.addCheckin', 'Check-in')}
           className="opacity-0 group-hover/kr:opacity-100 hover:text-bridge-accent hover:bg-bridge-accent/10"
         >
           <PlusCircle />

@@ -98,14 +98,14 @@ export function EmailVerificationResultPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4">
               {t('emailVerificationResult.successTitle')}
             </h1>
-            <p className="text-slate-400 mb-8">
-              {t('emailVerificationResult.successDesc')}
-            </p>
+            <p className="text-slate-400 mb-8">{t('emailVerificationResult.successDesc')}</p>
             <button
               onClick={handleNavigate}
               className="w-full h-14 bg-gradient-to-r from-bridge-accent to-indigo-600 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]"
             >
-              {isAuthenticated ? t('emailVerificationResult.goToBoards') : t('emailVerificationResult.goToLogin')}
+              {isAuthenticated
+                ? t('emailVerificationResult.goToBoards')
+                : t('emailVerificationResult.goToLogin')}
               <ArrowRight className="w-5 h-5" />
             </button>
           </>
@@ -122,9 +122,7 @@ export function EmailVerificationResultPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4">
               {t('emailVerificationResult.errorTitle')}
             </h1>
-            <p className="text-slate-400 mb-8">
-              {errorMessage}
-            </p>
+            <p className="text-slate-400 mb-8">{errorMessage}</p>
             <button
               onClick={handleNavigate}
               className="w-full h-14 bg-foreground/5 border border-bridge-border text-foreground rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-foreground/10"

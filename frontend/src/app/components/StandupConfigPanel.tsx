@@ -1,15 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import {
-  Clock,
-  ChevronDown,
-  ChevronUp,
-  CheckCircle,
-  Loader2,
-} from "lucide-react";
-import { standupConfigAPI } from "../utils/api";
-import { StandupConfig } from "../types";
-import { formatRelativeTime } from "../utils/dateUtils";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Clock, ChevronDown, ChevronUp, CheckCircle, Loader2 } from 'lucide-react';
+import { standupConfigAPI } from '../utils/api';
+import { StandupConfig } from '../types';
+import { formatRelativeTime } from '../utils/dateUtils';
 
 interface StandupConfigPanelProps {
   boardId: string;
@@ -19,17 +13,17 @@ interface StandupConfigPanelProps {
 }
 
 const TIMEZONES = [
-  { value: "Asia/Seoul", label: "Asia/Seoul (KST)" },
-  { value: "Asia/Tokyo", label: "Asia/Tokyo (JST)" },
-  { value: "Asia/Shanghai", label: "Asia/Shanghai (CST)" },
-  { value: "America/New_York", label: "America/New_York (EST)" },
-  { value: "America/Los_Angeles", label: "America/Los_Angeles (PST)" },
-  { value: "America/Chicago", label: "America/Chicago (CST)" },
-  { value: "Europe/London", label: "Europe/London (GMT)" },
-  { value: "Europe/Paris", label: "Europe/Paris (CET)" },
-  { value: "Europe/Berlin", label: "Europe/Berlin (CET)" },
-  { value: "Australia/Sydney", label: "Australia/Sydney (AEST)" },
-  { value: "UTC", label: "UTC" },
+  { value: 'Asia/Seoul', label: 'Asia/Seoul (KST)' },
+  { value: 'Asia/Tokyo', label: 'Asia/Tokyo (JST)' },
+  { value: 'Asia/Shanghai', label: 'Asia/Shanghai (CST)' },
+  { value: 'America/New_York', label: 'America/New_York (EST)' },
+  { value: 'America/Los_Angeles', label: 'America/Los_Angeles (PST)' },
+  { value: 'America/Chicago', label: 'America/Chicago (CST)' },
+  { value: 'Europe/London', label: 'Europe/London (GMT)' },
+  { value: 'Europe/Paris', label: 'Europe/Paris (CET)' },
+  { value: 'Europe/Berlin', label: 'Europe/Berlin (CET)' },
+  { value: 'Australia/Sydney', label: 'Australia/Sydney (AEST)' },
+  { value: 'UTC', label: 'UTC' },
 ];
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -43,21 +37,15 @@ function utcToLocal(
   try {
     const now = new Date();
     const utcDate = new Date(
-      Date.UTC(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        utcHour,
-        utcMinute,
-      ),
+      Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), utcHour, utcMinute),
     );
-    const localStr = utcDate.toLocaleString("en-US", {
+    const localStr = utcDate.toLocaleString('en-US', {
       timeZone: timezone,
       hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
+      hour: '2-digit',
+      minute: '2-digit',
     });
-    const [h, m] = localStr.split(":").map(Number);
+    const [h, m] = localStr.split(':').map(Number);
     return { hour: h, minute: m };
   } catch {
     return { hour: utcHour, minute: utcMinute };
@@ -81,8 +69,8 @@ export function StandupConfigPanel({
   const [enabled, setEnabled] = useState(false);
   const [hour, setHour] = useState(9);
   const [minute, setMinute] = useState(0);
-  const [timezone, setTimezone] = useState("Asia/Seoul");
-  const [language, setLanguage] = useState("ko");
+  const [timezone, setTimezone] = useState('Asia/Seoul');
+  const [language, setLanguage] = useState('ko');
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -94,11 +82,7 @@ export function StandupConfigPanel({
         setEnabled(data.enabled);
         setTimezone(data.timezone);
         setLanguage(data.language);
-        const local = utcToLocal(
-          data.send_hour_utc,
-          data.send_minute_utc,
-          data.timezone,
-        );
+        const local = utcToLocal(data.send_hour_utc, data.send_minute_utc, data.timezone);
         setHour(local.hour);
         setMinute(local.minute);
       }
@@ -141,7 +125,7 @@ export function StandupConfigPanel({
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       } catch (err) {
-        console.error("Failed to save standup config:", err);
+        console.error('Failed to save standup config:', err);
       } finally {
         setIsSaving(false);
       }
@@ -204,7 +188,7 @@ export function StandupConfigPanel({
         <div className="flex items-center gap-1.5">
           <Clock size={12} className="text-bridge-secondary" />
           <span className="text-xs font-medium text-muted-foreground">
-            {t("standupConfig.title")}
+            {t('standupConfig.title')}
           </span>
           {enabled && (
             <span className="ml-1 px-1.5 py-0.5 rounded-full bg-bridge-secondary/20 text-bridge-secondary text-xs font-bold uppercase">
@@ -213,9 +197,7 @@ export function StandupConfigPanel({
           )}
         </div>
         <div className="flex items-center gap-1">
-          {isSaving && (
-            <Loader2 size={10} className="text-slate-400 animate-spin" />
-          )}
+          {isSaving && <Loader2 size={10} className="text-slate-400 animate-spin" />}
           {saved && <CheckCircle size={10} className="text-green-400" />}
           {isOpen ? (
             <ChevronUp size={12} className="text-slate-400" />
@@ -228,37 +210,33 @@ export function StandupConfigPanel({
       {isOpen && (
         <div className="px-3 pb-3 border-t border-foreground/5 space-y-3">
           <p className="text-xs text-slate-500 pt-2 leading-tight">
-            {t("standupConfig.description")}
+            {t('standupConfig.description')}
           </p>
 
           {/* Enable toggle */}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">
-              {t("standupConfig.enabled")}
-            </span>
+            <span className="text-xs text-muted-foreground">{t('standupConfig.enabled')}</span>
             <button
               onClick={handleEnabledToggle}
               disabled={!hasSlack}
               className={`w-8 h-4.5 rounded-full transition-colors relative ${
                 !hasSlack
-                  ? "bg-foreground/5 cursor-not-allowed opacity-40"
+                  ? 'bg-foreground/5 cursor-not-allowed opacity-40'
                   : enabled
-                    ? "bg-bridge-secondary"
-                    : "bg-foreground/10"
+                    ? 'bg-bridge-secondary'
+                    : 'bg-foreground/10'
               }`}
             >
               <div
                 className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white transition-transform ${
-                  enabled ? "translate-x-4" : "translate-x-0.5"
+                  enabled ? 'translate-x-4' : 'translate-x-0.5'
                 }`}
               />
             </button>
           </div>
 
           {!hasSlack && (
-            <p className="text-xs text-amber-400/70">
-              {t("standupConfig.requiresSlack")}
-            </p>
+            <p className="text-xs text-amber-400/70">{t('standupConfig.requiresSlack')}</p>
           )}
 
           {/* Time settings (only when enabled) */}
@@ -267,7 +245,7 @@ export function StandupConfigPanel({
               {/* Send time */}
               <div>
                 <label className="text-xs text-slate-500 uppercase tracking-wider block mb-1">
-                  {t("standupConfig.sendTime")}
+                  {t('standupConfig.sendTime')}
                 </label>
                 <div className="flex items-center gap-1.5">
                   <select
@@ -278,7 +256,7 @@ export function StandupConfigPanel({
                   >
                     {HOURS.map((h) => (
                       <option key={h} value={h} className="bg-bridge-obsidian">
-                        {String(h).padStart(2, "0")}
+                        {String(h).padStart(2, '0')}
                       </option>
                     ))}
                   </select>
@@ -291,7 +269,7 @@ export function StandupConfigPanel({
                   >
                     {MINUTES.map((m) => (
                       <option key={m} value={m} className="bg-bridge-obsidian">
-                        {String(m).padStart(2, "0")}
+                        {String(m).padStart(2, '0')}
                       </option>
                     ))}
                   </select>
@@ -301,7 +279,7 @@ export function StandupConfigPanel({
               {/* Timezone */}
               <div>
                 <label className="text-xs text-slate-500 uppercase tracking-wider block mb-1">
-                  {t("standupConfig.timezone")}
+                  {t('standupConfig.timezone')}
                 </label>
                 <select
                   value={timezone}
@@ -310,11 +288,7 @@ export function StandupConfigPanel({
                     focus:outline-none focus:ring-1 focus:ring-bridge-secondary/50 appearance-none cursor-pointer"
                 >
                   {TIMEZONES.map((tz) => (
-                    <option
-                      key={tz.value}
-                      value={tz.value}
-                      className="bg-bridge-obsidian"
-                    >
+                    <option key={tz.value} value={tz.value} className="bg-bridge-obsidian">
                       {tz.label}
                     </option>
                   ))}
@@ -324,28 +298,28 @@ export function StandupConfigPanel({
               {/* Language */}
               <div>
                 <label className="text-xs text-slate-500 uppercase tracking-wider block mb-1">
-                  {t("standupConfig.language")}
+                  {t('standupConfig.language')}
                 </label>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleLanguageChange("ko")}
+                    onClick={() => handleLanguageChange('ko')}
                     className={`px-3 py-1 rounded-lg text-xs transition-colors ${
-                      language === "ko"
-                        ? "bg-bridge-secondary/20 text-bridge-secondary border border-bridge-secondary/30"
-                        : "bg-foreground/5 text-slate-400 border border-foreground/10 hover:bg-foreground/10"
+                      language === 'ko'
+                        ? 'bg-bridge-secondary/20 text-bridge-secondary border border-bridge-secondary/30'
+                        : 'bg-foreground/5 text-slate-400 border border-foreground/10 hover:bg-foreground/10'
                     }`}
                   >
-                    {t("standupConfig.korean")}
+                    {t('standupConfig.korean')}
                   </button>
                   <button
-                    onClick={() => handleLanguageChange("en")}
+                    onClick={() => handleLanguageChange('en')}
                     className={`px-3 py-1 rounded-lg text-xs transition-colors ${
-                      language === "en"
-                        ? "bg-bridge-secondary/20 text-bridge-secondary border border-bridge-secondary/30"
-                        : "bg-foreground/5 text-slate-400 border border-foreground/10 hover:bg-foreground/10"
+                      language === 'en'
+                        ? 'bg-bridge-secondary/20 text-bridge-secondary border border-bridge-secondary/30'
+                        : 'bg-foreground/5 text-slate-400 border border-foreground/10 hover:bg-foreground/10'
                     }`}
                   >
-                    {t("standupConfig.english")}
+                    {t('standupConfig.english')}
                   </button>
                 </div>
               </div>
@@ -353,8 +327,7 @@ export function StandupConfigPanel({
               {/* Last sent */}
               {config?.last_sent_at && (
                 <div className="text-xs text-slate-500">
-                  {t("standupConfig.lastSent")}:{" "}
-                  {formatRelativeTime(config.last_sent_at)}
+                  {t('standupConfig.lastSent')}: {formatRelativeTime(config.last_sent_at)}
                 </div>
               )}
             </>

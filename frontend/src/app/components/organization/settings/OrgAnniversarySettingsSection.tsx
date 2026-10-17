@@ -1,24 +1,17 @@
-import { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { Cake } from "lucide-react";
-import { anniversaryService } from "../../../utils/services";
-import type {
-  AnniversarySettings,
-  NotifyTiming,
-  AnniversaryDashboardRange,
-} from "../../../types";
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Cake } from 'lucide-react';
+import { anniversaryService } from '../../../utils/services';
+import type { AnniversarySettings, NotifyTiming, AnniversaryDashboardRange } from '../../../types';
 
 interface OrgAnniversarySettingsSectionProps {
   orgId: string;
 }
 
-export function OrgAnniversarySettingsSection({
-  orgId,
-}: OrgAnniversarySettingsSectionProps) {
+export function OrgAnniversarySettingsSection({ orgId }: OrgAnniversarySettingsSectionProps) {
   const { t } = useTranslation();
 
-  const [anniversarySettings, setAnniversarySettings] =
-    useState<AnniversarySettings | null>(null);
+  const [anniversarySettings, setAnniversarySettings] = useState<AnniversarySettings | null>(null);
   const [anniversaryLoading, setAnniversaryLoading] = useState(true);
 
   useEffect(() => {
@@ -36,9 +29,7 @@ export function OrgAnniversarySettingsSection({
     fetchAnniversary();
   }, [orgId]);
 
-  const handleAnniversarySettingChange = async (
-    updates: Partial<AnniversarySettings>,
-  ) => {
+  const handleAnniversarySettingChange = async (updates: Partial<AnniversarySettings>) => {
     if (!anniversarySettings) return;
     const optimistic = { ...anniversarySettings, ...updates };
     setAnniversarySettings(optimistic);
@@ -54,7 +45,7 @@ export function OrgAnniversarySettingsSection({
     <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.05] p-6">
       <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
         <Cake size={16} className="text-pink-400" />
-        {t("organization.anniversary.settings", "Anniversary Settings")}
+        {t('organization.anniversary.settings', 'Anniversary Settings')}
       </h3>
 
       {anniversaryLoading ? (
@@ -65,10 +56,7 @@ export function OrgAnniversarySettingsSection({
           <div className="space-y-3">
             <label className="flex items-center justify-between cursor-pointer group">
               <span className="text-sm text-foreground">
-                {t(
-                  "organization.anniversary.birthdayEnabled",
-                  "Birthday Notifications",
-                )}
+                {t('organization.anniversary.birthdayEnabled', 'Birthday Notifications')}
               </span>
               <button
                 onClick={() =>
@@ -76,10 +64,10 @@ export function OrgAnniversarySettingsSection({
                     birthday_enabled: !anniversarySettings.birthday_enabled,
                   })
                 }
-                className={`relative w-10 h-5 rounded-full transition-colors ${anniversarySettings.birthday_enabled ? "bg-bridge-accent" : "bg-foreground/10"}`}
+                className={`relative w-10 h-5 rounded-full transition-colors ${anniversarySettings.birthday_enabled ? 'bg-bridge-accent' : 'bg-foreground/10'}`}
               >
                 <span
-                  className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${anniversarySettings.birthday_enabled ? "translate-x-5" : ""}`}
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${anniversarySettings.birthday_enabled ? 'translate-x-5' : ''}`}
                 />
               </button>
             </label>
@@ -87,21 +75,20 @@ export function OrgAnniversarySettingsSection({
             <label className="flex items-center justify-between cursor-pointer group">
               <span className="text-sm text-foreground">
                 {t(
-                  "organization.anniversary.hireAnniversaryEnabled",
-                  "Hire Anniversary Notifications",
+                  'organization.anniversary.hireAnniversaryEnabled',
+                  'Hire Anniversary Notifications',
                 )}
               </span>
               <button
                 onClick={() =>
                   handleAnniversarySettingChange({
-                    hire_anniversary_enabled:
-                      !anniversarySettings.hire_anniversary_enabled,
+                    hire_anniversary_enabled: !anniversarySettings.hire_anniversary_enabled,
                   })
                 }
-                className={`relative w-10 h-5 rounded-full transition-colors ${anniversarySettings.hire_anniversary_enabled ? "bg-bridge-accent" : "bg-foreground/10"}`}
+                className={`relative w-10 h-5 rounded-full transition-colors ${anniversarySettings.hire_anniversary_enabled ? 'bg-bridge-accent' : 'bg-foreground/10'}`}
               >
                 <span
-                  className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${anniversarySettings.hire_anniversary_enabled ? "translate-x-5" : ""}`}
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${anniversarySettings.hire_anniversary_enabled ? 'translate-x-5' : ''}`}
                 />
               </button>
             </label>
@@ -110,32 +97,26 @@ export function OrgAnniversarySettingsSection({
           {/* Notify Timing */}
           <div>
             <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
-              {t(
-                "organization.anniversary.notifyTiming",
-                "Notification Timing",
-              )}
+              {t('organization.anniversary.notifyTiming', 'Notification Timing')}
             </label>
             <div className="space-y-1.5">
               {[
                 {
-                  value: "SAME_DAY" as NotifyTiming,
+                  value: 'SAME_DAY' as NotifyTiming,
+                  label: t('organization.anniversary.notifyTimingSameDay', 'Same day only'),
+                },
+                {
+                  value: 'DAY_BEFORE' as NotifyTiming,
                   label: t(
-                    "organization.anniversary.notifyTimingSameDay",
-                    "Same day only",
+                    'organization.anniversary.notifyTimingDayBefore',
+                    'Day before + Same day',
                   ),
                 },
                 {
-                  value: "DAY_BEFORE" as NotifyTiming,
+                  value: 'THREE_DAYS_BEFORE' as NotifyTiming,
                   label: t(
-                    "organization.anniversary.notifyTimingDayBefore",
-                    "Day before + Same day",
-                  ),
-                },
-                {
-                  value: "THREE_DAYS_BEFORE" as NotifyTiming,
-                  label: t(
-                    "organization.anniversary.notifyTimingThreeDays",
-                    "3 days before + Same day",
+                    'organization.anniversary.notifyTimingThreeDays',
+                    '3 days before + Same day',
                   ),
                 },
               ].map((option) => (
@@ -151,17 +132,15 @@ export function OrgAnniversarySettingsSection({
                     }
                     className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer ${
                       anniversarySettings.notify_timing === option.value
-                        ? "border-bridge-accent"
-                        : "border-foreground/20"
+                        ? 'border-bridge-accent'
+                        : 'border-foreground/20'
                     }`}
                   >
                     {anniversarySettings.notify_timing === option.value && (
                       <div className="w-2 h-2 rounded-full bg-bridge-accent" />
                     )}
                   </div>
-                  <span className="text-sm text-foreground">
-                    {option.label}
-                  </span>
+                  <span className="text-sm text-foreground">{option.label}</span>
                 </label>
               ))}
             </div>
@@ -170,26 +149,17 @@ export function OrgAnniversarySettingsSection({
           {/* Dashboard Range */}
           <div>
             <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 block">
-              {t(
-                "organization.anniversary.dashboardRange",
-                "Dashboard Display Range",
-              )}
+              {t('organization.anniversary.dashboardRange', 'Dashboard Display Range')}
             </label>
             <div className="space-y-1.5">
               {[
                 {
-                  value: "THIS_WEEK" as AnniversaryDashboardRange,
-                  label: t(
-                    "organization.anniversary.dashboardRangeWeek",
-                    "This Week",
-                  ),
+                  value: 'THIS_WEEK' as AnniversaryDashboardRange,
+                  label: t('organization.anniversary.dashboardRangeWeek', 'This Week'),
                 },
                 {
-                  value: "THIS_MONTH" as AnniversaryDashboardRange,
-                  label: t(
-                    "organization.anniversary.dashboardRangeMonth",
-                    "This Month",
-                  ),
+                  value: 'THIS_MONTH' as AnniversaryDashboardRange,
+                  label: t('organization.anniversary.dashboardRangeMonth', 'This Month'),
                 },
               ].map((option) => (
                 <label
@@ -204,17 +174,15 @@ export function OrgAnniversarySettingsSection({
                     }
                     className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer ${
                       anniversarySettings.dashboard_range === option.value
-                        ? "border-bridge-accent"
-                        : "border-foreground/20"
+                        ? 'border-bridge-accent'
+                        : 'border-foreground/20'
                     }`}
                   >
                     {anniversarySettings.dashboard_range === option.value && (
                       <div className="w-2 h-2 rounded-full bg-bridge-accent" />
                     )}
                   </div>
-                  <span className="text-sm text-foreground">
-                    {option.label}
-                  </span>
+                  <span className="text-sm text-foreground">{option.label}</span>
                 </label>
               ))}
             </div>
@@ -222,10 +190,7 @@ export function OrgAnniversarySettingsSection({
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">
-          {t(
-            "organization.anniversary.settingsLoadError",
-            "Failed to load anniversary settings",
-          )}
+          {t('organization.anniversary.settingsLoadError', 'Failed to load anniversary settings')}
         </p>
       )}
     </section>

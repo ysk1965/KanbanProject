@@ -9,15 +9,17 @@ interface VideoThumbnailProps {
   alt?: string;
 }
 
-export function VideoThumbnail({ videoUrl, serverThumbnailUrl, className, alt }: VideoThumbnailProps) {
+export function VideoThumbnail({
+  videoUrl,
+  serverThumbnailUrl,
+  className,
+  alt,
+}: VideoThumbnailProps) {
   const [serverFailed, setServerFailed] = useState(false);
 
   const effectiveServerUrl = serverFailed ? null : serverThumbnailUrl;
 
-  const generatedThumbnail = useVideoThumbnail(
-    videoUrl,
-    !effectiveServerUrl
-  );
+  const generatedThumbnail = useVideoThumbnail(videoUrl, !effectiveServerUrl);
 
   const thumbnailSrc = effectiveServerUrl || generatedThumbnail;
 

@@ -27,7 +27,15 @@ const STATUS_BADGE: Record<WorkStatus, string> = {
   RESIGNED: 'bg-red-500/20 text-red-600 dark:text-red-400',
 };
 
-export function MemberProfileHeader({ member, myRole, isSelf, onChangeRole, onRemove, onPhotoUpload, onPhotoDelete }: MemberProfileHeaderProps) {
+export function MemberProfileHeader({
+  member,
+  myRole,
+  isSelf,
+  onChangeRole,
+  onRemove,
+  onPhotoUpload,
+  onPhotoDelete,
+}: MemberProfileHeaderProps) {
   const { t } = useTranslation();
   const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
   const canEditPhoto = isAdmin || isSelf;
@@ -91,7 +99,11 @@ export function MemberProfileHeader({ member, myRole, isSelf, onChangeRole, onRe
             {uploading ? (
               <Loader2 size={24} className="animate-spin text-bridge-accent" />
             ) : member.user.profile_image ? (
-              <img src={member.user.profile_image} alt={member.user.name || '프로필'} className="w-16 h-16 rounded-full object-cover" />
+              <img
+                src={member.user.profile_image}
+                alt={member.user.name || '프로필'}
+                className="w-16 h-16 rounded-full object-cover"
+              />
             ) : (
               member.user.name?.charAt(0) || '?'
             )}
@@ -148,12 +160,18 @@ export function MemberProfileHeader({ member, myRole, isSelf, onChangeRole, onRe
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white truncate">{member.user.name}</h2>
-            <span className={`inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full ${roleBadge.style}`}>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white truncate">
+              {member.user.name}
+            </h2>
+            <span
+              className={`inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full ${roleBadge.style}`}
+            >
               <RoleIcon size={10} />
               {member.role}
             </span>
-            <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${STATUS_BADGE[member.work_status]}`}>
+            <span
+              className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${STATUS_BADGE[member.work_status]}`}
+            >
               {member.work_status.replace('_', ' ')}
             </span>
           </div>
@@ -162,7 +180,9 @@ export function MemberProfileHeader({ member, myRole, isSelf, onChangeRole, onRe
             {member.department?.name && member.job_title && <span> · </span>}
             {member.job_title && <span>{member.job_title}</span>}
           </div>
-          <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{member.user.email}</div>
+          <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+            {member.user.email}
+          </div>
         </div>
 
         {/* More Menu */}
@@ -201,7 +221,10 @@ export function MemberProfileHeader({ member, myRole, isSelf, onChangeRole, onRe
                           {(['ADMIN', 'MEMBER'] as OrgRole[]).map((role) => (
                             <button
                               key={role}
-                              onClick={() => { onChangeRole(role); setShowMenu(false); }}
+                              onClick={() => {
+                                onChangeRole(role);
+                                setShowMenu(false);
+                              }}
                               disabled={member.role === role}
                               className="w-full text-left px-4 py-2.5 text-sm text-slate-900 dark:text-white hover:bg-foreground/5 transition-colors disabled:opacity-40"
                             >
@@ -217,7 +240,10 @@ export function MemberProfileHeader({ member, myRole, isSelf, onChangeRole, onRe
 
                   {/* Remove */}
                   <button
-                    onClick={() => { onRemove(); setShowMenu(false); }}
+                    onClick={() => {
+                      onRemove();
+                      setShowMenu(false);
+                    }}
                     className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/5 transition-colors"
                   >
                     {t('organization.members.detail.removeMember')}

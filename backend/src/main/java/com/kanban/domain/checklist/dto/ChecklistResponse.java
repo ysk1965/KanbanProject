@@ -1,5 +1,6 @@
 package com.kanban.domain.checklist.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.kanban.domain.block.Block;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.contractor.dto.BoardContractorResponse;
@@ -8,6 +9,7 @@ import com.kanban.domain.feature.Feature;
 import com.kanban.domain.jobrole.dto.JobRoleResponse;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.task.Task;
+import com.kanban.domain.task.dto.TaskResponse;
 import com.kanban.domain.user.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -38,10 +40,42 @@ public class ChecklistResponse {
         private Integer position;
         private LocalDateTime createdAt;
         private LocalDateTime completedAt;
+        /**
+         * 이 항목에 달린 댓글 수 — 행의 💬 뱃지에 쓴다.
+         *
+         * <p>목록 조회에서만 채운다. 단건 응답(생성·수정·토글)에서는 null이며,
+         * 클라이언트는 null을 "값 없음"으로 보고 기존 카운트를 유지해야 한다.
+         * 토글 한 번마다 카운트 쿼리를 더 돌릴 이유가 없다.</p>
+         */
+        private Integer commentCount;
+        /** 실제 귀속 스프린트(지정 ?? 태스크). 백로그면 null. */
+        private String sprintId;
+        private Integer sprintSeq;
+        /** true면 태스크와 다른 스프린트로 직접 보낸 줄 — 화면은 이 예외에만 칩을 붙인다. */
+        private boolean sprintOverridden;
+        /**
+         * move-task 에서 새 Task를 만들어 옮긴 경우에만 채운다 — 클라이언트가 보드 상태에 Task를
+         * 추가하고 "Task 열기" 링크를 만들 때 쓴다. 그 외 응답에서는 직렬화되지 않는다.
+         */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private TaskResponse.Detail createdTask;
+
+        public Detail withCreatedTask(TaskResponse.Detail createdTask) {
+            this.createdTask = createdTask;
+            return this;
+        }
 
         public static Detail of(ChecklistItem item) {
+            return of(item, null);
+        }
+
+        public static Detail of(ChecklistItem item, Integer commentCount) {
+            com.kanban.domain.sprint.Sprint eff = item.effectiveSprint();
             return Detail.builder()
                     .id(item.getId())
+                    .sprintId(eff != null ? eff.getId() : null)
+                    .sprintSeq(eff != null ? eff.getSequenceNo() : null)
+                    .sprintOverridden(item.isSprintOverridden())
                     .title(item.getTitle())
                     .completed(item.getIsCompleted())
                     .assignee(item.getAssignee() != null ? AssigneeInfo.of(item) : null)
@@ -52,6 +86,7 @@ public class ChecklistResponse {
                     .position(item.getPosition())
                     .createdAt(item.getCreatedAt())
                     .completedAt(item.getCompletedAt())
+                    .commentCount(commentCount)
                     .build();
         }
     }
@@ -104,13 +139,23 @@ public class ChecklistResponse {
         private List<Detail> items;
 
         public static ListResponse of(List<ChecklistItem> items) {
+            return of(items, Map.of());
+        }
+
+        /**
+         * @param commentCounts 항목 id → 댓글 수. 항목마다 세면 N+1이므로 한 번의 group by 결과를 넘긴다.
+         *                      목록에 없는 항목은 0으로 채운다("아직 대화 없음"이 확정된 값이다).
+         */
+        public static ListResponse of(List<ChecklistItem> items, Map<String, Integer> commentCounts) {
             int total = items.size();
             int completed = (int) items.stream().filter(ChecklistItem::getIsCompleted).count();
 
             return ListResponse.builder()
                     .total(total)
                     .completed(completed)
-                    .items(items.stream().map(Detail::of).toList())
+                    .items(items.stream()
+                            .map(i -> Detail.of(i, commentCounts.getOrDefault(i.getId(), 0)))
+                            .toList())
                     .build();
         }
     }

@@ -12,7 +12,7 @@ import com.kanban.domain.report.source.ReportPeriod;
 import com.kanban.domain.sprint.Sprint;
 import com.kanban.domain.sprint.SprintColumnKind;
 import com.kanban.domain.sprint.SprintRepository;
-import com.kanban.domain.sprint.SprintStatus;
+import com.kanban.domain.sprint.SprintState;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import lombok.RequiredArgsConstructor;
@@ -488,18 +488,29 @@ public class BoardProgressCollector {
      * 태스크 건수는 참고용으로 taskDone/taskTotal에 따로 담는다.
      */
     private ReportContent.Sprint computeSprint(String boardId) {
-        List<Sprint> active = sprintRepository.findByBoardIdAndStatus(boardId, SprintStatus.ACTIVE);
-        if (active.isEmpty()) {
+        List<Sprint> sprints = sprintRepository.findByBoardId(boardId); // 최신 시퀀스 우선
+        if (sprints.isEmpty()) {
             return null;
         }
-        Sprint sprint = active.get(0); // 최신 시퀀스 우선
-        List<Task> tasks = taskRepository.findBySprintId(sprint.getId());
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        Set<String> sprintIdsWithTasks = taskRepository.findSprintIdsWithTasksByBoardId(boardId);
+        Sprint sprint = pickReportSprint(sprints, sprintIdsWithTasks, today);
+        List<Task> tasks = taskRepository.findBySprintId(sprint.getId());
 
-        // 스프린트에 담긴 태스크의 체크리스트를 한 번에 읽어 태스크별로 묶는다.
+        // 이 스프린트에 속한 줄(태스크 상속 + 줄 지정으로 보내온 것)을 한 번에 읽어 태스크별로 묶는다.
+        // 홈 태스크의 줄이라도 다른 스프린트로 보낸 줄은 여기 없다 — 게이지와 같은 귀속 규칙.
         Map<String, List<ChecklistItem>> checklistByTask = new HashMap<>();
+        Map<String, Task> foreignTaskById = new HashMap<>();
+        Set<String> homeTaskIds = new HashSet<>();
+        for (Task t : tasks) {
+            homeTaskIds.add(t.getId());
+        }
         for (ChecklistItem item : checklistItemRepository.findByTaskSprintId(sprint.getId())) {
-            checklistByTask.computeIfAbsent(item.getTask().getId(), k -> new ArrayList<>()).add(item);
+            String taskId = item.getTask().getId();
+            checklistByTask.computeIfAbsent(taskId, k -> new ArrayList<>()).add(item);
+            if (!homeTaskIds.contains(taskId)) {
+                foreignTaskById.putIfAbsent(taskId, item.getTask());
+            }
         }
 
         int taskTotal = tasks.size();
@@ -543,6 +554,28 @@ public class BoardProgressCollector {
             }
             // 그 외는 미착수 — 별도 버킷 없이 total에만 포함
         }
+        // 다른 태스크에서 이 스프린트로 보내온 줄(부분 카드) — 줄 수 그대로 더한다.
+        for (Map.Entry<String, Task> e : foreignTaskById.entrySet()) {
+            List<ChecklistItem> items = checklistByTask.getOrDefault(e.getKey(), List.of());
+            int completed = 0;
+            for (ChecklistItem c : items) {
+                if (Boolean.TRUE.equals(c.getIsCompleted())) {
+                    completed++;
+                }
+            }
+            total += items.size();
+            done += completed;
+            int remaining = items.size() - completed;
+            if (remaining <= 0) {
+                continue;
+            }
+            Task t = e.getValue();
+            if (t.getDueDate() != null && t.getDueDate().isBefore(today)) {
+                delayed += remaining;
+            } else if (t.getStartDate() != null && !t.getStartDate().isAfter(today)) {
+                inProgress += remaining;
+            }
+        }
 
         int percentage = total == 0 ? 0 : (int) Math.round(done * 100.0 / total);
         return ReportContent.Sprint.builder()
@@ -557,5 +590,52 @@ public class BoardProgressCollector {
                 .taskDone(taskDone)
                 .taskTotal(taskTotal)
                 .build();
+    }
+
+    /**
+     * 리포트에 실을 스프린트 선택. 보드에는 마일스톤마다 스프린트 버킷이 있어 CURRENT가 여러 개일 수
+     * 있고, 기간이 아직 백필되지 않은 스프린트(start/end NULL)도 CURRENT로 파생된다
+     * ({@link Sprint#stateOn} — 보드 UI의 단일 스프린트 보호 규칙). 단순히 "첫 CURRENT"를 집으면
+     * 아무도 안 연 빈 마일스톤의 스프린트가 잡혀 게이지가 0/0이 된다.
+     *
+     * <p>우선순위 — 리스트 순서(최신 시퀀스 우선)는 동순위 내 tie-break로 유지된다:
+     * <ol>
+     *   <li>CURRENT + 태스크 보유 + 기간 설정 — 실제 진행 중인 버킷</li>
+     *   <li>CURRENT + 태스크 보유 — 아직 안 나눈(기간 백필 전) 마일스톤의 작업</li>
+     *   <li>CURRENT + 기간 설정 — 진짜 현재 버킷인데 비어 있음(0/0이 사실)</li>
+     *   <li>태스크 보유 — 오늘이 어느 기간에도 안 걸릴 때 가장 최근의 실제 작업</li>
+     *   <li>그 외 — 빈 스프린트뿐이면 최신 시퀀스</li>
+     * </ol>
+     * (패키지 가시성: 테스트)
+     */
+    static Sprint pickReportSprint(List<Sprint> sprints, Set<String> sprintIdsWithTasks, LocalDate today) {
+        Sprint best = sprints.get(0);
+        int bestRank = Integer.MAX_VALUE;
+        for (Sprint s : sprints) {
+            int rank = reportSprintRank(s, sprintIdsWithTasks.contains(s.getId()), today);
+            if (rank < bestRank) {
+                best = s;
+                bestRank = rank;
+            }
+        }
+        return best;
+    }
+
+    private static int reportSprintRank(Sprint sprint, boolean hasTasks, LocalDate today) {
+        boolean current = sprint.stateOn(today) == SprintState.CURRENT;
+        boolean dated = sprint.getStartDate() != null && sprint.getEndDate() != null;
+        if (current && hasTasks && dated) {
+            return 0;
+        }
+        if (current && hasTasks) {
+            return 1;
+        }
+        if (current && dated) {
+            return 2;
+        }
+        if (hasTasks) {
+            return 3;
+        }
+        return 4;
     }
 }

@@ -7,6 +7,7 @@ import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ public class AnniversaryNotificationScheduler {
      * whose local timezone is currently 09:00, and sends notifications for matching anniversaries.
      */
     @Scheduled(cron = "0 0 * * * *")
+    @SchedulerLock(name = "AnniversaryNotificationScheduler.processAnniversaryNotifications", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     @Transactional
     public void processAnniversaryNotifications() {
         LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);

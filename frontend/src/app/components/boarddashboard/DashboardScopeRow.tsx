@@ -1,24 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { ChevronDown, Eye, Undo2 } from "lucide-react";
-import { getAssigneeHex, getInitials } from "../../utils/assigneeColor";
-import type { BoardMember as ShareBoardMember } from "../ShareBoardModal";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ChevronDown, Eye, Undo2 } from 'lucide-react';
+import { getAssigneeHex, getInitials } from '../../utils/assigneeColor';
+import type { BoardMember as ShareBoardMember } from '../ShareBoardModal';
 
 /** 검색창을 띄우기 시작하는 멤버 수 */
 const SEARCH_THRESHOLD = 4;
 /** 최근 본 멤버 보관 개수 */
 const RECENT_LIMIT = 3;
 
-const recentsKey = (boardId: string) =>
-  `bridge:dashboardScopeRecents:${boardId}`;
+const recentsKey = (boardId: string) => `bridge:dashboardScopeRecents:${boardId}`;
 
 function readRecents(boardId: string): string[] {
   try {
     const raw = localStorage.getItem(recentsKey(boardId));
     const parsed = raw ? JSON.parse(raw) : null;
-    return Array.isArray(parsed)
-      ? parsed.filter((v) => typeof v === "string")
-      : [];
+    return Array.isArray(parsed) ? parsed.filter((v) => typeof v === 'string') : [];
   } catch {
     return [];
   }
@@ -26,10 +23,10 @@ function readRecents(boardId: string): string[] {
 
 function writeRecents(boardId: string, userId: string) {
   try {
-    const next = [
-      userId,
-      ...readRecents(boardId).filter((v) => v !== userId),
-    ].slice(0, RECENT_LIMIT);
+    const next = [userId, ...readRecents(boardId).filter((v) => v !== userId)].slice(
+      0,
+      RECENT_LIMIT,
+    );
     localStorage.setItem(recentsKey(boardId), JSON.stringify(next));
   } catch {
     // 저장 실패는 기능에 영향 없다 — 최근 목록만 비어 보인다
@@ -63,7 +60,7 @@ export function DashboardScopeRow({
 }: DashboardScopeRowProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -80,11 +77,7 @@ export function DashboardScopeRow({
   const { sections, flat } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const matched = q
-      ? members.filter(
-          (m) =>
-            m.name.toLowerCase().includes(q) ||
-            m.email.toLowerCase().includes(q),
-        )
+      ? members.filter((m) => m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q))
       : members;
 
     const me = matched.filter((m) => m.userId === myUserId);
@@ -115,15 +108,15 @@ export function DashboardScopeRow({
     if (me.length) built.push({ title: null, items: me });
     if (recent.length)
       built.push({
-        title: t("boardDashboard.scopeRecent", "최근 본 멤버"),
+        title: t('boardDashboard.scopeRecent', '최근 본 멤버'),
         items: recent,
       });
     byRole.forEach((items, label) => built.push({ title: label, items }));
     if (noRole.length)
       built.push({
         title: byRole.size
-          ? t("boardDashboard.scopeOtherMembers", "그 외")
-          : t("boardDashboard.scopeAllMembers", "전체"),
+          ? t('boardDashboard.scopeOtherMembers', '그 외')
+          : t('boardDashboard.scopeAllMembers', '전체'),
         items: noRole,
       });
 
@@ -133,7 +126,7 @@ export function DashboardScopeRow({
 
   const close = useCallback(() => {
     setOpen(false);
-    setQuery("");
+    setQuery('');
     triggerRef.current?.focus();
   }, []);
 
@@ -142,7 +135,7 @@ export function DashboardScopeRow({
       if (userId !== myUserId) writeRecents(boardId, userId);
       onChange(userId);
       setOpen(false);
-      setQuery("");
+      setQuery('');
       triggerRef.current?.focus();
     },
     [boardId, myUserId, onChange],
@@ -171,29 +164,29 @@ export function DashboardScopeRow({
     const handler = (e: MouseEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) {
         setOpen(false);
-        setQuery("");
+        setQuery('');
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (!open) return;
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         close();
         return;
       }
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         if (!flat.length) return;
-        const delta = e.key === "ArrowDown" ? 1 : -1;
+        const delta = e.key === 'ArrowDown' ? 1 : -1;
         setActiveIndex((prev) => (prev + delta + flat.length) % flat.length);
         return;
       }
-      if (e.key === "Enter") {
+      if (e.key === 'Enter') {
         e.preventDefault();
         const target = flat[activeIndex];
         if (target) select(target.userId);
@@ -202,7 +195,7 @@ export function DashboardScopeRow({
     [open, flat, activeIndex, close, select],
   );
 
-  const label = current?.name ?? t("boardDashboard.scopeUnknown", "멤버 선택");
+  const label = current?.name ?? t('boardDashboard.scopeUnknown', '멤버 선택');
   const isMe = !!current && current.userId === myUserId;
 
   return (
@@ -211,8 +204,8 @@ export function DashboardScopeRow({
       onKeyDown={handleKeyDown}
       className={`relative flex-none flex items-center gap-2 h-[38px] mx-3 md:mx-5 mb-2 px-2 rounded-xl transition-colors ${
         isOtherScope
-          ? "bg-bridge-accent/15 border border-bridge-accent"
-          : "border border-transparent"
+          ? 'bg-bridge-accent/15 border border-bridge-accent'
+          : 'border border-transparent'
       }`}
     >
       <button
@@ -235,15 +228,13 @@ export function DashboardScopeRow({
           {getInitials(label)}
         </span>
         <span className="text-xs font-normal text-slate-400">
-          {t("boardDashboard.scopePrefix", "대시보드")}
+          {t('boardDashboard.scopePrefix', '대시보드')}
         </span>
         <span className="text-xs text-slate-500" aria-hidden="true">
           ·
         </span>
         <span className="text-xs font-bold text-foreground">
-          {isMe
-            ? t("boardDashboard.scopeMe", "{{name}} (나)", { name: label })
-            : label}
+          {isMe ? t('boardDashboard.scopeMe', '{{name}} (나)', { name: label }) : label}
         </span>
         <ChevronDown size={12} className="text-slate-400" aria-hidden="true" />
       </button>
@@ -252,7 +243,7 @@ export function DashboardScopeRow({
         <>
           <span className="flex items-center gap-1 text-xs text-slate-400">
             <Eye size={12} aria-hidden="true" />
-            {t("boardDashboard.scopeReadOnly", "읽기 전용")}
+            {t('boardDashboard.scopeReadOnly', '읽기 전용')}
           </span>
           <button
             type="button"
@@ -261,7 +252,7 @@ export function DashboardScopeRow({
               hover:bg-bridge-accent/10 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-colors"
           >
             <Undo2 size={12} aria-hidden="true" />
-            {t("boardDashboard.scopeBackToMine", "내 대시보드로")}
+            {t('boardDashboard.scopeBackToMine', '내 대시보드로')}
           </button>
         </>
       )}
@@ -276,8 +267,8 @@ export function DashboardScopeRow({
               ref={searchRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("boardDashboard.scopeSearch", "멤버 검색")}
-              aria-label={t("boardDashboard.scopeSearch", "멤버 검색")}
+              placeholder={t('boardDashboard.scopeSearch', '멤버 검색')}
+              aria-label={t('boardDashboard.scopeSearch', '멤버 검색')}
               className="w-full mb-1 bg-foreground/[0.03] border border-foreground/10 rounded-lg py-1.5 px-2.5
                 text-xs text-foreground placeholder-slate-500
                 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
@@ -286,15 +277,12 @@ export function DashboardScopeRow({
 
           <div
             role="listbox"
-            aria-label={t(
-              "boardDashboard.scopeListLabel",
-              "대시보드를 볼 멤버",
-            )}
+            aria-label={t('boardDashboard.scopeListLabel', '대시보드를 볼 멤버')}
             className="max-h-64 overflow-y-auto custom-scrollbar"
           >
             {flat.length === 0 ? (
               <p className="px-2 py-3 text-xs text-slate-500">
-                {t("boardDashboard.scopeNoMatch", "일치하는 멤버가 없습니다.")}
+                {t('boardDashboard.scopeNoMatch', '일치하는 멤버가 없습니다.')}
               </p>
             ) : (
               sections.map((section, si) => (
@@ -317,21 +305,14 @@ export function DashboardScopeRow({
                         onClick={() => select(m.userId)}
                         onMouseEnter={() => setActiveIndex(index)}
                         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors ${
-                          selected
-                            ? "bg-bridge-accent/15"
-                            : active
-                              ? "bg-foreground/5"
-                              : ""
+                          selected ? 'bg-bridge-accent/15' : active ? 'bg-foreground/5' : ''
                         }`}
                       >
                         <span
                           className="w-6 h-6 flex-none rounded-full flex items-center justify-center
                             text-xs font-bold text-white leading-none whitespace-nowrap overflow-hidden"
                           style={{
-                            backgroundColor: getAssigneeHex(
-                              m.name,
-                              m.assigneeColor,
-                            ),
+                            backgroundColor: getAssigneeHex(m.name, m.assigneeColor),
                           }}
                           aria-hidden="true"
                         >
@@ -339,13 +320,11 @@ export function DashboardScopeRow({
                         </span>
                         <span
                           className={`text-xs truncate ${
-                            selected
-                              ? "font-bold text-foreground"
-                              : "font-normal text-slate-400"
+                            selected ? 'font-bold text-foreground' : 'font-normal text-slate-400'
                           }`}
                         >
                           {m.userId === myUserId
-                            ? t("boardDashboard.scopeMe", "{{name}} (나)", {
+                            ? t('boardDashboard.scopeMe', '{{name}} (나)', {
                                 name: m.name,
                               })
                             : m.name}
@@ -363,4 +342,4 @@ export function DashboardScopeRow({
   );
 }
 
-DashboardScopeRow.displayName = "DashboardScopeRow";
+DashboardScopeRow.displayName = 'DashboardScopeRow';

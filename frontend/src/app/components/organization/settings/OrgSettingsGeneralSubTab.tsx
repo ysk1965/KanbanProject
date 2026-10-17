@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { Building2, Camera, MonitorSmartphone, Users } from "lucide-react";
-import { toast } from "sonner";
-import { organizationService } from "../../../utils/services";
-import { OrgInviteLinksSection } from "./OrgInviteLinksSection";
-import { OrgDangerZoneSection } from "./OrgDangerZoneSection";
-import type { OrganizationDetail, OrgInviteLink, OrgRole } from "../../../types";
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Building2, Camera, MonitorSmartphone, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { organizationService } from '../../../utils/services';
+import { OrgInviteLinksSection } from './OrgInviteLinksSection';
+import { OrgDangerZoneSection } from './OrgDangerZoneSection';
+import type { OrganizationDetail, OrgInviteLink, OrgRole } from '../../../types';
 
 interface OrgSettingsGeneralSubTabProps {
   orgId: string;
@@ -15,7 +15,7 @@ interface OrgSettingsGeneralSubTabProps {
 }
 
 const inputSmClass =
-  "bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg py-1.5 px-2 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all";
+  'bg-foreground/[0.03] border border-foreground/[0.08] rounded-lg py-1.5 px-2 text-xs text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all';
 
 export function OrgSettingsGeneralSubTab({
   orgId,
@@ -24,14 +24,14 @@ export function OrgSettingsGeneralSubTab({
   onUpdate,
 }: OrgSettingsGeneralSubTabProps) {
   const { t } = useTranslation();
-  const isOwner = myRole === "OWNER";
+  const isOwner = myRole === 'OWNER';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(org.name);
-  const [description, setDescription] = useState(org.description || "");
+  const [description, setDescription] = useState(org.description || '');
   const [saving, setSaving] = useState(false);
 
-  const hasChanges = name.trim() !== org.name || description.trim() !== (org.description || "");
+  const hasChanges = name.trim() !== org.name || description.trim() !== (org.description || '');
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [inviteLinks, setInviteLinks] = useState<OrgInviteLink[]>([]);
 
@@ -40,7 +40,7 @@ export function OrgSettingsGeneralSubTab({
       const links = await organizationService.getInviteLinks(orgId).catch(() => []);
       setInviteLinks(links);
     } catch (error) {
-      console.warn("Failed to fetch invite links:", error);
+      console.warn('Failed to fetch invite links:', error);
     }
   }, [orgId]);
 
@@ -56,11 +56,11 @@ export function OrgSettingsGeneralSubTab({
       await organizationService.uploadLogo(orgId, file);
       onUpdate();
     } catch (error) {
-      console.warn("Failed to upload logo:", error);
-      toast.error(t("organization.settings.logoUploadError", "Failed to upload logo"));
+      console.warn('Failed to upload logo:', error);
+      toast.error(t('organization.settings.logoUploadError', 'Failed to upload logo'));
     } finally {
       setUploadingLogo(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -72,10 +72,10 @@ export function OrgSettingsGeneralSubTab({
         description: description.trim() || undefined,
       });
       onUpdate();
-      toast.success(t("organization.settings.saveSuccess", "Settings saved"));
+      toast.success(t('organization.settings.saveSuccess', 'Settings saved'));
     } catch (error) {
-      console.warn("Failed to update:", error);
-      toast.error(t("organization.settings.saveError", "Failed to save settings"));
+      console.warn('Failed to update:', error);
+      toast.error(t('organization.settings.saveError', 'Failed to save settings'));
     } finally {
       setSaving(false);
     }
@@ -88,7 +88,7 @@ export function OrgSettingsGeneralSubTab({
         <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
           <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
             <Building2 size={16} className="text-bridge-accent" />
-            {t("organization.settings.basicInfo", "Basic Information")}
+            {t('organization.settings.basicInfo', 'Basic Information')}
           </h3>
 
           <div className="flex items-center gap-4 mb-6">
@@ -118,7 +118,7 @@ export function OrgSettingsGeneralSubTab({
             <div>
               <p className="text-sm font-medium text-foreground">{org.name}</p>
               <p className="text-xs text-muted-foreground">
-                {t("organization.settings.logoHint", "Click camera to update logo")}
+                {t('organization.settings.logoHint', 'Click camera to update logo')}
               </p>
             </div>
           </div>
@@ -126,7 +126,7 @@ export function OrgSettingsGeneralSubTab({
           <div className="space-y-3">
             <div>
               <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
-                {t("organization.settings.name", "Organization Name")}
+                {t('organization.settings.name', 'Organization Name')}
               </label>
               <input
                 type="text"
@@ -137,7 +137,7 @@ export function OrgSettingsGeneralSubTab({
             </div>
             <div>
               <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
-                {t("organization.settings.description", "Description")}
+                {t('organization.settings.description', 'Description')}
               </label>
               <textarea
                 value={description}
@@ -152,7 +152,7 @@ export function OrgSettingsGeneralSubTab({
                 disabled={saving || !name.trim() || !hasChanges}
                 className="px-4 py-1.5 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
               >
-                {saving ? "..." : t("common.save", "Save")}
+                {saving ? '...' : t('common.save', 'Save')}
               </button>
             </div>
           </div>
@@ -170,18 +170,24 @@ export function OrgSettingsGeneralSubTab({
       <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
         <h3 className="text-sm font-bold text-foreground mb-1 flex items-center gap-2">
           <MonitorSmartphone size={16} className="text-bridge-accent" />
-          {t("organization.settings.hrSystem", "HR System")}
+          {t('organization.settings.hrSystem', 'HR System')}
         </h3>
         <p className="text-xs text-slate-500 mb-4">
-          {t("organization.settings.hrSystemDesc", "Enable this if your organization manages leave/vacation through a separate HR system.")}
+          {t(
+            'organization.settings.hrSystemDesc',
+            'Enable this if your organization manages leave/vacation through a separate HR system.',
+          )}
         </p>
         <div className="flex items-center justify-between p-3 bg-foreground/[0.02] rounded-xl border border-foreground/[0.08]">
           <div>
             <span className="text-sm font-medium text-foreground">
-              {t("organization.settings.hrSystemEnabled", "Use HR System")}
+              {t('organization.settings.hrSystemEnabled', 'Use HR System')}
             </span>
             <p className="text-xs text-slate-500 mt-0.5">
-              {t("organization.settings.hrSystemHint", "When enabled, BRIDGE's leave/vacation management features will be hidden.")}
+              {t(
+                'organization.settings.hrSystemHint',
+                "When enabled, BRIDGE's leave/vacation management features will be hidden.",
+              )}
             </p>
           </div>
           <button
@@ -191,18 +197,18 @@ export function OrgSettingsGeneralSubTab({
                   hr_system_enabled: !org.hr_system_enabled,
                 });
                 onUpdate();
-                toast.success(t("organization.settings.saveSuccess", "Settings saved"));
+                toast.success(t('organization.settings.saveSuccess', 'Settings saved'));
               } catch {
-                toast.error(t("organization.settings.saveError", "Failed to save settings"));
+                toast.error(t('organization.settings.saveError', 'Failed to save settings'));
               }
             }}
             className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
-              org.hr_system_enabled ? "bg-bridge-accent" : "bg-foreground/10"
+              org.hr_system_enabled ? 'bg-bridge-accent' : 'bg-foreground/10'
             }`}
           >
             <div
               className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                org.hr_system_enabled ? "translate-x-[22px]" : "translate-x-0.5"
+                org.hr_system_enabled ? 'translate-x-[22px]' : 'translate-x-0.5'
               }`}
             />
           </button>
@@ -213,18 +219,24 @@ export function OrgSettingsGeneralSubTab({
       <section className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
         <h3 className="text-sm font-bold text-foreground mb-1 flex items-center gap-2">
           <Users size={16} className="text-bridge-accent" />
-          {t("organization.settings.autoBoardAccess", "자동 보드 접근")}
+          {t('organization.settings.autoBoardAccess', '자동 보드 접근')}
         </h3>
         <p className="text-xs text-slate-500 mb-4">
-          {t("organization.settings.autoBoardAccessDesc", "활성화하면 조직 구성원이 참가 신청 없이 모든 조직 보드에 편집 권한으로 접근할 수 있습니다.")}
+          {t(
+            'organization.settings.autoBoardAccessDesc',
+            '활성화하면 조직 구성원이 참가 신청 없이 모든 조직 보드에 편집 권한으로 접근할 수 있습니다.',
+          )}
         </p>
         <div className="flex items-center justify-between p-3 bg-foreground/[0.02] rounded-xl border border-foreground/[0.08]">
           <div>
             <span className="text-sm font-medium text-foreground">
-              {t("organization.settings.autoBoardAccessEnabled", "자동 보드 접근 허용")}
+              {t('organization.settings.autoBoardAccessEnabled', '자동 보드 접근 허용')}
             </span>
             <p className="text-xs text-slate-500 mt-0.5">
-              {t("organization.settings.autoBoardAccessHint", "조직 구성원이 MEMBER 역할로 자동 접근됩니다. 보드 멤버 목록에는 추가되지 않습니다.")}
+              {t(
+                'organization.settings.autoBoardAccessHint',
+                '조직 구성원이 MEMBER 역할로 자동 접근됩니다. 보드 멤버 목록에는 추가되지 않습니다.',
+              )}
             </p>
           </div>
           <button
@@ -234,18 +246,18 @@ export function OrgSettingsGeneralSubTab({
                   auto_board_access_enabled: !org.auto_board_access_enabled,
                 });
                 onUpdate();
-                toast.success(t("organization.settings.saveSuccess", "Settings saved"));
+                toast.success(t('organization.settings.saveSuccess', 'Settings saved'));
               } catch {
-                toast.error(t("organization.settings.saveError", "Failed to save settings"));
+                toast.error(t('organization.settings.saveError', 'Failed to save settings'));
               }
             }}
             className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
-              org.auto_board_access_enabled ? "bg-bridge-accent" : "bg-foreground/10"
+              org.auto_board_access_enabled ? 'bg-bridge-accent' : 'bg-foreground/10'
             }`}
           >
             <div
               className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                org.auto_board_access_enabled ? "translate-x-[22px]" : "translate-x-0.5"
+                org.auto_board_access_enabled ? 'translate-x-[22px]' : 'translate-x-0.5'
               }`}
             />
           </button>

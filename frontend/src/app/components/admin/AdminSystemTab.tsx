@@ -1,9 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Shield, AlertTriangle, Clock, RefreshCw, Play, StopCircle, Timer, Loader2, CreditCard } from 'lucide-react';
+import {
+  Shield,
+  AlertTriangle,
+  Clock,
+  RefreshCw,
+  Play,
+  StopCircle,
+  Timer,
+  Loader2,
+  CreditCard,
+} from 'lucide-react';
 import { adminService } from '../../utils/services';
 import type { MaintenanceStatus } from '../../utils/api';
-import { formatDateTime, toDateTimeLocalValue, fromDateTimeLocalValue } from '../../utils/dateUtils';
+import {
+  formatDateTime,
+  toDateTimeLocalValue,
+  fromDateTimeLocalValue,
+} from '../../utils/dateUtils';
 import { ConfirmModal, Toast } from './AdminConfirmModal';
 import { AdminAiKeysCard } from './AdminAiKeysCard';
 
@@ -62,7 +76,12 @@ export function AdminSystemTab() {
       setIsMonetizationSaving(true);
       const data = await adminService.setMonetizationEnabled(!monetizationEnabled);
       setMonetizationEnabled(data.monetization_enabled);
-      setToast({ message: data.monetization_enabled ? 'Monetization enabled' : 'Monetization disabled — all plans upgraded', type: 'success' });
+      setToast({
+        message: data.monetization_enabled
+          ? 'Monetization enabled'
+          : 'Monetization disabled — all plans upgraded',
+        type: 'success',
+      });
     } catch (err) {
       setToast({ message: 'Failed to update monetization setting', type: 'error' });
     } finally {
@@ -175,7 +194,10 @@ export function AdminSystemTab() {
     return (
       <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-center">
         <p className="text-red-400">{error}</p>
-        <button onClick={loadStatus} className="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors">
+        <button
+          onClick={loadStatus}
+          className="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
+        >
           {t('common.retry')}
         </button>
       </div>
@@ -207,11 +229,11 @@ export function AdminSystemTab() {
       </div>
 
       {/* Current Status */}
-      <div className={`rounded-2xl border p-4 md:p-6 ${
-        isActive
-          ? 'bg-red-500/10 border-red-500/20'
-          : 'bg-emerald-500/10 border-emerald-500/20'
-      }`}>
+      <div
+        className={`rounded-2xl border p-4 md:p-6 ${
+          isActive ? 'bg-red-500/10 border-red-500/20' : 'bg-emerald-500/10 border-emerald-500/20'
+        }`}
+      >
         <div className="flex items-center gap-3">
           {isActive ? (
             <AlertTriangle className="h-6 w-6 text-red-400" />
@@ -231,7 +253,9 @@ export function AdminSystemTab() {
           {isActive && (
             <div className="text-right">
               <p className="text-sm text-red-400 font-medium">{getRemainingTime()}</p>
-              <p className="text-xs text-slate-500 mt-1">{t('admin.system.progress')} {Math.round(progress)}%</p>
+              <p className="text-xs text-slate-500 mt-1">
+                {t('admin.system.progress')} {Math.round(progress)}%
+              </p>
             </div>
           )}
         </div>
@@ -254,7 +278,9 @@ export function AdminSystemTab() {
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <Play className="h-5 w-5 text-bridge-accent" />
-            <h3 className="text-lg font-bold text-foreground">{t('admin.system.startMaintenance')}</h3>
+            <h3 className="text-lg font-bold text-foreground">
+              {t('admin.system.startMaintenance')}
+            </h3>
           </div>
 
           <div className="space-y-5">
@@ -304,7 +330,9 @@ export function AdminSystemTab() {
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <Timer className="h-5 w-5 text-orange-400" />
-            <h3 className="text-lg font-bold text-foreground">{t('admin.system.manageMaintenance')}</h3>
+            <h3 className="text-lg font-bold text-foreground">
+              {t('admin.system.manageMaintenance')}
+            </h3>
           </div>
 
           <div className="space-y-5">
@@ -312,9 +340,7 @@ export function AdminSystemTab() {
             <div className="p-4 bg-foreground/5 rounded-xl space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">{t('admin.system.startTime')}</span>
-                <span className="text-foreground">
-                  {formatDateTime(maintenance.started_at)}
-                </span>
+                <span className="text-foreground">{formatDateTime(maintenance.started_at)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">{t('admin.system.estimatedEnd')}</span>
@@ -407,7 +433,9 @@ export function AdminSystemTab() {
               <div>
                 <p className="text-sm font-medium text-foreground">Monetization Mode</p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {monetizationEnabled ? 'Billing and subscriptions are active' : 'All plans upgraded to premium — billing hidden'}
+                  {monetizationEnabled
+                    ? 'Billing and subscriptions are active'
+                    : 'All plans upgraded to premium — billing hidden'}
                 </p>
               </div>
               <button
@@ -417,27 +445,51 @@ export function AdminSystemTab() {
                   monetizationEnabled ? 'bg-bridge-accent' : 'bg-slate-600'
                 } ${isMonetizationSaving ? 'opacity-50' : ''}`}
               >
-                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                  monetizationEnabled ? 'left-[26px]' : 'left-0.5'
-                }`} />
+                <span
+                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    monetizationEnabled ? 'left-[26px]' : 'left-0.5'
+                  }`}
+                />
               </button>
             </div>
 
             <div className="p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08]">
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">When OFF</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                When OFF
+              </p>
               <ul className="space-y-1.5 text-xs text-slate-500">
-                <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-bridge-accent" />All boards & orgs → top-tier plans</li>
-                <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-bridge-accent" />Existing TRIAL/STANDARD → auto-upgraded</li>
-                <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-bridge-accent" />Billing UI hidden globally</li>
-                <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-bridge-accent" />AI credits unlimited</li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-bridge-accent" />
+                  All boards & orgs → top-tier plans
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-bridge-accent" />
+                  Existing TRIAL/STANDARD → auto-upgraded
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-bridge-accent" />
+                  Billing UI hidden globally
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-bridge-accent" />
+                  AI credits unlimited
+                </li>
               </ul>
             </div>
 
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-              <p className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-2">When turned back ON</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-2">
+                When turned back ON
+              </p>
               <ul className="space-y-1.5 text-xs text-slate-500">
-                <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-500" />Existing PREMIUM boards remain</li>
-                <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-amber-500" />Only new boards start as TRIAL</li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-amber-500" />
+                  Existing PREMIUM boards remain
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-amber-500" />
+                  Only new boards start as TRIAL
+                </li>
               </ul>
             </div>
           </div>
@@ -445,9 +497,7 @@ export function AdminSystemTab() {
       </div>
 
       {/* AI API 키 관리 */}
-      <AdminAiKeysCard
-        onToast={(message, type) => setToast({ message, type })}
-      />
+      <AdminAiKeysCard onToast={(message, type) => setToast({ message, type })} />
 
       <ConfirmModal
         isOpen={showStopConfirm}

@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 import {
   Upload,
   Loader2,
@@ -15,32 +15,33 @@ import {
   Download,
   CheckSquare,
   Square,
-} from "lucide-react";
+} from 'lucide-react';
+import { publicGalleryUploadAPI, resolveFileUrl } from '../utils/api';
 import {
-  publicGalleryUploadAPI,
-  resolveFileUrl,
-  type ChunkedUploadProgress,
-} from "../utils/api";
-import { PhotoLightbox } from "../components/organization/photo/PhotoLightbox";
-import { IconButton } from "../components/ui/IconButton";
+  PhotoUploadQueue,
+  PHOTO_ACCEPTED_TYPES,
+  PHOTO_UPLOAD_MAX_FILES,
+  validatePhotoFile,
+  type PhotoUploadTarget,
+} from '../utils/photoUploadQueue';
+import { usePhotoUploadConfirmed, usePhotoUploadQueue } from '../hooks/usePhotoUploadQueue';
+import { PhotoUploadProgress } from '../components/organization/photo/PhotoUploadProgress';
+import { SelectedPhotoGrid } from '../components/organization/photo/SelectedPhotoGrid';
+import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
+import { IconButton } from '../components/ui/IconButton';
 import {
   downloadPhoto,
   downloadPhotosBatch,
   getDownloadedIds,
   markManyAsDownloaded,
-} from "../utils/nativeDownload";
-import type {
-  GalleryUploadInfo,
-  SharedAlbumSummary,
-  SharedPhotoItem,
-  OrgPhoto,
-} from "../types";
+} from '../utils/nativeDownload';
+import type { GalleryUploadInfo, SharedAlbumSummary, SharedPhotoItem, OrgPhoto } from '../types';
 
 function toOrgPhoto(item: SharedPhotoItem): OrgPhoto {
   return {
     id: item.id,
-    tab_id: "",
-    s3_key: "",
+    tab_id: '',
+    s3_key: '',
     thumbnail_key: null,
     url: item.url,
     thumbnail_url: item.thumbnail_url,
@@ -50,7 +51,7 @@ function toOrgPhoto(item: SharedPhotoItem): OrgPhoto {
     width: item.width,
     height: item.height,
     caption: item.caption,
-    uploaded_by: { id: "", name: "", email: "", profile_image_url: null },
+    uploaded_by: { id: '', name: '', email: '', profile_image_url: null },
     created_at: item.created_at,
   };
 }
@@ -58,16 +59,12 @@ function toOrgPhoto(item: SharedPhotoItem): OrgPhoto {
 export function GalleryUploadPage() {
   const { uploadToken } = useParams<{ uploadToken: string }>();
   const { t } = useTranslation();
-  const [galleryInfo, setGalleryInfo] = useState<GalleryUploadInfo | null>(
-    null,
-  );
+  const [galleryInfo, setGalleryInfo] = useState<GalleryUploadInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Active album
-  const [activeAlbum, setActiveAlbum] = useState<SharedAlbumSummary | null>(
-    null,
-  );
+  const [activeAlbum, setActiveAlbum] = useState<SharedAlbumSummary | null>(null);
 
   // Photos for current album
   const [photos, setPhotos] = useState<OrgPhoto[]>([]);
@@ -77,22 +74,18 @@ export function GalleryUploadPage() {
 
   // Upload state
   const [files, setFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploaded, setUploaded] = useState(false);
-  const [uploadCount, setUploadCount] = useState(0);
-  const [uploadProgress, setUploadProgress] =
-    useState<ChunkedUploadProgress | null>(null);
+  const [uploadQueue] = useState(() => new PhotoUploadQueue());
+  const uploadSnap = usePhotoUploadQueue(uploadQueue);
+  const uploading = uploadSnap.active;
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Album management
   const [showCreateAlbum, setShowCreateAlbum] = useState(false);
-  const [newAlbumName, setNewAlbumName] = useState("");
+  const [newAlbumName, setNewAlbumName] = useState('');
   const [creating, setCreating] = useState(false);
   const [deletingAlbumId, setDeletingAlbumId] = useState<string | null>(null);
-  const [confirmDeleteAlbum, setConfirmDeleteAlbum] =
-    useState<SharedAlbumSummary | null>(null);
+  const [confirmDeleteAlbum, setConfirmDeleteAlbum] = useState<SharedAlbumSummary | null>(null);
 
   // Photo deletion
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
@@ -124,7 +117,7 @@ export function GalleryUploadPage() {
       await downloadPhoto(photo.url, photo.original_filename, photo.id);
       setDownloadedIds((prev) => new Set(prev).add(photo.id));
     } catch (error) {
-      console.warn("Download failed:", error);
+      console.warn('Download failed:', error);
     }
   }, []);
 
@@ -178,20 +171,15 @@ export function GalleryUploadPage() {
 
   // Batch delete
   const handleBatchDelete = useCallback(async () => {
-    if (selectedIds.size === 0 || batchDeleting || !uploadToken || !activeAlbum)
-      return;
+    if (selectedIds.size === 0 || batchDeleting || !uploadToken || !activeAlbum) return;
     setBatchDeleting(true);
     try {
       const ids = Array.from(selectedIds);
       for (const photoId of ids) {
         try {
-          await publicGalleryUploadAPI.deletePhoto(
-            uploadToken,
-            activeAlbum.id,
-            photoId,
-          );
+          await publicGalleryUploadAPI.deletePhoto(uploadToken, activeAlbum.id, photoId);
         } catch {
-          console.warn("Failed to delete photo:", photoId);
+          console.warn('Failed to delete photo:', photoId);
         }
       }
       const deletedCount = ids.length;
@@ -222,15 +210,10 @@ export function GalleryUploadPage() {
   }, [selectedIds, batchDeleting, uploadToken, activeAlbum, exitSelectMode]);
 
   // Expiry info
-  const expiresAt = galleryInfo?.expires_at
-    ? new Date(galleryInfo.expires_at)
-    : null;
+  const expiresAt = galleryInfo?.expires_at ? new Date(galleryInfo.expires_at) : null;
   const now = new Date();
   const hoursLeft = expiresAt
-    ? Math.max(
-        0,
-        Math.floor((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60)),
-      )
+    ? Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60)))
     : 0;
   const daysLeft = Math.floor(hoursLeft / 24);
 
@@ -241,14 +224,13 @@ export function GalleryUploadPage() {
       setLoading(true);
       setError(null);
       try {
-        const info =
-          await publicGalleryUploadAPI.getGalleryUploadInfo(uploadToken);
+        const info = await publicGalleryUploadAPI.getGalleryUploadInfo(uploadToken);
         setGalleryInfo(info);
         if (info.albums.length > 0) {
           setActiveAlbum(info.albums[0]);
         }
       } catch {
-        setError(t("photoGallery.shareNotAvailable", "Album not available"));
+        setError(t('photoGallery.shareNotAvailable', 'Album not available'));
       } finally {
         setLoading(false);
       }
@@ -257,16 +239,17 @@ export function GalleryUploadPage() {
   }, [uploadToken, t]);
 
   // Fetch photos for active album
+  // 사진 수(photo_count) 변경으로 activeAlbum 객체가 바뀌어도 목록을 리셋하지 않도록 id에만 의존
+  const activeAlbumId = activeAlbum?.id ?? null;
   const fetchPhotos = useCallback(
     async (cursor?: string) => {
-      if (!uploadToken || !activeAlbum) return;
+      if (!uploadToken || !activeAlbumId) return;
       try {
         setPhotosLoading(true);
-        const data = await publicGalleryUploadAPI.getAlbumPhotos(
-          uploadToken,
-          activeAlbum.id,
-          { cursor, size: 12 },
-        );
+        const data = await publicGalleryUploadAPI.getAlbumPhotos(uploadToken, activeAlbumId, {
+          cursor,
+          size: 12,
+        });
         const mapped = data.photos.map(toOrgPhoto);
         if (cursor) {
           setPhotos((prev) => [...prev, ...mapped]);
@@ -276,26 +259,23 @@ export function GalleryUploadPage() {
         setNextCursor(data.next_cursor);
         setHasNext(data.has_next);
       } catch {
-        console.warn("Failed to fetch gallery upload photos");
+        console.warn('Failed to fetch gallery upload photos');
       } finally {
         setPhotosLoading(false);
       }
     },
-    [uploadToken, activeAlbum],
+    [uploadToken, activeAlbumId],
   );
 
   useEffect(() => {
-    if (activeAlbum) {
+    if (activeAlbumId) {
       setPhotos([]);
       setNextCursor(null);
       setHasNext(false);
       fetchPhotos();
-      // Reset upload state when switching albums
-      setUploaded(false);
-      setUploadCount(0);
       exitSelectMode();
     }
-  }, [activeAlbum, fetchPhotos]);
+  }, [activeAlbumId, fetchPhotos]);
 
   // Infinite scroll
   useEffect(() => {
@@ -303,71 +283,47 @@ export function GalleryUploadPage() {
     if (!sentinel) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (
-          entries[0]?.isIntersecting &&
-          hasNext &&
-          !photosLoading &&
-          nextCursor
-        ) {
+        if (entries[0]?.isIntersecting && hasNext && !photosLoading && nextCursor) {
           fetchPhotos(nextCursor);
         }
       },
-      { rootMargin: "200px" },
+      { rootMargin: '200px' },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasNext, photosLoading, nextCursor, fetchPhotos]);
 
   // File handling
-  const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB
-  const MAX_TOTAL_FILES = 100;
-
   const addFiles = useCallback(
     (newFiles: File[]) => {
-      const imageFiles = newFiles.filter((f) => f.type.startsWith("image/"));
-      const oversized = imageFiles.filter((f) => f.size > MAX_FILE_SIZE);
-      if (oversized.length > 0) {
+      const valid = newFiles.filter((f) => !validatePhotoFile(f));
+      const skipped = newFiles.length - valid.length;
+      if (skipped > 0) {
         setError(
           t(
-            "photoGallery.fileTooLarge",
-            `${oversized.length} file(s) exceed 30MB limit`,
+            'photoGallery.filesSkipped',
+            '{{count}} files skipped (unsupported format or over 30MB)',
+            { count: skipped },
           ),
         );
-        return;
       }
       setFiles((prev) => {
-        const remaining = MAX_TOTAL_FILES - prev.length;
-        if (remaining <= 0) {
+        const remaining = PHOTO_UPLOAD_MAX_FILES - prev.length;
+        if (remaining < valid.length) {
           setError(
-            t(
-              "photoGallery.maxFilesReached",
-              `Maximum ${MAX_TOTAL_FILES} photos per upload`,
-            ),
-          );
-          return prev;
-        }
-        const toAdd = imageFiles.slice(0, remaining);
-        if (toAdd.length < imageFiles.length) {
-          setError(
-            t(
-              "photoGallery.filesLimited",
-              `Only ${toAdd.length} of ${imageFiles.length} photos added (max ${MAX_TOTAL_FILES})`,
-            ),
+            t('photoGallery.maxFiles', 'Maximum {{max}} files', {
+              max: PHOTO_UPLOAD_MAX_FILES,
+            }),
           );
         }
-        const objectUrls = toAdd.map((f) => URL.createObjectURL(f));
-        setPreviews((p) => [...p, ...objectUrls]);
-        return [...prev, ...toAdd];
+        if (remaining <= 0) return prev;
+        return [...prev, ...valid.slice(0, remaining)];
       });
     },
     [t],
   );
 
   const removeFile = useCallback((index: number) => {
-    setPreviews((prev) => {
-      if (prev[index]) URL.revokeObjectURL(prev[index]);
-      return prev.filter((_, i) => i !== index);
-    });
     setFiles((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
@@ -380,68 +336,52 @@ export function GalleryUploadPage() {
     [addFiles],
   );
 
-  const handleUpload = useCallback(async () => {
-    if (!uploadToken || !activeAlbum || files.length === 0 || uploading) return;
-    try {
-      setUploading(true);
-      setUploadProgress(null);
-      await publicGalleryUploadAPI.uploadPhotos(
-        uploadToken,
-        activeAlbum.id,
-        files,
-        (progress) => setUploadProgress(progress),
-      );
-      setUploadCount(files.length);
-      setUploaded(true);
-      setUploadProgress(null);
-      setError(null);
-      previews.forEach((u) => URL.revokeObjectURL(u));
-      setFiles([]);
-      setPreviews([]);
-      // Refresh photos and album info
+  const handleUpload = useCallback(() => {
+    if (!uploadToken || !activeAlbum || files.length === 0) return;
+    const albumId = activeAlbum.id;
+    const target: PhotoUploadTarget = {
+      key: albumId,
+      presign: (f) => publicGalleryUploadAPI.presign(uploadToken, albumId, f),
+      confirm: (items) => publicGalleryUploadAPI.confirm(uploadToken, albumId, items),
+      uploadDirect: (f) => publicGalleryUploadAPI.uploadChunk(uploadToken, albumId, f),
+    };
+    uploadQueue.enqueue(files, target);
+    setFiles([]);
+    setError(null);
+  }, [uploadToken, activeAlbum, files, uploadQueue]);
+
+  // confirm 묶음이 들어올 때마다 앨범 사진 수 반영 + 보고 있는 앨범이면 목록 갱신 (디바운스)
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeAlbumIdRef = useRef<string | null>(null);
+  activeAlbumIdRef.current = activeAlbumId;
+  usePhotoUploadConfirmed(uploadQueue, (albumId, confirmedPhotos) => {
+    const added = confirmedPhotos.length;
+    setGalleryInfo((prev) =>
+      prev
+        ? {
+            ...prev,
+            albums: prev.albums.map((a) =>
+              a.id === albumId ? { ...a, photo_count: a.photo_count + added } : a,
+            ),
+          }
+        : prev,
+    );
+    setActiveAlbum((prev) =>
+      prev && prev.id === albumId ? { ...prev, photo_count: prev.photo_count + added } : prev,
+    );
+    if (albumId !== activeAlbumIdRef.current) return;
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
       fetchPhotos();
-      // Update photo count in gallery info
-      setGalleryInfo((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          albums: prev.albums.map((a) =>
-            a.id === activeAlbum.id
-              ? { ...a, photo_count: a.photo_count + files.length }
-              : a,
-          ),
-        };
-      });
-      setActiveAlbum((prev) =>
-        prev ? { ...prev, photo_count: prev.photo_count + files.length } : prev,
-      );
-    } catch (err: unknown) {
-      setUploadProgress(null);
-      const code = (err as { error?: { code?: string } })?.error?.code;
-      const message =
-        code === "FILE_TOO_LARGE"
-          ? t(
-              "photoGallery.errorFileTooLarge",
-              "File size exceeds the limit (max 30MB)",
-            )
-          : code === "FILE_TYPE_NOT_ALLOWED"
-            ? t("photoGallery.errorFileType", "Unsupported file format")
-            : code === "PHOTO_UPLOAD_LIMIT_EXCEEDED"
-              ? t(
-                  "photoGallery.errorUploadLimit",
-                  "Maximum 20 photos per upload",
-                )
-              : code === "ORGANIZATION_NOT_FOUND"
-                ? t("photoGallery.errorTokenExpired", "Upload link has expired")
-                : t(
-                    "photoGallery.errorUploadFailed",
-                    "Upload failed. Please try again.",
-                  );
-      setError(message);
-    } finally {
-      setUploading(false);
-    }
-  }, [uploadToken, activeAlbum, files, uploading, fetchPhotos]);
+    }, 1500);
+  });
+  useEffect(
+    () => () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    },
+    [],
+  );
 
   // Create album
   const handleCreateAlbum = useCallback(async () => {
@@ -456,10 +396,10 @@ export function GalleryUploadPage() {
         return { ...prev, albums: [...prev.albums, album] };
       });
       setActiveAlbum(album);
-      setNewAlbumName("");
+      setNewAlbumName('');
       setShowCreateAlbum(false);
     } catch {
-      setError("Failed to create album.");
+      setError('Failed to create album.');
     } finally {
       setCreating(false);
     }
@@ -483,7 +423,7 @@ export function GalleryUploadPage() {
         });
         setConfirmDeleteAlbum(null);
       } catch {
-        setError("Failed to delete album.");
+        setError('Failed to delete album.');
       } finally {
         setDeletingAlbumId(null);
       }
@@ -497,30 +437,22 @@ export function GalleryUploadPage() {
       if (!uploadToken || !activeAlbum || deletingPhotoId) return;
       try {
         setDeletingPhotoId(photo.id);
-        await publicGalleryUploadAPI.deletePhoto(
-          uploadToken,
-          activeAlbum.id,
-          photo.id,
-        );
+        await publicGalleryUploadAPI.deletePhoto(uploadToken, activeAlbum.id, photo.id);
         setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
         setGalleryInfo((prev) => {
           if (!prev) return prev;
           return {
             ...prev,
             albums: prev.albums.map((a) =>
-              a.id === activeAlbum.id
-                ? { ...a, photo_count: Math.max(0, a.photo_count - 1) }
-                : a,
+              a.id === activeAlbum.id ? { ...a, photo_count: Math.max(0, a.photo_count - 1) } : a,
             ),
           };
         });
         setActiveAlbum((prev) =>
-          prev
-            ? { ...prev, photo_count: Math.max(0, prev.photo_count - 1) }
-            : prev,
+          prev ? { ...prev, photo_count: Math.max(0, prev.photo_count - 1) } : prev,
         );
       } catch {
-        console.warn("Failed to delete photo");
+        console.warn('Failed to delete photo');
       } finally {
         setDeletingPhotoId(null);
       }
@@ -552,19 +484,16 @@ export function GalleryUploadPage() {
             <AlertCircle className="w-8 h-8 text-red-400" />
           </div>
           <h1 className="text-xl font-bold text-foreground mb-2">
-            {t("photoGallery.shareNotAvailable", "Link Expired")}
+            {t('photoGallery.shareNotAvailable', 'Link Expired')}
           </h1>
           <p className="text-sm text-slate-400">
-            {t(
-              "photoGallery.shareNotAvailableDesc",
-              "This upload link is no longer valid.",
-            )}
+            {t('photoGallery.shareNotAvailableDesc', 'This upload link is no longer valid.')}
           </p>
           <Link
             to="/"
             className="inline-flex items-center gap-2 px-4 py-2 mt-6 bg-bridge-accent text-white rounded-xl text-sm font-medium hover:bg-bridge-accent/90 transition-colors"
           >
-            {t("photoGallery.shareGoHome", "Go to Home")}
+            {t('photoGallery.shareGoHome', 'Go to Home')}
           </Link>
         </motion.div>
       </div>
@@ -580,7 +509,7 @@ export function GalleryUploadPage() {
             {galleryInfo.organization_logo_url ? (
               <img
                 src={resolveFileUrl(galleryInfo.organization_logo_url)}
-                alt={galleryInfo.organization_name || "조직 로고"}
+                alt={galleryInfo.organization_name || '조직 로고'}
                 className="w-8 h-8 rounded-lg object-cover shrink-0"
               />
             ) : (
@@ -592,9 +521,7 @@ export function GalleryUploadPage() {
               <h1 className="text-sm font-bold text-foreground truncate">
                 {galleryInfo.organization_name}
               </h1>
-              <p className="text-xs text-slate-500">
-                {t("photoGallery.title", "Photos")}
-              </p>
+              <p className="text-xs text-slate-500">{t('photoGallery.title', 'Photos')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -617,16 +544,16 @@ export function GalleryUploadPage() {
                 onClick={() => setActiveAlbum(album)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
                   activeAlbum?.id === album.id
-                    ? "bg-bridge-secondary/15 text-bridge-secondary border border-bridge-secondary/30"
-                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5 border border-transparent"
+                    ? 'bg-bridge-secondary/15 text-bridge-secondary border border-bridge-secondary/30'
+                    : 'text-slate-400 hover:text-foreground hover:bg-foreground/5 border border-transparent'
                 }`}
               >
                 {album.name}
                 <span
                   className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                     activeAlbum?.id === album.id
-                      ? "bg-bridge-secondary/20 text-bridge-secondary"
-                      : "bg-foreground/10 text-slate-500"
+                      ? 'bg-bridge-secondary/20 text-bridge-secondary'
+                      : 'bg-foreground/10 text-slate-500'
                   }`}
                 >
                   {album.photo_count}
@@ -661,16 +588,13 @@ export function GalleryUploadPage() {
                 value={newAlbumName}
                 onChange={(e) => setNewAlbumName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreateAlbum();
-                  if (e.key === "Escape") {
+                  if (e.key === 'Enter') handleCreateAlbum();
+                  if (e.key === 'Escape') {
                     setShowCreateAlbum(false);
-                    setNewAlbumName("");
+                    setNewAlbumName('');
                   }
                 }}
-                placeholder={t(
-                  "photoGallery.albumNamePlaceholder",
-                  "Album name",
-                )}
+                placeholder={t('photoGallery.albumNamePlaceholder', 'Album name')}
                 className="w-32 px-3 py-1.5 bg-foreground/[0.03] border border-foreground/10 rounded-xl text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
               />
               <button
@@ -678,16 +602,12 @@ export function GalleryUploadPage() {
                 disabled={creating || !newAlbumName.trim()}
                 className="p-1.5 rounded-lg bg-bridge-secondary text-white hover:bg-bridge-secondary/90 transition-colors disabled:opacity-50"
               >
-                {creating ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Check size={14} />
-                )}
+                {creating ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
               </button>
               <IconButton
                 onClick={() => {
                   setShowCreateAlbum(false);
-                  setNewAlbumName("");
+                  setNewAlbumName('');
                 }}
                 aria-label="취소"
               >
@@ -700,7 +620,7 @@ export function GalleryUploadPage() {
               className="flex-shrink-0 flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-bold text-slate-400 hover:text-bridge-secondary hover:bg-bridge-secondary/10 border border-dashed border-foreground/[0.12] hover:border-bridge-secondary/30 transition-all"
             >
               <Plus size={14} />
-              {t("photoGallery.createAlbum", "Add Album")}
+              {t('photoGallery.createAlbum', 'Add Album')}
             </button>
           )}
         </div>
@@ -728,15 +648,12 @@ export function GalleryUploadPage() {
             <Trash2 size={16} className="text-red-400 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-foreground">
-                {t("photoGallery.deleteAlbumConfirm", "Delete album?")}
+                {t('photoGallery.deleteAlbumConfirm', 'Delete album?')}
               </p>
               <p className="text-xs text-slate-400">
-                "{confirmDeleteAlbum.name}" — {confirmDeleteAlbum.photo_count}{" "}
-                {t("photoGallery.photosUnit", "photos")}{" "}
-                {t(
-                  "photoGallery.deleteAlbumWarning",
-                  "will be permanently deleted.",
-                )}
+                "{confirmDeleteAlbum.name}" — {confirmDeleteAlbum.photo_count}{' '}
+                {t('photoGallery.photosUnit', 'photos')}{' '}
+                {t('photoGallery.deleteAlbumWarning', 'will be permanently deleted.')}
               </p>
             </div>
             <button
@@ -747,13 +664,10 @@ export function GalleryUploadPage() {
               {deletingAlbumId ? (
                 <Loader2 size={12} className="animate-spin" />
               ) : (
-                t("photoGallery.deleteButton", "Delete")
+                t('photoGallery.deleteButton', 'Delete')
               )}
             </button>
-            <IconButton
-              onClick={() => setConfirmDeleteAlbum(null)}
-              aria-label="닫기"
-            >
+            <IconButton onClick={() => setConfirmDeleteAlbum(null)} aria-label="닫기">
               <X />
             </IconButton>
           </div>
@@ -767,8 +681,7 @@ export function GalleryUploadPage() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                  {activeAlbum.photo_count}{" "}
-                  {t("photoGallery.photosUnit", "photos")}
+                  {activeAlbum.photo_count} {t('photoGallery.photosUnit', 'photos')}
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
                   {selectMode ? (
@@ -778,8 +691,8 @@ export function GalleryUploadPage() {
                         className="text-xs text-slate-400 hover:text-foreground transition-colors"
                       >
                         {selectedIds.size === photos.length
-                          ? t("photoGallery.deselectAll", "Deselect all")
-                          : t("photoGallery.selectAll", "Select all")}
+                          ? t('photoGallery.deselectAll', 'Deselect all')
+                          : t('photoGallery.selectAll', 'Select all')}
                       </button>
                       <button
                         onClick={handleBatchDownload}
@@ -794,9 +707,7 @@ export function GalleryUploadPage() {
                         {selectedIds.size > 0 && selectedIds.size}
                       </button>
                       <button
-                        onClick={() =>
-                          selectedIds.size > 0 && setShowDeleteConfirm(true)
-                        }
+                        onClick={() => selectedIds.size > 0 && setShowDeleteConfirm(true)}
                         disabled={selectedIds.size === 0 || batchDeleting}
                         className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors disabled:opacity-40"
                       >
@@ -807,10 +718,7 @@ export function GalleryUploadPage() {
                         )}
                         {selectedIds.size > 0 && selectedIds.size}
                       </button>
-                      <IconButton
-                        onClick={exitSelectMode}
-                        aria-label="선택 해제"
-                      >
+                      <IconButton onClick={exitSelectMode} aria-label="선택 해제">
                         <X />
                       </IconButton>
                     </>
@@ -820,7 +728,7 @@ export function GalleryUploadPage() {
                       className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                     >
                       <CheckSquare size={12} />
-                      {t("photoGallery.select", "Select")}
+                      {t('photoGallery.select', 'Select')}
                     </button>
                   )}
                 </div>
@@ -832,17 +740,12 @@ export function GalleryUploadPage() {
                   <Trash2 size={16} className="text-red-400 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-foreground">
-                      {t(
-                        "photoGallery.deletePhotosConfirm",
-                        "Delete {{count}} photos?",
-                        { count: selectedIds.size },
-                      )}
+                      {t('photoGallery.deletePhotosConfirm', 'Delete {{count}} photos?', {
+                        count: selectedIds.size,
+                      })}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {t(
-                        "photoGallery.deleteAlbumWarning",
-                        "will be permanently deleted.",
-                      )}
+                      {t('photoGallery.deleteAlbumWarning', 'will be permanently deleted.')}
                     </p>
                   </div>
                   <button
@@ -853,13 +756,10 @@ export function GalleryUploadPage() {
                     {batchDeleting ? (
                       <Loader2 size={12} className="animate-spin" />
                     ) : (
-                      t("photoGallery.deleteButton", "Delete")
+                      t('photoGallery.deleteButton', 'Delete')
                     )}
                   </button>
-                  <IconButton
-                    onClick={() => setShowDeleteConfirm(false)}
-                    aria-label="닫기"
-                  >
+                  <IconButton onClick={() => setShowDeleteConfirm(false)} aria-label="닫기">
                     <X />
                   </IconButton>
                 </div>
@@ -873,8 +773,8 @@ export function GalleryUploadPage() {
                       key={photo.id}
                       className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-bridge-obsidian border transition-all group ${
                         isSelected
-                          ? "border-bridge-accent ring-2 ring-bridge-accent/30"
-                          : "border-foreground/[0.08] hover:border-foreground/[0.12]"
+                          ? 'border-bridge-accent ring-2 ring-bridge-accent/30'
+                          : 'border-foreground/[0.08] hover:border-foreground/[0.12]'
                       }`}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -939,10 +839,7 @@ export function GalleryUploadPage() {
                               className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md hover:bg-red-500/30 transition-colors"
                             >
                               {deletingPhotoId === photo.id ? (
-                                <Loader2
-                                  size={14}
-                                  className="text-white animate-spin"
-                                />
+                                <Loader2 size={14} className="text-white animate-spin" />
                               ) : (
                                 <Trash2 size={14} className="text-white" />
                               )}
@@ -969,41 +866,20 @@ export function GalleryUploadPage() {
             </div>
           )}
 
-          {photos.length === 0 && !photosLoading && !uploaded && (
+          {photos.length === 0 && !photosLoading && uploadSnap.confirmed === 0 && (
             <div className="text-center py-8">
               <Images size={28} className="mx-auto mb-2 text-slate-500/50" />
               <p className="text-sm text-slate-500">
-                {t("photoGallery.emptyTitle", "No photos yet")}
+                {t('photoGallery.emptyTitle', 'No photos yet')}
               </p>
             </div>
           )}
 
-          {/* Upload success message */}
-          {uploaded && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
-            >
-              <Check size={16} className="text-emerald-400 shrink-0" />
-              <p className="text-sm text-foreground">
-                {uploadCount} {t("photoGallery.photosUnit", "photos")}{" "}
-                {t("photoGallery.uploadSuccess", "uploaded")}
-              </p>
-              <button
-                onClick={() => setUploaded(false)}
-                className="ml-auto text-slate-500 hover:text-foreground transition-colors"
-              >
-                <X size={14} />
-              </button>
-            </motion.div>
-          )}
+          {/* Upload progress (완료/실패, 실패분만 다시 시도) */}
+          {uploadSnap.total > 0 && <PhotoUploadProgress queue={uploadQueue} />}
 
           {/* Drop zone */}
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -1014,34 +890,33 @@ export function GalleryUploadPage() {
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center cursor-pointer transition-all ${
                 dragOver
-                  ? "border-bridge-secondary bg-bridge-secondary/5"
-                  : "border-foreground/[0.12] hover:border-foreground/[0.2] hover:bg-foreground/[0.02]"
+                  ? 'border-bridge-secondary bg-bridge-secondary/5'
+                  : 'border-foreground/[0.12] hover:border-foreground/[0.2] hover:bg-foreground/[0.02]'
               }`}
             >
               <div className="w-12 h-12 rounded-2xl bg-bridge-secondary/15 flex items-center justify-center mx-auto mb-4">
                 <ImagePlus className="w-6 h-6 text-bridge-secondary" />
               </div>
               <p className="text-sm font-bold text-foreground mb-1">
-                {t(
-                  "photoGallery.dragAndDrop",
-                  "Drop photos here or click to browse",
-                )}
+                {t('photoGallery.dragAndDrop', 'Drop photos here or click to browse')}
               </p>
               <p className="text-xs text-slate-500">
-                {t("photoGallery.uploadHint", "Supports JPG, PNG, GIF, WebP")}
+                {t('photoGallery.uploadFormats', 'JPG, PNG, WebP, GIF - max {{max}} files', {
+                  max: PHOTO_UPLOAD_MAX_FILES,
+                })}
               </p>
             </div>
 
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={PHOTO_ACCEPTED_TYPES.join(',')}
               multiple
               className="hidden"
               onChange={(e) => {
                 if (e.target.files) {
                   addFiles(Array.from(e.target.files));
-                  e.target.value = "";
+                  e.target.value = '';
                 }
               }}
             />
@@ -1051,63 +926,36 @@ export function GalleryUploadPage() {
               <div className="mt-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                    {files.length} {t("photoGallery.photosUnit", "photos")}{" "}
-                    selected
+                    {files.length} {t('photoGallery.photosUnit', 'photos')} selected
                   </span>
                   <button
-                    onClick={() => {
-                      previews.forEach((u) => URL.revokeObjectURL(u));
-                      setFiles([]);
-                      setPreviews([]);
-                    }}
+                    onClick={() => setFiles([])}
                     className="text-xs text-slate-500 hover:text-foreground transition-colors"
                   >
                     Clear all
                   </button>
                 </div>
 
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                  {previews.map((preview, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.04 }}
-                      className="relative aspect-square rounded-xl overflow-hidden group"
-                    >
-                      <img
-                        src={preview}
-                        alt="업로드 미리보기"
-                        className="w-full h-full object-cover"
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeFile(i);
-                        }}
-                        className="absolute top-1 right-1 p-1 rounded-lg bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X size={12} />
-                      </button>
-                    </motion.div>
-                  ))}
-                </div>
+                <SelectedPhotoGrid
+                  files={files}
+                  onRemove={removeFile}
+                  className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2"
+                />
 
                 <button
                   onClick={handleUpload}
-                  disabled={uploading}
                   className="w-full py-3 bg-bridge-secondary text-white rounded-xl font-bold hover:bg-bridge-secondary/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {uploading ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      {t("photoGallery.uploading", "Uploading...")}
+                      {t('photoGallery.uploading', 'Uploading...')}
                     </>
                   ) : (
                     <>
                       <Upload size={16} />
-                      {t("photoGallery.upload", "Upload")} {files.length}{" "}
-                      {t("photoGallery.photosUnit", "photos")}
+                      {t('photoGallery.upload', 'Upload')} {files.length}{' '}
+                      {t('photoGallery.photosUnit', 'photos')}
                     </>
                   )}
                 </button>
@@ -1119,59 +967,15 @@ export function GalleryUploadPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 text-center">
           <Images size={36} className="mx-auto mb-3 text-slate-500/50" />
           <p className="text-sm text-slate-500 mb-4">
-            {t("photoGallery.noAlbums", "No albums yet")}
+            {t('photoGallery.noAlbums', 'No albums yet')}
           </p>
           <button
             onClick={() => setShowCreateAlbum(true)}
             className="px-5 py-2.5 bg-bridge-secondary text-white rounded-xl font-bold hover:bg-bridge-secondary/90 transition-all inline-flex items-center gap-2"
           >
             <Plus size={16} />
-            {t("photoGallery.createAlbum", "Add Album")}
+            {t('photoGallery.createAlbum', 'Add Album')}
           </button>
-        </div>
-      )}
-
-      {/* Upload Progress Modal */}
-      {uploading && uploadProgress && uploadProgress.totalBatches > 1 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-sm mx-4 bg-bridge-obsidian rounded-2xl border border-foreground/10 shadow-2xl overflow-hidden"
-          >
-            <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
-            <div className="px-5 pt-5 pb-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-bridge-secondary/15 flex items-center justify-center shrink-0">
-                  <Loader2 className="w-5 h-5 animate-spin text-bridge-secondary" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">
-                    {t("photoGallery.uploading", "Uploading...")}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {uploadProgress.uploadedFiles} / {uploadProgress.totalFiles}{" "}
-                    {t("photoGallery.photosUnit", "photos")}
-                  </p>
-                </div>
-              </div>
-              {/* Progress bar */}
-              <div className="w-full h-2 bg-foreground/[0.08] rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-bridge-secondary rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{
-                    width: `${(uploadProgress.uploadedFiles / uploadProgress.totalFiles) * 100}%`,
-                  }}
-                  transition={{ duration: 0.3 }}
-                />
-              </div>
-              <p className="text-xs text-slate-600 text-center">
-                Batch {uploadProgress.currentBatch} /{" "}
-                {uploadProgress.totalBatches}
-              </p>
-            </div>
-          </motion.div>
         </div>
       )}
 

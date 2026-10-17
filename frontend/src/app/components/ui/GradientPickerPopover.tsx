@@ -57,10 +57,7 @@ export function GradientPickerPopover({
         align={align}
         sideOffset={8}
       >
-        <div
-          className="grid gap-2"
-          style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
-        >
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
           {gradients.map((gradient, i) => (
             <button
               key={i}

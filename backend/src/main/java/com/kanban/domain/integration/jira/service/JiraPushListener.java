@@ -1,5 +1,6 @@
 package com.kanban.domain.integration.jira.service;
 
+import com.kanban.domain.checklist.event.ChecklistAssigneeChangedEvent;
 import com.kanban.domain.comment.event.CommentCreatedEvent;
 import com.kanban.domain.comment.event.CommentDeletedEvent;
 import com.kanban.domain.task.event.TaskBlockChangedEvent;
@@ -11,7 +12,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * BRIDGE 변경 → JIRA push 브리지. Task 블록 이동(Phase 2)과 댓글 생성/삭제를 받는다.
+ * BRIDGE 변경 → JIRA push 브리지. Task 블록 이동(Phase 2), 댓글 생성/삭제, 담당자 변경을 받는다.
  *
  * <p>커밋 이후({@code AFTER_COMMIT})에만 실행해 롤백된 변경을 push하지 않는다.
  * {@code @Async}로 응답을 막지 않는다(낙관적 UI). JIRA 미연동/미매핑이면 서비스단에서 no-op.
@@ -23,6 +24,7 @@ public class JiraPushListener {
 
     private final JiraWriteBackService writeBackService;
     private final JiraCommentSyncService commentSyncService;
+    private final JiraAssigneeSyncService assigneeSyncService;
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -31,6 +33,17 @@ public class JiraPushListener {
             writeBackService.pushBlockStatus(event.boardId(), event.taskId(), event.targetBlockId());
         } catch (Exception e) {
             log.warn("JIRA push listener failed for task {}: {}", event.taskId(), e.getMessage());
+        }
+    }
+
+    /** BRIDGE 담당자 변경 → JIRA 이슈 담당자. JIRA 계정이 없는 사람이면 서비스단에서 JIRA를 그대로 둔다. */
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onChecklistAssigneeChanged(ChecklistAssigneeChangedEvent event) {
+        try {
+            assigneeSyncService.pushAssignee(event.boardId(), event.taskId(), event.itemId());
+        } catch (Exception e) {
+            log.warn("JIRA assignee push listener failed for item {}: {}", event.itemId(), e.getMessage());
         }
     }
 

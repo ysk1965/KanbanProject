@@ -1,7 +1,7 @@
-import { useState } from "react";
-import type { OkrObjective } from "../../../types";
-import { OkrObjectiveNode } from "./OkrObjectiveNode";
-import { OkrChildrenRow } from "./OkrChildrenRow";
+import { useState } from 'react';
+import type { OkrObjective } from '../../../types';
+import { OkrObjectiveNode } from './OkrObjectiveNode';
+import { OkrChildrenRow } from './OkrChildrenRow';
 
 interface OkrTreeViewProps {
   objectives: OkrObjective[];

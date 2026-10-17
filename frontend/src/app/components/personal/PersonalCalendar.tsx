@@ -1,5 +1,27 @@
-import { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, Calendar, ListTodo, CalendarDays, CheckCircle2, Clock, RotateCw, Trash2, Pencil, AlertCircle } from 'lucide-react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  X,
+  Calendar,
+  ListTodo,
+  CalendarDays,
+  CheckCircle2,
+  Clock,
+  RotateCw,
+  Trash2,
+  Pencil,
+  AlertCircle,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FEATURE_COLORS } from '../../constants';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,7 +33,12 @@ import { personalTaskAPI } from '../../utils/api';
 import { personalEventService, personalCalendarService } from '../../utils/services';
 import { formatDate } from '../../utils/dateUtils';
 import { useHolidays } from '../../hooks/useHolidays';
-import type { PersonalTask, PersonalEvent, PersonalTaskPriority, UnifiedCalendarEvent } from '../../types';
+import type {
+  PersonalTask,
+  PersonalEvent,
+  PersonalTaskPriority,
+  UnifiedCalendarEvent,
+} from '../../types';
 import type { TabSwipeHandle } from './PersonalSchedule';
 import { TaskDetailModal } from './PersonalTaskBoard';
 
@@ -22,7 +49,11 @@ function toDateKey(d: Date): string {
 }
 
 function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -36,7 +67,6 @@ const EVENT_COLORS = FEATURE_COLORS;
 const DAY_LABELS_KO = ['일', '월', '화', '수', '목', '금', '토'];
 const DAY_LABELS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MAX_VISIBLE_ITEMS = 3;
-
 
 interface CalendarItem {
   id: string;
@@ -100,7 +130,11 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
   const [boardEvents, setBoardEvents] = useState<UnifiedCalendarEvent[]>([]);
   const [orgEvents, setOrgEvents] = useState<UnifiedCalendarEvent[]>([]);
   const [calendarFilters, setCalendarFilters] = useState({
-    personal: true, meetings: true, schedule: true, anniversary: true, leave: true,
+    personal: true,
+    meetings: true,
+    schedule: true,
+    anniversary: true,
+    leave: true,
   });
 
   // ── slide animation (DOM ref manipulation) ──
@@ -120,11 +154,23 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
   // ── navigation ──
   const goToPrevMonth = useCallback(() => {
     triggerSlide(-1);
-    setCurrentMonth((m) => { if (m === 0) { setCurrentYear((y) => y - 1); return 11; } return m - 1; });
+    setCurrentMonth((m) => {
+      if (m === 0) {
+        setCurrentYear((y) => y - 1);
+        return 11;
+      }
+      return m - 1;
+    });
   }, []);
   const goToNextMonth = useCallback(() => {
     triggerSlide(1);
-    setCurrentMonth((m) => { if (m === 11) { setCurrentYear((y) => y + 1); return 0; } return m + 1; });
+    setCurrentMonth((m) => {
+      if (m === 11) {
+        setCurrentYear((y) => y + 1);
+        return 0;
+      }
+      return m + 1;
+    });
   }, []);
   const goToToday = useCallback(() => {
     setCurrentYear(today.getFullYear());
@@ -165,7 +211,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
     title: string;
     color: string;
     colStart: number; // 0-6
-    colEnd: number;   // 0-6 (inclusive)
+    colEnd: number; // 0-6 (inclusive)
     isDone: boolean;
     row: number; // slot row within the cell (0-based)
   }
@@ -175,7 +221,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
 
     // Sort multi-day events by event_date (same as cell sorting)
     const multiDayEvents = events
-      .filter(ev => ev.end_date && !ev.recurrence_group_id)
+      .filter((ev) => ev.end_date && !ev.recurrence_group_id)
       .sort((a, b) => a.event_date.localeCompare(b.event_date));
 
     weekRows.forEach((week) => {
@@ -191,8 +237,9 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
         // Check if event overlaps this week
         if (evEnd < weekStart || evStart > weekEnd) return;
 
-        const colStart = evStart <= weekStart ? 0 : week.findIndex(d => toDateKey(d.date) === evStart);
-        const colEnd = evEnd >= weekEnd ? 6 : week.findIndex(d => toDateKey(d.date) === evEnd);
+        const colStart =
+          evStart <= weekStart ? 0 : week.findIndex((d) => toDateKey(d.date) === evStart);
+        const colEnd = evEnd >= weekEnd ? 6 : week.findIndex((d) => toDateKey(d.date) === evEnd);
         if (colStart < 0 || colEnd < 0) return;
 
         // Find first available slot that's free across all columns in this span
@@ -200,7 +247,10 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
         while (true) {
           let free = true;
           for (let c = colStart; c <= colEnd; c++) {
-            if (slotUsed[c][slot]) { free = false; break; }
+            if (slotUsed[c][slot]) {
+              free = false;
+              break;
+            }
           }
           if (free) break;
           slot++;
@@ -231,19 +281,22 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
 
   // ── data range for fetching ──
   const gridStartDate = calendarDays[0] ? toDateKey(calendarDays[0].date) : '';
-  const gridEndDate = calendarDays.length > 0 ? toDateKey(calendarDays[calendarDays.length - 1].date) : '';
+  const gridEndDate =
+    calendarDays.length > 0 ? toDateKey(calendarDays[calendarDays.length - 1].date) : '';
 
   // ── load tasks ──
   const loadTasks = useCallback(async () => {
     try {
       const data = await personalTaskAPI.getAll();
-      setTasks(data.filter(t => t.due_date && t.status !== 'ARCHIVED'));
+      setTasks(data.filter((t) => t.due_date && t.status !== 'ARCHIVED'));
     } catch {
       setTasks([]);
     }
   }, []);
 
-  useEffect(() => { loadTasks(); }, [loadTasks]);
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
 
   // ── load events for the visible month range ──
   const loadEvents = useCallback(async () => {
@@ -256,15 +309,18 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
     }
   }, [gridStartDate, gridEndDate]);
 
-  useEffect(() => { loadEvents(); }, [loadEvents]);
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
 
   // Cross-domain calendar fetch (v10.0)
   useEffect(() => {
     const startDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
     const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
     const endDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${lastDay}`;
-    personalCalendarService.getUnifiedCalendar(startDate, endDate)
-      .then(data => {
+    personalCalendarService
+      .getUnifiedCalendar(startDate, endDate)
+      .then((data) => {
         setBoardEvents(data.board_events || []);
         setOrgEvents(data.org_events || []);
       })
@@ -310,7 +366,9 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
           dragRef.current.endDate = dk;
           setDragSelection({ start: dk, end: dk });
           disableTextSelection();
-          try { navigator.vibrate?.(30); } catch {}
+          try {
+            navigator.vibrate?.(30);
+          } catch {}
         }, 400),
         startDate: dk,
         endDate: dk,
@@ -324,7 +382,10 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
       const d = dragRef.current;
       const touch = e.touches[0];
       if (!d.active) {
-        if (d.timer && (Math.abs(touch.clientX - d.startX) > 10 || Math.abs(touch.clientY - d.startY) > 10)) {
+        if (
+          d.timer &&
+          (Math.abs(touch.clientX - d.startX) > 10 || Math.abs(touch.clientY - d.startY) > 10)
+        ) {
           clearTimeout(d.timer);
           d.timer = null;
         }
@@ -342,18 +403,22 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
 
     const handleTouchEnd = (e: TouchEvent) => {
       const d = dragRef.current;
-      if (d.timer) { clearTimeout(d.timer); d.timer = null; }
+      if (d.timer) {
+        clearTimeout(d.timer);
+        d.timer = null;
+      }
       if (d.active) {
         e.stopPropagation();
         enableTextSelection();
-        const [rangeStart, rangeEnd] = d.startDate <= d.endDate
-          ? [d.startDate, d.endDate]
-          : [d.endDate, d.startDate];
+        const [rangeStart, rangeEnd] =
+          d.startDate <= d.endDate ? [d.startDate, d.endDate] : [d.endDate, d.startDate];
         setCreateDate(rangeStart);
         setCreateEndDate(rangeEnd !== rangeStart ? rangeEnd : '');
         setIsCreateOpen(true);
         justDraggedRef.current = true;
-        setTimeout(() => { justDraggedRef.current = false; }, 300);
+        setTimeout(() => {
+          justDraggedRef.current = false;
+        }, 300);
       }
       d.active = false;
       d.startDate = '';
@@ -403,7 +468,9 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
       // Calculate total days
       const startD = new Date(startDate + 'T00:00:00');
       const endD = new Date(endDate + 'T00:00:00');
-      const totalDays = isMultiDay ? Math.round((endD.getTime() - startD.getTime()) / 86400000) + 1 : 1;
+      const totalDays = isMultiDay
+        ? Math.round((endD.getTime() - startD.getTime()) / 86400000) + 1
+        : 1;
 
       let current = new Date(startDate + 'T00:00:00');
       let dayIndex = 0;
@@ -461,7 +528,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
   const dayCellItemsMap = useMemo(() => {
     const map = new Map<string, CalendarItem[]>();
     dayItemsMap.forEach((items, key) => {
-      const filtered = items.filter((item) => !(item.event?.recurrence_group_id));
+      const filtered = items.filter((item) => !item.event?.recurrence_group_id);
       if (filtered.length > 0) map.set(key, filtered);
     });
     return map;
@@ -478,7 +545,11 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
     end_date?: string;
   }) => {
     try {
-      await personalEventService.create({ ...data, event_date: createDate, event_type: 'CALENDAR' });
+      await personalEventService.create({
+        ...data,
+        event_date: createDate,
+        event_type: 'CALENDAR',
+      });
       await loadEvents();
       setIsCreateOpen(false);
     } catch (err) {
@@ -496,16 +567,19 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
     }
   };
 
-  const handleUpdateEvent = async (eventId: string, data: {
-    title?: string;
-    description?: string;
-    event_date?: string;
-    start_time?: string | null;
-    end_time?: string | null;
-    color?: string;
-    all_day?: boolean;
-    end_date?: string | null;
-  }) => {
+  const handleUpdateEvent = async (
+    eventId: string,
+    data: {
+      title?: string;
+      description?: string;
+      event_date?: string;
+      start_time?: string | null;
+      end_time?: string | null;
+      color?: string;
+      all_day?: boolean;
+      end_date?: string | null;
+    },
+  ) => {
     try {
       await personalEventService.update(eventId, data);
       await loadEvents();
@@ -516,7 +590,12 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
   };
 
   // ── task CRUD ──
-  const handleUpdateTask = async (data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => {
+  const handleUpdateTask = async (data: {
+    title?: string;
+    due_date?: string | null;
+    priority?: PersonalTaskPriority;
+    description?: string;
+  }) => {
     if (!editTask) return;
     try {
       await personalTaskAPI.update(editTask.id, data);
@@ -544,7 +623,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
       const newStatus = editTask.status === 'DONE' ? 'TODO' : 'DONE';
       await personalTaskAPI.updateStatus(editTask.id, newStatus);
       await loadTasks();
-      setEditTask((prev) => prev ? { ...prev, status: newStatus } : null);
+      setEditTask((prev) => (prev ? { ...prev, status: newStatus } : null));
     } catch (err) {
       console.error('Failed to toggle task:', err);
     }
@@ -559,9 +638,10 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
 
   const normalizedDragRange = useMemo(() => {
     if (!dragSelection) return null;
-    const [start, end] = dragSelection.start <= dragSelection.end
-      ? [dragSelection.start, dragSelection.end]
-      : [dragSelection.end, dragSelection.start];
+    const [start, end] =
+      dragSelection.start <= dragSelection.end
+        ? [dragSelection.start, dragSelection.end]
+        : [dragSelection.end, dragSelection.start];
     return { start, end };
   }, [dragSelection]);
 
@@ -570,11 +650,21 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
       {/* Header */}
       <div className="flex items-center justify-between px-4 md:px-6 py-1.5 border-b border-foreground/5 shrink-0">
         <div className="flex items-center gap-2">
-          <button onClick={goToPrevMonth} className="p-1 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors" aria-label="이전 달">
+          <button
+            onClick={goToPrevMonth}
+            className="p-1 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            aria-label="이전 달"
+          >
             <ChevronLeft size={16} />
           </button>
-          <h2 className="text-sm font-bold text-foreground min-w-[120px] text-center">{monthLabel}</h2>
-          <button onClick={goToNextMonth} className="p-1 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors" aria-label="다음 달">
+          <h2 className="text-sm font-bold text-foreground min-w-[120px] text-center">
+            {monthLabel}
+          </h2>
+          <button
+            onClick={goToNextMonth}
+            className="p-1 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            aria-label="다음 달"
+          >
             <ChevronRight size={16} />
           </button>
         </div>
@@ -624,16 +714,41 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
 
       {/* Cross-domain filter chips */}
       <div className="flex gap-2 px-4 md:px-6 py-2 flex-wrap border-b border-foreground/5 shrink-0">
-        {([
-          { key: 'personal' as const, label: isKo ? '개인' : 'Personal', dotClass: 'bg-bridge-accent', activeClass: 'bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30' },
-          { key: 'meetings' as const, label: isKo ? '보드 미팅' : 'Meetings', dotClass: 'bg-purple-500', activeClass: 'bg-purple-500/15 text-purple-400 border-purple-500/30' },
-          { key: 'schedule' as const, label: isKo ? '보드 스케줄' : 'Schedule', dotClass: 'bg-indigo-500', activeClass: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30' },
-          { key: 'anniversary' as const, label: isKo ? '기념일' : 'Anniversary', dotClass: 'bg-pink-400', activeClass: 'bg-pink-400/15 text-pink-400 border-pink-400/30' },
-          { key: 'leave' as const, label: isKo ? '휴가' : 'Leave', dotClass: 'bg-emerald-400', activeClass: 'bg-emerald-400/15 text-emerald-400 border-emerald-400/30' },
-        ]).map(f => (
+        {[
+          {
+            key: 'personal' as const,
+            label: isKo ? '개인' : 'Personal',
+            dotClass: 'bg-bridge-accent',
+            activeClass: 'bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30',
+          },
+          {
+            key: 'meetings' as const,
+            label: isKo ? '보드 미팅' : 'Meetings',
+            dotClass: 'bg-purple-500',
+            activeClass: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+          },
+          {
+            key: 'schedule' as const,
+            label: isKo ? '보드 스케줄' : 'Schedule',
+            dotClass: 'bg-indigo-500',
+            activeClass: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+          },
+          {
+            key: 'anniversary' as const,
+            label: isKo ? '기념일' : 'Anniversary',
+            dotClass: 'bg-pink-400',
+            activeClass: 'bg-pink-400/15 text-pink-400 border-pink-400/30',
+          },
+          {
+            key: 'leave' as const,
+            label: isKo ? '휴가' : 'Leave',
+            dotClass: 'bg-emerald-400',
+            activeClass: 'bg-emerald-400/15 text-emerald-400 border-emerald-400/30',
+          },
+        ].map((f) => (
           <button
             key={f.key}
-            onClick={() => setCalendarFilters(prev => ({ ...prev, [f.key]: !prev[f.key] }))}
+            onClick={() => setCalendarFilters((prev) => ({ ...prev, [f.key]: !prev[f.key] }))}
             className={`text-xs font-bold px-2 py-1 rounded-full border transition-colors flex items-center gap-1 ${
               calendarFilters[f.key]
                 ? f.activeClass
@@ -662,7 +777,11 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
 
       {/* Calendar grid */}
       <div ref={animRef} className="flex-1 overflow-hidden">
-        <div ref={calendarGridRef} className="grid h-full" style={{ gridTemplateRows: `repeat(${weekRows.length}, 1fr)` }}>
+        <div
+          ref={calendarGridRef}
+          className="grid h-full"
+          style={{ gridTemplateRows: `repeat(${weekRows.length}, 1fr)` }}
+        >
           {weekRows.map((week, weekIdx) => (
             <div key={weekIdx} className="relative grid grid-cols-7 min-h-0 overflow-hidden">
               {week.map(({ date, isCurrentMonth }, colIdx) => {
@@ -688,9 +807,17 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
                       }
                     }}
                     className={`border-b border-r border-foreground/5 flex flex-col overflow-hidden transition-colors cursor-pointer hover:bg-foreground/[0.03] ${
-                      !isCurrentMonth ? 'bg-foreground/[0.01]' : isHoliday ? 'bg-red-500/[0.03]' : date.getDay() === 0 || date.getDay() === 6 ? 'bg-foreground/[0.015]' : ''
+                      !isCurrentMonth
+                        ? 'bg-foreground/[0.01]'
+                        : isHoliday
+                          ? 'bg-red-500/[0.03]'
+                          : date.getDay() === 0 || date.getDay() === 6
+                            ? 'bg-foreground/[0.015]'
+                            : ''
                     } ${isTodayCell ? 'ring-1 ring-inset ring-bridge-accent/30 bg-bridge-accent/[0.04]' : ''}${
-                      normalizedDragRange && dateKey >= normalizedDragRange.start && dateKey <= normalizedDragRange.end
+                      normalizedDragRange &&
+                      dateKey >= normalizedDragRange.start &&
+                      dateKey <= normalizedDragRange.end
                         ? ' !bg-bridge-accent/15 ring-1 ring-inset ring-bridge-accent/40'
                         : ''
                     }`}
@@ -718,7 +845,9 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
                         </span>
                       )}
                       {cellItems.length > 0 && (
-                        <span className="text-xs text-zinc-600 tabular-nums ml-auto shrink-0">{cellItems.length}</span>
+                        <span className="text-xs text-zinc-600 tabular-nums ml-auto shrink-0">
+                          {cellItems.length}
+                        </span>
                       )}
                     </div>
 
@@ -735,10 +864,14 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
                               : 'rounded px-1 text-center'
                           }`}
                           style={{
-                            backgroundColor: item.isOverdue ? 'rgba(239,68,68,0.18)' : `${item.color}25`,
+                            backgroundColor: item.isOverdue
+                              ? 'rgba(239,68,68,0.18)'
+                              : `${item.color}25`,
                           }}
                         >
-                          <span className={`truncate ${item.isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                          <span
+                            className={`truncate ${item.isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}
+                          >
                             {item.isMultiDay ? '\u00A0' : item.title}
                           </span>
                         </div>
@@ -752,32 +885,46 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
                     {(() => {
                       const dots: { color: string; key: string }[] = [];
                       if (calendarFilters.meetings) {
-                        boardEvents.filter(e => e.source === 'MEETING' && e.event_date === dateKey).forEach((_e, i) => {
-                          dots.push({ color: '#a855f7', key: `m-${i}` });
-                        });
+                        boardEvents
+                          .filter((e) => e.source === 'MEETING' && e.event_date === dateKey)
+                          .forEach((_e, i) => {
+                            dots.push({ color: '#a855f7', key: `m-${i}` });
+                          });
                       }
                       if (calendarFilters.schedule) {
-                        boardEvents.filter(e => e.source === 'SCHEDULE_BLOCK' && e.event_date === dateKey).forEach((_e, i) => {
-                          dots.push({ color: '#6366f1', key: `s-${i}` });
-                        });
+                        boardEvents
+                          .filter((e) => e.source === 'SCHEDULE_BLOCK' && e.event_date === dateKey)
+                          .forEach((_e, i) => {
+                            dots.push({ color: '#6366f1', key: `s-${i}` });
+                          });
                       }
                       if (calendarFilters.anniversary) {
-                        orgEvents.filter(e => e.source === 'ANNIVERSARY' && e.event_date === dateKey).forEach((_e, i) => {
-                          dots.push({ color: '#f472b6', key: `a-${i}` });
-                        });
+                        orgEvents
+                          .filter((e) => e.source === 'ANNIVERSARY' && e.event_date === dateKey)
+                          .forEach((_e, i) => {
+                            dots.push({ color: '#f472b6', key: `a-${i}` });
+                          });
                       }
                       if (calendarFilters.leave) {
-                        orgEvents.filter(e => e.source === 'LEAVE' && e.event_date === dateKey).forEach((_e, i) => {
-                          dots.push({ color: '#34d399', key: `l-${i}` });
-                        });
+                        orgEvents
+                          .filter((e) => e.source === 'LEAVE' && e.event_date === dateKey)
+                          .forEach((_e, i) => {
+                            dots.push({ color: '#34d399', key: `l-${i}` });
+                          });
                       }
                       if (dots.length === 0) return null;
                       return (
                         <div className="flex items-center justify-center gap-0.5 py-0.5 shrink-0">
-                          {dots.slice(0, 4).map(d => (
-                            <span key={d.key} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: d.color }} />
+                          {dots.slice(0, 4).map((d) => (
+                            <span
+                              key={d.key}
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ backgroundColor: d.color }}
+                            />
                           ))}
-                          {dots.length > 4 && <span className="text-xs text-slate-500">+{dots.length - 4}</span>}
+                          {dots.length > 4 && (
+                            <span className="text-xs text-slate-500">+{dots.length - 4}</span>
+                          )}
                         </div>
                       );
                     })()}
@@ -803,7 +950,9 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
                       height: '18px',
                     }}
                   >
-                    <span className={`text-xs md:text-xs truncate max-w-full px-1 ${span.isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                    <span
+                      className={`text-xs md:text-xs truncate max-w-full px-1 ${span.isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}
+                    >
                       {span.title}
                     </span>
                   </div>
@@ -816,9 +965,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
 
       {/* Mobile toolbar */}
       <div className="md:hidden border-t border-white/[0.06] px-3 py-2 flex items-center justify-between shrink-0">
-        <p className="text-xs text-slate-500 flex-1">
-          {t('personal.calendar.tapToView')}
-        </p>
+        <p className="text-xs text-slate-500 flex-1">{t('personal.calendar.tapToView')}</p>
         <button
           onClick={() => openCreateModal(todayKey)}
           className="p-3 rounded-xl bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 hover:bg-bridge-accent/90 active:scale-95 transition-all"
@@ -840,12 +987,18 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
         open={!!modalDate}
         date={modalDate?.date ?? new Date()}
         dateKey={modalDate?.dateKey ?? ''}
-        items={modalDate ? (dayItemsMap.get(modalDate.dateKey) || []) : []}
+        items={modalDate ? dayItemsMap.get(modalDate.dateKey) || [] : []}
         dayLabels={dayLabels}
         onClose={() => setModalDate(null)}
         onDeleteEvent={handleDeleteEvent}
-        onEditEvent={(ev) => { setEditEvent(ev); setModalDate(null); }}
-        onEditTask={(task) => { setEditTask(task); setModalDate(null); }}
+        onEditEvent={(ev) => {
+          setEditEvent(ev);
+          setModalDate(null);
+        }}
+        onEditTask={(task) => {
+          setEditTask(task);
+          setModalDate(null);
+        }}
         onAddEvent={() => {
           if (modalDate) {
             openCreateModal(modalDate.dateKey);
@@ -914,7 +1067,7 @@ function TodaySchedule({
 
   const dateLabel = isKo
     ? `${today.getMonth() + 1}월 ${today.getDate()}일`
-    : `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][today.getMonth()]} ${today.getDate()}`;
+    : `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][today.getMonth()]} ${today.getDate()}`;
 
   return (
     <div className="mx-3 md:mx-5 my-1.5 border border-bridge-border rounded-xl shrink-0 overflow-hidden">
@@ -942,79 +1095,96 @@ function TodaySchedule({
             className="w-full h-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-foreground/10 text-zinc-600 hover:text-zinc-400 hover:border-bridge-border transition-colors py-3"
           >
             <Plus size={14} />
-            <span className="text-xs">{t('personal.calendar.noScheduleToday', 'No schedule today — add one')}</span>
+            <span className="text-xs">
+              {t('personal.calendar.noScheduleToday', 'No schedule today — add one')}
+            </span>
           </button>
         ) : (
           <>
-          {visibleItems.map((item) => (
-            <div
-              key={item.id}
-              className={`flex items-center gap-2.5 px-2.5 py-1.5 transition-colors hover:bg-foreground/5 ${
-                item.isDone ? 'opacity-50' : ''
-              }`}
-            >
-              {/* Color dot / status */}
-              {item.type === 'task' ? (
-                item.isDone ? (
-                  <CheckCircle2 size={13} className="shrink-0 text-emerald-400" />
+            {visibleItems.map((item) => (
+              <div
+                key={item.id}
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 transition-colors hover:bg-foreground/5 ${
+                  item.isDone ? 'opacity-50' : ''
+                }`}
+              >
+                {/* Color dot / status */}
+                {item.type === 'task' ? (
+                  item.isDone ? (
+                    <CheckCircle2 size={13} className="shrink-0 text-emerald-400" />
+                  ) : (
+                    <div
+                      className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-foreground/10"
+                      style={{ backgroundColor: item.isOverdue ? '#EF4444' : item.color }}
+                    />
+                  )
                 ) : (
                   <div
-                    className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-foreground/10"
-                    style={{ backgroundColor: item.isOverdue ? '#EF4444' : item.color }}
+                    className="w-2.5 h-2.5 rounded-sm shrink-0 ring-1 ring-foreground/10"
+                    style={{ backgroundColor: item.color }}
                   />
-                )
-              ) : (
-                <div
-                  className="w-2.5 h-2.5 rounded-sm shrink-0 ring-1 ring-foreground/10"
-                  style={{ backgroundColor: item.color }}
-                />
-              )}
+                )}
 
-              {/* Time */}
-              {item.startTime ? (
-                <span className="text-xs text-zinc-500 tabular-nums w-10 shrink-0">{item.startTime}</span>
-              ) : (
-                <span className="text-xs text-muted-foreground w-10 shrink-0">
-                  {item.type === 'event' ? t('personal.calendar.allDay', 'All day') : ''}
-                </span>
-              )}
+                {/* Time */}
+                {item.startTime ? (
+                  <span className="text-xs text-zinc-500 tabular-nums w-10 shrink-0">
+                    {item.startTime}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground w-10 shrink-0">
+                    {item.type === 'event' ? t('personal.calendar.allDay', 'All day') : ''}
+                  </span>
+                )}
 
-              {/* Title */}
-              <span className={`text-xs truncate flex-1 ${
-                item.isDone ? 'line-through text-muted-foreground' : item.isOverdue ? 'text-red-400' : 'text-foreground'
-              }`}>
-                {item.title}
-              </span>
-
-              {/* Type badge */}
-              <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${
-                item.type === 'task'
-                  ? 'text-bridge-accent/70 bg-bridge-accent/10'
-                  : 'text-bridge-secondary/70 bg-bridge-secondary/10'
-              }`}>
-                {item.type === 'task' ? t('personal.calendar.task') : t('personal.calendar.event')}
-              </span>
-
-              {/* Edit button (event only) */}
-              {item.type === 'event' && item.event && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onEditEvent(item.event!); }}
-                  className="p-1 text-zinc-600 hover:text-bridge-accent transition-colors rounded shrink-0"
+                {/* Title */}
+                <span
+                  className={`text-xs truncate flex-1 ${
+                    item.isDone
+                      ? 'line-through text-muted-foreground'
+                      : item.isOverdue
+                        ? 'text-red-400'
+                        : 'text-foreground'
+                  }`}
                 >
-                  <Pencil size={12} />
-                </button>
-              )}
-            </div>
-          ))}
+                  {item.title}
+                </span>
 
-          {hiddenCount > 0 && (
-            <button
-              onClick={onViewAll}
-              className="w-full text-center text-xs text-zinc-500 hover:text-foreground py-1 transition-colors"
-            >
-              +{hiddenCount} {t('personal.calendar.more', 'more')}
-            </button>
-          )}
+                {/* Type badge */}
+                <span
+                  className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${
+                    item.type === 'task'
+                      ? 'text-bridge-accent/70 bg-bridge-accent/10'
+                      : 'text-bridge-secondary/70 bg-bridge-secondary/10'
+                  }`}
+                >
+                  {item.type === 'task'
+                    ? t('personal.calendar.task')
+                    : t('personal.calendar.event')}
+                </span>
+
+                {/* Edit button (event only) */}
+                {item.type === 'event' && item.event && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditEvent(item.event!);
+                    }}
+                    className="p-1 text-zinc-600 hover:text-bridge-accent transition-colors rounded shrink-0"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                )}
+              </div>
+            ))}
+
+            {hiddenCount > 0 && (
+              <button
+                onClick={onViewAll}
+                className="w-full text-center text-xs text-zinc-500 hover:text-foreground py-1 transition-colors"
+              >
+                +{hiddenCount} {t('personal.calendar.more', 'more')}
+              </button>
+            )}
           </>
         )}
       </div>
@@ -1048,171 +1218,186 @@ function DayDetailModal({
   onAddEvent: () => void;
 }) {
   const { t } = useTranslation();
-  const taskCount = items.filter(i => i.type === 'task').length;
-  const eventCount = items.filter(i => i.type === 'event').length;
+  const taskCount = items.filter((i) => i.type === 'task').length;
+  const eventCount = items.filter((i) => i.type === 'event').length;
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg max-h-[85dvh] flex flex-col p-0 overflow-hidden border-foreground/[0.12]">
-        <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-foreground/[0.08] shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-bridge-accent/10 flex items-center justify-center">
-              <Calendar size={18} className="text-bridge-accent" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-foreground">
-                {date.getMonth() + 1}월 {date.getDate()}일 ({dayLabels[date.getDay()]})
-              </h3>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                {taskCount > 0 && t('personal.calendar.tasksCount', { count: taskCount })}
-                {taskCount > 0 && eventCount > 0 && ' · '}
-                {eventCount > 0 && t('personal.calendar.eventsCount', { count: eventCount })}
-              </p>
-            </div>
+    <MotionModal
+      open={open}
+      onClose={onClose}
+      className="sm:max-w-lg max-h-[85dvh] flex flex-col p-0 overflow-hidden border-foreground/[0.12]"
+    >
+      <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-foreground/[0.08] shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-bridge-accent/10 flex items-center justify-center">
+            <Calendar size={18} className="text-bridge-accent" />
           </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={onAddEvent}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-bridge-accent border border-bridge-accent/30 rounded-lg hover:bg-bridge-accent/10 transition-colors"
-            >
-              <Plus size={14} />
-              <span>{t('personal.calendar.addSchedule', '스케줄 추가')}</span>
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-xl text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-              aria-label="닫기"
-            >
-              <X size={18} />
-            </button>
+          <div>
+            <h3 className="text-lg font-bold text-foreground">
+              {date.getMonth() + 1}월 {date.getDate()}일 ({dayLabels[date.getDay()]})
+            </h3>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              {taskCount > 0 && t('personal.calendar.tasksCount', { count: taskCount })}
+              {taskCount > 0 && eventCount > 0 && ' · '}
+              {eventCount > 0 && t('personal.calendar.eventsCount', { count: eventCount })}
+            </p>
           </div>
         </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={onAddEvent}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-bridge-accent border border-bridge-accent/30 rounded-lg hover:bg-bridge-accent/10 transition-colors"
+          >
+            <Plus size={14} />
+            <span>{t('personal.calendar.addSchedule', '스케줄 추가')}</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            aria-label="닫기"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-1.5">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => {
-                if (item.type === 'event' && item.event) onEditEvent(item.event);
-                else if (item.type === 'task' && item.task) onEditTask(item.task);
-              }}
-              className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer hover:bg-foreground/5 ${
-                item.isDone ? 'opacity-50' : ''
-              }`}
-              style={{ borderLeft: `3px solid ${item.isOverdue ? '#EF4444' : item.color}` }}
-            >
-              {/* Icon */}
-              {item.type === 'task' ? (
-                item.isDone ? (
-                  <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
-                ) : (
-                  <div
-                    className="w-4 h-4 rounded-full border-2 shrink-0"
-                    style={{ borderColor: item.isOverdue ? '#EF4444' : item.color }}
-                  />
-                )
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-1.5">
+        {items.map((item) => (
+          <div
+            key={item.id}
+            onClick={() => {
+              if (item.type === 'event' && item.event) onEditEvent(item.event);
+              else if (item.type === 'task' && item.task) onEditTask(item.task);
+            }}
+            className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer hover:bg-foreground/5 ${
+              item.isDone ? 'opacity-50' : ''
+            }`}
+            style={{ borderLeft: `3px solid ${item.isOverdue ? '#EF4444' : item.color}` }}
+          >
+            {/* Icon */}
+            {item.type === 'task' ? (
+              item.isDone ? (
+                <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
               ) : (
-                <CalendarDays size={16} className="shrink-0" style={{ color: item.color }} />
-              )}
+                <div
+                  className="w-4 h-4 rounded-full border-2 shrink-0"
+                  style={{ borderColor: item.isOverdue ? '#EF4444' : item.color }}
+                />
+              )
+            ) : (
+              <CalendarDays size={16} className="shrink-0" style={{ color: item.color }} />
+            )}
 
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <span className={`text-sm font-medium block truncate ${
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <span
+                className={`text-sm font-medium block truncate ${
                   item.isDone ? 'line-through text-zinc-500' : 'text-foreground'
-                }`}>
-                  {item.title}
-                </span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  {item.type === 'task' && (
-                    <span className="text-xs font-medium text-bridge-accent/70 bg-bridge-accent/10 px-1.5 py-0.5 rounded">
-                      {t('personal.calendar.task')}
-                    </span>
-                  )}
-                  {item.type === 'event' && (
-                    <span className="text-xs font-medium text-bridge-secondary/70 bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
-                      {t('personal.calendar.event')}
-                    </span>
-                  )}
-                  {item.startTime && (
-                    <span className="text-xs text-zinc-500 flex items-center gap-0.5">
-                      <Clock size={8} />
-                      {item.startTime}
-                      {item.event?.end_time && ` - ${item.event.end_time.slice(0, 5)}`}
-                      {item.event?.start_time && item.event?.end_time && item.event.end_time < item.event.start_time && <span className="text-bridge-accent ml-0.5">({t('personal.schedule.nextDay')})</span>}
-                    </span>
-                  )}
-                  {item.isOverdue && (
-                    <span className="text-xs font-medium text-red-400">{t('personal.calendar.overdue')}</span>
-                  )}
-                  {item.task?.priority && item.task.priority !== 'NONE' && (
-                    <span className="text-xs text-zinc-500">{item.task.priority}</span>
-                  )}
-                  {item.event?.end_date && (
-                    <span className="text-xs text-bridge-secondary flex items-center gap-0.5">
-                      <CalendarDays size={8} />
-                      {formatDate(item.event.event_date, 'MM/dd')} ~ {formatDate(item.event.end_date, 'MM/dd')}
-                    </span>
-                  )}
-                  {item.event?.recurrence_group_id && (
-                    <span className="text-xs text-purple-400 flex items-center gap-0.5">
-                      <RotateCw size={8} />
-                      {t('personal.calendar.recurring')}
-                    </span>
-                  )}
-                </div>
+                }`}
+              >
+                {item.title}
+              </span>
+              <div className="flex items-center gap-2 mt-0.5">
+                {item.type === 'task' && (
+                  <span className="text-xs font-medium text-bridge-accent/70 bg-bridge-accent/10 px-1.5 py-0.5 rounded">
+                    {t('personal.calendar.task')}
+                  </span>
+                )}
+                {item.type === 'event' && (
+                  <span className="text-xs font-medium text-bridge-secondary/70 bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
+                    {t('personal.calendar.event')}
+                  </span>
+                )}
+                {item.startTime && (
+                  <span className="text-xs text-zinc-500 flex items-center gap-0.5">
+                    <Clock size={8} />
+                    {item.startTime}
+                    {item.event?.end_time && ` - ${item.event.end_time.slice(0, 5)}`}
+                    {item.event?.start_time &&
+                      item.event?.end_time &&
+                      item.event.end_time < item.event.start_time && (
+                        <span className="text-bridge-accent ml-0.5">
+                          ({t('personal.schedule.nextDay')})
+                        </span>
+                      )}
+                  </span>
+                )}
+                {item.isOverdue && (
+                  <span className="text-xs font-medium text-red-400">
+                    {t('personal.calendar.overdue')}
+                  </span>
+                )}
+                {item.task?.priority && item.task.priority !== 'NONE' && (
+                  <span className="text-xs text-zinc-500">{item.task.priority}</span>
+                )}
+                {item.event?.end_date && (
+                  <span className="text-xs text-bridge-secondary flex items-center gap-0.5">
+                    <CalendarDays size={8} />
+                    {formatDate(item.event.event_date, 'MM/dd')} ~{' '}
+                    {formatDate(item.event.end_date, 'MM/dd')}
+                  </span>
+                )}
+                {item.event?.recurrence_group_id && (
+                  <span className="text-xs text-purple-400 flex items-center gap-0.5">
+                    <RotateCw size={8} />
+                    {t('personal.calendar.recurring')}
+                  </span>
+                )}
               </div>
-
-              {/* Edit / Delete event buttons */}
-              {item.type === 'event' && item.event && (
-                <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditEvent(item.event!);
-                    }}
-                    className="p-1.5 text-zinc-500 hover:text-bridge-accent rounded-lg hover:bg-foreground/5 transition-colors"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteEvent(item.event!.id);
-                    }}
-                    className="p-1.5 text-zinc-500 hover:text-red-400 rounded-lg hover:bg-foreground/5 transition-colors"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              )}
             </div>
-          ))}
 
-          {items.length === 0 && (
-            <div className="text-center py-8">
-              <Calendar size={24} className="mx-auto text-zinc-600 mb-2" />
-              <p className="text-zinc-500 text-sm">{t('personal.calendar.noItems')}</p>
-            </div>
-          )}
-        </div>
+            {/* Edit / Delete event buttons */}
+            {item.type === 'event' && item.event && (
+              <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditEvent(item.event!);
+                  }}
+                  className="p-1.5 text-zinc-500 hover:text-bridge-accent rounded-lg hover:bg-foreground/5 transition-colors"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteEvent(item.event!.id);
+                  }}
+                  className="p-1.5 text-zinc-500 hover:text-red-400 rounded-lg hover:bg-foreground/5 transition-colors"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
 
-        {/* Footer legend */}
-        <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 border-t border-foreground/5 shrink-0 flex-wrap">
-          <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-            <ListTodo size={10} className="text-bridge-accent" />
-            {t('personal.calendar.taskDeadline')}
-          </span>
-          <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-            <CalendarDays size={10} className="text-bridge-secondary" />
-            {t('personal.calendar.event')}
-          </span>
-          <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-            <span className="w-2 h-2 rounded-full bg-red-500" />
-            {t('personal.calendar.overdue')}
-          </span>
-        </div>
+        {items.length === 0 && (
+          <div className="text-center py-8">
+            <Calendar size={24} className="mx-auto text-zinc-600 mb-2" />
+            <p className="text-zinc-500 text-sm">{t('personal.calendar.noItems')}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Footer legend */}
+      <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 border-t border-foreground/5 shrink-0 flex-wrap">
+        <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+          <ListTodo size={10} className="text-bridge-accent" />
+          {t('personal.calendar.taskDeadline')}
+        </span>
+        <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+          <CalendarDays size={10} className="text-bridge-secondary" />
+          {t('personal.calendar.event')}
+        </span>
+        <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+          <span className="w-2 h-2 rounded-full bg-red-500" />
+          {t('personal.calendar.overdue')}
+        </span>
+      </div>
     </MotionModal>
   );
 }
@@ -1282,7 +1467,7 @@ function CreateEventModal({
   }, [open]);
 
   const overlapping = useMemo(
-    () => allDay ? [] : getOverlappingEvents(existingEvents, date, startTime, endTime),
+    () => (allDay ? [] : getOverlappingEvents(existingEvents, date, startTime, endTime)),
     [existingEvents, date, startTime, endTime, allDay],
   );
 
@@ -1292,8 +1477,8 @@ function CreateEventModal({
     onCreate({
       title: title.trim(),
       description: description.trim() || undefined,
-      start_time: allDay ? undefined : (startTime || undefined),
-      end_time: allDay ? undefined : (endTime || undefined),
+      start_time: allDay ? undefined : startTime || undefined,
+      end_time: allDay ? undefined : endTime || undefined,
       color,
       all_day: allDay,
       end_date: endDate && endDate !== date ? endDate : undefined,
@@ -1301,10 +1486,17 @@ function CreateEventModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal
+      open={open}
+      onClose={onClose}
+      className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]"
+    >
       <div>
         {/* Top accent line */}
-        <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
+        <div
+          className="h-[2px]"
+          style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }}
+        />
 
         {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
@@ -1316,7 +1508,9 @@ function CreateEventModal({
             triggerShape="circle"
             showCustomColor={false}
           />
-          <span className="text-sm font-bold text-foreground">{t('personal.calendar.newEvent')}</span>
+          <span className="text-sm font-bold text-foreground">
+            {t('personal.calendar.newEvent')}
+          </span>
           <div className="flex-1" />
           <IconButton onClick={onClose} aria-label="닫기">
             <X />
@@ -1328,13 +1522,15 @@ function CreateEventModal({
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0">
               <CalendarDays size={13} className="text-slate-400 shrink-0" />
-              <span className="text-xs text-muted-foreground truncate">{formatDate(date, "yy/MM/dd (EEE)")}</span>
+              <span className="text-xs text-muted-foreground truncate">
+                {formatDate(date, 'yy/MM/dd (EEE)')}
+              </span>
             </div>
             <span className="text-slate-500 text-xs shrink-0">~</span>
             <div className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0 cursor-pointer hover:bg-foreground/[0.06] transition-colors">
               <CalendarDays size={13} className="text-slate-400 shrink-0 pointer-events-none" />
               <span className="text-xs text-muted-foreground truncate pointer-events-none">
-                {formatDate(endDate, "yy/MM/dd (EEE)")}
+                {formatDate(endDate, 'yy/MM/dd (EEE)')}
               </span>
               <input
                 type="date"
@@ -1374,10 +1570,14 @@ function CreateEventModal({
           {/* All-day toggle */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => { if (endDate === date) setAllDay(!allDay); }}
+              onClick={() => {
+                if (endDate === date) setAllDay(!allDay);
+              }}
               className={`relative w-9 h-[18px] rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'} ${endDate !== date ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${allDay ? 'left-[18px]' : 'left-[2px]'}`} />
+              <span
+                className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${allDay ? 'left-[18px]' : 'left-[2px]'}`}
+              />
             </button>
             <span className="text-xs text-muted-foreground">{t('personal.calendar.allDay')}</span>
           </div>
@@ -1408,7 +1608,9 @@ function CreateEventModal({
                 />
               </div>
               {startTime && endTime && endTime < startTime && (
-                <span className="text-xs font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
+                <span className="text-xs font-bold text-bridge-accent shrink-0">
+                  ({t('personal.schedule.nextDay')})
+                </span>
               )}
             </div>
           )}
@@ -1424,13 +1626,15 @@ function CreateEventModal({
                 <div className="mt-0.5 space-y-0.5">
                   {overlapping.slice(0, 3).map((ev) => (
                     <p key={ev.id} className="text-xs text-amber-400/70 truncate">
-                      {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)}{ev.start_time && ev.end_time && ev.end_time < ev.start_time ? ` (${t('personal.schedule.nextDay')})` : ''} {ev.title}
+                      {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)}
+                      {ev.start_time && ev.end_time && ev.end_time < ev.start_time
+                        ? ` (${t('personal.schedule.nextDay')})`
+                        : ''}{' '}
+                      {ev.title}
                     </p>
                   ))}
                   {overlapping.length > 3 && (
-                    <p className="text-xs text-amber-400/50">
-                      +{overlapping.length - 3}
-                    </p>
+                    <p className="text-xs text-amber-400/50">+{overlapping.length - 3}</p>
                   )}
                 </div>
               </div>
@@ -1439,9 +1643,7 @@ function CreateEventModal({
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <span className="text-xs text-slate-600">
-              Esc {t('common.close', '닫기')}
-            </span>
+            <span className="text-xs text-slate-600">Esc {t('common.close', '닫기')}</span>
             <button
               onClick={handleSubmit}
               disabled={!title.trim()}
@@ -1470,16 +1672,19 @@ function EditEventModal({
   event: PersonalEvent | null;
   existingEvents: PersonalEvent[];
   onClose: () => void;
-  onUpdate: (eventId: string, data: {
-    title?: string;
-    description?: string;
-    event_date?: string;
-    start_time?: string | null;
-    end_time?: string | null;
-    color?: string;
-    all_day?: boolean;
-    end_date?: string | null;
-  }) => void;
+  onUpdate: (
+    eventId: string,
+    data: {
+      title?: string;
+      description?: string;
+      event_date?: string;
+      start_time?: string | null;
+      end_time?: string | null;
+      color?: string;
+      all_day?: boolean;
+      end_date?: string | null;
+    },
+  ) => void;
   onDelete: (eventId: string) => void;
 }) {
   const { t } = useTranslation();
@@ -1504,7 +1709,10 @@ function EditEventModal({
   }, [event]);
 
   const overlapping = useMemo(
-    () => event && !allDay ? getOverlappingEvents(existingEvents, event.event_date, startTime, endTime, event.id) : [],
+    () =>
+      event && !allDay
+        ? getOverlappingEvents(existingEvents, event.event_date, startTime, endTime, event.id)
+        : [],
     [existingEvents, event, startTime, endTime, allDay],
   );
 
@@ -1525,8 +1733,8 @@ function EditEventModal({
       title: title.trim(),
       description: description.trim() || undefined,
       event_date: event.event_date,
-      start_time: allDay ? null : (startTime || null),
-      end_time: allDay ? null : (endTime || null),
+      start_time: allDay ? null : startTime || null,
+      end_time: allDay ? null : endTime || null,
       color,
       all_day: allDay,
       end_date: endDate && endDate !== event.event_date ? endDate : null,
@@ -1535,10 +1743,17 @@ function EditEventModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal
+      open={open}
+      onClose={onClose}
+      className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]"
+    >
       <div>
         {/* Top accent line */}
-        <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
+        <div
+          className="h-[2px]"
+          style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }}
+        />
 
         {/* Header: color dot + title + delete + close */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
@@ -1575,13 +1790,15 @@ function EditEventModal({
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0">
               <CalendarDays size={13} className="text-slate-400 shrink-0" />
-              <span className="text-xs text-muted-foreground truncate">{formatDate(event.event_date, "yy/MM/dd (EEE)")}</span>
+              <span className="text-xs text-muted-foreground truncate">
+                {formatDate(event.event_date, 'yy/MM/dd (EEE)')}
+              </span>
             </div>
             <span className="text-slate-500 text-xs shrink-0">~</span>
             <div className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0 cursor-pointer hover:bg-foreground/[0.06] transition-colors">
               <CalendarDays size={13} className="text-slate-400 shrink-0 pointer-events-none" />
               <span className="text-xs text-muted-foreground truncate pointer-events-none">
-                {formatDate(endDate, "yy/MM/dd (EEE)")}
+                {formatDate(endDate, 'yy/MM/dd (EEE)')}
               </span>
               <input
                 type="date"
@@ -1610,10 +1827,14 @@ function EditEventModal({
           {/* All-day toggle */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => { if (endDate === event.event_date) setAllDay(!allDay); }}
+              onClick={() => {
+                if (endDate === event.event_date) setAllDay(!allDay);
+              }}
               className={`relative w-9 h-[18px] rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'} ${endDate !== event.event_date ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${allDay ? 'left-[18px]' : 'left-[2px]'}`} />
+              <span
+                className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${allDay ? 'left-[18px]' : 'left-[2px]'}`}
+              />
             </button>
             <span className="text-xs text-muted-foreground">{t('personal.calendar.allDay')}</span>
           </div>
@@ -1644,7 +1865,9 @@ function EditEventModal({
                 />
               </div>
               {startTime && endTime && endTime < startTime && (
-                <span className="text-xs font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
+                <span className="text-xs font-bold text-bridge-accent shrink-0">
+                  ({t('personal.schedule.nextDay')})
+                </span>
               )}
             </div>
           )}
@@ -1660,13 +1883,15 @@ function EditEventModal({
                 <div className="mt-0.5 space-y-0.5">
                   {overlapping.slice(0, 3).map((ev) => (
                     <p key={ev.id} className="text-xs text-amber-400/70 truncate">
-                      {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)}{ev.start_time && ev.end_time && ev.end_time < ev.start_time ? ` (${t('personal.schedule.nextDay')})` : ''} {ev.title}
+                      {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)}
+                      {ev.start_time && ev.end_time && ev.end_time < ev.start_time
+                        ? ` (${t('personal.schedule.nextDay')})`
+                        : ''}{' '}
+                      {ev.title}
                     </p>
                   ))}
                   {overlapping.length > 3 && (
-                    <p className="text-xs text-amber-400/50">
-                      +{overlapping.length - 3}
-                    </p>
+                    <p className="text-xs text-amber-400/50">+{overlapping.length - 3}</p>
                   )}
                 </div>
               </div>
@@ -1675,9 +1900,7 @@ function EditEventModal({
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <span className="text-xs text-slate-600">
-              Esc {t('common.close', '닫기')}
-            </span>
+            <span className="text-xs text-slate-600">Esc {t('common.close', '닫기')}</span>
             <button
               onClick={handleSave}
               disabled={!title.trim() || !hasChanged}
@@ -1691,4 +1914,3 @@ function EditEventModal({
     </MotionModal>
   );
 }
-

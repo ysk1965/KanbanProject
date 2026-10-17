@@ -3,6 +3,7 @@ package com.kanban.domain.photo.controller;
 import com.kanban.domain.photo.dto.OrgPhotoRequest;
 import com.kanban.domain.photo.dto.OrgPhotoResponse;
 import com.kanban.domain.photo.service.OrgPhotoService;
+import com.kanban.domain.photo.service.PhotoDirectUploadService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,14 @@ import java.util.Map;
 public class PublicAlbumController {
 
     private final OrgPhotoService orgPhotoService;
+    private final PhotoDirectUploadService photoDirectUploadService;
+
+    /** 공개 목록 한 번에 최대 100장 — 무제한 size 로 큰 조회를 유발하지 못하게 막는다 */
+    private static final int MAX_PAGE_SIZE = 100;
+
+    private static int clampPageSize(int size) {
+        return Math.max(1, Math.min(size, MAX_PAGE_SIZE));
+    }
 
     // ==================== Gallery-Level (Organization) ====================
 
@@ -34,7 +43,7 @@ public class PublicAlbumController {
             @PathVariable String albumId,
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "30") int size) {
-        return ResponseEntity.ok(orgPhotoService.getSharedGalleryPhotos(shareToken, albumId, cursor, size));
+        return ResponseEntity.ok(orgPhotoService.getSharedGalleryPhotos(shareToken, albumId, cursor, clampPageSize(size)));
     }
 
     // ==================== Per-Album (Legacy) ====================
@@ -50,7 +59,7 @@ public class PublicAlbumController {
             @PathVariable String shareToken,
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "30") int size) {
-        return ResponseEntity.ok(orgPhotoService.getSharedAlbumPhotos(shareToken, cursor, size));
+        return ResponseEntity.ok(orgPhotoService.getSharedAlbumPhotos(shareToken, cursor, clampPageSize(size)));
     }
 
     // ==================== Public Upload ====================
@@ -61,12 +70,42 @@ public class PublicAlbumController {
         return ResponseEntity.ok(orgPhotoService.getUploadAlbumInfo(uploadToken));
     }
 
+    @GetMapping("/upload/{uploadToken}/photos")
+    public ResponseEntity<OrgPhotoResponse.SharedPhotoPage> getUploadLinkPhotos(
+            @PathVariable String uploadToken,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "30") int size) {
+        return ResponseEntity.ok(orgPhotoService.getUploadLinkPhotos(uploadToken, cursor, clampPageSize(size)));
+    }
+
+    @DeleteMapping("/upload/{uploadToken}/photos/{photoId}")
+    public ResponseEntity<Map<String, String>> publicUploadDeletePhoto(
+            @PathVariable String uploadToken,
+            @PathVariable String photoId) {
+        orgPhotoService.publicUploadDeletePhoto(uploadToken, photoId);
+        return ResponseEntity.ok(Map.of("message", "Photo deleted"));
+    }
+
     @PostMapping("/upload/{uploadToken}")
     public ResponseEntity<List<OrgPhotoResponse.PhotoDetail>> publicUpload(
             @PathVariable String uploadToken,
             @RequestParam("files") List<MultipartFile> files) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(orgPhotoService.publicUploadPhotos(uploadToken, files));
+    }
+
+    @PostMapping("/upload/{uploadToken}/presign")
+    public ResponseEntity<OrgPhotoResponse.UploadPresignResult> publicPresign(
+            @PathVariable String uploadToken,
+            @Valid @RequestBody OrgPhotoRequest.UploadPresign request) {
+        return ResponseEntity.ok(photoDirectUploadService.presignForTabLink(uploadToken, request));
+    }
+
+    @PostMapping("/upload/{uploadToken}/confirm")
+    public ResponseEntity<OrgPhotoResponse.UploadConfirmResult> publicConfirm(
+            @PathVariable String uploadToken,
+            @Valid @RequestBody OrgPhotoRequest.UploadConfirm request) {
+        return ResponseEntity.ok(photoDirectUploadService.confirmForTabLink(uploadToken, request));
     }
 
     // ==================== Gallery-Level Upload ====================
@@ -99,7 +138,7 @@ public class PublicAlbumController {
             @PathVariable String albumId,
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "30") int size) {
-        return ResponseEntity.ok(orgPhotoService.getGalleryUploadPhotos(uploadToken, albumId, cursor, size));
+        return ResponseEntity.ok(orgPhotoService.getGalleryUploadPhotos(uploadToken, albumId, cursor, clampPageSize(size)));
     }
 
     @PostMapping("/gallery-upload/{uploadToken}/albums/{albumId}/photos")
@@ -109,6 +148,22 @@ public class PublicAlbumController {
             @RequestParam("files") List<MultipartFile> files) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(orgPhotoService.publicGalleryUploadPhotos(uploadToken, albumId, files));
+    }
+
+    @PostMapping("/gallery-upload/{uploadToken}/albums/{albumId}/photos/presign")
+    public ResponseEntity<OrgPhotoResponse.UploadPresignResult> publicGalleryPresign(
+            @PathVariable String uploadToken,
+            @PathVariable String albumId,
+            @Valid @RequestBody OrgPhotoRequest.UploadPresign request) {
+        return ResponseEntity.ok(photoDirectUploadService.presignForGalleryLink(uploadToken, albumId, request));
+    }
+
+    @PostMapping("/gallery-upload/{uploadToken}/albums/{albumId}/photos/confirm")
+    public ResponseEntity<OrgPhotoResponse.UploadConfirmResult> publicGalleryConfirm(
+            @PathVariable String uploadToken,
+            @PathVariable String albumId,
+            @Valid @RequestBody OrgPhotoRequest.UploadConfirm request) {
+        return ResponseEntity.ok(photoDirectUploadService.confirmForGalleryLink(uploadToken, albumId, request));
     }
 
     @DeleteMapping("/gallery-upload/{uploadToken}/albums/{albumId}/photos/{photoId}")

@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Loader2, Plus, Flag } from "lucide-react";
-import { IconButton } from "../ui/IconButton";
-import { Milestone } from "../../types";
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ChevronLeft, ChevronRight, Loader2, MessageSquare, Plus, Flag } from 'lucide-react';
+import { IconButton } from '../ui/IconButton';
+import { Milestone } from '../../types';
 import {
   startOfMonth,
   endOfMonth,
@@ -15,21 +15,20 @@ import {
   isSameMonth,
   isToday,
   getDay,
-} from "date-fns";
-import { BoardMember } from "../ShareBoardModal";
-import { calendarEventAPI, CalendarEventItem } from "../../utils/api";
-import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
-import { calendarTypeMeta } from "./calendarEventMeta";
+} from 'date-fns';
+import { BoardMember } from '../ShareBoardModal';
+import { calendarEventAPI, CalendarEventItem } from '../../utils/api';
+import { formatRelativeTime } from '../../utils/dateUtils';
+import { useHolidays, HolidayInfo } from '../../hooks/useHolidays';
+import { calendarTypeMeta, isHolidayWorkType } from './calendarEventMeta';
+import { isBoardOffDay } from '../../utils/workloadBar';
 import {
   CalendarEventModal,
   CalendarEventModalInitial,
   CalendarMemberOption,
-} from "./CalendarEventModal";
-import { DayDetailPanel, DayDetailData } from "./DayDetailPanel";
-import {
-  buildMilestoneColorMap,
-  resolveMilestoneColor,
-} from "../../utils/milestoneColor";
+} from './CalendarEventModal';
+import { DayDetailPanel, DayDetailData } from './DayDetailPanel';
+import { buildMilestoneColorMap, resolveMilestoneColor } from '../../utils/milestoneColor';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,7 +45,7 @@ interface ScheduleCalendarViewProps {
 }
 
 /** 캘린더 격자에 올릴 바 하나 (팀 이벤트 / 개인 부재 / 마일스톤) */
-type BarKind = "event" | "absence" | "milestone";
+type BarKind = 'event' | 'absence' | 'holidayWork' | 'milestone';
 
 interface BarItem {
   id: string;
@@ -72,26 +71,26 @@ interface BarSegment {
 }
 
 /** 레이어 토글 키 */
-type LayerKey = "event" | "absence" | "holiday" | "milestone";
+type LayerKey = 'event' | 'absence' | 'holidayWork' | 'holiday' | 'milestone';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const WEEKDAY_LABELS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_LABELS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /** Format a Date as YYYY-MM-DD */
 function toDateString(d: Date): string {
   const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
 /** Parse date string (YYYY-MM-DD) to midnight local Date */
 function parseDate(dateStr: string): Date {
   if (dateStr.length === 10) {
-    const [y, m, d] = dateStr.split("-").map(Number);
+    const [y, m, d] = dateStr.split('-').map(Number);
     return new Date(y, m - 1, d);
   }
   return new Date(dateStr);
@@ -151,10 +150,11 @@ const HEADER_HEIGHT = 28;
 const MORE_LABEL_HEIGHT = 16;
 
 const LAYER_META: { key: LayerKey; label: string; color: string }[] = [
-  { key: "event", label: "이벤트", color: "#6366F1" },
-  { key: "absence", label: "부재", color: "#f59e0b" },
-  { key: "holiday", label: "휴무일", color: "#f87171" },
-  { key: "milestone", label: "마일스톤", color: "#818cf8" },
+  { key: 'event', label: '이벤트', color: '#6366F1' },
+  { key: 'absence', label: '부재', color: '#f59e0b' },
+  { key: 'holidayWork', label: '휴일근무', color: '#34d399' },
+  { key: 'holiday', label: '휴무일', color: '#f87171' },
+  { key: 'milestone', label: '마일스톤', color: '#818cf8' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -171,7 +171,7 @@ export function ScheduleCalendarView({
 }: ScheduleCalendarViewProps) {
   const { t, i18n } = useTranslation();
 
-  const canManage = currentUserRole !== "viewer";
+  const canManage = currentUserRole !== 'viewer';
 
   // ------ State ------
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
@@ -183,16 +183,20 @@ export function ScheduleCalendarView({
     editing?: CalendarEventItem | null;
   }>({ open: false });
   // 선택된 날짜 (우측 상세 패널) — 기본값 오늘, 데스크톱에서 상시 노출
-  const [selectedDate, setSelectedDate] = useState<string>(() =>
-    toDateString(new Date()),
-  );
+  const [selectedDate, setSelectedDate] = useState<string>(() => toDateString(new Date()));
   // 모바일: 패널이 캘린더를 덮으므로 탭 시에만 오버레이로 오픈
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  // 이벤트/부재 바 호버 툴팁 (메모 미리보기 포함)
+  const [eventTip, setEventTip] = useState<{
+    x: number;
+    y: number;
+    event: CalendarEventItem;
+  } | null>(null);
 
   // 레이어 토글 (숨김 Set — 기본 전체 표시)
   const layersKey = `scheduleCalendarLayers_${boardId}`;
   const [hiddenLayers, setHiddenLayers] = useState<Set<LayerKey>>(() => {
-    if (typeof window === "undefined") return new Set();
+    if (typeof window === 'undefined') return new Set();
     try {
       const raw = window.localStorage.getItem(layersKey);
       return raw ? new Set(JSON.parse(raw) as LayerKey[]) : new Set();
@@ -272,7 +276,7 @@ export function ScheduleCalendarView({
 
   const gridDays = useMemo(() => weeks.flat(), [weeks]);
 
-  const showHolidayLayer = !hiddenLayers.has("holiday");
+  const showHolidayLayer = !hiddenLayers.has('holiday');
 
   // ------ 셀 높이 기반 동적 표시 개수 ------
   // full: "+N more" 라벨 없이 물리적으로 들어가는 최대 바 개수
@@ -293,14 +297,9 @@ export function ScheduleCalendarView({
       const avail = rowH - HEADER_HEIGHT;
       const unit = BAR_HEIGHT + BAR_GAP;
       const full = Math.max(MIN_VISIBLE_BARS, Math.floor(avail / unit));
-      const withLabel = Math.max(
-        MIN_VISIBLE_BARS,
-        Math.floor((avail - MORE_LABEL_HEIGHT) / unit),
-      );
+      const withLabel = Math.max(MIN_VISIBLE_BARS, Math.floor((avail - MORE_LABEL_HEIGHT) / unit));
       setBarFit((prev) =>
-        prev.full === full && prev.withLabel === withLabel
-          ? prev
-          : { full, withLabel },
+        prev.full === full && prev.withLabel === withLabel ? prev : { full, withLabel },
       );
     };
     compute();
@@ -315,7 +314,7 @@ export function ScheduleCalendarView({
     holidayMap.forEach((v, k) => holiMap.set(k, [...v]));
     const workdaySet = new Set<string>();
 
-    const calItems = calendarEvents.filter((e) => e.category === "CALENDAR");
+    const calItems = calendarEvents.filter((e) => e.category === 'CALENDAR');
     if (calItems.length > 0) {
       for (const day of gridDays) {
         const ds = toDateString(day);
@@ -323,15 +322,13 @@ export function ScheduleCalendarView({
         for (const e of calItems) {
           const inRange = ds >= e.start_date && ds <= e.end_date;
           const recurringMatch =
-            e.recurring &&
-            mmdd >= e.start_date.slice(5) &&
-            mmdd <= e.end_date.slice(5);
+            e.recurring && mmdd >= e.start_date.slice(5) && mmdd <= e.end_date.slice(5);
           if (!inRange && !recurringMatch) continue;
-          if (e.event_type === "WORKDAY") {
+          if (e.event_type === 'WORKDAY') {
             workdaySet.add(ds);
           } else {
             const arr = holiMap.get(ds) || [];
-            arr.push({ date: ds, name: e.title || "휴무일", type: "custom" });
+            arr.push({ date: ds, name: e.title || '휴무일', type: 'custom' });
             holiMap.set(ds, arr);
           }
         }
@@ -344,23 +341,20 @@ export function ScheduleCalendarView({
   }, [holidayMap, calendarEvents, gridDays]);
 
   // 마일스톤 id → 색 (배열 순서 기준 — 다른 뷰와 동일)
-  const milestoneColorMap = useMemo(
-    () => buildMilestoneColorMap(milestones),
-    [milestones],
-  );
+  const milestoneColorMap = useMemo(() => buildMilestoneColorMap(milestones), [milestones]);
 
   // ------ 바 아이템 (이벤트/부재/마일스톤) ------
   const barItems = useMemo(() => {
     const items: BarItem[] = [];
 
-    if (!hiddenLayers.has("event")) {
+    if (!hiddenLayers.has('event')) {
       calendarEvents
-        .filter((e) => e.category === "TEAM")
+        .filter((e) => e.category === 'TEAM')
         .forEach((e) => {
           const meta = calendarTypeMeta(e.event_type);
           items.push({
             id: `ev-${e.id}`,
-            kind: "event",
+            kind: 'event',
             title: e.title || meta.label,
             startDate: e.start_date,
             endDate: e.end_date,
@@ -371,17 +365,24 @@ export function ScheduleCalendarView({
         });
     }
 
-    if (!hiddenLayers.has("absence")) {
+    // 개인 일정 — 부재와 휴일근무는 레이어를 따로 둔다
+    (['absence', 'holidayWork'] as const).forEach((kind) => {
+      if (hiddenLayers.has(kind)) return;
       calendarEvents
-        .filter((e) => e.category === "MEMBER" && e.member)
+        .filter(
+          (e) =>
+            e.category === 'MEMBER' &&
+            e.member &&
+            isHolidayWorkType(e.event_type) === (kind === 'holidayWork'),
+        )
         .forEach((e) => {
           const meta = calendarTypeMeta(e.event_type);
           const label = e.title
             ? `${e.member!.name} · ${e.title}`
-            : e.member!.name;
+            : `${e.member!.name} · ${meta.label}`;
           items.push({
             id: `ab-${e.id}`,
-            kind: "absence",
+            kind,
             title: label,
             startDate: e.start_date,
             endDate: e.end_date,
@@ -391,20 +392,20 @@ export function ScheduleCalendarView({
             event: e,
           });
         });
-    }
+    });
 
-    if (!hiddenLayers.has("milestone")) {
+    if (!hiddenLayers.has('milestone')) {
       milestones
         .filter((m) => m.start_date && m.end_date)
         .forEach((m) => {
           items.push({
             id: `ms-${m.id}`,
-            kind: "milestone",
+            kind: 'milestone',
             title: m.title,
             startDate: m.start_date,
             endDate: m.end_date,
             color: resolveMilestoneColor(m.id, milestoneColorMap).hex,
-            icon: "⚑",
+            icon: '⚑',
             milestone: m,
           });
         });
@@ -413,27 +414,18 @@ export function ScheduleCalendarView({
     return items;
   }, [calendarEvents, milestones, hiddenLayers, milestoneColorMap]);
 
-  const barSegmentsByWeek = useMemo(
-    () => computeBarSegments(barItems, weeks),
-    [barItems, weeks],
-  );
+  const barSegmentsByWeek = useMemo(() => computeBarSegments(barItems, weeks), [barItems, weeks]);
 
   // ------ Navigation ------
-  const handlePrevMonth = useCallback(
-    () => setCurrentMonth((m) => subMonths(m, 1)),
-    [],
-  );
-  const handleNextMonth = useCallback(
-    () => setCurrentMonth((m) => addMonths(m, 1)),
-    [],
-  );
+  const handlePrevMonth = useCallback(() => setCurrentMonth((m) => subMonths(m, 1)), []);
+  const handleNextMonth = useCallback(() => setCurrentMonth((m) => addMonths(m, 1)), []);
   const handleToday = useCallback(() => setCurrentMonth(new Date()), []);
 
   // ------ 멤버 옵션 (모달용) ------
   const memberOptions: CalendarMemberOption[] = useMemo(
     () =>
       boardMembers
-        .filter((m) => m.role !== "viewer")
+        .filter((m) => m.role !== 'viewer')
         .map((m) => ({ id: m.userId, name: m.name, avatar: m.avatar || null })),
     [boardMembers],
   );
@@ -444,7 +436,7 @@ export function ScheduleCalendarView({
       if (!canManage) return;
       setEventModal({
         open: true,
-        initial: { category: "TEAM", date: dateStr },
+        initial: { category: 'TEAM', date: dateStr },
         editing: null,
       });
     },
@@ -453,9 +445,9 @@ export function ScheduleCalendarView({
 
   const handleBarClick = useCallback(
     (item: BarItem) => {
-      if (item.kind === "milestone") {
-        if (item.milestone && onMilestoneClick)
-          onMilestoneClick(item.milestone);
+      setEventTip(null);
+      if (item.kind === 'milestone') {
+        if (item.milestone && onMilestoneClick) onMilestoneClick(item.milestone);
         return;
       }
       // 이벤트/부재 → 편집 (뷰어는 모달 안에서 저장 불가하지만 열람은 허용)
@@ -479,32 +471,43 @@ export function ScheduleCalendarView({
       return false;
     };
 
-    const events = calendarEvents.filter(
-      (e) => e.category === "TEAM" && activeOn(e),
+    const events = calendarEvents.filter((e) => e.category === 'TEAM' && activeOn(e));
+    const memberEvents = calendarEvents.filter(
+      (e) => e.category === 'MEMBER' && e.member && activeOn(e),
     );
-    const absences = calendarEvents.filter(
-      (e) => e.category === "MEMBER" && e.member && activeOn(e),
-    );
-    const calItems = calendarEvents.filter(
-      (e) => e.category === "CALENDAR" && activeOn(e),
-    );
-    const customHolidays = calItems.filter((e) => e.event_type !== "WORKDAY");
-    const workdayEvents = calItems.filter((e) => e.event_type === "WORKDAY");
+    const absences = memberEvents.filter((e) => !isHolidayWorkType(e.event_type));
+    const holidayWorks = memberEvents.filter((e) => isHolidayWorkType(e.event_type));
+    const calItems = calendarEvents.filter((e) => e.category === 'CALENDAR' && activeOn(e));
+    const customHolidays = calItems.filter((e) => e.event_type !== 'WORKDAY');
+    const workdayEvents = calItems.filter((e) => e.event_type === 'WORKDAY');
     const publicHolidays = holidayMap.get(sel) || [];
     const ms = milestones.filter(
-      (m) =>
-        m.start_date && m.end_date && sel >= m.start_date && sel <= m.end_date,
+      (m) => m.start_date && m.end_date && sel >= m.start_date && sel <= m.end_date,
     );
 
     return {
       milestones: ms,
       events,
       absences,
+      holidayWorks,
       customHolidays,
       workdayEvents,
       publicHolidays,
     };
   }, [selectedDate, calendarEvents, milestones, holidayMap]);
+
+  /** 보드 달력 기준 비근무일 여부 — 특별일 모달의 휴일근무 안내용 */
+  const isOffDayStr = useCallback(
+    (ds: string) => {
+      const dow = parseDate(ds).getDay();
+      return isBoardOffDay({
+        weekend: dow === 0 || dow === 6,
+        holiday: mergedHolidayMap.has(ds),
+        forcedWorkday: forcedWorkdaySet.has(ds),
+      });
+    },
+    [mergedHolidayMap, forcedWorkdaySet],
+  );
 
   // ------ 공휴일을 근무일로 지정 (오버라이드 이벤트 생성) ------
   const openDesignateWorkday = useCallback(
@@ -512,7 +515,7 @@ export function ScheduleCalendarView({
       if (!canManage) return;
       setEventModal({
         open: true,
-        initial: { category: "CALENDAR", eventType: "WORKDAY", date: dateStr },
+        initial: { category: 'CALENDAR', eventType: 'WORKDAY', date: dateStr },
         editing: null,
       });
     },
@@ -524,27 +527,27 @@ export function ScheduleCalendarView({
     const handler = (e: KeyboardEvent) => {
       if (eventModal.open) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         setMobilePanelOpen(false);
-      } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
         const d = parseDate(selectedDate);
-        d.setDate(d.getDate() + (e.key === "ArrowRight" ? 1 : -1));
+        d.setDate(d.getDate() + (e.key === 'ArrowRight' ? 1 : -1));
         const ns = toDateString(d);
         setSelectedDate(ns);
         if (!isSameMonth(d, currentMonth)) setCurrentMonth(d);
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [selectedDate, eventModal.open, currentMonth]);
 
   // ------ Render helpers ------
   const renderBar = useCallback(
     (item: BarItem) => {
-      const isMilestone = item.kind === "milestone";
+      const isMilestone = item.kind === 'milestone';
       return (
         <div
           key={item.id}
@@ -553,7 +556,7 @@ export function ScheduleCalendarView({
           aria-label={item.title}
           className={`h-full rounded-lg px-2 flex items-center gap-1.5 text-[13px] font-bold
             truncate cursor-pointer shadow-sm hover:brightness-110 transition-all text-white ${
-              isMilestone ? "border border-white/20" : ""
+              isMilestone ? 'border border-white/20' : ''
             }`}
           style={{ backgroundColor: item.color }}
           onClick={(e) => {
@@ -561,26 +564,42 @@ export function ScheduleCalendarView({
             handleBarClick(item);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
+            if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
               handleBarClick(item);
             }
           }}
+          onMouseEnter={
+            item.event
+              ? (e) =>
+                  setEventTip({
+                    x: e.clientX,
+                    y: e.clientY,
+                    event: item.event!,
+                  })
+              : undefined
+          }
+          onMouseMove={
+            item.event
+              ? (e) =>
+                  setEventTip((prev) =>
+                    prev
+                      ? { ...prev, x: e.clientX, y: e.clientY }
+                      : { x: e.clientX, y: e.clientY, event: item.event! },
+                  )
+              : undefined
+          }
+          onMouseLeave={item.event ? () => setEventTip(null) : undefined}
         >
-          {item.kind === "absence" && item.avatar ? (
-            <img
-              src={item.avatar}
-              alt=""
-              className="w-[18px] h-[18px] rounded-full shrink-0"
-            />
+          {(item.kind === 'absence' || item.kind === 'holidayWork') && item.avatar ? (
+            <img src={item.avatar} alt="" className="w-[18px] h-[18px] rounded-full shrink-0" />
           ) : isMilestone ? (
             <Flag className="w-3.5 h-3.5 shrink-0" />
           ) : (
-            <span className="text-[13px] leading-none shrink-0">
-              {item.icon}
-            </span>
+            <span className="text-[13px] leading-none shrink-0">{item.icon}</span>
           )}
           <span className="truncate">{item.title}</span>
+          {item.event?.memo && <MessageSquare className="w-3 h-3 shrink-0 ml-auto opacity-80" />}
         </div>
       );
     },
@@ -604,7 +623,7 @@ export function ScheduleCalendarView({
         <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-foreground/[0.08] bg-bridge-obsidian shrink-0 flex-wrap">
           <div className="flex items-center gap-2">
             <IconButton
-              aria-label={t("schedule.calendar.prevMonth", "Previous month")}
+              aria-label={t('schedule.calendar.prevMonth', 'Previous month')}
               onClick={handlePrevMonth}
             >
               <ChevronLeft />
@@ -613,16 +632,16 @@ export function ScheduleCalendarView({
               className="px-3 py-1 rounded-lg text-xs font-medium text-bridge-accent hover:bg-bridge-accent/10 transition-colors"
               onClick={handleToday}
             >
-              {t("schedule.calendar.today", "Today")}
+              {t('schedule.calendar.today', 'Today')}
             </button>
             <IconButton
-              aria-label={t("schedule.calendar.nextMonth", "Next month")}
+              aria-label={t('schedule.calendar.nextMonth', 'Next month')}
               onClick={handleNextMonth}
             >
               <ChevronRight />
             </IconButton>
             <span className="text-sm font-bold text-foreground tracking-tight ml-2">
-              {format(currentMonth, "MMMM yyyy")}
+              {format(currentMonth, 'MMMM yyyy')}
             </span>
           </div>
 
@@ -639,14 +658,14 @@ export function ScheduleCalendarView({
                     aria-pressed={active}
                     className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border transition-all ${
                       active
-                        ? "border-foreground/10 bg-foreground/[0.04] text-slate-300"
-                        : "border-transparent bg-transparent text-slate-600 line-through opacity-60"
+                        ? 'border-foreground/10 bg-foreground/[0.04] text-slate-300'
+                        : 'border-transparent bg-transparent text-slate-600 line-through opacity-60'
                     }`}
                   >
                     <span
                       className="w-2 h-2 rounded-full shrink-0"
                       style={{
-                        backgroundColor: active ? layer.color : "#475569",
+                        backgroundColor: active ? layer.color : '#475569',
                       }}
                     />
                     {t(`schedule.calendar.layer.${layer.key}`, layer.label)}
@@ -663,7 +682,7 @@ export function ScheduleCalendarView({
                 className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
-                {t("schedule.calendar.addEvent", "추가")}
+                {t('schedule.calendar.addEvent', '추가')}
               </button>
             )}
           </div>
@@ -676,10 +695,7 @@ export function ScheduleCalendarView({
           aria-label="Monthly calendar"
         >
           {/* Weekday headers */}
-          <div
-            role="row"
-            className="grid grid-cols-7 border-b border-foreground/[0.08]"
-          >
+          <div role="row" className="grid grid-cols-7 border-b border-foreground/[0.08]">
             {WEEKDAY_LABELS_EN.map((label, idx) => (
               <div
                 key={idx}
@@ -704,33 +720,22 @@ export function ScheduleCalendarView({
               const segments = barSegmentsByWeek[weekIdx] || [];
 
               // 이 주의 가장 깊은 바 스택(겹친 개수)
-              const stackDepth = segments.reduce(
-                (m, s) => Math.max(m, s.row + 1),
-                0,
-              );
+              const stackDepth = segments.reduce((m, s) => Math.max(m, s.row + 1), 0);
               // 라벨 없이 다 들어가면 full(공간 최대 활용), 넘치면 라벨 자리 확보한 withLabel
-              const maxVisibleBars =
-                stackDepth <= barFit.full ? barFit.full : barFit.withLabel;
+              const maxVisibleBars = stackDepth <= barFit.full ? barFit.full : barFit.withLabel;
 
               return (
-                <div
-                  key={weekIdx}
-                  role="row"
-                  className="relative grid grid-cols-7 min-h-0"
-                >
+                <div key={weekIdx} role="row" className="relative grid grid-cols-7 min-h-0">
                   {week.map((day, colIdx) => {
                     const dateStr = toDateString(day);
                     const inMonth = isSameMonth(day, currentMonth);
                     const today = isToday(day);
-                    const holidays = showHolidayLayer
-                      ? mergedHolidayMap.get(dateStr)
-                      : undefined;
+                    const holidays = showHolidayLayer ? mergedHolidayMap.get(dateStr) : undefined;
                     const isHoliday = !!holidays && holidays.length > 0;
                     const holidayName = isHoliday
-                      ? holidays!.map((h) => h.name).join(", ")
+                      ? holidays!.map((h) => h.name).join(', ')
                       : undefined;
-                    const isForcedWorkday =
-                      showHolidayLayer && forcedWorkdaySet.has(dateStr);
+                    const isForcedWorkday = showHolidayLayer && forcedWorkdaySet.has(dateStr);
 
                     const overflowCount = segments.filter(
                       (s) =>
@@ -745,7 +750,7 @@ export function ScheduleCalendarView({
                       <div
                         key={colIdx}
                         role="gridcell"
-                        aria-label={format(day, "MMMM d, yyyy")}
+                        aria-label={format(day, 'MMMM d, yyyy')}
                         aria-selected={isSelected}
                         title={holidayName}
                         onClick={() => {
@@ -755,10 +760,10 @@ export function ScheduleCalendarView({
                         className={`align-top border border-foreground/[0.05] p-1
                         transition-colors relative min-w-0 overflow-hidden
                         cursor-pointer hover:bg-foreground/[0.03]
-                        ${!inMonth ? "opacity-40" : ""}
-                        ${isHoliday ? "bg-red-500/[0.04]" : ""}
-                        ${isForcedWorkday ? "bg-emerald-500/[0.05]" : ""}
-                        ${isSelected ? "ring-2 ring-inset ring-bridge-accent bg-bridge-accent/[0.06] z-10" : ""}
+                        ${!inMonth ? 'opacity-40' : ''}
+                        ${isHoliday ? 'bg-red-500/[0.04]' : ''}
+                        ${isForcedWorkday ? 'bg-emerald-500/[0.05]' : ''}
+                        ${isSelected ? 'ring-2 ring-inset ring-bridge-accent bg-bridge-accent/[0.06] z-10' : ''}
                       `}
                       >
                         {/* Date number + holiday/workday label */}
@@ -769,7 +774,7 @@ export function ScheduleCalendarView({
                             </span>
                           ) : isForcedWorkday ? (
                             <span className="text-xs font-medium text-emerald-400 truncate">
-                              {t("schedule.calendar.workday", "근무일")}
+                              {t('schedule.calendar.workday', '근무일')}
                             </span>
                           ) : (
                             <span />
@@ -778,12 +783,12 @@ export function ScheduleCalendarView({
                             className={`text-xs font-medium leading-none shrink-0
                             ${
                               today
-                                ? "bg-bridge-accent text-white w-6 h-6 rounded-full flex items-center justify-center font-bold"
+                                ? 'bg-bridge-accent text-white w-6 h-6 rounded-full flex items-center justify-center font-bold'
                                 : isHoliday
-                                  ? "text-red-400"
+                                  ? 'text-red-400'
                                   : inMonth
-                                    ? "text-foreground"
-                                    : "text-slate-500"
+                                    ? 'text-foreground'
+                                    : 'text-slate-500'
                             }
                           `}
                           >
@@ -854,6 +859,49 @@ export function ScheduleCalendarView({
         />
       )}
 
+      {/* ===== 이벤트/부재 호버 툴팁 (메모 미리보기) ===== */}
+      {eventTip &&
+        (() => {
+          const ev = eventTip.event;
+          const evMeta = calendarTypeMeta(ev.event_type);
+          const singleDay = ev.start_date === ev.end_date;
+          return (
+            <div
+              className="fixed z-50 pointer-events-none bg-bridge-obsidian border border-foreground/[0.12]
+                rounded-lg shadow-xl max-w-[300px] overflow-hidden"
+              style={{ left: eventTip.x + 12, top: eventTip.y + 12 }}
+            >
+              <div className="px-3 py-2">
+                <p className="text-xs font-bold text-foreground truncate">
+                  {evMeta.icon}{' '}
+                  {ev.category === 'MEMBER' && ev.member
+                    ? ev.title
+                      ? `${ev.member.name} · ${ev.title}`
+                      : ev.member.name
+                    : ev.title || evMeta.label}
+                </p>
+                <p className="text-xs text-slate-500 tabular-nums mt-0.5">
+                  {ev.start_date}
+                  {singleDay ? '' : ` ~ ${ev.end_date}`}
+                </p>
+                {ev.memo && (
+                  <>
+                    <p className="text-xs text-slate-400 whitespace-pre-wrap break-words line-clamp-4 mt-1.5 pt-1.5 border-t border-foreground/[0.08]">
+                      {ev.memo}
+                    </p>
+                    {ev.memo_updated_at && (
+                      <p className="text-xs text-slate-600 mt-1">
+                        {ev.memo_updated_by?.name || '알 수 없음'} 님이{' '}
+                        {formatRelativeTime(ev.memo_updated_at)} 수정
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
       {/* ===== 특별 일정 추가/편집 모달 ===== */}
       <CalendarEventModal
         open={eventModal.open}
@@ -862,10 +910,11 @@ export function ScheduleCalendarView({
         members={memberOptions}
         initial={eventModal.initial}
         editing={eventModal.editing}
+        isOffDay={isOffDayStr}
         onSaved={fetchData}
       />
     </div>
   );
 }
 
-ScheduleCalendarView.displayName = "ScheduleCalendarView";
+ScheduleCalendarView.displayName = 'ScheduleCalendarView';

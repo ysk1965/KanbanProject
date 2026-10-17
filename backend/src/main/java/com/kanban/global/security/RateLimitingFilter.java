@@ -47,6 +47,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     // 일반 버킷(분당 600회)으로는 비용 DoS를 막을 수 없다.
     private final Map<String, Bucket> aiProxyBuckets = new ConcurrentHashMap<>();
 
+    // 공개 사진 갤러리/앨범 조회용 버킷 (IP 기반, 완화된 제한)
+    // 행사장 와이파이·통신사 NAT처럼 여러 명이 한 IP를 공유하며 같은 링크를 동시에 보는 경우 대응
+    private final Map<String, Bucket> publicReadBuckets = new ConcurrentHashMap<>();
+
     // 연속 rate limit 위반 카운터 — 과도한 요청 시 Connection: close로 빠르게 차단
     private final Map<String, Integer> violationCounts = new ConcurrentHashMap<>();
     private static final int VIOLATION_THRESHOLD = 50; // 50회 연속 위반 시 강화 차단
@@ -59,7 +63,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         String requestUri = request.getRequestURI();
         String bucketKey = resolveBucketKey(request, requestUri);
 
-        Bucket bucket = resolveBucket(bucketKey, requestUri);
+        Bucket bucket = resolveBucket(request, bucketKey, requestUri);
 
         if (bucket.tryConsume(1)) {
             // 성공 시 위반 카운터 리셋
@@ -117,7 +121,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     /**
      * 요청 URI에 따라 적절한 버킷을 반환
      */
-    private Bucket resolveBucket(String bucketKey, String requestUri) {
+    private Bucket resolveBucket(HttpServletRequest request, String bucketKey, String requestUri) {
         if (requestUri.contains("/auth/signup")) {
             return signupBuckets.computeIfAbsent(bucketKey, this::createSignupBucket);
         } else if (requestUri.contains("/auth/login") || requestUri.contains("/auth/google")) {
@@ -126,6 +130,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return inviteBuckets.computeIfAbsent(bucketKey, this::createInviteBucket);
         } else if (requestUri.startsWith("/api/v1/ai/")) {
             return aiProxyBuckets.computeIfAbsent(bucketKey, this::createAiProxyBucket);
+        } else if (isPublicPhotoRead(request, requestUri)) {
+            return publicReadBuckets.computeIfAbsent(bucketKey, this::createPublicReadBucket);
         } else {
             return buckets.computeIfAbsent(bucketKey, this::createStandardBucket);
         }
@@ -138,6 +144,26 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         return Bucket.builder()
                 .addLimit(Bandwidth.classic(600, Refill.greedy(600, Duration.ofMinutes(1))))
                 .addLimit(Bandwidth.classic(6000, Refill.greedy(6000, Duration.ofHours(1))))
+                .build();
+    }
+
+    /**
+     * 공개 사진 갤러리/앨범 조회 (GET /api/v1/public/gallery/**, /api/v1/public/albums/**)
+     */
+    private boolean isPublicPhotoRead(HttpServletRequest request, String requestUri) {
+        return "GET".equalsIgnoreCase(request.getMethod())
+                && (requestUri.startsWith("/api/v1/public/gallery/")
+                    || requestUri.startsWith("/api/v1/public/albums/"));
+    }
+
+    /**
+     * 공개 사진 조회용 버킷: 분당 2000회, 시간당 30000회 (IP 공유 환경에서 다수 동시 열람)
+     * 목록 1회 = 사진 48장, 1인이 1,200장 갤러리를 끝까지 봐도 30회 남짓.
+     */
+    private Bucket createPublicReadBucket(String key) {
+        return Bucket.builder()
+                .addLimit(Bandwidth.classic(2000, Refill.greedy(2000, Duration.ofMinutes(1))))
+                .addLimit(Bandwidth.classic(30000, Refill.greedy(30000, Duration.ofHours(1))))
                 .build();
     }
 

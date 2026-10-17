@@ -27,6 +27,7 @@ public class JiraWriteBackService {
 
     private final JiraIntegrationConfigRepository configRepository;
     private final JiraIssueLinkRepository issueLinkRepository;
+    private final JiraMilestoneScopeRepository scopeRepository;
     private final TaskRepository taskRepository;
     private final BlockRepository blockRepository;
     private final JiraApiClient jiraApiClient;
@@ -45,19 +46,27 @@ public class JiraWriteBackService {
         if (config == null) return;
 
         // 대상 status 후보 결정: MIRROR면 대상 컬럼에 묶인 상태들(우선순위 순), MANUAL이면 블록별 push 매핑.
-        List<String> targetStatuses;
+        List<String> targetStatuses = List.of();
         if (config.isMirror()) {
             MirrorColumns mirror = MirrorColumns.parse(objectMapper, config.getMirrorColumnsJson());
             targetStatuses = mirror.statusIdsForBlock(targetBlockId);
-            if (targetStatuses.isEmpty()) {
-                Block tb = blockRepository.findById(targetBlockId).orElse(null);
-                if (tb != null && tb.getJiraStatusId() != null) targetStatuses = List.of(tb.getJiraStatusId());
-            }
-        } else {
-            if (config.getBlockStatusMapJson() == null) return;
+        } else if (config.getBlockStatusMapJson() != null) {
             BlockStatusMap map = BlockStatusMap.parse(objectMapper, config.getBlockStatusMapJson());
             String s = map.pushTargetForBlock(targetBlockId);
             targetStatuses = s != null ? List.of(s) : List.of();
+        }
+        // 마일스톤 스코프 소유 컬럼 확인 — 다른 프로젝트를 비추는 스코프의 미러 블록일 수 있다.
+        if (targetStatuses.isEmpty()) {
+            for (JiraMilestoneScope scope : scopeRepository.findActiveByBoardId(boardId)) {
+                if (scope.getMirrorColumnsJson() == null) continue;
+                List<String> ids = MirrorColumns.parse(objectMapper, scope.getMirrorColumnsJson())
+                    .statusIdsForBlock(targetBlockId);
+                if (!ids.isEmpty()) { targetStatuses = ids; break; }
+            }
+        }
+        if (targetStatuses.isEmpty() && config.isMirror()) {
+            Block tb = blockRepository.findById(targetBlockId).orElse(null);
+            if (tb != null && tb.getJiraStatusId() != null) targetStatuses = List.of(tb.getJiraStatusId());
         }
         if (targetStatuses.isEmpty()) return;   // 미러 컬럼이 아니거나 push 매핑 아님
 
@@ -104,14 +113,24 @@ public class JiraWriteBackService {
     public int syncBoard(String configId) {
         JiraIntegrationConfig config = configRepository.findById(configId).orElse(null);
         if (config == null || !Boolean.TRUE.equals(config.getActive())
-            || !Boolean.TRUE.equals(config.getWriteBackEnabled())
-            || config.getWriteBackTargetStatusId() == null) {
+            || !Boolean.TRUE.equals(config.getWriteBackEnabled())) {
             return 0;
+        }
+        String boardId = config.getBoard().getId();
+
+        // 스코프별 대상 상태 — 프로젝트가 다르면 상태 id 체계도 달라 링크 소속대로 골라야 한다.
+        java.util.Map<String, String> scopeTargets = new java.util.HashMap<>();
+        for (JiraMilestoneScope scope : scopeRepository.findActiveByBoardId(boardId)) {
+            if (scope.getWriteBackTargetStatusId() != null) {
+                scopeTargets.put(scope.getId(), scope.getWriteBackTargetStatusId());
+            }
+        }
+        if (config.getWriteBackTargetStatusId() == null && scopeTargets.isEmpty()) {
+            return 0;  // 보낼 곳이 어디에도 없다
         }
 
         String token = oauthService.resolveToken(config);
         JiraAuthContext ctx = JiraAuthContext.of(config, token);
-        String boardId = config.getBoard().getId();
         List<JiraIssueLink> candidates =
             issueLinkRepository.findWriteBackCandidates(boardId, JiraLinkTargetType.TASK);
 
@@ -121,8 +140,13 @@ public class JiraWriteBackService {
             if (task == null || !Boolean.TRUE.equals(task.getIsCompleted())) {
                 continue; // 삭제됐거나 아직 미완료 → 다음 기회에
             }
+            // 링크 소속 스코프의 대상 상태 우선, 없으면 보드 기본. 둘 다 없으면 이 링크는 보류.
+            String target = link.getScopeId() != null && scopeTargets.containsKey(link.getScopeId())
+                ? scopeTargets.get(link.getScopeId())
+                : config.getWriteBackTargetStatusId();
+            if (target == null) continue;
             try {
-                transitionToTarget(ctx, link.getJiraIssueKey(), config.getWriteBackTargetStatusId());
+                transitionToTarget(ctx, link.getJiraIssueKey(), target);
                 link.markWriteBackDone();
                 done++;
             } catch (Exception e) {

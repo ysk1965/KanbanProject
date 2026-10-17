@@ -1,23 +1,15 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
-import { useGoogleLogin } from "@react-oauth/google";
-import {
-  Mail,
-  Lock,
-  User,
-  Users,
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  X,
-} from "lucide-react";
-import { trackEvent } from "../contexts/AnalyticsContext";
-import { LanguageSwitcher } from "./LanguageSwitcher";
-import { isGoogleOnlyLogin, isWhiteLabelDomain } from "../utils/domain";
-import { isNative } from "../utils/platform";
-import { nativeGoogleLogin } from "../utils/nativeAuth";
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+import { useGoogleLogin } from '@react-oauth/google';
+import { Mail, Lock, User, Users, ArrowLeft, ArrowRight, Check, X } from 'lucide-react';
+import { trackEvent } from '../contexts/AnalyticsContext';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { isGoogleOnlyLogin, isWhiteLabelDomain } from '../utils/domain';
+import { isNative } from '../utils/platform';
+import { nativeGoogleLogin } from '../utils/nativeAuth';
+import { API_ORIGIN } from '../config/env';
 
 declare const __FE_COMMIT_HASH__: string;
 declare const __FE_BUILD_TIME__: string;
@@ -45,7 +37,7 @@ function GoogleLoginButton({
 }: {
   onGoogleLogin: (code: string) => Promise<void>;
   onGoogleLoginWithIdToken?: (idToken: string) => Promise<void>;
-  mode: "login" | "signup";
+  mode: 'login' | 'signup';
   setError: (error: string) => void;
 }) {
   const { t } = useTranslation();
@@ -54,18 +46,18 @@ function GoogleLoginButton({
   // Native: use Capacitor Google Auth plugin
   const handleNativeGoogleLogin = async () => {
     setIsGoogleLoading(true);
-    setError("");
+    setError('');
     try {
       const { idToken } = await nativeGoogleLogin();
       if (onGoogleLoginWithIdToken) {
         await onGoogleLoginWithIdToken(idToken);
       }
-      trackEvent(mode === "login" ? "login" : "sign_up", { method: "google" });
+      trackEvent(mode === 'login' ? 'login' : 'sign_up', { method: 'google' });
     } catch (err: any) {
-      setError(err.message || t("auth.googleLoginFailed"));
-      trackEvent("error", {
-        error_type: "google_auth_failed",
-        error_message: err.message || "Native Google login failed",
+      setError(err.message || t('auth.googleLoginFailed'));
+      trackEvent('error', {
+        error_type: 'google_auth_failed',
+        error_message: err.message || 'Native Google login failed',
       });
     } finally {
       setIsGoogleLoading(false);
@@ -77,17 +69,17 @@ function GoogleLoginButton({
     onSuccess: async (response: any) => {
       if (response.code) {
         setIsGoogleLoading(true);
-        setError("");
+        setError('');
         try {
           await onGoogleLogin(response.code);
-          trackEvent(mode === "login" ? "login" : "sign_up", {
-            method: "google",
+          trackEvent(mode === 'login' ? 'login' : 'sign_up', {
+            method: 'google',
           });
         } catch (err: any) {
-          setError(err.message || t("auth.googleLoginFailed"));
-          trackEvent("error", {
-            error_type: "google_auth_failed",
-            error_message: err.message || "Google login failed",
+          setError(err.message || t('auth.googleLoginFailed'));
+          trackEvent('error', {
+            error_type: 'google_auth_failed',
+            error_message: err.message || 'Google login failed',
           });
         } finally {
           setIsGoogleLoading(false);
@@ -95,13 +87,13 @@ function GoogleLoginButton({
       }
     },
     onError: () => {
-      setError(t("auth.googleLoginFailed"));
-      trackEvent("error", {
-        error_type: "google_auth_error",
-        error_message: "Google OAuth error",
+      setError(t('auth.googleLoginFailed'));
+      trackEvent('error', {
+        error_type: 'google_auth_error',
+        error_message: 'Google OAuth error',
       });
     },
-    flow: "auth-code",
+    flow: 'auth-code',
   });
 
   return (
@@ -120,9 +112,7 @@ function GoogleLoginButton({
             className="w-5 h-5"
             alt="google"
           />
-          <span className="text-sm font-bold">
-            {t("auth.continueWithGoogle")}
-          </span>
+          <span className="text-sm font-bold">{t('auth.continueWithGoogle')}</span>
         </>
       )}
     </button>
@@ -138,35 +128,23 @@ export function LoginPage({
   inviteInfo,
 }: LoginPageProps) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<"login" | "signup">(
-    inviteInfo ? "signup" : "login",
-  );
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  const [mode, setMode] = useState<'login' | 'signup'>(inviteInfo ? 'signup' : 'login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const showBackButton =
-    location.state?.from === "landing" || location.state?.from === "compare";
+  const showBackButton = location.state?.from === 'landing' || location.state?.from === 'compare';
 
-  const [beCommit, setBeCommit] = useState<string>("");
+  const [beCommit, setBeCommit] = useState<string>('');
   useEffect(() => {
-    const apiBase =
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
-    const origin = (() => {
-      try {
-        return new URL(apiBase).origin;
-      } catch {
-        return "http://localhost:8080";
-      }
-    })();
-    fetch(`${origin}/health`)
+    fetch(`${API_ORIGIN}/health`)
       .then((r) => r.json())
-      .then((d) => setBeCommit(d.commit || ""))
+      .then((d) => setBeCommit(d.commit || ''))
       .catch(() => {});
   }, []);
 
@@ -183,22 +161,22 @@ export function LoginPage({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError('');
     setIsLoading(true);
 
     try {
-      if (mode === "login") {
+      if (mode === 'login') {
         await onLogin(email, password);
-        trackEvent("login", { method: "email" });
+        trackEvent('login', { method: 'email' });
       } else {
         await onSignup(email, password, name);
-        trackEvent("sign_up", { method: "email" });
+        trackEvent('sign_up', { method: 'email' });
       }
     } catch (err: any) {
-      setError(err.message || t("auth.genericError"));
-      trackEvent("error", {
-        error_type: mode === "login" ? "login_failed" : "signup_failed",
-        error_message: err.message || "Unknown error",
+      setError(err.message || t('auth.genericError'));
+      trackEvent('error', {
+        error_type: mode === 'login' ? 'login_failed' : 'signup_failed',
+        error_message: err.message || 'Unknown error',
       });
     } finally {
       setIsLoading(false);
@@ -207,9 +185,9 @@ export function LoginPage({
 
   const getRoleDisplay = (role: string) => {
     const roleMap: Record<string, string> = {
-      ADMIN: t("auth.roleAdmin"),
-      MEMBER: t("auth.roleMember"),
-      VIEWER: t("auth.roleViewer"),
+      ADMIN: t('auth.roleAdmin'),
+      MEMBER: t('auth.roleMember'),
+      VIEWER: t('auth.roleViewer'),
     };
     return roleMap[role] || role;
   };
@@ -222,9 +200,8 @@ export function LoginPage({
     <div
       className="w-full relative flex items-center justify-center p-4 md:p-8 overflow-hidden select-none text-slate-900"
       style={{
-        minHeight: "var(--visual-viewport-height, 100vh)",
-        background:
-          "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)",
+        minHeight: 'var(--visual-viewport-height, 100vh)',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)',
       }}
     >
       {/* Soft decorative blobs */}
@@ -242,7 +219,7 @@ export function LoginPage({
           aria-label="뒤로"
         >
           <ArrowLeft size={18} />
-          <span className="hidden sm:inline">{t("auth.backToHome")}</span>
+          <span className="hidden sm:inline">{t('auth.backToHome')}</span>
         </button>
       )}
 
@@ -260,14 +237,14 @@ export function LoginPage({
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         className="w-full max-w-[440px] rounded-3xl sm:rounded-[36px] p-6 sm:p-8 md:p-10 relative overflow-hidden z-10 bg-white/80 backdrop-blur-xl border border-white/60"
         style={{
-          boxShadow: "0 8px 40px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)",
+          boxShadow: '0 8px 40px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
         {/* Icon */}
         <div className="mb-8 sm:mb-10 flex justify-center">
           <img
-            src={isWhiteLabelDomain ? "/MilkyWay.png" : "/BridgeSpotsIcon.png"}
-            alt={isWhiteLabelDomain ? "Milkyway" : "BRIDGE SPOTS"}
+            src={isWhiteLabelDomain ? '/MilkyWay.png' : '/BridgeSpotsIcon.png'}
+            alt={isWhiteLabelDomain ? 'Milkyway' : 'BRIDGE SPOTS'}
             className="h-16 sm:h-20 object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
           />
         </div>
@@ -280,18 +257,12 @@ export function LoginPage({
                 <Users className="h-5 w-5 text-bridge-accent" />
               </div>
               <div>
-                <p className="text-sm text-bridge-accent">
-                  {t("auth.boardInvite")}
-                </p>
-                <p className="text-slate-800 font-bold">
-                  {inviteInfo.boardName}
-                </p>
+                <p className="text-sm text-bridge-accent">{t('auth.boardInvite')}</p>
+                <p className="text-slate-800 font-bold">{inviteInfo.boardName}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-slate-500">
-                {t("auth.participateRole")}
-              </span>
+              <span className="text-slate-500">{t('auth.participateRole')}</span>
               <span className="px-2 py-0.5 bg-bridge-accent/15 text-bridge-accent rounded text-xs font-medium">
                 {getRoleDisplay(inviteInfo.role)}
               </span>
@@ -302,14 +273,14 @@ export function LoginPage({
         {/* Header */}
         <div className="mb-6 sm:mb-8 text-center space-y-2">
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">
-            {mode === "login" ? t("auth.welcomeBack") : t("auth.createAccount")}
+            {mode === 'login' ? t('auth.welcomeBack') : t('auth.createAccount')}
           </h2>
           <p className="text-slate-400 text-sm">
             {inviteInfo
-              ? t("auth.inviteSubtitle")
-              : mode === "login"
-                ? t("auth.signInSubtitle")
-                : t("auth.signUpSubtitle")}
+              ? t('auth.inviteSubtitle')
+              : mode === 'login'
+                ? t('auth.signInSubtitle')
+                : t('auth.signUpSubtitle')}
           </p>
         </div>
 
@@ -333,9 +304,7 @@ export function LoginPage({
             </div>
             <div className="relative flex justify-center text-xs uppercase font-bold tracking-[0.2em] text-slate-400">
               <span className="bg-white/80 px-4 py-1 rounded-full border border-slate-200">
-                {mode === "login"
-                  ? t("auth.secureLogin")
-                  : t("auth.createAccount")}
+                {mode === 'login' ? t('auth.secureLogin') : t('auth.createAccount')}
               </span>
             </div>
           </div>
@@ -344,7 +313,7 @@ export function LoginPage({
         {/* Auth Form */}
         {!isGoogleOnlyLogin && (
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-            {mode === "signup" && (
+            {mode === 'signup' && (
               <div className="space-y-2">
                 <div className="relative group">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-bridge-accent transition-colors" />
@@ -352,7 +321,7 @@ export function LoginPage({
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder={t("auth.namePlaceholder")}
+                    placeholder={t('auth.namePlaceholder')}
                     className="w-full bg-white border border-slate-200 text-slate-800 pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-bridge-accent/40 focus:ring-2 focus:ring-bridge-accent/50 transition-all placeholder:text-slate-400"
                     required
                   />
@@ -367,7 +336,7 @@ export function LoginPage({
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t("auth.emailPlaceholder")}
+                  placeholder={t('auth.emailPlaceholder')}
                   className="w-full bg-white border border-slate-200 text-slate-800 pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-bridge-accent/40 focus:ring-2 focus:ring-bridge-accent/50 transition-all placeholder:text-slate-400"
                   required
                 />
@@ -383,75 +352,72 @@ export function LoginPage({
                   onChange={(e) => setPassword(e.target.value)}
                   onFocus={() => setPasswordFocused(true)}
                   onBlur={() => setPasswordFocused(false)}
-                  placeholder={t("auth.passwordPlaceholder")}
+                  placeholder={t('auth.passwordPlaceholder')}
                   className="w-full bg-white border border-slate-200 text-slate-800 pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-bridge-accent/40 focus:ring-2 focus:ring-bridge-accent/50 transition-all placeholder:text-slate-400"
                   required
                   minLength={8}
                 />
               </div>
               {/* 비밀번호 요구사항 (회원가입 모드에서만 표시) */}
-              {mode === "signup" &&
-                (passwordFocused || password.length > 0) && (
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1.5 animate-fade-in">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                      {t("auth.passwordRequirements")}
-                    </p>
-                    {[
-                      {
-                        key: "minLength",
-                        label: t("auth.pwMinLength"),
-                        valid: passwordValidation.minLength,
-                      },
-                      {
-                        key: "hasUppercase",
-                        label: t("auth.pwUppercase"),
-                        valid: passwordValidation.hasUppercase,
-                      },
-                      {
-                        key: "hasLowercase",
-                        label: t("auth.pwLowercase"),
-                        valid: passwordValidation.hasLowercase,
-                      },
-                      {
-                        key: "hasNumber",
-                        label: t("auth.pwNumber"),
-                        valid: passwordValidation.hasNumber,
-                      },
-                      {
-                        key: "hasSpecialChar",
-                        label: t("auth.pwSpecialChar"),
-                        valid: passwordValidation.hasSpecialChar,
-                      },
-                    ].map(({ key, label, valid }) => (
-                      <div key={key} className="flex items-center gap-2">
-                        {valid ? (
-                          <Check className="w-4 h-4 text-emerald-500" />
-                        ) : (
-                          <X className="w-4 h-4 text-slate-300" />
-                        )}
-                        <span
-                          className={`text-sm ${valid ? "text-emerald-600" : "text-slate-400"}`}
-                        >
-                          {label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              {mode === "login" && (
+              {mode === 'signup' && (passwordFocused || password.length > 0) && (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1.5 animate-fade-in">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    {t('auth.passwordRequirements')}
+                  </p>
+                  {[
+                    {
+                      key: 'minLength',
+                      label: t('auth.pwMinLength'),
+                      valid: passwordValidation.minLength,
+                    },
+                    {
+                      key: 'hasUppercase',
+                      label: t('auth.pwUppercase'),
+                      valid: passwordValidation.hasUppercase,
+                    },
+                    {
+                      key: 'hasLowercase',
+                      label: t('auth.pwLowercase'),
+                      valid: passwordValidation.hasLowercase,
+                    },
+                    {
+                      key: 'hasNumber',
+                      label: t('auth.pwNumber'),
+                      valid: passwordValidation.hasNumber,
+                    },
+                    {
+                      key: 'hasSpecialChar',
+                      label: t('auth.pwSpecialChar'),
+                      valid: passwordValidation.hasSpecialChar,
+                    },
+                  ].map(({ key, label, valid }) => (
+                    <div key={key} className="flex items-center gap-2">
+                      {valid ? (
+                        <Check className="w-4 h-4 text-emerald-500" />
+                      ) : (
+                        <X className="w-4 h-4 text-slate-300" />
+                      )}
+                      <span className={`text-sm ${valid ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {mode === 'login' && (
                 <div className="text-right">
                   <Link
                     to="/forgot-password"
                     className="text-sm text-slate-400 hover:text-bridge-accent transition-colors"
                   >
-                    {t("auth.forgotPassword")}
+                    {t('auth.forgotPassword')}
                   </Link>
                 </div>
               )}
             </div>
 
             {/* Terms Agreement Checkbox (Signup only) */}
-            {mode === "signup" && (
+            {mode === 'signup' && (
               <label className="flex items-start gap-3 cursor-pointer group">
                 <div className="relative mt-0.5">
                   <input
@@ -463,8 +429,8 @@ export function LoginPage({
                   <div
                     className={`w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center ${
                       agreeToTerms
-                        ? "bg-bridge-accent border-bridge-accent"
-                        : "border-slate-300 group-hover:border-slate-400"
+                        ? 'bg-bridge-accent border-bridge-accent'
+                        : 'border-slate-300 group-hover:border-slate-400'
                     }`}
                   >
                     {agreeToTerms && (
@@ -490,17 +456,17 @@ export function LoginPage({
                     className="text-bridge-accent hover:text-bridge-accent/80 transition-colors"
                     target="_blank"
                   >
-                    {t("auth.termsOfService")}
-                  </Link>{" "}
-                  {t("common.and")}{" "}
+                    {t('auth.termsOfService')}
+                  </Link>{' '}
+                  {t('common.and')}{' '}
                   <Link
                     to="/privacy"
                     className="text-bridge-accent hover:text-bridge-accent/80 transition-colors"
                     target="_blank"
                   >
-                    {t("auth.privacyPolicy")}
+                    {t('auth.privacyPolicy')}
                   </Link>
-                  {t("auth.agreeToTerms")}
+                  {t('auth.agreeToTerms')}
                 </span>
               </label>
             )}
@@ -513,10 +479,7 @@ export function LoginPage({
 
             <button
               type="submit"
-              disabled={
-                isLoading ||
-                (mode === "signup" && (!agreeToTerms || !isPasswordValid))
-              }
+              disabled={isLoading || (mode === 'signup' && (!agreeToTerms || !isPasswordValid))}
               className="w-full h-13 text-white rounded-xl font-bold transition-all duration-300 flex items-center justify-center space-x-3 transform active:scale-[0.98] mt-6 group overflow-hidden relative disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-bridge-accent to-bridge-secondary hover:shadow-lg hover:shadow-bridge-accent/20"
             >
               {isLoading ? (
@@ -524,13 +487,13 @@ export function LoginPage({
               ) : (
                 <>
                   <span className="tracking-tight">
-                    {mode === "login"
+                    {mode === 'login'
                       ? inviteInfo
-                        ? t("auth.signInWithInvite")
-                        : t("auth.signInToWorkspace")
+                        ? t('auth.signInWithInvite')
+                        : t('auth.signInToWorkspace')
                       : inviteInfo
-                        ? t("auth.signUpWithInvite")
-                        : t("auth.getStarted")}
+                        ? t('auth.signUpWithInvite')
+                        : t('auth.getStarted')}
                   </span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </>
@@ -543,12 +506,12 @@ export function LoginPage({
         {!isGoogleOnlyLogin && (
           <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-slate-100 text-center">
             <p className="text-slate-400 text-sm">
-              {mode === "login" ? t("auth.noAccount") : t("auth.hasAccount")}
+              {mode === 'login' ? t('auth.noAccount') : t('auth.hasAccount')}
               <button
-                onClick={() => setMode(mode === "login" ? "signup" : "login")}
+                onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
                 className="ml-2 text-bridge-accent font-medium hover:text-bridge-accent/80 transition-colors"
               >
-                {mode === "login" ? t("auth.signUp") : t("auth.signIn")}
+                {mode === 'login' ? t('auth.signUp') : t('auth.signIn')}
               </button>
             </p>
           </div>
@@ -557,15 +520,14 @@ export function LoginPage({
         {/* Footer Note */}
         {inviteInfo && (
           <p className="text-center text-xs text-slate-400 tracking-wide mt-6">
-            {t("auth.inviteFooter")}
+            {t('auth.inviteFooter')}
           </p>
         )}
       </motion.div>
 
       {/* Version Info */}
       <div className="absolute bottom-3 right-4 text-xs text-slate-400 select-none">
-        FE:{" "}
-        {typeof __FE_COMMIT_HASH__ !== "undefined" ? __FE_COMMIT_HASH__ : "dev"}
+        FE: {typeof __FE_COMMIT_HASH__ !== 'undefined' ? __FE_COMMIT_HASH__ : 'dev'}
         {beCommit && <> · BE: {beCommit}</>}
       </div>
     </div>

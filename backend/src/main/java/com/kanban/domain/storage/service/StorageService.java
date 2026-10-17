@@ -22,6 +22,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
@@ -51,6 +53,7 @@ public class StorageService {
     private final StorageQuotaService quotaService;
     private final StoragePermissionService permissionService;
     private final BoardRepository boardRepository;
+    private final DocumentPreviewService documentPreviewService;
 
     private static final int THUMB_W = 400;
     private static final int THUMB_H = 400;
@@ -59,6 +62,33 @@ public class StorageService {
     private long storageMaxFileSize;
 
     public record DownloadResource(InputStream stream, String filename, String contentType) {}
+
+    /** presigned 다운로드 링크. url 이 null 이면 S3 미지원(로컬) → 프록시 스트리밍으로 폴백. */
+    public record DownloadLink(String url, String mode) {
+        public static DownloadLink presigned(String url) { return new DownloadLink(url, "presigned"); }
+        public static DownloadLink proxy() { return new DownloadLink(null, "proxy"); }
+    }
+
+    /**
+     * 문서 PDF 미리보기 조회 결과.
+     * status 는 PreviewStatus 이름 또는 UNAVAILABLE(형식 미지원/soffice 없음), TOO_LARGE(원본이 상한 초과).
+     * maxSourceBytes 는 TOO_LARGE 일 때만 채워져 프론트가 한도를 표시한다.
+     */
+    public record PreviewInfo(String status, String url, Long maxSourceBytes,
+                              Long elapsedSeconds, Long queueAhead) {
+        public PreviewInfo(String status, String url) {
+            this(status, url, null, null, null);
+        }
+
+        public PreviewInfo(String status, String url, Long maxSourceBytes) {
+            this(status, url, maxSourceBytes, null, null);
+        }
+
+        /** PENDING: 변환 요청 후 흐른 시간과 대기열에서 앞에 있는 개수를 같이 준다. */
+        public static PreviewInfo pending(long elapsedSeconds, long queueAhead) {
+            return new PreviewInfo("PENDING", null, null, elapsedSeconds, queueAhead);
+        }
+    }
 
     // ==================== Folder ====================
 
@@ -196,6 +226,14 @@ public class StorageService {
         return files.stream().map(this::toFileItem).toList();
     }
 
+    /** 스코프의 모든 파일을 한 번에 반환한다 (자료실 트리 진입 시 폴더 수만큼 요청하던 것을 대체). */
+    public List<StorageResponse.FileItem> getAllFiles(StorageScope scope, String userId) {
+        permissionService.checkRead(scope, userId);
+        return fileRepository.findAllByScope(scope.typeName(), scope.scopeId()).stream()
+                .map(this::toFileItem)
+                .toList();
+    }
+
     private StorageResponse.FileItem toFileItem(StorageFile file) {
         String url = fileUploadService.resolveUrl(file.getS3Key());
         String thumbUrl = file.getThumbnailKey() != null
@@ -240,6 +278,7 @@ public class StorageService {
                 .createdBy(user);
         applyScope(builder, scope, user);
         StorageFile saved = fileRepository.save(builder.build());
+        maybeQueuePreview(saved);
 
         log.info("Storage file uploaded (direct): scope={}, fileId={}, size={}", scope.typeName(), saved.getId(), file.getSize());
         return toFileItem(saved);
@@ -347,6 +386,7 @@ public class StorageService {
                 .createdBy(user);
         applyScope(builder, scope, user);
         StorageFile saved = fileRepository.save(builder.build());
+        maybeQueuePreview(saved);
 
         log.info("Storage file confirmed (presigned): scope={}, fileId={}, size={}", scope.typeName(), saved.getId(), actualSize);
         return toFileItem(saved);
@@ -376,6 +416,76 @@ public class StorageService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND));
         InputStream stream = fileUploadService.getAsStream(file.getS3Key());
         return new DownloadResource(stream, file.getOriginalFilename(), file.getContentType());
+    }
+
+    /**
+     * 브라우저가 S3 에서 직접 받도록 presigned GET URL 을 발급한다. 대용량 파일이 백엔드를 경유하지 않게
+     * 하는 기본 다운로드 경로이며, 로컬(파일시스템) 환경처럼 presign 미지원이면 proxy 모드를 돌려준다.
+     */
+    public DownloadLink downloadLink(StorageScope scope, String userId, String fileId) {
+        permissionService.checkRead(scope, userId);
+        StorageFile file = fileRepository.findByIdAndScope(fileId, scope.typeName(), scope.scopeId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORAGE_FILE_NOT_FOUND));
+        String url = fileUploadService.presignDownload(
+                file.getS3Key(), file.getOriginalFilename(), file.getContentType());
+        return url != null ? DownloadLink.presigned(url) : DownloadLink.proxy();
+    }
+
+    // ==================== Document preview (PDF) ====================
+
+    /**
+     * 문서 파일의 PDF 미리보기 상태를 돌려준다. 아직 변환 안 된 파일(이 기능 이전 업로드분, 실패분)은
+     * 여기서 변환을 큐잉하므로 프론트는 PENDING 동안 폴링하면 된다.
+     */
+    @Transactional
+    public PreviewInfo getPreview(StorageScope scope, String userId, String fileId) {
+        permissionService.checkRead(scope, userId);
+        StorageFile file = getFileOrThrow(scope, fileId);
+
+        if (file.getPreviewStatus() == StorageFile.PreviewStatus.READY && file.getPreviewKey() != null) {
+            return new PreviewInfo("READY", fileUploadService.resolveUrl(file.getPreviewKey()));
+        }
+        if (file.getPreviewStatus() == StorageFile.PreviewStatus.PENDING
+                && !documentPreviewService.isStalePending(file)) {
+            return PreviewInfo.pending(
+                    documentPreviewService.elapsedSeconds(file),
+                    documentPreviewService.queueAhead(file));
+        }
+        // 여기 오는 PENDING 은 워커가 사라진 고아 → 아래에서 재큐잉
+        if (!documentPreviewService.canConvert(file)) {
+            // 형식도 서버도 되는데 크기만 넘는 경우를 따로 알려준다 (사용자가 "서버 미지원"으로 오해하지 않게)
+            if (DocumentPreviewService.isConvertible(file.getOriginalFilename())
+                    && documentPreviewService.isAvailable()
+                    && documentPreviewService.isTooLarge(file)) {
+                return new PreviewInfo("TOO_LARGE", null, documentPreviewService.getMaxSourceBytes());
+            }
+            return new PreviewInfo("UNAVAILABLE", null);
+        }
+        // NONE / FAILED / 고아 PENDING → (재)시도. 방금 요청했으니 경과 0초, 앞 대기는 지금 PENDING 인 파일 수.
+        maybeQueuePreview(file);
+        return PreviewInfo.pending(0, documentPreviewService.queueAhead(file));
+    }
+
+    /**
+     * 변환 가능한 문서면 PENDING 으로 표시하고 트랜잭션 커밋 뒤에 비동기 변환을 건다.
+     * 커밋 전에 큐잉하면 워커가 파일 행을 못 찾을 수 있어 afterCommit 으로 미룬다.
+     */
+    private void maybeQueuePreview(StorageFile file) {
+        if (!documentPreviewService.canConvert(file)) {
+            return;
+        }
+        file.markPreviewPending();
+        String fileId = file.getId();
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    documentPreviewService.enqueue(fileId);
+                }
+            });
+        } else {
+            documentPreviewService.enqueue(fileId);
+        }
     }
 
     // ==================== Usage ====================
@@ -532,6 +642,9 @@ public class StorageService {
                 fileUploadService.delete(key);
                 if (file.getThumbnailKey() != null) {
                     fileUploadService.delete(file.getThumbnailKey());
+                }
+                if (file.getPreviewKey() != null) {
+                    fileUploadService.delete(file.getPreviewKey());
                 }
             } catch (Exception e) {
                 log.warn("Failed to delete storage object: key={}, error={}", key, e.getMessage());

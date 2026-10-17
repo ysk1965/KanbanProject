@@ -100,6 +100,18 @@ resource "aws_cloudfront_function" "spa_router" {
       var request = event.request;
       var uri = request.uri;
       var host = request.headers.host ? request.headers.host.value : '';
+      var isBridgespots = host.indexOf('bridgespots.com') !== -1;
+
+      // robots/sitemap은 도메인별 파일로 분기
+      // (버킷 기본 파일: robots.txt = milkyway, sitemap.xml = bridgespots)
+      if (uri === '/robots.txt' && isBridgespots) {
+        request.uri = '/robots-bridgespots.txt';
+        return request;
+      }
+      if (uri === '/sitemap.xml' && !isBridgespots) {
+        request.uri = '/sitemap-milkyway.xml';
+        return request;
+      }
 
       // 파일 확장자가 있는 요청은 그대로 통과 (JS, CSS, 이미지 등)
       if (uri.match(/\.\w+$/)) {
@@ -107,7 +119,7 @@ resource "aws_cloudfront_function" "spa_router" {
       }
 
       // SPA fallback: 파일 확장자 없는 경로 → 도메인별 index.html
-      if (host.indexOf('bridgespots.com') !== -1) {
+      if (isBridgespots) {
         request.uri = '/index-bridgespots.html';
       } else {
         request.uri = '/index.html';

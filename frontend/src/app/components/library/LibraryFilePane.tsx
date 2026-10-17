@@ -1,15 +1,26 @@
-import { Download, Link2, Menu, Trash2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { Download, Link2, Menu, Trash2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
-import type { StorageFileItem } from "../../utils/api";
-import { formatBytes, fileIconFor } from "../storage/storageUtils";
-import { formatDateTime } from "../../utils/dateUtils";
-import { IconButton } from "../ui/IconButton";
+import type { StorageFileItem, StoragePreviewInfo } from '../../utils/api';
+import {
+  formatBytes,
+  fileIconFor,
+  isSpreadsheetFile,
+  isConvertibleDocument,
+} from '../storage/storageUtils';
+import { SpreadsheetPreview } from '../storage/SpreadsheetPreview';
+import { DocumentPreview } from '../storage/DocumentPreview';
+import { formatDateTime } from '../../utils/dateUtils';
+import { IconButton } from '../ui/IconButton';
 
 interface LibraryFilePaneProps {
   file: StorageFileItem;
   canEdit: boolean;
   onDownload: (file: StorageFileItem) => void;
+  /** 표 뷰어가 원본을 받을 때 쓴다 (storageApi.fetchBlob) */
+  onLoadBlob: (file: StorageFileItem) => Promise<Blob>;
+  /** 문서 PDF 변환 상태 조회 (storageApi.getPreview) */
+  onLoadPreview: (file: StorageFileItem) => Promise<StoragePreviewInfo>;
   onToggleShare: (file: StorageFileItem) => void;
   onDelete: (file: StorageFileItem) => void;
   onOpenSidebar: () => void;
@@ -23,6 +34,8 @@ export function LibraryFilePane({
   file,
   canEdit,
   onDownload,
+  onLoadBlob,
+  onLoadPreview,
   onToggleShare,
   onDelete,
   onOpenSidebar,
@@ -68,12 +81,12 @@ export function LibraryFilePane({
                   onClick={() => onToggleShare(file)}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
                     file.is_shared
-                      ? "bg-bridge-accent/15 text-bridge-accent"
-                      : "bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10"
+                      ? 'bg-bridge-accent/15 text-bridge-accent'
+                      : 'bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10'
                   }`}
                 >
                   <Link2 className="w-3.5 h-3.5" />
-                  {file.is_shared ? "공유 중" : "공유 링크"}
+                  {file.is_shared ? '공유 중' : '공유 링크'}
                 </button>
               )}
               <button
@@ -88,7 +101,7 @@ export function LibraryFilePane({
                 <IconButton
                   aria-label="파일 삭제"
                   onClick={() => {
-                    if (window.confirm("이 파일을 휴지통으로 옮길까요?")) {
+                    if (window.confirm('이 파일을 휴지통으로 옮길까요?')) {
                       onDelete(file);
                     }
                   }}
@@ -109,18 +122,16 @@ export function LibraryFilePane({
               />
             ) : file.is_video ? (
               <video src={file.url} controls className="max-h-[56vh] w-full" />
-            ) : file.content_type === "application/pdf" ? (
-              <iframe
-                src={file.url}
-                title={file.original_filename}
-                className="w-full h-[56vh]"
-              />
+            ) : file.content_type === 'application/pdf' ? (
+              <iframe src={file.url} title={file.original_filename} className="w-full h-[56vh]" />
+            ) : isSpreadsheetFile(file) ? (
+              <SpreadsheetPreview file={file} loadBlob={onLoadBlob} heightClass="h-[56vh]" />
+            ) : isConvertibleDocument(file) ? (
+              <DocumentPreview file={file} loadPreview={onLoadPreview} heightClass="h-[56vh]" />
             ) : (
               <div className="flex flex-col items-center gap-3 py-16 text-slate-500">
                 <Icon className="w-14 h-14" />
-                <span className="text-xs">
-                  미리보기를 지원하지 않는 형식입니다
-                </span>
+                <span className="text-xs">미리보기를 지원하지 않는 형식입니다</span>
               </div>
             )}
           </div>
@@ -128,15 +139,12 @@ export function LibraryFilePane({
           {/* 파일 정보 */}
           <dl className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Meta label="크기" value={formatBytes(file.file_size)} />
-            <Meta label="형식" value={file.content_type || "알 수 없음"} />
+            <Meta label="형식" value={file.content_type || '알 수 없음'} />
             <Meta
               label="올린 날짜"
-              value={file.created_at ? formatDateTime(file.created_at) : "—"}
+              value={file.created_at ? formatDateTime(file.created_at) : '—'}
             />
-            <Meta
-              label="공유"
-              value={file.is_shared ? "공개 링크 있음" : "비공개"}
-            />
+            <Meta label="공유" value={file.is_shared ? '공개 링크 있음' : '비공개'} />
           </dl>
         </motion.div>
       </div>
@@ -147,9 +155,7 @@ export function LibraryFilePane({
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-foreground/[0.08] bg-bridge-obsidian px-4 py-3">
-      <dt className="text-xs font-bold uppercase tracking-widest text-slate-400">
-        {label}
-      </dt>
+      <dt className="text-xs font-bold uppercase tracking-widest text-slate-400">{label}</dt>
       <dd className="text-xs text-foreground mt-1 truncate" title={value}>
         {value}
       </dd>

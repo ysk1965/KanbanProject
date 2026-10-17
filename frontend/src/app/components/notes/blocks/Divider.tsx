@@ -12,13 +12,11 @@ export const Divider = createReactBlockSpec(
         <hr />
       </div>
     ),
-    toExternalHTML: () => (
-      <hr data-block-type="divider" />
-    ),
+    toExternalHTML: () => <hr data-block-type="divider" />,
     parse: (el) => {
       if (el.tagName === 'HR') return {};
       if (el.getAttribute('data-block-type') === 'divider') return {};
       return undefined;
     },
-  }
+  },
 );

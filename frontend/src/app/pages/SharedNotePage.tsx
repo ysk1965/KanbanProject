@@ -1,7 +1,7 @@
-import React, { useState, useEffect, Suspense } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import DOMPurify from "dompurify";
+import React, { useState, useEffect, Suspense } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import DOMPurify from 'dompurify';
 import {
   FileText,
   Clock,
@@ -11,42 +11,40 @@ import {
   Loader2,
   FileDown,
   Check,
-} from "lucide-react";
+} from 'lucide-react';
 
-import "@excalidraw/excalidraw/index.css";
+import '@excalidraw/excalidraw/index.css';
 
 const ExcalidrawLazy = React.lazy(async () => {
-  const mod = await import("@excalidraw/excalidraw");
+  const mod = await import('@excalidraw/excalidraw');
   return { default: mod.Excalidraw };
 });
 const FlowReadOnlyLazy = React.lazy(async () => {
-  const mod = await import("../components/notes/FlowEditor");
+  const mod = await import('../components/notes/FlowEditor');
   return { default: mod.FlowReadOnly };
 });
-import { useCreateBlockNote } from "@blocknote/react";
-import "@blocknote/core/fonts/inter.css";
-import "@blocknote/shadcn/style.css";
-import { publicNoteAPI, resolveFileUrl } from "../utils/api";
-import type { SharedNote } from "../utils/api";
-import { formatDateTime } from "../utils/dateUtils";
-import { noteSchema as schema } from "../components/notes/blocks/schema";
-import { contentToHtml, contentToMarkdown } from "../utils/blocknoteContent";
+import { useCreateBlockNote } from '@blocknote/react';
+import '@blocknote/shadcn/style.css';
+import { publicNoteAPI, resolveFileUrl } from '../utils/api';
+import type { SharedNote } from '../utils/api';
+import { formatDateTime } from '../utils/dateUtils';
+import { noteSchema as schema } from '../components/notes/blocks/schema';
+import { contentToHtml, contentToMarkdown } from '../utils/blocknoteContent';
 
 function useSystemTheme() {
   const [isDark, setIsDark] = useState(
-    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+    () => window.matchMedia('(prefers-color-scheme: dark)').matches,
   );
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
   return isDark;
 }
 
-const UUID_SUFFIX =
-  /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+const UUID_SUFFIX = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 /**
  * URL 파라미터에서 실제 조회 토큰을 추출한다. 링크는 `제목슬러그-{토큰}` 형태일 수 있다.
@@ -57,7 +55,7 @@ function extractShareToken(raw?: string): string | undefined {
   if (!raw) return raw;
   const uuid = raw.match(UUID_SUFFIX);
   if (uuid) return uuid[0];
-  const idx = raw.lastIndexOf("-");
+  const idx = raw.lastIndexOf('-');
   return idx >= 0 ? raw.slice(idx + 1) : raw;
 }
 
@@ -69,16 +67,16 @@ export function SharedNotePage() {
   const [note, setNote] = useState<SharedNote | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [renderedHtml, setRenderedHtml] = useState<string>("");
+  const [renderedHtml, setRenderedHtml] = useState<string>('');
   const [markdownCopied, setMarkdownCopied] = useState(false);
 
   // Apply theme class to html element for CSS variables (bridge-dark, bridge-obsidian, etc.)
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(isDark ? "dark" : "light");
+    root.classList.remove('light', 'dark');
+    root.classList.add(isDark ? 'dark' : 'light');
     return () => {
-      root.classList.remove("light", "dark");
+      root.classList.remove('light', 'dark');
     };
   }, [isDark]);
 
@@ -113,9 +111,7 @@ export function SharedNotePage() {
         const data = await publicNoteAPI.getSharedNote(shareToken);
         setNote(data);
       } catch (err: any) {
-        setError(
-          err?.message || t("notes.shareNotFound", "문서를 찾을 수 없습니다"),
-        );
+        setError(err?.message || t('notes.shareNotFound', '문서를 찾을 수 없습니다'));
       } finally {
         setLoading(false);
       }
@@ -126,8 +122,8 @@ export function SharedNotePage() {
 
   // Convert content to HTML when note arrives (skip BOARD type - it uses Excalidraw, not BlockNote)
   useEffect(() => {
-    if (!note?.content?.trim() || note.type === "BOARD") {
-      setRenderedHtml("");
+    if (!note?.content?.trim() || note.type === 'BOARD') {
+      setRenderedHtml('');
       return;
     }
     let cancelled = false;
@@ -148,7 +144,7 @@ export function SharedNotePage() {
       setMarkdownCopied(true);
       window.setTimeout(() => setMarkdownCopied(false), 1500);
     } catch (err) {
-      console.error("Failed to copy markdown:", err);
+      console.error('Failed to copy markdown:', err);
     }
   };
 
@@ -157,9 +153,7 @@ export function SharedNotePage() {
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent mx-auto mb-4" />
-          <p className="text-slate-400 text-sm">
-            {t("app.loading", "로딩 중...")}
-          </p>
+          <p className="text-slate-400 text-sm">{t('app.loading', '로딩 중...')}</p>
         </div>
       </div>
     );
@@ -173,20 +167,17 @@ export function SharedNotePage() {
             <AlertCircle size={28} className="text-red-400" />
           </div>
           <h2 className="text-xl font-bold text-foreground mb-2">
-            {t("notes.shareNotAvailable", "문서를 볼 수 없습니다")}
+            {t('notes.shareNotAvailable', '문서를 볼 수 없습니다')}
           </h2>
           <p className="text-slate-400 text-sm mb-6">
-            {t(
-              "notes.shareNotAvailableDesc",
-              "이 공유 링크는 만료되었거나 문서가 삭제되었습니다.",
-            )}
+            {t('notes.shareNotAvailableDesc', '이 공유 링크는 만료되었거나 문서가 삭제되었습니다.')}
           </p>
           <Link
             to="/"
             className="inline-flex items-center gap-2 px-4 py-2 bg-bridge-accent text-white rounded-xl text-sm font-medium hover:bg-bridge-accent/90 transition-colors"
           >
             <ArrowLeft size={14} />
-            {t("notes.shareGoHome", "홈으로 이동")}
+            {t('notes.shareGoHome', '홈으로 이동')}
           </Link>
         </div>
       </div>
@@ -206,23 +197,23 @@ export function SharedNotePage() {
             <span className="text-sm font-bold text-foreground">BRIDGE</span>
           </Link>
           <div className="flex items-center gap-3">
-            {note.type !== "BOARD" && (
+            {note.type !== 'BOARD' && (
               <button
                 onClick={handleCopyMarkdown}
                 className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
-                title={t("notes.copyMarkdown", "Markdown으로 복사")}
+                title={t('notes.copyMarkdown', 'Markdown으로 복사')}
               >
                 {markdownCopied ? <Check size={12} /> : <FileDown size={12} />}
                 <span className="hidden sm:inline">
                   {markdownCopied
-                    ? t("notes.copied", "복사됨")
-                    : t("notes.copyMarkdownShort", "Markdown")}
+                    ? t('notes.copied', '복사됨')
+                    : t('notes.copyMarkdownShort', 'Markdown')}
                 </span>
               </button>
             )}
             <div className="flex items-center gap-2 text-xs tracking-[0.3em] uppercase text-slate-500">
               <FileText size={12} />
-              {t("notes.shareReadOnly", "READ ONLY")}
+              {t('notes.shareReadOnly', 'READ ONLY')}
             </div>
           </div>
         </div>
@@ -231,9 +222,7 @@ export function SharedNotePage() {
       {/* Note content */}
       <main className="max-w-4xl mx-auto px-6 py-8">
         {/* Title */}
-        <h1 className="text-3xl font-bold text-foreground mb-3">
-          {note.title}
-        </h1>
+        <h1 className="text-3xl font-bold text-foreground mb-3">{note.title}</h1>
 
         {/* Meta */}
         <div className="flex items-center flex-wrap gap-3 mb-6">
@@ -265,7 +254,7 @@ export function SharedNotePage() {
         <div className="border-t border-foreground/5 mb-6" />
 
         {/* Content viewer */}
-        {note.type === "BOARD" ? (
+        {note.type === 'BOARD' ? (
           <Suspense
             fallback={
               <div
@@ -281,8 +270,7 @@ export function SharedNotePage() {
               // 개편된 BOARD는 bridge-flow(React Flow). 레거시 Excalidraw 콘텐츠는 그대로 렌더.
               let isFlowBoard = false;
               try {
-                isFlowBoard =
-                  JSON.parse(note.content || "{}")?.type === "bridge-flow";
+                isFlowBoard = JSON.parse(note.content || '{}')?.type === 'bridge-flow';
               } catch {
                 isFlowBoard = false;
               }
@@ -298,13 +286,13 @@ export function SharedNotePage() {
                   <ExcalidrawLazy
                     initialData={(() => {
                       try {
-                        const parsed = JSON.parse(note.content || "{}");
+                        const parsed = JSON.parse(note.content || '{}');
                         return {
                           elements: parsed.elements || [],
                           appState: {
                             viewBackgroundColor:
                               parsed.appState?.viewBackgroundColor ||
-                              (isDark ? "#151B28" : "#efe6d8"),
+                              (isDark ? '#151B28' : '#efe6d8'),
                           },
                           files: parsed.files || {},
                         };
@@ -313,7 +301,7 @@ export function SharedNotePage() {
                       }
                     })()}
                     viewModeEnabled={true}
-                    theme={isDark ? "dark" : "light"}
+                    theme={isDark ? 'dark' : 'light'}
                     UIOptions={{
                       canvasActions: {
                         loadScene: false,
@@ -327,29 +315,29 @@ export function SharedNotePage() {
           </Suspense>
         ) : (
           <div
-            className={`shared-note-viewer bn-container bn-shadcn ${isDark ? "dark" : "light"}`}
-            data-color-scheme={isDark ? "dark" : "light"}
+            className={`shared-note-viewer bn-container bn-shadcn ${isDark ? 'dark' : 'light'}`}
+            data-color-scheme={isDark ? 'dark' : 'light'}
             style={
               {
-                "--bn-colors-editor-background": "transparent",
+                '--bn-colors-editor-background': 'transparent',
               } as React.CSSProperties
             }
             dangerouslySetInnerHTML={{
               __html: DOMPurify.sanitize(renderedHtml, {
-                ADD_TAGS: ["iframe", "details", "summary"],
+                ADD_TAGS: ['iframe', 'details', 'summary'],
                 ADD_ATTR: [
-                  "data-block-type",
-                  "data-callout-type",
-                  "data-content-type",
-                  "data-url",
-                  "data-columns",
-                  "data-id",
-                  "allow",
-                  "allowfullscreen",
-                  "frameborder",
-                  "open",
-                  "target",
-                  "rel",
+                  'data-block-type',
+                  'data-callout-type',
+                  'data-content-type',
+                  'data-url',
+                  'data-columns',
+                  'data-id',
+                  'allow',
+                  'allowfullscreen',
+                  'frameborder',
+                  'open',
+                  'target',
+                  'rel',
                 ],
               }),
             }}

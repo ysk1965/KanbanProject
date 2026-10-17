@@ -71,7 +71,7 @@ public class DailyChecklistService {
 
         // 2. 보드 체크리스트 항목
         ChecklistResponse.BoardListResponse boardChecklist =
-                checklistService.getBoardChecklistItems(boardId, userId, assigneeId, null);
+                checklistService.getBoardChecklistItems(boardId, userId, assigneeId, null, null);
 
         // 3. 회의 목록
         List<MeetingResponse.Summary> meetings = meetingService.getMeetingsByDate(boardId, date, userId);

@@ -1,4 +1,4 @@
-import { isNative, isIOS, isKakaoTalk, isMobileWeb, isChromeiOS } from './platform';
+import { isNative, isIOS, isIOSWeb, isKakaoTalk, isChromeiOS } from './platform';
 import { resolveFileUrl } from './api';
 
 /**
@@ -41,10 +41,7 @@ function isImageFile(filename: string): boolean {
  * Save an image to the device photo gallery (Camera Roll / Photos).
  * Uses @capacitor-community/media plugin.
  */
-async function saveToGallery(
-  blob: Blob,
-  filename: string,
-): Promise<NativeDownloadResult> {
+async function saveToGallery(blob: Blob, filename: string): Promise<NativeDownloadResult> {
   try {
     const { Media } = await import('@capacitor-community/media');
     const { Filesystem, Directory } = await import('@capacitor/filesystem');
@@ -74,9 +71,7 @@ async function saveToGallery(
       albums = { albums: [] };
     }
 
-    const bridgeAlbum = albums.albums.find(
-      (a: { name: string }) => a.name === albumName,
-    );
+    const bridgeAlbum = albums.albums.find((a: { name: string }) => a.name === albumName);
 
     if (!bridgeAlbum && isIOS()) {
       try {
@@ -118,10 +113,7 @@ async function saveToGallery(
  * - Images: saved to photo gallery (Camera Roll / Photos) via Media plugin
  * - Other files: saved to Files app / Documents folder
  */
-export async function saveToDevice(
-  blob: Blob,
-  filename: string,
-): Promise<NativeDownloadResult> {
+export async function saveToDevice(blob: Blob, filename: string): Promise<NativeDownloadResult> {
   if (!isNative()) {
     return { success: false, error: 'Not a native platform' };
   }
@@ -228,19 +220,43 @@ export function getDownloadedIds(photoIds: string[]): Set<string> {
 function getMimeType(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   const mimeMap: Record<string, string> = {
-    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-    gif: 'image/gif', webp: 'image/webp', heic: 'image/heic',
-    heif: 'image/heif', bmp: 'image/bmp', tif: 'image/tiff', tiff: 'image/tiff',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    heic: 'image/heic',
+    heif: 'image/heif',
+    bmp: 'image/bmp',
+    tif: 'image/tiff',
+    tiff: 'image/tiff',
   };
   return mimeMap[ext] || 'application/octet-stream';
 }
 
+/**
+ * Share sheet ("Save Image") is the only way to reach the Photos app from iOS web.
+ * Android saves downloads where the gallery app already sees them, and its share sheet
+ * often has no "save" target — so Android uses plain downloads.
+ */
 function canWebShare(): boolean {
-  return isMobileWeb() && !!navigator.share && !!navigator.canShare;
+  return isIOSWeb() && !!navigator.share && !!navigator.canShare;
 }
 
-async function fetchAsFile(url: string, filename: string): Promise<File> {
-  const response = await fetch(url);
+/**
+ * iOS web: the share sheet only opens within a few seconds of a tap, so large photos must be
+ * fetched first and shared from a second tap (see usePhotoSaver).
+ */
+export function needsTapToSave(): boolean {
+  return canWebShare();
+}
+
+export async function fetchAsFile(
+  url: string,
+  filename: string,
+  signal?: AbortSignal,
+): Promise<File> {
+  const response = await fetch(url, { signal });
   if (!response.ok) throw new Error('Download failed');
   const blob = await response.blob();
   return new File([blob], filename, { type: getMimeType(filename) });
@@ -263,7 +279,26 @@ async function tryWebShare(files: File[]): Promise<boolean> {
   }
 }
 
-function anchorDownload(blob: Blob, filename: string): void {
+export type ShareOutcome = 'shared' | 'cancelled' | 'failed';
+
+/**
+ * Open the share sheet with already-fetched files.
+ * Must be called synchronously from a tap handler — no await before it.
+ */
+export function shareFiles(files: File[]): Promise<ShareOutcome> {
+  try {
+    if (!navigator.canShare?.({ files })) return Promise.resolve('failed');
+    return navigator.share({ files }).then(
+      () => 'shared' as const,
+      (error: unknown) =>
+        error instanceof Error && error.name === 'AbortError' ? 'cancelled' : 'failed',
+    );
+  } catch {
+    return Promise.resolve('failed');
+  }
+}
+
+export function anchorDownload(blob: Blob, filename: string): void {
   const blobUrl = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = blobUrl;
@@ -293,7 +328,11 @@ function openForManualSave(url: string): void {
  * - KakaoTalk in-app: open external browser via intent scheme
  * - Desktop browsers: fetch → blob → anchor download
  */
-export async function downloadPhoto(photoUrl: string, filename: string, photoId?: string): Promise<void> {
+export async function downloadPhoto(
+  photoUrl: string,
+  filename: string,
+  photoId?: string,
+): Promise<void> {
   const url = resolveFileUrl(photoUrl);
 
   // 1. Capacitor native app
@@ -406,10 +445,17 @@ export async function downloadPhotosBatch(
         // Batch Web Share failed (e.g. Chrome iOS) → try individual Web Share with already-fetched files
         let allShared = true;
         for (let i = 0; i < files.length; i++) {
-          if (signal?.aborted) { report(i, 'cancelled'); allShared = false; break; }
+          if (signal?.aborted) {
+            report(i, 'cancelled');
+            allShared = false;
+            break;
+          }
           report(i + 1, 'saving');
           const ok = await tryWebShare([files[i]]);
-          if (!ok) { allShared = false; break; }
+          if (!ok) {
+            allShared = false;
+            break;
+          }
         }
         if (allShared && !signal?.aborted) {
           markManyAsDownloaded(downloadedIds);

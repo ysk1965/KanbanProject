@@ -104,6 +104,10 @@ public class BoardResponse {
         private SubscriptionInfo subscription;
         private ScheduleSettings scheduleSettings;
         private String selectedMilestoneId;
+        /** 화면 복잡도 — 시간 묶음 깊이(1~3). 프론트 게이팅의 단일 소스. */
+        private Integer uiLevel;
+        /** 레벨과 무관한 직교 옵션(쉼표 구분): members,review,timeblock,jira */
+        private String uiOptions;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
@@ -121,6 +125,8 @@ public class BoardResponse {
                     .subscription(subscription != null ? SubscriptionInfo.of(subscription) : null)
                     .scheduleSettings(ScheduleSettings.of(board))
                     .selectedMilestoneId(board.getSelectedMilestoneId())
+                    .uiLevel(board.getUiLevel())
+                    .uiOptions(board.getUiOptions())
                     .createdAt(board.getCreatedAt())
                     .updatedAt(board.getUpdatedAt())
                     .build();
@@ -259,6 +265,10 @@ public class BoardResponse {
         private SubscriptionInfo subscription;
         private ScheduleSettings scheduleSettings;
         private String selectedMilestoneId;
+        /** 화면 복잡도 — 시간 묶음 깊이(1~3). 프론트 게이팅의 단일 소스. */
+        private Integer uiLevel;
+        /** 레벨과 무관한 직교 옵션(쉼표 구분): members,review,timeblock,jira */
+        private String uiOptions;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 

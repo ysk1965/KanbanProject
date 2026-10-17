@@ -1,6 +1,7 @@
 package com.kanban.domain.storage.dto;
 
 import com.kanban.domain.storage.StorageFile;
+import com.kanban.domain.storage.service.StorageService;
 import com.kanban.domain.storage.StorageFolder;
 import lombok.Builder;
 
@@ -81,6 +82,24 @@ public class StorageResponse {
         }
     }
 
+    /** 문서 PDF 미리보기. status: NONE | PENDING | READY | FAILED | UNAVAILABLE | TOO_LARGE, url 은 READY 일 때만. */
+    @Builder
+    public record Preview(
+            String status,
+            String url,
+            /** TOO_LARGE 일 때 변환 상한(바이트). 그 외 null. */
+            Long maxSourceBytes,
+            /** PENDING 일 때 변환 요청 후 흐른 시간(초). 페이지를 떠났다 와도 이어진다. */
+            Long elapsedSeconds,
+            /** PENDING 일 때 변환 대기열에서 앞에 있는 파일 수. */
+            Long queueAhead
+    ) {
+        public static Preview of(StorageService.PreviewInfo info) {
+            return new Preview(info.status(), info.url(), info.maxSourceBytes(),
+                    info.elapsedSeconds(), info.queueAhead());
+        }
+    }
+
     @Builder
     public record Usage(
             long used,
@@ -104,6 +123,17 @@ public class StorageResponse {
             long fileCount,
             List<CategoryUsage> categories
     ) {}
+
+    /** presigned 다운로드 링크. mode="presigned" 이면 url 로 브라우저가 S3 직접 GET, "proxy" 이면 /download 스트리밍으로 폴백. */
+    @Builder
+    public record DownloadUrl(
+            String mode,
+            String url
+    ) {
+        public static DownloadUrl of(StorageService.DownloadLink link) {
+            return new DownloadUrl(link.mode(), link.url());
+        }
+    }
 
     /** presigned 발급 결과. mode="presigned" 이면 uploadUrl 로 S3 직접 PUT, "direct" 이면 multipart 업로드로 폴백. */
     @Builder

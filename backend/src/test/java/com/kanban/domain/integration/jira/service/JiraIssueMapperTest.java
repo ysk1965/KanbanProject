@@ -53,4 +53,32 @@ class JiraIssueMapperTest {
         assertNull(parseUpdated(""));
         assertNull(parseUpdated("어제"));
     }
+
+    /**
+     * 이슈 타입 이름은 카드 표식의 유일한 근거다 — 없으면 카드에서 버그와 스토리를 구분할 수 없다.
+     * 타입 판정(에픽 여부)에 쓰는 {@code hierarchyLevel}과 같은 노드에서 오므로 함께 묶어 확인한다.
+     */
+    @Test
+    void 이슈_타입_이름을_뽑는다() throws Exception {
+        String json = """
+            {"key":"QASA-1","id":"1","fields":{
+              "summary":"s",
+              "issuetype":{"name":"버그","hierarchyLevel":0,"subtask":false}
+            }}
+            """;
+        ParsedJiraIssue parsed = sut.parse(mapper.readTree(json));
+        assertEquals("버그", parsed.issueTypeName());
+        assertFalse(parsed.isEpic());
+    }
+
+    /** 타입 노드가 통째로 없어도 파싱은 계속돼야 한다 — 표식만 빠지고 동기화는 돌아야 한다. */
+    @Test
+    void 이슈_타입이_없으면_null이고_파싱은_계속된다() throws Exception {
+        ParsedJiraIssue parsed = sut.parse(mapper.readTree(
+            """
+            {"key":"QASA-1","id":"1","fields":{"summary":"제목만 있는 이슈"}}
+            """));
+        assertNull(parsed.issueTypeName());
+        assertEquals("제목만 있는 이슈", parsed.summary());
+    }
 }

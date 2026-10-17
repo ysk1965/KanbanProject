@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { useEscClose } from "../../hooks/useEscClose";
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../../hooks/useEscClose';
 import {
   LayoutGrid,
   User,
@@ -11,11 +11,11 @@ import {
   X,
   Clock,
   Building2,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Board } from "../../types";
-import { getGradient } from "./BoardCard";
-import { useAuth } from "../../contexts/AuthContext";
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Board } from '../../types';
+import { getGradient } from './BoardCard';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -39,25 +39,23 @@ export function Sidebar({
   const { t } = useTranslation();
   useEscClose(!!isOpen, () => onClose?.());
   const { currentUser, isRestricted } = useAuth();
-  const hasPersonalSpace =
-    !isRestricted && (currentUser?.personal_space_enabled ?? false);
-  const [activeItem, setActiveItem] = useState("all");
+  const hasPersonalSpace = !isRestricted && (currentUser?.personal_space_enabled ?? false);
+  const [activeItem, setActiveItem] = useState('all');
 
   // Determine active menu item from URL
   useEffect(() => {
-    if (location.pathname.includes("/organizations"))
-      setActiveItem("organizations");
-    else if (location.pathname.includes("/my-board")) setActiveItem("myBoard");
-    else if (location.pathname.includes("/settings")) setActiveItem("settings");
-    else setActiveItem("all");
+    if (location.pathname.includes('/organizations')) setActiveItem('organizations');
+    else if (location.pathname.includes('/my-board')) setActiveItem('myBoard');
+    else if (location.pathname.includes('/settings')) setActiveItem('settings');
+    else setActiveItem('all');
   }, [location]);
 
   const menuItems = [
     {
-      key: "all",
+      key: 'all',
       icon: <LayoutGrid size={18} />,
-      label: t("dashboard.sidebar.allBoards"),
-      path: "/boards",
+      label: t('dashboard.sidebar.allBoards'),
+      path: '/boards',
     },
     // TODO: SA-006 — Add org plan indicator badge next to Organizations menu item
     // Requires fetching org subscription data, which would need org context not available in Sidebar.
@@ -65,28 +63,28 @@ export function Sidebar({
     ...(!isRestricted
       ? [
           {
-            key: "organizations",
+            key: 'organizations',
             icon: <Building2 size={18} />,
-            label: t("dashboard.sidebar.organizations", "Organizations"),
-            path: "/organizations",
+            label: t('dashboard.sidebar.organizations', 'Organizations'),
+            path: '/organizations',
           },
         ]
       : []),
     ...(hasPersonalSpace
       ? [
           {
-            key: "myBoard",
+            key: 'myBoard',
             icon: <User size={18} />,
-            label: t("dashboard.sidebar.myBoard"),
-            path: "/my-board",
+            label: t('dashboard.sidebar.myBoard'),
+            path: '/my-board',
           },
         ]
       : []),
     {
-      key: "settings",
+      key: 'settings',
       icon: <Settings size={18} />,
-      label: t("dashboard.sidebar.settings"),
-      path: "/settings",
+      label: t('dashboard.sidebar.settings'),
+      path: '/settings',
     },
   ];
 
@@ -119,10 +117,7 @@ export function Sidebar({
       onClick={() => handleBoardClick(board.id)}
       className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left hover:bg-foreground/5 transition-colors group/pill"
     >
-      <div
-        className="w-5 h-5 rounded-md shrink-0"
-        style={{ background: getGradient(board.id) }}
-      />
+      <div className="w-5 h-5 rounded-md shrink-0" style={{ background: getGradient(board.id) }} />
       {!isCollapsed && (
         <span className="text-[12px] text-muted-foreground group-hover/pill:text-foreground truncate transition-colors">
           {board.name}
@@ -133,13 +128,13 @@ export function Sidebar({
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      <div className={`p-4 ${isCollapsed ? "px-3" : "px-5"}`}>
+      <div className={`p-4 ${isCollapsed ? 'px-3' : 'px-5'}`}>
         {/* Logo */}
         {!isRestricted && (
           <div className="flex items-center justify-between mb-6">
             <div
-              className={`flex items-center gap-2 group cursor-pointer ${isCollapsed ? "justify-center w-full" : ""}`}
-              onClick={() => handleNavigate("/")}
+              className={`flex items-center gap-2 group cursor-pointer ${isCollapsed ? 'justify-center w-full' : ''}`}
+              onClick={() => handleNavigate('/')}
             >
               <img
                 src="/BridgeSpotsIcon.png"
@@ -149,9 +144,7 @@ export function Sidebar({
               {!isCollapsed && (
                 <>
                   <div className="flex flex-col leading-none">
-                    <span className="text-lg font-bold tracking-tighter font-jakarta">
-                      BRIDGE
-                    </span>
+                    <span className="text-lg font-bold tracking-tighter font-jakarta">BRIDGE</span>
                     <span className="text-xs font-bold text-bridge-secondary tracking-[0.25em] uppercase">
                       SPOTS
                     </span>
@@ -193,11 +186,11 @@ export function Sidebar({
               key={item.key}
               onClick={() => handleNavigate(item.path)}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
-                isCollapsed ? "justify-center" : ""
+                isCollapsed ? 'justify-center' : ''
               } ${
                 activeItem === item.key
-                  ? "bg-bridge-secondary/10 text-bridge-secondary opacity-100"
-                  : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground opacity-60 hover:opacity-100 transition-opacity"
+                  ? 'bg-bridge-secondary/10 text-bridge-secondary opacity-100'
+                  : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground opacity-60 hover:opacity-100 transition-opacity'
               }`}
               title={isCollapsed ? item.label : undefined}
             >
@@ -214,7 +207,7 @@ export function Sidebar({
           <div className="flex items-center gap-2 px-2.5 mb-2">
             <Clock size={11} className="text-slate-500" />
             <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-              {t("dashboard.sidebar.recent", "Recent")}
+              {t('dashboard.sidebar.recent', 'Recent')}
             </span>
           </div>
           <div className="space-y-0.5">
@@ -232,15 +225,9 @@ export function Sidebar({
             onClick={onToggleCollapse}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:bg-foreground/5 hover:text-foreground transition-colors text-xs"
           >
-            {isCollapsed ? (
-              <ChevronRight size={16} />
-            ) : (
-              <ChevronLeft size={16} />
-            )}
+            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
             {!isCollapsed && (
-              <span className="font-medium">
-                {t("dashboard.sidebar.collapse", "Collapse")}
-              </span>
+              <span className="font-medium">{t('dashboard.sidebar.collapse', 'Collapse')}</span>
             )}
           </button>
         </div>
@@ -252,7 +239,7 @@ export function Sidebar({
     <>
       {/* Desktop sidebar */}
       <aside
-        className={`${isCollapsed ? "w-16" : "w-60"} h-full hidden lg:flex flex-col border-r border-bridge-border bg-bridge-dark/50 backdrop-blur-sm transition-all duration-300`}
+        className={`${isCollapsed ? 'w-16' : 'w-60'} h-full hidden lg:flex flex-col border-r border-bridge-border bg-bridge-dark/50 backdrop-blur-sm transition-all duration-300`}
       >
         {sidebarContent}
       </aside>
@@ -272,7 +259,7 @@ export function Sidebar({
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="fixed left-0 top-0 w-60 h-full bg-bridge-dark border-r border-bridge-border z-50 lg:hidden safe-left safe-top safe-bottom"
             >
               {sidebarContent}

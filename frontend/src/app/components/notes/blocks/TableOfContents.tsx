@@ -44,7 +44,7 @@ export const TableOfContents = createReactBlockSpec(
     content: 'none',
   },
   {
-    render: ({ editor }) => {
+    render: function TableOfContentsView({ editor }) {
       const [headings, setHeadings] = useState<HeadingItem[]>([]);
 
       useEffect(() => {
@@ -97,5 +97,5 @@ export const TableOfContents = createReactBlockSpec(
       if (el.getAttribute('data-block-type') === 'tableOfContents') return {};
       return undefined;
     },
-  }
+  },
 );

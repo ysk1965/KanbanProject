@@ -1,20 +1,13 @@
-import React, { Component, ErrorInfo, ReactNode } from "react";
-import i18n from "i18next";
-import {
-  AlertTriangle,
-  RefreshCw,
-  Home,
-  Copy,
-  Check,
-  ChevronDown,
-} from "lucide-react";
-import { captureException, setContext } from "../../lib/sentry";
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import i18n from 'i18next';
+import { AlertTriangle, RefreshCw, Home, Copy, Check, ChevronDown } from 'lucide-react';
+import { captureException, setContext } from '../../lib/sentry';
 import {
   classifyError,
   buildErrorReport,
   sendClientErrorReport,
   type ClassifiedError,
-} from "../utils/errorReport";
+} from '../utils/errorReport';
 
 interface Props {
   children: ReactNode;
@@ -37,7 +30,7 @@ interface State {
 }
 
 // chunk 자동 리로드 루프 방지용 (같은 세션에서 10초 내 재발 시 리로드 안 함)
-const CHUNK_RELOAD_KEY = "bridge:chunk-reload-at";
+const CHUNK_RELOAD_KEY = 'bridge:chunk-reload-at';
 const CHUNK_RELOAD_COOLDOWN_MS = 10_000;
 
 /**
@@ -76,7 +69,7 @@ class ErrorBoundary extends Component<Props, State> {
     }
 
     // Sentry에 에러 컨텍스트 추가
-    setContext("errorBoundary", {
+    setContext('errorBoundary', {
       componentStack: errorInfo.componentStack,
       errorKind: classified.kind,
     });
@@ -84,7 +77,7 @@ class ErrorBoundary extends Component<Props, State> {
     // Sentry에 에러 전송
     const eventId = captureException(error, {
       componentStack: errorInfo.componentStack,
-      source: "ErrorBoundary",
+      source: 'ErrorBoundary',
       errorKind: classified.kind,
     });
 
@@ -101,7 +94,7 @@ class ErrorBoundary extends Component<Props, State> {
     }
 
     // 콘솔에 로깅 (프로덕션 포함)
-    console.error("Error caught by boundary:", error, errorInfo);
+    console.error('Error caught by boundary:', error, errorInfo);
   }
 
   componentDidUpdate(prevProps: Props): void {
@@ -110,9 +103,7 @@ class ErrorBoundary extends Component<Props, State> {
     const prev = prevProps.resetKeys;
     const next = this.props.resetKeys;
     if (!prev || !next) return;
-    const changed =
-      prev.length !== next.length ||
-      prev.some((v, i) => !Object.is(v, next[i]));
+    const changed = prev.length !== next.length || prev.some((v, i) => !Object.is(v, next[i]));
     if (changed) {
       this.handleRetry();
     }
@@ -121,7 +112,7 @@ class ErrorBoundary extends Component<Props, State> {
   /** chunk 에러 자동 리로드 시도. 리로드하면 true, 쿨다운 내 재발이면 false. */
   private tryAutoReload(): boolean {
     try {
-      const last = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) || "0");
+      const last = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) || '0');
       if (Date.now() - last > CHUNK_RELOAD_COOLDOWN_MS) {
         sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
         window.location.reload();
@@ -138,7 +129,7 @@ class ErrorBoundary extends Component<Props, State> {
   };
 
   handleGoHome = (): void => {
-    window.location.href = "/boards";
+    window.location.href = '/boards';
   };
 
   handleRetry = (): void => {
@@ -217,12 +208,12 @@ class ErrorBoundary extends Component<Props, State> {
               {this.state.copied ? (
                 <>
                   <Check className="w-4 h-4 text-emerald-500" />
-                  {i18n.t("error.copied")}
+                  {i18n.t('error.copied')}
                 </>
               ) : (
                 <>
                   <Copy className="w-4 h-4" />
-                  {i18n.t("error.copyReport")}
+                  {i18n.t('error.copyReport')}
                 </>
               )}
             </button>
@@ -231,17 +222,15 @@ class ErrorBoundary extends Component<Props, State> {
             {isDev && this.state.error && (
               <div className="mb-6 text-left">
                 <button
-                  onClick={() =>
-                    this.setState((s) => ({ showDetail: !s.showDetail }))
-                  }
+                  onClick={() => this.setState((s) => ({ showDetail: !s.showDetail }))}
                   className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-foreground transition-colors mb-2"
                 >
                   <ChevronDown
                     className={`w-3.5 h-3.5 transition-transform ${
-                      this.state.showDetail ? "rotate-180" : ""
+                      this.state.showDetail ? 'rotate-180' : ''
                     }`}
                   />
-                  {i18n.t("error.showDetail")}
+                  {i18n.t('error.showDetail')}
                 </button>
                 {this.state.showDetail && (
                   <div className="p-4 bg-red-500/10 rounded-xl border border-red-500/20">
@@ -270,7 +259,7 @@ class ErrorBoundary extends Component<Props, State> {
                   hover:bg-bridge-accent/90 transition-colors flex items-center justify-center gap-2"
               >
                 <RefreshCw className="w-4 h-4" />
-                {i18n.t("error.retry")}
+                {i18n.t('error.retry')}
               </button>
 
               <button
@@ -278,7 +267,7 @@ class ErrorBoundary extends Component<Props, State> {
                 className="w-full px-4 py-3 bg-foreground/5 border border-bridge-border text-foreground rounded-xl
                   hover:bg-foreground/10 transition-colors"
               >
-                {i18n.t("error.refresh")}
+                {i18n.t('error.refresh')}
               </button>
 
               <button
@@ -287,7 +276,7 @@ class ErrorBoundary extends Component<Props, State> {
                   flex items-center justify-center gap-2"
               >
                 <Home className="w-4 h-4" />
-                {i18n.t("error.goHome")}
+                {i18n.t('error.goHome')}
               </button>
             </div>
           </div>

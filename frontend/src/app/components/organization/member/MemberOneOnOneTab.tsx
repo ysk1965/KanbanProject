@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import { useTranslation } from "react-i18next";
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   Plus,
   MessageSquare,
@@ -8,19 +9,19 @@ import {
   Calendar,
   Settings2,
   ChevronDown,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { organizationService } from "../../../utils/services";
-import { formatDate } from "../../../utils/dateUtils";
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { organizationService } from '../../../utils/services';
+import { formatDate } from '../../../utils/dateUtils';
 import type {
   OrgMemberDetail,
   OneOnOneSummary,
   OneOnOneMeetingDetail,
   OneOnOneOpenActionItem,
   OneOnOneRecurrenceType,
-} from "../../../types";
-import { IconButton } from "../../ui/IconButton";
-import { OneOnOneMeetingModal } from "../OneOnOneMeetingModal";
+} from '../../../types';
+import { IconButton } from '../../ui/IconButton';
+import { OneOnOneMeetingModal } from '../OneOnOneMeetingModal';
 
 interface MemberOneOnOneTabProps {
   orgId: string;
@@ -29,30 +30,26 @@ interface MemberOneOnOneTabProps {
 }
 
 const RECURRENCE_LABELS: Record<OneOnOneRecurrenceType, string> = {
-  WEEKLY: "organization.oneOnOne.weekly",
-  BIWEEKLY: "organization.oneOnOne.biweekly",
-  MONTHLY: "organization.oneOnOne.monthly",
-  NONE: "organization.oneOnOne.none",
+  WEEKLY: 'organization.oneOnOne.weekly',
+  BIWEEKLY: 'organization.oneOnOne.biweekly',
+  MONTHLY: 'organization.oneOnOne.monthly',
+  NONE: 'organization.oneOnOne.none',
 };
 
 function getDayLabels(t: (key: string, fallback: string) => string): string[] {
   return [
-    "",
-    t("common.days.mon", "Mon"),
-    t("common.days.tue", "Tue"),
-    t("common.days.wed", "Wed"),
-    t("common.days.thu", "Thu"),
-    t("common.days.fri", "Fri"),
-    t("common.days.sat", "Sat"),
-    t("common.days.sun", "Sun"),
+    '',
+    t('common.days.mon', 'Mon'),
+    t('common.days.tue', 'Tue'),
+    t('common.days.wed', 'Wed'),
+    t('common.days.thu', 'Thu'),
+    t('common.days.fri', 'Fri'),
+    t('common.days.sat', 'Sat'),
+    t('common.days.sun', 'Sun'),
   ];
 }
 
-export function MemberOneOnOneTab({
-  orgId,
-  member,
-  myUserId,
-}: MemberOneOnOneTabProps) {
+export function MemberOneOnOneTab({ orgId, member, myUserId }: MemberOneOnOneTabProps) {
   const { t } = useTranslation();
 
   const [oneOnOne, setOneOnOne] = useState<OneOnOneSummary | null>(null);
@@ -66,25 +63,21 @@ export function MemberOneOnOneTab({
 
   // Meeting modal
   const [showMeetingModal, setShowMeetingModal] = useState(false);
-  const [editingMeeting, setEditingMeeting] =
-    useState<OneOnOneMeetingDetail | null>(null);
+  const [editingMeeting, setEditingMeeting] = useState<OneOnOneMeetingDetail | null>(null);
 
   // Settings
   const [showSettings, setShowSettings] = useState(false);
-  const [recurrenceType, setRecurrenceType] = useState<string>("NONE");
+  const [recurrenceType, setRecurrenceType] = useState<string>('NONE');
   const [recurrenceDay, setRecurrenceDay] = useState<number>(1);
   const [savingSettings, setSavingSettings] = useState(false);
 
   const loadOneOnOne = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await organizationService.getOneOnOneByMember(
-        orgId,
-        member.id,
-      );
+      const data = await organizationService.getOneOnOneByMember(orgId, member.id);
       setOneOnOne(data);
       if (data) {
-        setRecurrenceType(data.recurrence_type || "NONE");
+        setRecurrenceType(data.recurrence_type || 'NONE');
         setRecurrenceDay(data.recurrence_day || 1);
         // Load meetings and open actions
         const [meetingsData, actionsData] = await Promise.all([
@@ -117,7 +110,7 @@ export function MemberOneOnOneTab({
       setMeetings([]);
       setOpenActions([]);
     } catch (err) {
-      console.warn("Failed to create 1:1:", err);
+      console.warn('Failed to create 1:1:', err);
     } finally {
       setCreating(false);
     }
@@ -127,14 +120,10 @@ export function MemberOneOnOneTab({
     if (!oneOnOne || !nextCursor || loadingMore) return;
     try {
       setLoadingMore(true);
-      const data = await organizationService.getOneOnOneMeetings(
-        orgId,
-        oneOnOne.id,
-        {
-          cursor: nextCursor,
-          size: 10,
-        },
-      );
+      const data = await organizationService.getOneOnOneMeetings(orgId, oneOnOne.id, {
+        cursor: nextCursor,
+        size: 10,
+      });
       setMeetings((prev) => [...prev, ...data.meetings]);
       setHasMore(data.has_more);
       setNextCursor(data.next_cursor);
@@ -146,11 +135,7 @@ export function MemberOneOnOneTab({
   const handleToggleAction = async (actionId: string) => {
     if (!oneOnOne) return;
     try {
-      await organizationService.toggleOneOnOneActionItem(
-        orgId,
-        oneOnOne.id,
-        actionId,
-      );
+      await organizationService.toggleOneOnOneActionItem(orgId, oneOnOne.id, actionId);
       // Refresh
       const [meetingsData, actionsData] = await Promise.all([
         organizationService.getOneOnOneMeetings(orgId, oneOnOne.id, {
@@ -182,11 +167,7 @@ export function MemberOneOnOneTab({
   const handleDeleteMeeting = async (meetingId: string) => {
     if (!oneOnOne) return;
     try {
-      await organizationService.deleteOneOnOneMeeting(
-        orgId,
-        oneOnOne.id,
-        meetingId,
-      );
+      await organizationService.deleteOneOnOneMeeting(orgId, oneOnOne.id, meetingId);
       setMeetings((prev) => prev.filter((m) => m.id !== meetingId));
     } catch {
       // silently fail
@@ -197,14 +178,10 @@ export function MemberOneOnOneTab({
     if (!oneOnOne) return;
     try {
       setSavingSettings(true);
-      const updated = await organizationService.updateOneOnOne(
-        orgId,
-        oneOnOne.id,
-        {
-          recurrence_type: recurrenceType,
-          recurrence_day: recurrenceDay,
-        },
-      );
+      const updated = await organizationService.updateOneOnOne(orgId, oneOnOne.id, {
+        recurrence_type: recurrenceType,
+        recurrence_day: recurrenceDay,
+      });
       setOneOnOne(updated);
       setShowSettings(false);
     } finally {
@@ -216,10 +193,7 @@ export function MemberOneOnOneTab({
     return (
       <div className="p-6 space-y-3">
         {[1, 2].map((i) => (
-          <div
-            key={i}
-            className="h-20 bg-foreground/[0.03] rounded-xl animate-pulse"
-          />
+          <div key={i} className="h-20 bg-foreground/[0.03] rounded-xl animate-pulse" />
         ))}
       </div>
     );
@@ -234,12 +208,12 @@ export function MemberOneOnOneTab({
             <MessageSquare size={24} className="text-bridge-accent/60" />
           </div>
           <h3 className="text-sm font-bold text-foreground mb-1">
-            {t("organization.oneOnOne.noOneOnOne", "No 1:1 yet")}
+            {t('organization.oneOnOne.noOneOnOne', 'No 1:1 yet')}
           </h3>
           <p className="text-xs text-muted-foreground mb-4">
             {t(
-              "organization.oneOnOne.startDescription",
-              "Start regular 1:1 meetings with {{name}}",
+              'organization.oneOnOne.startDescription',
+              'Start regular 1:1 meetings with {{name}}',
               { name: member.user.name },
             )}
           </p>
@@ -249,8 +223,8 @@ export function MemberOneOnOneTab({
             className="px-5 py-2.5 bg-bridge-accent text-white rounded-xl text-sm font-bold hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
           >
             {creating
-              ? t("common.creating", "Creating...")
-              : t("organization.oneOnOne.startOneOnOne", "Start 1:1")}
+              ? t('common.creating', 'Creating...')
+              : t('organization.oneOnOne.startOneOnOne', 'Start 1:1')}
           </button>
         </div>
       </div>
@@ -258,9 +232,7 @@ export function MemberOneOnOneTab({
   }
 
   const otherMember =
-    oneOnOne.member_a.user_id === myUserId
-      ? oneOnOne.member_b
-      : oneOnOne.member_a;
+    oneOnOne.member_a.user_id === myUserId ? oneOnOne.member_b : oneOnOne.member_a;
 
   return (
     <div className="p-6 space-y-5">
@@ -268,16 +240,18 @@ export function MemberOneOnOneTab({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-bold text-foreground">
-            {t("organization.oneOnOne.titleWith", "1:1 Meeting with {{name}}", { name: otherMember.name })}
+            {t('organization.oneOnOne.titleWith', '1:1 Meeting with {{name}}', {
+              name: otherMember.name,
+            })}
           </h3>
-          {oneOnOne.recurrence_type && oneOnOne.recurrence_type !== "NONE" && (
+          {oneOnOne.recurrence_type && oneOnOne.recurrence_type !== 'NONE' && (
             <p className="text-xs text-muted-foreground mt-0.5">
-              {t(RECURRENCE_LABELS[oneOnOne.recurrence_type])} ·{" "}
+              {t(RECURRENCE_LABELS[oneOnOne.recurrence_type])} ·{' '}
               {getDayLabels(t)[oneOnOne.recurrence_day || 0]}
               {oneOnOne.next_meeting_date && (
                 <>
-                  {" "}
-                  · {t("organization.oneOnOne.nextMeeting", "Next")}:{" "}
+                  {' '}
+                  · {t('organization.oneOnOne.nextMeeting', 'Next')}:{' '}
                   {formatDate(oneOnOne.next_meeting_date)}
                 </>
               )}
@@ -285,10 +259,7 @@ export function MemberOneOnOneTab({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <IconButton
-            onClick={() => setShowSettings(!showSettings)}
-            aria-label="설정"
-          >
+          <IconButton onClick={() => setShowSettings(!showSettings)} aria-label="설정">
             <Settings2 />
           </IconButton>
           <button
@@ -299,7 +270,7 @@ export function MemberOneOnOneTab({
             className="flex items-center gap-1.5 px-3 py-1.5 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 transition-all"
           >
             <Plus size={12} />
-            {t("organization.oneOnOne.newMeeting", "New Meeting")}
+            {t('organization.oneOnOne.newMeeting', 'New Meeting')}
           </button>
         </div>
       </div>
@@ -309,7 +280,7 @@ export function MemberOneOnOneTab({
         {showSettings && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
+            animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
@@ -317,31 +288,25 @@ export function MemberOneOnOneTab({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
-                    {t("organization.oneOnOne.recurrence", "Recurrence")}
+                    {t('organization.oneOnOne.recurrence', 'Recurrence')}
                   </label>
                   <select
                     value={recurrenceType}
                     onChange={(e) => setRecurrenceType(e.target.value)}
                     className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg py-2 px-3 text-xs text-foreground"
                   >
-                    <option value="NONE">
-                      {t("organization.oneOnOne.none", "None")}
-                    </option>
-                    <option value="WEEKLY">
-                      {t("organization.oneOnOne.weekly", "Weekly")}
-                    </option>
+                    <option value="NONE">{t('organization.oneOnOne.none', 'None')}</option>
+                    <option value="WEEKLY">{t('organization.oneOnOne.weekly', 'Weekly')}</option>
                     <option value="BIWEEKLY">
-                      {t("organization.oneOnOne.biweekly", "Biweekly")}
+                      {t('organization.oneOnOne.biweekly', 'Biweekly')}
                     </option>
-                    <option value="MONTHLY">
-                      {t("organization.oneOnOne.monthly", "Monthly")}
-                    </option>
+                    <option value="MONTHLY">{t('organization.oneOnOne.monthly', 'Monthly')}</option>
                   </select>
                 </div>
-                {recurrenceType !== "NONE" && (
+                {recurrenceType !== 'NONE' && (
                   <div>
                     <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
-                      {t("organization.oneOnOne.day", "Day")}
+                      {t('organization.oneOnOne.day', 'Day')}
                     </label>
                     <select
                       value={recurrenceDay}
@@ -363,7 +328,7 @@ export function MemberOneOnOneTab({
                   disabled={savingSettings}
                   className="px-3 py-1.5 bg-bridge-accent text-white rounded-lg text-xs font-bold hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
                 >
-                  {t("common.save", "Save")}
+                  {t('common.save', 'Save')}
                 </button>
               </div>
             </div>
@@ -377,7 +342,7 @@ export function MemberOneOnOneTab({
           <div className="flex items-center gap-2 mb-2">
             <Circle size={12} className="text-amber-500" />
             <span className="text-xs font-bold text-foreground">
-              {t("organization.oneOnOne.openActions", "Open Action Items")}
+              {t('organization.oneOnOne.openActions', 'Open Action Items')}
             </span>
             <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-full">
               {openActions.length}
@@ -385,10 +350,7 @@ export function MemberOneOnOneTab({
           </div>
           <div className="bg-foreground/[0.03] rounded-xl border border-foreground/[0.06] divide-y divide-foreground/[0.06]">
             {openActions.map((action) => (
-              <div
-                key={action.id}
-                className="flex items-start gap-2.5 px-3 py-2.5"
-              >
+              <div key={action.id} className="flex items-start gap-2.5 px-3 py-2.5">
                 <button
                   onClick={() => handleToggleAction(action.id)}
                   className="mt-0.5 shrink-0 text-slate-400 hover:text-emerald-500 transition-colors"
@@ -396,14 +358,10 @@ export function MemberOneOnOneTab({
                   <Circle size={14} />
                 </button>
                 <div className="flex-1 min-w-0">
-                  <span className="text-xs text-foreground">
-                    {action.title}
-                  </span>
+                  <span className="text-xs text-foreground">{action.title}</span>
                   <div className="flex items-center gap-2 mt-0.5">
                     {action.assignee_name && (
-                      <span className="text-xs text-muted-foreground">
-                        {action.assignee_name}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{action.assignee_name}</span>
                     )}
                     <span className="text-xs text-muted-foreground">
                       {formatDate(action.meeting_date)}
@@ -424,7 +382,7 @@ export function MemberOneOnOneTab({
               <Calendar size={18} className="text-muted-foreground/60" />
             </div>
             <p className="text-xs text-muted-foreground">
-              {t("organization.oneOnOne.noMeetings", "No meetings yet")}
+              {t('organization.oneOnOne.noMeetings', 'No meetings yet')}
             </p>
           </div>
         ) : (
@@ -452,8 +410,8 @@ export function MemberOneOnOneTab({
           >
             <ChevronDown size={14} />
             {loadingMore
-              ? t("common.loading", "Loading...")
-              : t("organization.oneOnOne.loadMore", "Load more")}
+              ? t('common.loading', 'Loading...')
+              : t('organization.oneOnOne.loadMore', 'Load more')}
           </button>
         )}
       </div>
@@ -494,7 +452,7 @@ function MeetingCard({
   onToggleAction: (id: string) => void;
   onEdit: () => void;
   onDelete: () => void;
-  t: (key: string, fallback?: string) => string;
+  t: TFunction;
 }) {
   const [expanded, setExpanded] = useState(index === 0);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -522,19 +480,16 @@ function MeetingCard({
               {formatDate(meeting.meeting_date)}
             </span>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs text-muted-foreground">
-                {meeting.created_by_name}
-              </span>
+              <span className="text-xs text-muted-foreground">{meeting.created_by_name}</span>
               {totalCount > 0 && (
                 <span
                   className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                     completedCount === totalCount
-                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                      : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
                   }`}
                 >
-                  {completedCount}/{totalCount}{" "}
-                  {t("organization.oneOnOne.actions", "actions")}
+                  {completedCount}/{totalCount} {t('organization.oneOnOne.actions', 'actions')}
                 </span>
               )}
             </div>
@@ -542,7 +497,7 @@ function MeetingCard({
         </div>
         <ChevronDown
           size={14}
-          className={`text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
+          className={`text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -551,7 +506,7 @@ function MeetingCard({
         {expanded && (
           <motion.div
             initial={{ height: 0 }}
-            animate={{ height: "auto" }}
+            animate={{ height: 'auto' }}
             exit={{ height: 0 }}
             className="overflow-hidden"
           >
@@ -560,7 +515,7 @@ function MeetingCard({
               {meeting.agenda && (
                 <div>
                   <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
-                    {t("organization.oneOnOne.agenda", "Agenda")}
+                    {t('organization.oneOnOne.agenda', 'Agenda')}
                   </span>
                   <div className="text-xs text-foreground/80 whitespace-pre-wrap bg-foreground/[0.02] rounded-lg p-2.5">
                     {tryParseBlockNote(meeting.agenda)}
@@ -572,7 +527,7 @@ function MeetingCard({
               {meeting.notes && (
                 <div>
                   <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
-                    {t("organization.oneOnOne.notes", "Notes")}
+                    {t('organization.oneOnOne.notes', 'Notes')}
                   </span>
                   <div className="text-xs text-foreground/80 whitespace-pre-wrap bg-foreground/[0.02] rounded-lg p-2.5">
                     {tryParseBlockNote(meeting.notes)}
@@ -584,14 +539,11 @@ function MeetingCard({
               {meeting.action_items.length > 0 && (
                 <div>
                   <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1 block">
-                    {t("organization.oneOnOne.actionItems", "Action Items")}
+                    {t('organization.oneOnOne.actionItems', 'Action Items')}
                   </span>
                   <div className="space-y-1">
                     {meeting.action_items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-start gap-2 py-1"
-                      >
+                      <div key={item.id} className="flex items-start gap-2 py-1">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -600,10 +552,7 @@ function MeetingCard({
                           className="mt-0.5 shrink-0"
                         >
                           {item.completed ? (
-                            <CheckCircle2
-                              size={14}
-                              className="text-emerald-500"
-                            />
+                            <CheckCircle2 size={14} className="text-emerald-500" />
                           ) : (
                             <Circle
                               size={14}
@@ -612,7 +561,7 @@ function MeetingCard({
                           )}
                         </button>
                         <span
-                          className={`text-xs ${item.completed ? "line-through text-muted-foreground" : "text-foreground"}`}
+                          className={`text-xs ${item.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}
                         >
                           {item.title}
                           {item.assignee_name && (
@@ -633,7 +582,7 @@ function MeetingCard({
                   onClick={onEdit}
                   className="text-xs font-medium text-bridge-accent hover:text-bridge-accent/80 transition-colors"
                 >
-                  {t("common.edit", "Edit")}
+                  {t('common.edit', 'Edit')}
                 </button>
                 {confirmDelete ? (
                   <div className="flex items-center gap-1">
@@ -641,13 +590,13 @@ function MeetingCard({
                       onClick={onDelete}
                       className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors"
                     >
-                      {t("common.confirm", "Confirm")}
+                      {t('common.confirm', 'Confirm')}
                     </button>
                     <button
                       onClick={() => setConfirmDelete(false)}
                       className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      {t("common.cancel", "Cancel")}
+                      {t('common.cancel', 'Cancel')}
                     </button>
                   </div>
                 ) : (
@@ -655,7 +604,7 @@ function MeetingCard({
                     onClick={() => setConfirmDelete(true)}
                     className="text-xs font-medium text-red-500/60 hover:text-red-500 transition-colors"
                   >
-                    {t("common.delete", "Delete")}
+                    {t('common.delete', 'Delete')}
                   </button>
                 )}
               </div>
@@ -673,20 +622,16 @@ function tryParseBlockNote(jsonStr: string): string {
     const blocks = JSON.parse(jsonStr);
     if (!Array.isArray(blocks)) return jsonStr;
     return blocks
-      .map(
-        (block: { content?: { text?: string }[] | string; type?: string }) => {
-          if (!block.content) return "";
-          if (typeof block.content === "string") return block.content;
-          if (Array.isArray(block.content)) {
-            return block.content
-              .map((c: { text?: string }) => c.text || "")
-              .join("");
-          }
-          return "";
-        },
-      )
+      .map((block: { content?: { text?: string }[] | string; type?: string }) => {
+        if (!block.content) return '';
+        if (typeof block.content === 'string') return block.content;
+        if (Array.isArray(block.content)) {
+          return block.content.map((c: { text?: string }) => c.text || '').join('');
+        }
+        return '';
+      })
       .filter(Boolean)
-      .join("\n");
+      .join('\n');
   } catch {
     return jsonStr;
   }

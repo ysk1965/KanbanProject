@@ -118,32 +118,21 @@ public class PersonalTask extends BaseTimeEntity {
     }
 
     /**
-     * 승격 기록을 남긴다.
+     * 승격 기록을 남기고 항목을 백로그에서 닫는다.
      *
-     * <p>TIMEBLOCK은 시간만 잡은 것이므로 항목을 대기 상태로 그대로 둔다.
-     * TASK · CHECKLIST_ITEM은 실체가 다른 곳으로 옮겨간 것이라 DONE으로 닫는다.
+     * <p>세 대상 모두 같다 — 승격된 순간 실체는 타임블록 · 태스크 · 체크리스트 항목으로
+     * 옮겨갔고, 백로그 메모는 할 일이 아니라 흔적이다. ARCHIVED로 닫아 레일 조회
+     * (status &lt;&gt; ARCHIVED)에서 빠지게 한다.
+     *
+     * <p>DONE이 아니라 ARCHIVED인 이유 — DONE은 마이스페이스의 "내가 끝낸 일" 집계에
+     * 잡힌다. 승격은 완료가 아니라 이관이므로 그 숫자를 부풀리면 안 된다.
      * (status enum에 PROMOTED를 추가하지 않는 이유는 마이스페이스 기존 화면이
-     *  전부 새 상태를 처리해야 하기 때문 — 승격 여부는 promotedType으로 구분한다)
+     *  전부 새 상태를 처리해야 하기 때문 — 무엇이 됐는지는 promotedType이 들고 있다)
      */
     public void promote(PersonalTaskPromotionType type, String refId) {
         this.promotedType = type;
         this.promotedRefId = refId;
         this.promotedAt = LocalDateTime.now(ZoneOffset.UTC);
-        if (type != PersonalTaskPromotionType.TIMEBLOCK) {
-            updateStatus(PersonalTaskStatus.DONE);
-        }
-    }
-
-    /**
-     * 승격을 되돌린다 — 만들어진 태스크·체크리스트 항목·블록은 건드리지 않는다.
-     * 승격 자체가 실수인 경우가 드물지 않아 원복 경로를 열어 둔다.
-     */
-    public void unpromote() {
-        this.promotedType = null;
-        this.promotedRefId = null;
-        this.promotedAt = null;
-        if (this.status == PersonalTaskStatus.DONE) {
-            updateStatus(PersonalTaskStatus.TODO);
-        }
+        updateStatus(PersonalTaskStatus.ARCHIVED);
     }
 }

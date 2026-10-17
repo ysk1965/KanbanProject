@@ -3,7 +3,7 @@ import type {
   NoteUserInfo,
   StorageFileItem,
   StorageFolderTree,
-} from "../../utils/api";
+} from '../../utils/api';
 
 /**
  * 자료실 트리 어댑터.
@@ -22,16 +22,12 @@ import type {
  * 서버는 그대로 두고 화면에서만 합치므로 되돌리기 쉽다.
  */
 
-export const FILE_NODE_PREFIX = "file:";
-export const STORAGE_FOLDER_NODE_PREFIX = "sfolder:";
+export const FILE_NODE_PREFIX = 'file:';
+export const STORAGE_FOLDER_NODE_PREFIX = 'sfolder:';
 
 /** 보고서 자료 루트 폴더의 system_key (백엔드 ReportFileFiler와 맞춘 값) */
-export const REPORT_ROOT_KEY = "REPORT_ROOT";
-const REPORT_MONTH_PREFIX = "REPORT_MONTH:";
-
-export function isReportFolderNode(item: NoteTreeItem): boolean {
-  return !!item.system_key;
-}
+export const REPORT_ROOT_KEY = 'REPORT_ROOT';
+const REPORT_MONTH_PREFIX = 'REPORT_MONTH:';
 
 export function isFileNodeId(nodeId: string): boolean {
   return nodeId.startsWith(FILE_NODE_PREFIX);
@@ -50,17 +46,36 @@ export function storageFolderIdFromNodeId(nodeId: string): string {
 }
 
 export interface LibraryTree {
-  /** NoteTreeSidebar에 그대로 넘기는 병합 트리 */
+  /** NoteTreeSidebar에 그대로 넘기는 병합 트리 (보고서 자료 제외) */
   tree: NoteTreeItem[];
   /** 트리 폴더 노드 id → 업로드 대상 스토리지 폴더 id (짝이 없으면 없음) */
   storageFolderByNode: Map<string, string>;
-  /** 파일 노드 id → 원본 파일 */
+  /** 파일 노드 id → 원본 파일 (보고서 아카이브 파일 포함) */
   fileByNodeId: Map<string, StorageFileItem>;
+  /** 보고서 자료(REPORT_ROOT)를 트리에서 분리해 섹션으로 그리기 위한 그룹 */
+  reportArchive: ReportArchiveGroup[];
+}
+
+/** 보고서 아카이브의 월(또는 미분류) 그룹 — 트리 폴더가 아니라 구분 라벨로 그린다 */
+export interface ReportArchiveGroup {
+  id: string;
+  /** "2026-07" 또는 "미분류" */
+  label: string;
+  /** 보고서별 폴더 (일일 보고서 07-26 …) — 최신순 */
+  reports: ReportArchiveReport[];
+  /** 그룹 폴더 바로 아래 파일 (미분류 등) */
+  files: NoteTreeItem[];
+}
+
+export interface ReportArchiveReport {
+  id: string;
+  title: string;
+  files: NoteTreeItem[];
 }
 
 const SYSTEM_USER: NoteUserInfo = {
-  id: "storage",
-  name: "",
+  id: 'storage',
+  name: '',
   profile_image: null,
 };
 
@@ -95,7 +110,7 @@ function toFileNode(
   return {
     id: FILE_NODE_PREFIX + file.id,
     parent_id: parentNodeId,
-    type: "FILE",
+    type: 'FILE',
     title: file.original_filename,
     position: 0,
     depth,
@@ -139,15 +154,15 @@ export function buildLibraryTree(
     return {
       id: nodeId,
       parent_id: parentNodeId,
-      type: "FOLDER",
+      type: 'FOLDER',
       title: folder.name,
       position: folder.position,
       depth,
       tags: [],
       created_by: SYSTEM_USER,
       updated_by: SYSTEM_USER,
-      created_at: "",
-      updated_at: "",
+      created_at: '',
+      updated_at: '',
       children: [
         ...orderReportChildren(folder).map((child) =>
           toStorageFolderNode(child, nodeId, depth + 1),
@@ -157,6 +172,22 @@ export function buildLibraryTree(
       system_key: folder.system_key,
     };
   };
+
+  /**
+   * 보고서 자료(REPORT_ROOT)를 섹션용 그룹으로 변환.
+   * 월 폴더는 라벨, 보고서 폴더는 행이 된다 — 트리 계층을 평평하게 편다.
+   */
+  const buildReportArchive = (root: StorageFolderTree): ReportArchiveGroup[] =>
+    orderReportChildren(root).map((group) => ({
+      id: group.id,
+      label: group.name,
+      reports: orderReportChildren(group).map((report) => ({
+        id: report.id,
+        title: report.name,
+        files: filesOf(report.id, null, 0),
+      })),
+      files: filesOf(group.id, null, 0),
+    }));
 
   const mergeLevel = (
     notes: NoteTreeItem[],
@@ -177,7 +208,7 @@ export function buildLibraryTree(
     const consumed = new Set<string>();
 
     const merged = notes.map((note) => {
-      if (note.type !== "FOLDER") {
+      if (note.type !== 'FOLDER') {
         return {
           ...note,
           children: mergeLevel(note.children ?? [], [], note.id, depth + 1),
@@ -193,12 +224,7 @@ export function buildLibraryTree(
       return {
         ...note,
         children: [
-          ...mergeLevel(
-            note.children ?? [],
-            pair?.children ?? [],
-            note.id,
-            depth + 1,
-          ),
+          ...mergeLevel(note.children ?? [], pair?.children ?? [], note.id, depth + 1),
           ...(pair ? filesOf(pair.id, note.id, depth + 1) : []),
         ],
       };
@@ -213,12 +239,15 @@ export function buildLibraryTree(
     return [...merged, ...leftovers];
   };
 
-  const tree = [
-    ...mergeLevel(noteTree, storageFolders, null, 0),
-    ...filesOf(null, null, 0),
-  ];
+  // 보고서 자료는 트리에서 빼서 전용 섹션으로 분리한다 (루트에만 존재)
+  const reportRoot = storageFolders.find((folder) => folder.system_key === REPORT_ROOT_KEY);
+  const normalFolders = storageFolders.filter((folder) => folder.system_key !== REPORT_ROOT_KEY);
 
-  return { tree, storageFolderByNode, fileByNodeId };
+  const reportArchive = reportRoot ? buildReportArchive(reportRoot) : [];
+
+  const tree = [...mergeLevel(noteTree, normalFolders, null, 0), ...filesOf(null, null, 0)];
+
+  return { tree, storageFolderByNode, fileByNodeId, reportArchive };
 }
 
 function indexTree(tree: NoteTreeItem[]) {
@@ -249,33 +278,27 @@ export function folderNodeOf(
   let cursor: string | null = selectedNodeId;
   while (cursor) {
     const node = nodeById.get(cursor);
-    if (node?.type === "FOLDER") return node;
+    if (node?.type === 'FOLDER') return node;
     cursor = parentOf.get(cursor) ?? null;
   }
   return null;
 }
 
 /** 루트에서 해당 폴더까지의 이름 경로. 스토리지에 같은 계층을 만들 때 쓴다. */
-export function folderTitlePath(
-  tree: NoteTreeItem[],
-  folderNodeId: string,
-): string[] {
+export function folderTitlePath(tree: NoteTreeItem[], folderNodeId: string): string[] {
   const { parentOf, nodeById } = indexTree(tree);
   const path: string[] = [];
   let cursor: string | null = folderNodeId;
   while (cursor) {
     const node = nodeById.get(cursor);
-    if (node?.type === "FOLDER") path.unshift(node.title);
+    if (node?.type === 'FOLDER') path.unshift(node.title);
     cursor = parentOf.get(cursor) ?? null;
   }
   return path;
 }
 
 function flattenStorage(folders: StorageFolderTree[]): StorageFolderTree[] {
-  return folders.flatMap((folder) => [
-    folder,
-    ...flattenStorage(folder.children),
-  ]);
+  return folders.flatMap((folder) => [folder, ...flattenStorage(folder.children)]);
 }
 
 /** 스토리지 트리에서 특정 부모 아래 같은 이름의 폴더를 찾는다. */
@@ -287,8 +310,5 @@ export function findStorageChild(
   const siblings = parentId
     ? (flattenStorage(folders).find((f) => f.id === parentId)?.children ?? [])
     : folders;
-  return (
-    siblings.find((folder) => normalize(folder.name) === normalize(name)) ??
-    null
-  );
+  return siblings.find((folder) => normalize(folder.name) === normalize(name)) ?? null;
 }

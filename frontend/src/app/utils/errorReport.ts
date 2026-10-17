@@ -5,11 +5,13 @@
  * 한 번에 복사 가능한 구조화된 진단 리포트를 만든다.
  */
 
+import { API_BASE_URL } from '../config/env';
+
 // vite.config.ts의 define으로 주입되는 빌드 메타데이터
 declare const __FE_COMMIT_HASH__: string;
 declare const __FE_BUILD_TIME__: string;
 
-export type ErrorKind = "chunk" | "code" | "network" | "unknown";
+export type ErrorKind = 'chunk' | 'code' | 'network' | 'unknown';
 
 export interface ClassifiedError {
   kind: ErrorKind;
@@ -40,50 +42,45 @@ const NETWORK_PATTERNS = [
 ];
 
 // 코드 버그로 볼 수 있는 런타임 에러 타입
-const CODE_ERROR_NAMES = new Set([
-  "ReferenceError",
-  "TypeError",
-  "SyntaxError",
-  "RangeError",
-]);
+const CODE_ERROR_NAMES = new Set(['ReferenceError', 'TypeError', 'SyntaxError', 'RangeError']);
 
 /**
  * 에러를 종류별로 분류한다.
  */
 export function classifyError(error: Error | null): ClassifiedError {
-  const haystack = `${error?.name ?? ""} ${error?.message ?? ""}`;
+  const haystack = `${error?.name ?? ''} ${error?.message ?? ''}`;
 
   if (CHUNK_PATTERNS.some((re) => re.test(haystack))) {
     return {
-      kind: "chunk",
-      titleKey: "error.kind.chunk.title",
-      guideKey: "error.kind.chunk.guide",
+      kind: 'chunk',
+      titleKey: 'error.kind.chunk.title',
+      guideKey: 'error.kind.chunk.guide',
       autoReload: true,
     };
   }
 
   if (NETWORK_PATTERNS.some((re) => re.test(haystack))) {
     return {
-      kind: "network",
-      titleKey: "error.kind.network.title",
-      guideKey: "error.kind.network.guide",
+      kind: 'network',
+      titleKey: 'error.kind.network.title',
+      guideKey: 'error.kind.network.guide',
       autoReload: false,
     };
   }
 
   if (error && CODE_ERROR_NAMES.has(error.name)) {
     return {
-      kind: "code",
-      titleKey: "error.kind.code.title",
-      guideKey: "error.kind.code.guide",
+      kind: 'code',
+      titleKey: 'error.kind.code.title',
+      guideKey: 'error.kind.code.guide',
       autoReload: false,
     };
   }
 
   return {
-    kind: "unknown",
-    titleKey: "error.title",
-    guideKey: "error.kind.unknown.guide",
+    kind: 'unknown',
+    titleKey: 'error.title',
+    guideKey: 'error.kind.unknown.guide',
     autoReload: false,
   };
 }
@@ -101,16 +98,14 @@ export interface ErrorReportInput {
  */
 export function buildErrorReport(input: ErrorReportInput): string {
   const { error, componentStack, eventId, kind } = input;
-  const release =
-    typeof __FE_COMMIT_HASH__ !== "undefined" ? __FE_COMMIT_HASH__ : "dev";
-  const buildTime =
-    typeof __FE_BUILD_TIME__ !== "undefined" ? __FE_BUILD_TIME__ : "unknown";
+  const release = typeof __FE_COMMIT_HASH__ !== 'undefined' ? __FE_COMMIT_HASH__ : 'dev';
+  const buildTime = typeof __FE_BUILD_TIME__ !== 'undefined' ? __FE_BUILD_TIME__ : 'unknown';
 
   const lines: string[] = [
-    "BRIDGE Error Report",
-    `error   : ${error?.name ?? "Error"}: ${error?.message ?? "(no message)"}`,
+    'BRIDGE Error Report',
+    `error   : ${error?.name ?? 'Error'}: ${error?.message ?? '(no message)'}`,
     `kind    : ${kind}`,
-    `id      : ${eventId ?? "(sentry off)"}`,
+    `id      : ${eventId ?? '(sentry off)'}`,
     `release : ${release}`,
     `built   : ${buildTime}`,
     `url     : ${window.location.href}`,
@@ -120,17 +115,14 @@ export function buildErrorReport(input: ErrorReportInput): string {
   ];
 
   if (error?.stack) {
-    lines.push("", "stack:", error.stack);
+    lines.push('', 'stack:', error.stack);
   }
   if (componentStack) {
-    lines.push("", "component stack:", componentStack.trim());
+    lines.push('', 'component stack:', componentStack.trim());
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
 
 /**
  * Sentry가 없는 환경용 폴백: 자체 백엔드(POST /public/client-errors)로 에러를 전송한다.
@@ -138,12 +130,9 @@ const API_BASE =
  */
 export function sendClientErrorReport(input: ErrorReportInput): void {
   try {
-    const release =
-      typeof __FE_COMMIT_HASH__ !== "undefined" ? __FE_COMMIT_HASH__ : "dev";
+    const release = typeof __FE_COMMIT_HASH__ !== 'undefined' ? __FE_COMMIT_HASH__ : 'dev';
     const body = JSON.stringify({
-      message: `${input.error?.name ?? "Error"}: ${
-        input.error?.message ?? ""
-      }`.slice(0, 500),
+      message: `${input.error?.name ?? 'Error'}: ${input.error?.message ?? ''}`.slice(0, 500),
       kind: input.kind,
       release,
       url: window.location.href.slice(0, 1000),
@@ -152,9 +141,9 @@ export function sendClientErrorReport(input: ErrorReportInput): void {
       component_stack: input.componentStack?.slice(0, 8000),
     });
     // keepalive: 크래시/언로드 상황에서도 전송이 끊기지 않도록
-    void fetch(`${API_BASE}/public/client-errors`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    void fetch(`${API_BASE_URL}/public/client-errors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body,
       keepalive: true,
     }).catch(() => {});

@@ -9,6 +9,7 @@ import com.kanban.domain.report.service.ReportDispatchService;
 import com.kanban.domain.report.service.ReportPersistenceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -41,6 +42,7 @@ public class ReportDispatchScheduler {
     private static final int STALE_RUNNING_MINUTES = 15;
 
     @Scheduled(cron = "0 * * * * *")
+    @SchedulerLock(name = "ReportDispatchScheduler.dispatchReports", lockAtMostFor = "50s", lockAtLeastFor = "20s")
     public void dispatchReports() {
         LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
         int hour = nowUtc.getHour();

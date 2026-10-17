@@ -1,0 +1,1158 @@
+<meta charset="utf-8" />
+<title>JIRA 연동 수준 진단과 개선 제안 — JIRA 화면</title>
+<style>
+  :root {
+    --ground: #fffcf8;
+    --panel: #f7f1e7;
+    --panel-2: #efe6d8;
+    --rule: #e3dacb;
+    --rule-strong: #c9bda7;
+    --ink: #2b2318;
+    --ink-2: #6a6151;
+    --ink-3: #928872;
+
+    --accent: #4b4fd4;          /* BRIDGE 쪽 물건 */
+    --accent-soft: rgba(75, 79, 212, 0.1);
+    --jira: #2270d8;            /* JIRA 쪽 물건 — 방향을 색으로 읽는다 */
+    --jira-soft: rgba(34, 112, 216, 0.1);
+    --ok: #0d7d6f;              /* 흐른다 */
+    --ok-soft: rgba(13, 125, 111, 0.12);
+    --half: #96650a;            /* 반쪽 */
+    --half-soft: rgba(150, 101, 10, 0.11);
+    --none: #b8354a;            /* 끊겼다 */
+    --none-soft: rgba(184, 53, 74, 0.1);
+
+    --sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+      "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+    --serif: "Apple SD Myungjo", AppleMyungjo, "Nanum Myeongjo", "Noto Serif KR",
+      Georgia, serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #121826;
+      --panel: #1a2131;
+      --panel-2: #212a3d;
+      --rule: #2c3750;
+      --rule-strong: #435573;
+      --ink: #e9edf6;
+      --ink-2: #9daac2;
+      --ink-3: #6d7b96;
+      --accent: #868cf9;
+      --accent-soft: rgba(134, 140, 249, 0.15);
+      --jira: #7fb0ff;
+      --jira-soft: rgba(127, 176, 255, 0.14);
+      --ok: #35d6c1;
+      --ok-soft: rgba(53, 214, 193, 0.14);
+      --half: #f0b429;
+      --half-soft: rgba(240, 180, 41, 0.13);
+      --none: #f47b92;
+      --none-soft: rgba(244, 123, 146, 0.14);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #121826;
+    --panel: #1a2131;
+    --panel-2: #212a3d;
+    --rule: #2c3750;
+    --rule-strong: #435573;
+    --ink: #e9edf6;
+    --ink-2: #9daac2;
+    --ink-3: #6d7b96;
+    --accent: #868cf9;
+    --accent-soft: rgba(134, 140, 249, 0.15);
+    --jira: #7fb0ff;
+    --jira-soft: rgba(127, 176, 255, 0.14);
+    --ok: #35d6c1;
+    --ok-soft: rgba(53, 214, 193, 0.14);
+    --half: #f0b429;
+    --half-soft: rgba(240, 180, 41, 0.13);
+    --none: #f47b92;
+    --none-soft: rgba(244, 123, 146, 0.14);
+  }
+
+  :root[data-theme="light"] {
+    --ground: #fffcf8;
+    --panel: #f7f1e7;
+    --panel-2: #efe6d8;
+    --rule: #e3dacb;
+    --rule-strong: #c9bda7;
+    --ink: #2b2318;
+    --ink-2: #6a6151;
+    --ink-3: #928872;
+    --accent: #4b4fd4;
+    --accent-soft: rgba(75, 79, 212, 0.1);
+    --jira: #2270d8;
+    --jira-soft: rgba(34, 112, 216, 0.1);
+    --ok: #0d7d6f;
+    --ok-soft: rgba(13, 125, 111, 0.12);
+    --half: #96650a;
+    --half-soft: rgba(150, 101, 10, 0.11);
+    --none: #b8354a;
+    --none-soft: rgba(184, 53, 74, 0.1);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+  }
+
+  .wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 0 28px 120px;
+  }
+
+  /* ── 헤더 ───────────────────────────────── */
+  header.doc {
+    padding: 76px 0 40px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 20px;
+  }
+  h1 {
+    font-size: clamp(33px, 5.6vw, 54px);
+    line-height: 1.16;
+    letter-spacing: -0.035em;
+    font-weight: 800;
+    margin: 0 0 22px;
+    text-wrap: balance;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+  .deck {
+    font-size: clamp(16px, 2.2vw, 19px);
+    color: var(--ink-2);
+    max-width: 60ch;
+    margin: 0 0 34px;
+    line-height: 1.66;
+  }
+  .metarow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .metarow b { color: var(--ink-2); font-weight: 500; }
+
+  /* ── 섹션 ───────────────────────────────── */
+  section { padding-top: 64px; }
+  .sec-label {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h2 {
+    font-size: clamp(23px, 3.4vw, 30px);
+    line-height: 1.3;
+    letter-spacing: -0.025em;
+    font-weight: 700;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+  h3 {
+    font-size: 18px;
+    letter-spacing: -0.015em;
+    font-weight: 700;
+    margin: 0 0 10px;
+  }
+  p { margin: 0 0 16px; max-width: 68ch; }
+  .lede { color: var(--ink-2); }
+  ul { margin: 0 0 16px; padding-left: 20px; max-width: 68ch; }
+  li { margin-bottom: 7px; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    letter-spacing: -0.01em;
+  }
+  .ref {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: -0.01em;
+    display: inline-block;
+    color: var(--ink-3);
+    background: var(--panel-2);
+    border-radius: 3px;
+    padding: 1px 6px;
+    white-space: nowrap;
+  }
+
+  /* ── 판정 ───────────────────────────────── */
+  .verdict {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 34px 36px;
+  }
+  .verdict .stmt {
+    font-family: var(--serif);
+    font-size: clamp(20px, 3vw, 26px);
+    line-height: 1.62;
+    letter-spacing: -0.01em;
+    margin: 0 0 20px;
+    max-width: 46ch;
+  }
+  .verdict p:last-child { margin-bottom: 0; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 28px;
+  }
+  @media (min-width: 640px) { .stats { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 900px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+  .stat { background: var(--ground); padding: 22px 24px; }
+  .stat .k {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 8px;
+  }
+  .stat .v {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    margin: 0 0 4px;
+    line-height: 1.2;
+  }
+  .stat.ok .v { color: var(--ok); }
+  .stat.half .v { color: var(--half); }
+  .stat.no .v { color: var(--none); }
+  .stat .n { font-size: 13.5px; color: var(--ink-2); margin: 0; line-height: 1.55; }
+
+  /* ── 방향 원장 ──────────────────────────── */
+  .tablewrap {
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    margin-top: 26px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 720px;
+    font-size: 14px;
+  }
+  thead th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--ink-3);
+    padding: 13px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+  thead th.j { color: var(--jira); background: var(--jira-soft); }
+  thead th.b { color: var(--accent); background: var(--accent-soft); }
+  tbody td {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    line-height: 1.58;
+    color: var(--ink-2);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.field {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--jira);
+    background: var(--jira-soft);
+    white-space: nowrap;
+  }
+  td.arrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-3);
+    text-align: center;
+    white-space: nowrap;
+    width: 1%;
+  }
+  td.dest { color: var(--ink); }
+  .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .tag.ok { color: var(--ok); background: var(--ok-soft); }
+  .tag.half { color: var(--half); background: var(--half-soft); }
+  .tag.no { color: var(--none); background: var(--none-soft); }
+  .cap {
+    font-size: 13px;
+    color: var(--ink-3);
+    margin-top: 12px;
+    max-width: 68ch;
+  }
+
+  /* ── 어긋나는 지점 ──────────────────────── */
+  .gaps { margin-top: 8px; }
+  .gap {
+    padding: 28px 0;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    gap: 4px 22px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 780px) {
+    .gap { grid-template-columns: 56px 1fr; }
+  }
+  .gap:last-child { border-bottom: 0; }
+  .gap .num {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-3);
+    padding-top: 5px;
+    letter-spacing: 0.04em;
+  }
+  .gap .sev {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    margin-bottom: 9px;
+  }
+  .sev.hi { color: var(--none); background: var(--none-soft); }
+  .sev.mid { color: var(--half); background: var(--half-soft); }
+  .sev.low { color: var(--ink-3); background: var(--panel-2); }
+  .gap p:last-of-type { margin-bottom: 10px; }
+  .cite {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-3);
+    line-height: 1.9;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* ── 카드 목업 (화면 재현 — 앱 다크 크롬 고정) ── */
+  .mock {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-top: 28px;
+  }
+  @media (min-width: 720px) { .mock { grid-template-columns: 1fr 1fr; } }
+  .mockcol { display: flex; flex-direction: column; gap: 12px; }
+  .mockhead {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mockhead b { font-weight: 500; color: var(--ink-2); }
+  .stage {
+    background: #151b28;
+    border: 1px solid #2c3750;
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .jcard {
+    background: #1c2434;
+    border: 1px solid #33415c;
+    border-radius: 11px;
+    padding: 10px;
+    font-size: 12px;
+    color: #e9edf6;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .jrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    letter-spacing: 0.01em;
+  }
+  .chip.key { background: rgba(38, 132, 255, 0.16); color: #7fb0ff; }
+  .chip.key.link { text-decoration: underline; text-underline-offset: 2px; text-decoration-color: rgba(127, 176, 255, 0.5); }
+  .chip.new { background: rgba(99, 102, 241, 0.18); color: #a5a8ff; }
+  .chip.qa { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
+  .chip.lbl { background: rgba(148, 163, 184, 0.14); color: #9daac2; font-weight: 500; }
+  .chip.drift { background: rgba(244, 123, 146, 0.16); color: #f47b92; }
+  .jtitle { font-size: 12.5px; line-height: 1.45; color: #e9edf6; }
+  .jmeta {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 10.5px;
+    color: #7d8aa5;
+    font-variant-numeric: tabular-nums;
+  }
+  .bar { flex: 1; height: 3px; border-radius: 999px; background: rgba(148, 163, 184, 0.18); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #6366f1, #2dd4bf); }
+  .av { display: flex; gap: -2px; }
+  .av span {
+    width: 15px; height: 15px; border-radius: 999px;
+    display: grid; place-items: center;
+    font-size: 7.5px; font-weight: 700; color: #fff;
+    margin-left: -3px; box-shadow: 0 0 0 1.5px #1c2434;
+  }
+  .av span:first-child { margin-left: 0; }
+  .prio {
+    width: 0; height: 0;
+    border-left: 4.5px solid transparent;
+    border-right: 4.5px solid transparent;
+    flex: none;
+  }
+  .prio.up { border-bottom: 6px solid #f47b92; }
+  .prio.mid { border-bottom: 6px solid #f0b429; }
+  .itype {
+    width: 11px; height: 11px; border-radius: 2.5px; flex: none;
+    display: grid; place-items: center;
+    font-size: 8px; font-weight: 700; color: #fff;
+  }
+  .itype.bug { background: #d0463b; }
+  .itype.story { background: #57a55a; }
+  .mocknote { font-size: 13px; color: var(--ink-3); line-height: 1.6; }
+
+  /* ── 제안 ───────────────────────────────── */
+  .props { margin-top: 8px; }
+  .prop {
+    padding: 26px 0;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    gap: 6px 22px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 780px) { .prop { grid-template-columns: 76px 1fr; } }
+  .prop:last-child { border-bottom: 0; }
+  .prop .pri {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    padding-top: 6px;
+  }
+  .prop .pri.p1 { color: var(--half); }
+  .prop .pri.p2 { color: var(--ink-3); }
+  .effort {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-3);
+    background: var(--panel-2);
+    border-radius: 3px;
+    padding: 1px 7px;
+    margin-left: 8px;
+    vertical-align: 2px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── 순서 ───────────────────────────────── */
+  .steps {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 26px;
+  }
+  .step {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px 20px;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--ground);
+  }
+  @media (min-width: 720px) { .step { grid-template-columns: 132px 1fr; } }
+  .step:last-child { border-bottom: 0; }
+  .step .when {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding-top: 3px;
+  }
+  .step p { margin: 0; font-size: 14.5px; color: var(--ink-2); }
+  .step b { color: var(--ink); font-weight: 700; }
+
+  footer.doc {
+    margin-top: 70px;
+    padding-top: 26px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-3);
+    line-height: 1.9;
+  }
+
+  a { color: var(--accent); }
+  a:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="doc">
+    <p class="eyebrow">JIRA Integration · 연동 수준 진단</p>
+    <h1>이슈는 다 건너왔다.<br /><em>이슈처럼</em> 보이지 않을 뿐이다.</h1>
+    <p class="deck">
+      배관은 이미 양방향이다. 미러 컬럼, 웹훅 근실시간 pull, 전이 push, 댓글·첨부 동기화, 반려 감지까지
+      들어와 있다. 지금 부족한 건 동기화가 아니라 <b>비추기</b>다 — 253건을 가져와 놓고 화면에는
+      이슈키·컬럼·QA 뱃지 세 가지만 세운다. 그래서 「QA 검토 중」 107장이 전부 똑같이 생겼다.
+    </p>
+    <div class="metarow">
+      <span><b>대상</b> 칸반 &gt; JIRA 화면 · JIRA 연동 도메인</span>
+      <span><b>기준</b> develop 65a69e4f</span>
+      <span><b>근거</b> 코드 확인 (프론트 6파일 · 백엔드 jira 패키지 전체)</span>
+    </div>
+  </header>
+
+  <!-- ── 판정 ───────────────────────────── -->
+  <section>
+    <p class="sec-label">Verdict</p>
+    <h2>배관 90점, 계기판 40점</h2>
+    <div class="verdict">
+      <p class="stmt">
+        JIRA에서 열네 개 필드를 가져와, 여덟 개를 BRIDGE 엔티티에 심고,
+        재동기화 때 그중 세 개만 다시 맞춘다. 화면에는 그중 두 개가 나온다.
+      </p>
+      <p>
+        연결·매핑·전이·삭제 처리 같은 <b>어려운 부분은 이미 다 풀려 있다.</b> 미러 모드는 JIRA Agile 보드의
+        컬럼 구성(<code>columnConfig</code>)을 그대로 블록으로 세우고, 드래그를 시작하면 그 이슈의
+        <code>/transitions</code>를 미리 조회해 갈 수 없는 컬럼을 흐리게 만든다. 이 정도까지 만든 연동은 흔치 않다.
+      </p>
+      <p>
+        남은 것은 전부 <b>마지막 한 뼘</b>이다 — 가져온 값을 카드에 세우는 일, 최초 1회만 심고 마는 필드를
+        계속 맞추는 일, 그리고 이슈키를 눌렀을 때 JIRA로 가는 일. 셋 다 새 배관이 필요 없다.
+      </p>
+    </div>
+
+    <div class="stats">
+      <div class="stat ok">
+        <p class="k">동기화 방향</p>
+        <p class="v">양방향</p>
+        <p class="n">pull(웹훅+2분 폴링) / push(전이·완료·댓글) 모두 동작. 소유권 분리로 에코 차단</p>
+      </div>
+      <div class="stat half">
+        <p class="k">가져온 필드 활용</p>
+        <p class="v">8 / 14</p>
+        <p class="n">labels·reporter·created는 파싱만 하고 어디에도 안 쓰임</p>
+      </div>
+      <div class="stat no">
+        <p class="k">재동기화 갱신</p>
+        <p class="v">3 / 8</p>
+        <p class="n">제목·설명·상태만. 담당자·우선순위·컴포넌트는 최초 생성 때 1회뿐</p>
+      </div>
+      <div class="stat no">
+        <p class="k">카드의 JIRA 정보</p>
+        <p class="v">2</p>
+        <p class="n">이슈키와 컬럼 위치. 타입·우선순위·라벨·갱신시각·원문 링크 전부 없음</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 지금 흐르는 것 ──────────────────── -->
+  <section>
+    <p class="sec-label">Ledger</p>
+    <h2>필드 하나하나가 어디까지 갔나</h2>
+    <p class="lede">
+      <code>JiraApiClient.DEFAULT_FIELDS</code>가 매 동기화마다 열네 개 필드를 가져온다.
+      각각이 BRIDGE의 무엇이 되고, 다음 동기화 때 다시 맞춰지는지를 그대로 편다.
+      파란 칸이 JIRA가 준 것, 오른쪽이 BRIDGE가 받은 것이다.
+    </p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="j">JIRA 필드</th>
+            <th></th>
+            <th class="b">BRIDGE 대응</th>
+            <th>재동기화 때</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="field">summary</td>
+            <td class="arrow">→</td>
+            <td class="dest">Task 제목 (200자 절단)</td>
+            <td><span class="tag ok">갱신됨</span></td>
+          </tr>
+          <tr>
+            <td class="field">description</td>
+            <td class="arrow">→</td>
+            <td class="dest">Task 설명 (ADF→평문). 모달에서 잠김 표시</td>
+            <td><span class="tag ok">갱신됨</span></td>
+          </tr>
+          <tr>
+            <td class="field">status</td>
+            <td class="arrow">⇄</td>
+            <td class="dest">미러 컬럼 위치 + QA 뱃지(검토중/검증완료/반려)</td>
+            <td><span class="tag ok">갱신됨</span></td>
+          </tr>
+          <tr>
+            <td class="field">attachment</td>
+            <td class="arrow">→</td>
+            <td class="dest">S3 업로드 후 Task 댓글로 첨부</td>
+            <td><span class="tag ok">대조됨</span></td>
+          </tr>
+          <tr>
+            <td class="field">project</td>
+            <td class="arrow">→</td>
+            <td class="dest">Feature (프로젝트 = Feature 그룹)</td>
+            <td><span class="tag half">최초 1회</span></td>
+          </tr>
+          <tr>
+            <td class="field">assignee</td>
+            <td class="arrow">→</td>
+            <td class="dest">담당자 체크리스트 항목 1개 생성</td>
+            <td><span class="tag no">안 됨</span></td>
+          </tr>
+          <tr>
+            <td class="field">priority</td>
+            <td class="arrow">→</td>
+            <td class="dest">Tag (이름 그대로, 매핑 가능)</td>
+            <td><span class="tag no">안 됨</span></td>
+          </tr>
+          <tr>
+            <td class="field">components</td>
+            <td class="arrow">→</td>
+            <td class="dest">Tag (이름 그대로, 매핑 가능)</td>
+            <td><span class="tag no">안 됨</span></td>
+          </tr>
+          <tr>
+            <td class="field">issuetype</td>
+            <td class="arrow">→</td>
+            <td class="dest">에픽 여부 판정에만 사용 — 에픽은 가져오지 않음</td>
+            <td><span class="tag no">화면에 없음</span></td>
+          </tr>
+          <tr>
+            <td class="field">parent</td>
+            <td class="arrow">→</td>
+            <td class="dest">가져오기 미리보기 표시에만 사용</td>
+            <td><span class="tag no">화면에 없음</span></td>
+          </tr>
+          <tr>
+            <td class="field">updated</td>
+            <td class="arrow">→</td>
+            <td class="dest">연동 원장의 증분 판정 기준</td>
+            <td><span class="tag no">화면에 없음</span></td>
+          </tr>
+          <tr>
+            <td class="field">labels</td>
+            <td class="arrow">✕</td>
+            <td class="dest">파싱하고 버림 — 참조하는 코드 없음</td>
+            <td><span class="tag no">미사용</span></td>
+          </tr>
+          <tr>
+            <td class="field">reporter</td>
+            <td class="arrow">✕</td>
+            <td class="dest">가져오지만 어디에도 심지 않음</td>
+            <td><span class="tag no">미사용</span></td>
+          </tr>
+          <tr>
+            <td class="field">created</td>
+            <td class="arrow">✕</td>
+            <td class="dest">가져오지만 어디에도 심지 않음</td>
+            <td><span class="tag no">미사용</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="cap">
+      「재동기화 때」 열이 이 문서의 핵심이다. <span class="tag no">안 됨</span>은 JIRA에서 값을 바꿔도
+      BRIDGE는 최초 가져온 값을 영원히 들고 있다는 뜻이다.
+      <span class="ref">JiraImportService.java:405 updateTaskFromIssue</span>
+    </p>
+  </section>
+
+  <!-- ── 어긋나는 지점 ───────────────────── -->
+  <section>
+    <p class="sec-label">Gaps</p>
+    <h2>어긋나는 지점 아홉</h2>
+    <p class="lede">증상 → 원인 → 코드 위치 순으로 적었다. 위쪽이 체감이 크고 고치기 싸다.</p>
+
+    <div class="gaps">
+
+      <div class="gap">
+        <div class="num">01</div>
+        <div>
+          <span class="sev hi">신뢰</span>
+          <h3>이슈키가 적혀 있는데, 이슈로 가는 문이 없다</h3>
+          <p>
+            카드에 <code>QASA-269</code>가 크게 붙어 있지만 눌러도 BRIDGE 모달이 열린다.
+            원문을 보려면 사람이 키를 외워 JIRA 탭을 새로 열고 검색한다.
+            연동 화면에서 가장 자주 하는 동작이 가장 불편하다.
+          </p>
+          <p>
+            원인은 배관이 아니라 <b>안 이은 것</b>이다. <code>JiraStatus.base_url</code>이
+            이미 프론트까지 내려와 있어 <code>{base_url}/browse/{key}</code>만 조립하면 된다.
+            저장소 전체에서 <code>/browse/</code> 사용처는 0건이다.
+          </p>
+          <div class="cite">
+            <span class="ref">utils/api.ts:6011 base_url</span>
+            <span class="ref">SprintBoard.tsx:3001 renderJiraTaskCard</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="gap">
+        <div class="num">02</div>
+        <div>
+          <span class="sev hi">신뢰</span>
+          <h3>조용한 드리프트 — 담당자를 바꿔도 BRIDGE는 모른다</h3>
+          <p>
+            재동기화(<code>updateTaskFromIssue</code>)는 제목·설명·상태만 다시 맞춘다.
+            JIRA에서 담당자를 넘기거나 우선순위를 Highest로 올리거나 컴포넌트를 붙여도
+            BRIDGE 카드는 <b>최초 가져온 순간의 값</b>을 그대로 들고 있다. 화면은 "3분 전 동기화됨"이라고
+            말하고 있으므로, 사용자는 그 값이 최신이라고 믿는다.
+          </p>
+          <p>
+            담당자가 특히 아프다. 체크리스트 항목으로 이관하는 구조라 되돌리기가 까다로워
+            생성 경로에만 들어가 있는데, QA 이슈는 담당자가 자주 바뀐다.
+          </p>
+          <div class="cite">
+            <span class="ref">JiraImportService.java:405</span>
+            <span class="ref">JiraImportService.java:229 createAssigneeChecklist (생성 경로만)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="gap">
+        <div class="num">03</div>
+        <div>
+          <span class="sev hi">화면</span>
+          <h3>107장이 전부 똑같이 생겼다</h3>
+          <p>
+            카드가 세우는 정보는 이슈키·제목·체크리스트 진행바·담당자 아바타, 그리고 NEW/QA 뱃지가 전부다.
+            버그인지 스토리인지, Highest인지 Low인지, 어제 것인지 두 달 전 것인지가 카드에 없다.
+            「QA 검토 중」 107장 앞에서 <b>무엇부터 볼지 정할 근거가 화면에 없다.</b>
+          </p>
+          <p>
+            진행바는 JIRA 진척이 아니라 <b>BRIDGE 체크리스트</b> 진척이다. 대부분의 가져온 이슈는
+            담당자 체크리스트 1개뿐이라 <code>0/0</code> 또는 <code>1/1</code>로만 뜬다 —
+            카드 폭의 절반을 쓰면서 정보량은 거의 0이다.
+          </p>
+          <div class="cite">
+            <span class="ref">SprintBoard.tsx:3001</span>
+            <span class="ref">types/index.ts:716 SprintJiraTask</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="gap">
+        <div class="num">04</div>
+        <div>
+          <span class="sev mid">화면</span>
+          <h3>107장을 한 번에 다 그리고, 정렬 기준도 없다</h3>
+          <p>
+            컬럼은 카드를 전량 DOM에 올린다. 가상화도, 상한도, 「더 보기」도 없다.
+            정렬 기준은 <b>블록 안의 position</b> — 즉 이동한 순서다. 사람이 이해할 수 있는 순서가 아니다.
+            우선순위순·갱신순·이슈키순 어느 것도 고를 수 없다.
+          </p>
+          <div class="cite"><span class="ref">SprintBoard.tsx:1497 jiraColumns</span></div>
+        </div>
+      </div>
+
+      <div class="gap">
+        <div class="num">05</div>
+        <div>
+          <span class="sev hi">신뢰</span>
+          <h3>전이가 조용히 실패한다 — 카드는 옮겨졌고 JIRA는 그대로다</h3>
+          <p>
+            카드를 컬럼으로 끌면 <code>transitionToFirst</code>가 그 이슈의 전이 목록에서 목표 상태를 찾는데,
+            <b>못 찾으면 아무 일도 없이 <code>null</code>을 반환</b>한다. 예외가 아니라 정상 종료라
+            <code>markError</code>도 타지 않고, 카드는 새 컬럼에 남는다.
+            사람은 옮겼다고 믿고, JIRA는 그대로다.
+          </p>
+          <p>
+            드래그 시작 시 <code>/transitions</code>로 막아 두긴 하지만, 응답이 아직 없으면
+            (<code>jiraDragAllowed == null</code>) 낙관적으로 허용한다. 워크플로 조건이 걸린 전이나
+            느린 응답에서 이 틈이 열린다.
+          </p>
+          <div class="cite">
+            <span class="ref">JiraWriteBackService.java:87 transitionToFirst</span>
+            <span class="ref">SprintBoard.tsx:1715 isJiraDropAllowed</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="gap">
+        <div class="num">06</div>
+        <div>
+          <span class="sev mid">개념</span>
+          <h3>「라벨」이라는 말이 두 곳에서 다른 뜻이다</h3>
+          <p>
+            필터바의 「라벨」은 BRIDGE 태그다. JIRA 라벨은 가져오기는 하지만 버려진다.
+            JIRA를 아는 사람이 「라벨」로 거르면 기대와 다른 결과가 나온다.
+            반대로 우선순위·컴포넌트는 <b>같은 태그 목록에 섞여</b> 들어가 어느 것이 JIRA에서 온 값인지
+            구분되지 않는다.
+          </p>
+          <div class="cite"><span class="ref">ParsedJiraIssue.labels (참조 0건)</span></div>
+        </div>
+      </div>
+
+      <div class="gap">
+        <div class="num">07</div>
+        <div>
+          <span class="sev mid">검색</span>
+          <h3>검색이 제목과 이슈키만 훑는다</h3>
+          <p>
+            <code>taskMatchesFilter</code>의 검색 대상은 <code>task_title + jira_issue_key</code>뿐이다.
+            설명은 이미 BRIDGE에 평문으로 들어와 있는데도 검색되지 않는다. QA 이슈는 제목이 짧고
+            재현 절차가 설명에 있어서, 정작 찾고 싶은 문장이 검색에서 빠진다.
+          </p>
+          <div class="cite"><span class="ref">SprintBoard.tsx:885 taskMatchesFilter</span></div>
+        </div>
+      </div>
+
+      <div class="gap">
+        <div class="num">08</div>
+        <div>
+          <span class="sev low">운영</span>
+          <h3>웹훅이 끊겼다 복구될 때 댓글 대조가 밀린다</h3>
+          <p>
+            폴링 한 주기가 대조하는 이슈 수에 상한이 있다 — 댓글 15건, 삭제 확인 20건.
+            평소에는 변경된 이슈만 대상이라 넉넉하지만, 웹훅이 한동안 끊겼다 살아나면
+            밀린 이슈가 2분당 15건씩만 빠져 <b>253건 보드에서 한 바퀴에 30분 이상</b> 걸린다.
+            의도한 설계(API 보호)지만 화면에는 이 상태가 전혀 드러나지 않는다.
+          </p>
+          <div class="cite">
+            <span class="ref">JiraImportService.java:75 MAX_DELETION_PROBES=20</span>
+            <span class="ref">JiraImportService.java:77 MAX_COMMENT_RECONCILES=15</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="gap">
+        <div class="num">09</div>
+        <div>
+          <span class="sev low">범위</span>
+          <h3>「253건」이 무엇의 253건인지 화면이 밝히지 않는다</h3>
+          <p>
+            에픽은 의도적으로 제외되고, JQL을 커스텀했다면 그 범위만 들어온다.
+            그런데 머리말은 그냥 "연동 253건"이라고만 적는다. JIRA 보드에서 세어 본 숫자와 다를 때
+            <b>버그인지 설정인지 화면에서 판별할 방법이 없다.</b>
+          </p>
+          <div class="cite"><span class="ref">JiraImportService.java:144 !isEpic 필터</span></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── 카드 목업 ───────────────────────── -->
+  <section>
+    <p class="sec-label">Card</p>
+    <h2>같은 카드, 정보를 세운 쪽과 아닌 쪽</h2>
+    <p class="lede">
+      새 배관 없이 이미 가져온 값만 올려도 카드가 이만큼 달라진다.
+      아래는 실제 화면의 카드 크롬을 그대로 재현한 것이다.
+    </p>
+
+    <div class="mock">
+      <div class="mockcol">
+        <p class="mockhead"><b>지금</b> · 정보 4종</p>
+        <div class="stage">
+          <div class="jcard">
+            <div class="jrow">
+              <span class="chip key">◇ QASA-254</span>
+              <span class="chip qa">검토중</span>
+            </div>
+            <div class="jtitle">[스토리] 챕터 선택 화면 내 미해금 챕터 영역 터치시 반응 없음</div>
+            <div class="jmeta">
+              <span class="bar"><i style="width: 100%"></i></span>
+              <span>1/1</span>
+              <span class="av"><span style="background:#6366f1">규현</span></span>
+            </div>
+          </div>
+          <div class="jcard">
+            <div class="jrow">
+              <span class="chip key">◇ QASA-266</span>
+              <span class="chip qa">검토중</span>
+            </div>
+            <div class="jtitle">[가이드 미션] 가이드 진행 중에 재 접속 시 다음 단계의 가이드 미션이 진행됩니다.</div>
+            <div class="jmeta">
+              <span class="bar"><i style="width: 100%"></i></span>
+              <span>1/1</span>
+              <span class="av"><span style="background:#14b8a6">창호</span></span>
+            </div>
+          </div>
+        </div>
+        <p class="mocknote">
+          두 장의 차이는 제목뿐이다. 어느 쪽이 급한지, 무엇이 최근에 움직였는지 알 수 없다.
+        </p>
+      </div>
+
+      <div class="mockcol">
+        <p class="mockhead"><b>제안</b> · 같은 데이터, 정보 9종</p>
+        <div class="stage">
+          <div class="jcard">
+            <div class="jrow">
+              <span class="itype bug">B</span>
+              <span class="prio up" title="Highest"></span>
+              <span class="chip key link">◇ QASA-254 ↗</span>
+              <span class="chip qa">검토중</span>
+              <span class="chip lbl">chapter</span>
+            </div>
+            <div class="jtitle">[스토리] 챕터 선택 화면 내 미해금 챕터 영역 터치시 반응 없음</div>
+            <div class="jmeta">
+              <span>JIRA 12분 전</span>
+              <span>·</span>
+              <span>규현 → 상건</span>
+              <span style="margin-left:auto" class="av"><span style="background:#6366f1">상건</span></span>
+            </div>
+          </div>
+          <div class="jcard">
+            <div class="jrow">
+              <span class="itype story">S</span>
+              <span class="prio mid" title="Medium"></span>
+              <span class="chip key link">◇ QASA-266 ↗</span>
+              <span class="chip qa">검토중</span>
+              <span class="chip drift">JIRA 미반영</span>
+            </div>
+            <div class="jtitle">[가이드 미션] 가이드 진행 중에 재 접속 시 다음 단계의 가이드 미션이 진행됩니다.</div>
+            <div class="jmeta">
+              <span>JIRA 6일 전</span>
+              <span>·</span>
+              <span>창호</span>
+              <span style="margin-left:auto" class="av"><span style="background:#14b8a6">창호</span></span>
+            </div>
+          </div>
+        </div>
+        <p class="mocknote">
+          타입·우선순위·라벨·갱신시각은 <b>이미 가져오고 있는 값</b>이다. 이슈키는 JIRA 원문으로 나가는 링크가 되고,
+          전이가 실패한 카드에는 「JIRA 미반영」이 남는다. 정보량이 없던 진행바를 빼 자리를 만든다.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 제안 ───────────────────────────── -->
+  <section>
+    <p class="sec-label">Proposals</p>
+    <h2>고칠 것 아홉, 우선순위대로</h2>
+    <p class="lede">
+      P0은 전부 <b>이미 가져온 데이터</b>를 쓰는 일이라 JIRA API 호출이 늘지 않는다.
+      들이는 품 대비 화면이 가장 크게 바뀌는 구간이다.
+    </p>
+
+    <div class="props">
+
+      <div class="prop">
+        <div class="pri">P0 · A</div>
+        <div>
+          <h3>이슈키를 JIRA 원문 링크로<span class="effort">프론트 한 곳</span></h3>
+          <p>
+            이슈키 칩을 <code>{base_url}/browse/{key}</code> 새 탭 링크로 바꾸고 외부 링크 아이콘을 붙인다.
+            카드 본체 클릭은 지금처럼 BRIDGE 모달을 여는 채로 두고, 칩만 <code>stopPropagation</code>한다.
+            태스크 상세 모달의 잠금 칩도 같이 링크로 만든다.
+          </p>
+          <div class="cite">
+            <span class="ref">SprintBoard.tsx:3001</span>
+            <span class="ref">TaskDetailModal.tsx:2058</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="prop">
+        <div class="pri">P0 · B</div>
+        <div>
+          <h3>재동기화가 담당자·우선순위·컴포넌트도 맞추게<span class="effort">백엔드</span></h3>
+          <p>
+            <code>updateTaskFromIssue</code>에 세 필드를 추가한다. 규칙을 하나로 못 박는 게 핵심이다 —
+            <b>JIRA 소유 필드는 pull이 항상 이긴다.</b> 담당자는 기존 담당자 체크리스트 항목의 담당자를
+            교체(없으면 생성)하고, 우선순위·컴포넌트 태그는 이전 값 태그를 떼고 새 값을 붙인다.
+            사람이 BRIDGE에서 손댄 다른 체크리스트는 건드리지 않는다.
+          </p>
+          <p>
+            <code>stale</code>일 때만 도는 경로라 폴링 비용은 그대로다.
+          </p>
+          <div class="cite"><span class="ref">JiraImportService.java:405</span></div>
+        </div>
+      </div>
+
+      <div class="prop">
+        <div class="pri">P0 · C</div>
+        <div>
+          <h3>카드에 타입·우선순위·갱신시각<span class="effort">DTO 3필드 + 카드</span></h3>
+          <p>
+            <code>SprintJiraTask</code>에 <code>issue_type</code>, <code>priority</code>,
+            <code>jira_updated_at</code>을 싣는다. <code>jira_issue_links.jira_updated_at</code>은 이미 저장돼
+            있으므로 조인만 하면 되고, 타입·우선순위는 <code>Task</code>에 컬럼 두 개를 더하는 편이
+            태그를 역파싱하는 것보다 깨끗하다.
+          </p>
+          <p>
+            카드에서는 체크리스트 진행바를 빼고 그 줄을 「갱신 상대시각 · 담당자」로 바꾼다.
+            <code>0/0</code>만 뜨는 막대보다 정보가 크다.
+          </p>
+          <div class="cite">
+            <span class="ref">types/index.ts:716</span>
+            <span class="ref">SprintResponse (jira_tasks)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="prop">
+        <div class="pri p1">P1 · D</div>
+        <div>
+          <h3>전이 실패를 카드에 남긴다<span class="effort">백엔드+프론트</span></h3>
+          <p>
+            <code>transitionToFirst</code>가 <code>null</code>을 반환하면 지금은 무음이다.
+            이때 링크에 「미반영」 표시를 남기고 카드에 뱃지를 띄운다. 뱃지를 누르면 두 선택지를 준다 —
+            <b>카드를 원래 컬럼으로 되돌리기</b>, 또는 <b>JIRA에서 직접 처리하기</b>(원문 링크).
+            드롭 직후 토스트로도 알린다. 화면과 JIRA가 갈라진 상태를 사람이 모르는 것이 지금 가장 위험하다.
+          </p>
+          <div class="cite"><span class="ref">JiraWriteBackService.java:87</span></div>
+        </div>
+      </div>
+
+      <div class="prop">
+        <div class="pri p1">P1 · E</div>
+        <div>
+          <h3>컬럼 정렬과 카드 상한<span class="effort">프론트</span></h3>
+          <p>
+            컬럼 헤더에 정렬 드롭다운(갱신순 / 우선순위순 / 이슈키순)을 달고 기본값을 <b>갱신순</b>으로 둔다.
+            60장에서 끊고 「나머지 47장 더 보기」를 세운다. 107장 컬럼의 스크롤과 렌더 비용이 함께 줄고,
+            "무엇부터 볼지"의 답이 컬럼 위쪽에 모인다.
+          </p>
+          <div class="cite"><span class="ref">SprintBoard.tsx:1497</span></div>
+        </div>
+      </div>
+
+      <div class="prop">
+        <div class="pri p1">P1 · F</div>
+        <div>
+          <h3>JIRA 라벨을 살리고, BRIDGE 태그와 구분한다<span class="effort">백엔드+프론트</span></h3>
+          <p>
+            <code>labels</code>를 <code>jira_labels</code>로 카드까지 내려 파란 계열 칩으로 세운다.
+            BRIDGE 태그(회색·사용자 지정색)와 색으로 구분되면 「라벨」이라는 말의 충돌이 사라진다.
+            필터바에는 「JIRA 라벨」을 별도 항목으로 추가한다.
+          </p>
+        </div>
+      </div>
+
+      <div class="prop">
+        <div class="pri p1">P1 · G</div>
+        <div>
+          <h3>검색이 설명까지 훑게<span class="effort">한 줄</span></h3>
+          <p>
+            <code>taskMatchesFilter</code>의 검색 대상에 설명을 더한다. 설명은 이미 평문으로
+            BRIDGE에 있으므로 <code>SprintJiraTask</code>에 요약본(앞 300자)만 실어도 충분하다.
+            페이로드가 걱정되면 서버측 검색으로 돌린다.
+          </p>
+          <div class="cite"><span class="ref">SprintBoard.tsx:885</span></div>
+        </div>
+      </div>
+
+      <div class="prop">
+        <div class="pri p2">P2 · H</div>
+        <div>
+          <h3>스코프를 머리말에 밝힌다<span class="effort">프론트</span></h3>
+          <p>
+            "연동 253건" 옆에 무엇을 세고 있는지를 적는다 — 프로젝트 키, 적용 중인 JQL(있다면),
+            에픽 제외 사실, 마지막 전량 동기화 시각. 밀린 대조가 있으면 동기화 인디케이터에
+            「대조 대기 N건」을 함께 세운다. 숫자가 JIRA와 다를 때 사람이 스스로 판별할 수 있게 된다.
+          </p>
+        </div>
+      </div>
+
+      <div class="prop">
+        <div class="pri p2">P2 · I</div>
+        <div>
+          <h3>스윔레인, 그리고 BRIDGE→JIRA 생성<span class="effort">큼</span></h3>
+          <p>
+            JIRA 보드에는 있고 여기엔 없는 두 가지다. 스윔레인은 이미 있는 Feature(=JIRA 프로젝트)와
+            담당자를 축으로 쓰면 되므로 데이터는 준비돼 있다. 이슈 생성 push는 지금의 단방향
+            (JIRA→BRIDGE 생성)을 깨는 일이라, <b>JIRA 화면을 보조 뷰로 둘지 대체 뷰로 둘지</b>
+            제품 결정을 먼저 해야 한다. 그 결정 전에는 손대지 않는 게 낫다.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── 순서 ───────────────────────────── -->
+  <section>
+    <p class="sec-label">Order</p>
+    <h2>붙이는 순서</h2>
+    <div class="steps">
+      <div class="step">
+        <p class="when">먼저</p>
+        <p><b>A · 이슈키 링크.</b> 프론트 한 곳, 데이터도 이미 있다. 이것 하나로 체감이 가장 크게 바뀐다.</p>
+      </div>
+      <div class="step">
+        <p class="when">같이</p>
+        <p><b>B · 재동기화 필드 확장</b>과 <b>C · 카드 정보.</b> B가 값을 최신으로 유지하고 C가 그 값을 세운다. 둘은 한 쌍이라 따로 내면 반쪽이 된다.</p>
+      </div>
+      <div class="step">
+        <p class="when">다음</p>
+        <p><b>D · 전이 실패 표시.</b> 화면과 JIRA가 갈라지는 유일한 구멍이다. 빈도는 낮아도 갈라지면 신뢰가 통째로 깨진다.</p>
+      </div>
+      <div class="step">
+        <p class="when">그 뒤</p>
+        <p><b>E · 정렬/상한, F · JIRA 라벨, G · 설명 검색.</b> 107장을 다루는 화면의 기본기다.</p>
+      </div>
+      <div class="step">
+        <p class="when">나중</p>
+        <p><b>H · 스코프 표기, I · 스윔레인과 생성 push.</b> I는 제품 결정이 먼저다.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="doc">
+    확인 범위 — frontend: KanbanView.tsx, SprintBoard.tsx, JiraSyncIndicator.tsx, JiraSettingsPanel.tsx, TaskDetailModal.tsx, types/index.ts, utils/api.ts ·
+    backend: domain/integration/jira 전체(서비스 20 · 컨트롤러 5 · 엔티티 14)<br />
+    기준 커밋 65a69e4f (develop) · 코드 확인 기반, 실행 로그·운영 지표는 포함하지 않음
+  </footer>
+
+</div>

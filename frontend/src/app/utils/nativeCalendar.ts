@@ -4,19 +4,27 @@ import type { HolidayInfo } from '../hooks/useHolidays';
 // Holiday calendar keyword detection (multi-language)
 const HOLIDAY_CALENDAR_KEYWORDS = [
   // English
-  'holiday', 'holidays', 'public holiday',
+  'holiday',
+  'holidays',
+  'public holiday',
   // Korean
-  '공휴일', '휴일', '대한민국 휴일',
+  '공휴일',
+  '휴일',
+  '대한민국 휴일',
   // Japanese
-  '祝日', '日本の祝日',
+  '祝日',
+  '日本の祝日',
   // Chinese
-  '节假日', '假日', '公众假期',
+  '节假日',
+  '假日',
+  '公众假期',
   // Vietnamese
   'ngày lễ',
   // Thai
   'วันหยุด',
   // Spanish
-  'festivos', 'días festivos',
+  'festivos',
+  'días festivos',
   // Portuguese
   'feriados',
   // German
@@ -73,7 +81,9 @@ export async function requestCalendarPermission(): Promise<CalendarPermissionSta
  * Auto-detects holiday calendars by keyword matching on calendar titles.
  * Returns a Map<string, HolidayInfo[]> compatible with the existing holidayMap interface.
  */
-export async function fetchDeviceHolidays(year: number): Promise<Map<string, HolidayInfo[]> | null> {
+export async function fetchDeviceHolidays(
+  year: number,
+): Promise<Map<string, HolidayInfo[]> | null> {
   if (!isNative()) return null;
 
   try {
@@ -92,7 +102,10 @@ export async function fetchDeviceHolidays(year: number): Promise<Map<string, Hol
       .map((cal: any) => cal.id);
 
     if (holidayCalendarIds.length === 0) {
-      console.log('[NativeCalendar] No holiday calendars found. Available:', calendars.map((c: any) => c.title));
+      console.log(
+        '[NativeCalendar] No holiday calendars found. Available:',
+        calendars.map((c: any) => c.title),
+      );
       return null;
     }
 

@@ -67,6 +67,16 @@ public class OrgNoteCommentController {
         return ResponseEntity.ok(orgNoteCommentService.toggleResolved(orgId, commentId, principal.getUserId()));
     }
 
+    @PutMapping("/{commentId}/anchor")
+    public ResponseEntity<NoteCommentResponse.Detail> updateAnchor(
+            @PathVariable String orgId,
+            @PathVariable String noteId,
+            @PathVariable String commentId,
+            @Valid @RequestBody NoteCommentRequest.UpdateAnchor request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orgNoteCommentService.updateAnchor(orgId, commentId, principal.getUserId(), request));
+    }
+
     @PostMapping("/{commentId}/reactions/toggle")
     public ResponseEntity<NoteCommentResponse.ReactionsResponse> toggleReaction(
             @PathVariable String orgId,

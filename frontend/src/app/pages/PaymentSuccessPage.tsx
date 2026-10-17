@@ -148,9 +148,7 @@ export function PaymentSuccessPage() {
     };
   }, [searchParams]);
 
-  const aiCredits = subscription?.seat_count
-    ? 200 + subscription.seat_count * 50
-    : 350;
+  const aiCredits = subscription?.seat_count ? 200 + subscription.seat_count * 50 : 350;
 
   return (
     <div className="min-h-screen bg-bridge-dark flex items-center justify-center p-4">
@@ -170,9 +168,7 @@ export function PaymentSuccessPage() {
               className="text-center"
             >
               <Loader2 className="h-12 w-12 text-bridge-accent animate-spin mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-foreground mb-2">
-                {t('payment.processing')}
-              </h2>
+              <h2 className="text-xl font-bold text-foreground mb-2">{t('payment.processing')}</h2>
               <p className="text-slate-400 mb-6">{t('payment.pleaseWait')}</p>
 
               {/* Step Progress */}
@@ -214,9 +210,7 @@ export function PaymentSuccessPage() {
                 >
                   <CheckCircle className="w-8 h-8 text-bridge-secondary" />
                 </motion.div>
-                <h2 className="text-xl font-bold text-foreground">
-                  {t('payment.successTitle')}
-                </h2>
+                <h2 className="text-xl font-bold text-foreground">{t('payment.successTitle')}</h2>
                 <p className="text-slate-400 mt-1">{t('payment.successDesc')}</p>
               </div>
 
@@ -259,9 +253,7 @@ export function PaymentSuccessPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400">{t('payment.seats')}</span>
-                      <span className="text-foreground font-medium">
-                        {subscription.seat_count}
-                      </span>
+                      <span className="text-foreground font-medium">{subscription.seat_count}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400">{t('payment.billing')}</span>
@@ -274,9 +266,7 @@ export function PaymentSuccessPage() {
                     </div>
                     {subscription.next_payment_at && (
                       <div className="flex justify-between">
-                        <span className="text-slate-400">
-                          {t('payment.nextPayment')}
-                        </span>
+                        <span className="text-slate-400">{t('payment.nextPayment')}</span>
                         <span className="text-foreground font-medium">
                           {formatDate(subscription.next_payment_at)}
                         </span>
@@ -323,12 +313,8 @@ export function PaymentSuccessPage() {
               <h2 className="text-xl font-bold text-foreground mb-2">
                 {t('payment.stillProcessing')}
               </h2>
-              <p className="text-slate-400 mb-1">
-                {t('payment.processingDelayDesc')}
-              </p>
-              <p className="text-slate-400 mb-6">
-                {t('payment.willBeAvailable')}
-              </p>
+              <p className="text-slate-400 mb-1">{t('payment.processingDelayDesc')}</p>
+              <p className="text-slate-400 mb-6">{t('payment.willBeAvailable')}</p>
               <div className="flex flex-col gap-3">
                 {boardId && (
                   <button
@@ -359,9 +345,7 @@ export function PaymentSuccessPage() {
               className="text-center"
             >
               <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-foreground mb-2">
-                {t('payment.error')}
-              </h2>
+              <h2 className="text-xl font-bold text-foreground mb-2">{t('payment.error')}</h2>
               <p className="text-slate-400 mb-4">{t('payment.missingParams')}</p>
               <button
                 onClick={() => navigate('/boards')}

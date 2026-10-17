@@ -1,15 +1,11 @@
-import {
-  BlockNoteSchema,
-  defaultBlockSpecs,
-  defaultInlineContentSpecs,
-} from "@blocknote/core";
-import { Callout } from "./Callout";
-import { Toggle } from "./Toggle";
-import { Divider } from "./Divider";
-import { TableOfContents } from "./TableOfContents";
-import { Embed } from "./Embed";
-import { ColumnLayout, Column } from "./ColumnLayout";
-import { Mention } from "./Mention";
+import { BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs } from '@blocknote/core';
+import { Callout } from './Callout';
+import { Toggle } from './Toggle';
+import { Divider } from './Divider';
+import { TableOfContents } from './TableOfContents';
+import { Embed } from './Embed';
+import { ColumnLayout, Column } from './ColumnLayout';
+import { Mention } from './Mention';
 
 // Single source of truth for the BlockNote schema used across the note editor,
 // the read-only shared page, and version history conversion. Keeping this in

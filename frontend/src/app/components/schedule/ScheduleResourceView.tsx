@@ -4,9 +4,10 @@ import {
   useCallback,
   useRef,
   useEffect,
+  useLayoutEffect,
   Fragment,
-} from "react";
-import { useTranslation } from "react-i18next";
+} from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Users,
   CheckCircle2,
@@ -23,17 +24,22 @@ import {
   ZoomOut,
   Settings,
   CalendarPlus,
-} from "lucide-react";
-import { BoardMember } from "../ShareBoardModal";
-import { BoardContractor, Feature, JobRole, Milestone } from "../../types";
-import { BACKLOG_DRAG_TYPE, BACKLOG_DROP_EVENT } from "../../utils/backlogDrag";
+  Clock,
+  MessageSquare,
+  X,
+} from 'lucide-react';
+import { BoardMember } from '../ShareBoardModal';
+import { BoardContractor, Feature, JobRole, Milestone } from '../../types';
+import { BACKLOG_DRAG_TYPE, BACKLOG_DROP_EVENT } from '../../utils/backlogDrag';
 import {
   dispatchAxisDrop,
   endAxisDrag,
   findAxisZoneAt,
+  requestAxisRefresh,
+  requestTimeblockPlacement,
   updateAxisDragOver,
   type AxisZone,
-} from "../../utils/axisTransfer";
+} from '../../utils/axisTransfer';
 import {
   boardChecklistAPI,
   checklistAPI,
@@ -42,41 +48,42 @@ import {
   CalendarEventItem,
   AssigneeItemResponse,
   ChecklistByAssigneeResponse,
-} from "../../utils/api";
-import { WorkloadCreateModal } from "./WorkloadCreateModal";
-import { MoveToTaskModal } from "./MoveToTaskModal";
-import {
-  CalendarEventModal,
-  CalendarEventModalInitial,
-} from "./CalendarEventModal";
-import { calendarTypeMeta } from "./calendarEventMeta";
-import { getInitials, getAssigneeHex } from "../../utils/assigneeColor";
-import {
-  buildMilestoneColorMap,
-  resolveMilestoneColor,
-} from "../../utils/milestoneColor";
-import { useHolidays, HolidayInfo } from "../../hooks/useHolidays";
+} from '../../utils/api';
+import { WorkloadCreateModal } from './WorkloadCreateModal';
+import { MoveToTaskModal } from './MoveToTaskModal';
+import { CalendarEventModal, CalendarEventModalInitial } from './CalendarEventModal';
+import { calendarTypeMeta, isHolidayWorkType } from './calendarEventMeta';
+import { isBoardOffDay } from '../../utils/workloadBar';
+import { formatRelativeTime } from '../../utils/dateUtils';
+import { getInitials, getAssigneeHex } from '../../utils/assigneeColor';
+import { buildMilestoneColorMap, resolveMilestoneColor } from '../../utils/milestoneColor';
+import { useHolidaysForYears, HolidayInfo } from '../../hooks/useHolidays';
 
 // ========================================
 // Constants
 // ========================================
 
-const ZOOM_PRESETS = [32, 44, 60, 80, 100] as const;
+/** 하루 칸 너비(px). 마지막 단계(200)는 일반 데스크톱 폭에서 월~일 한 주가 화면에 꽉 차도록 맞춘 값 */
+const ZOOM_PRESETS = [32, 44, 60, 80, 100, 200] as const;
 const DEFAULT_ZOOM_INDEX = 2;
 const ZOOM_LABEL_KEYS = [
-  "schedule.resource.zoomCompact",
-  "schedule.resource.zoomNarrow",
-  "schedule.resource.zoomDefault",
-  "schedule.resource.zoomWide",
-  "schedule.resource.zoomExtraWide",
+  'schedule.resource.zoomCompact',
+  'schedule.resource.zoomNarrow',
+  'schedule.resource.zoomDefault',
+  'schedule.resource.zoomWide',
+  'schedule.resource.zoomExtraWide',
+  'schedule.resource.zoomWeek',
 ] as const;
 
 const ROW_HEIGHT = 80;
 const MILESTONE_ROW_HEIGHT = 48;
 const BAR_HEIGHT = 32;
 const BAR_TOP_OFFSET = 4;
-const LEFT_COL_WIDTH = 200;
-const HEADER_HEIGHT = 48;
+const LEFT_COL_WIDTH = 240;
+/** 헤더 2단 구성: 월 밴드 + 일 밴드. 합계가 HEADER_HEIGHT — 마일스톤/이벤트 행 sticky top이 이 값을 참조한다 */
+const MONTH_BAND_HEIGHT = 16;
+const DAY_BAND_HEIGHT = 32;
+const HEADER_HEIGHT = MONTH_BAND_HEIGHT + DAY_BAND_HEIGHT;
 const MIN_BAR_WIDTH = 20;
 /** Maximum number of visible bar lanes before collapsing with "+N more" */
 const MAX_VISIBLE_LANES = 4;
@@ -92,10 +99,36 @@ const DRAG_SLOP = 6;
 const EDGE_SCROLL_ZONE = 48;
 const EDGE_SCROLL_STEP = 18;
 
+/** 타임라인 초기 범위 — 오늘 기준 과거/미래 일수. 스크롤이 끝에 가까워지면 양쪽으로 계속 늘어난다 */
+const INITIAL_PAST_DAYS = 84; // 12주
+const INITIAL_FUTURE_DAYS = 280; // 40주
+/** 끝에 닿았을 때 한 번에 늘리는 일수 */
+const EXTEND_DAYS = 84;
+/** 가장자리에서 이 칸 수 안으로 들어오면 미리 늘린다 */
+const EXTEND_THRESHOLD_DAYS = 14;
+
 /** 주말/공휴일/부재 빗금(hatching) 오버레이 배경 패턴 */
 const HATCH_WEEKEND_BG = `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(255,255,255,0.10)' stroke-width='1'/%3E%3C/svg%3E"), rgba(255,255,255,0.03)`;
 const HATCH_HOLIDAY_BG = `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1 5L5-1M3 9L9 3' stroke='rgba(239,68,68,0.18)' stroke-width='1'/%3E%3C/svg%3E"), rgba(239,68,68,0.06)`;
 const HATCH_OVERLAY_Z = 25;
+/** 개인 일정(부재/휴일근무) 띠 — 태스크 레인과 분리해 행 바닥에 고정하는 얇은 상태 띠 */
+const PERSONAL_STRIP_HEIGHT = 18;
+const PERSONAL_STRIP_GAP = 3;
+/** 개인 휴일근무 칸 — 빗금 대신 옅은 초록 틴트 + 점선 아웃라인으로 "이 사람만 근무" 표시 */
+const HOLIDAY_WORK_CELL_BG = 'rgba(52,211,153,0.07)';
+const HOLIDAY_WORK_CELL_OUTLINE = '1px dashed rgba(52,211,153,0.45)';
+
+/** 이벤트/부재 칩의 네이티브 title 툴팁에 붙일 공유 메모 미리보기 */
+function memoTitleSuffix(event: CalendarEventItem): string {
+  if (!event.memo) return '';
+  const preview = event.memo.length > 200 ? `${event.memo.slice(0, 200)}…` : event.memo;
+  const who = event.memo_updated_by?.name;
+  const attribution =
+    who && event.memo_updated_at
+      ? `\n— ${who} 님이 ${formatRelativeTime(event.memo_updated_at)} 수정`
+      : '';
+  return `\n\n📝 ${preview}${attribution}`;
+}
 
 function makeAbsenceHatchBg(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16) || 0;
@@ -183,7 +216,7 @@ interface DragState {
   startDate: string;
   dueDate: string;
   featureColor: string;
-  dragType: "move" | "resize-left" | "resize-right";
+  dragType: 'move' | 'resize-left' | 'resize-right';
   /** Day index of the cursor column at mousedown (for day-aligned snapping) */
   initialCursorDayIndex: number;
   currentDeltaDays: number;
@@ -193,16 +226,24 @@ interface DragState {
   targetRowIndex: number;
   /** Cross-row drag: target row's assignee ID */
   targetAssigneeId: string | null;
+  /**
+   * 커서가 그리드 밖 존(백로그·배치 대기·타임블록) 위에 있는 동안 채워진다.
+   * 이 값이 있으면 이 드래그는 날짜 이동이 아니라 확정도 축 이동이다 —
+   * 바는 원래 칸을 지키고(currentDeltaDays 0), 자리를 비울 모습으로 그려진다.
+   */
+  axisZone: AxisZone | null;
+  /** 축 이동 칩의 첫 프레임 위치. 이후 좌표는 칩이 스스로 따라간다 */
+  axisCursor: { x: number; y: number } | null;
 }
 
 /** 상단 밴드(마일스톤/이벤트) 바 이동·리사이즈 드래그 상태 */
 interface BandDragState {
-  kind: "milestone" | "event";
+  kind: 'milestone' | 'event';
   id: string;
   /** 원본 시작/종료일 (드래그 델타 적용 전) */
   startDate: string;
   endDate: string;
-  dragType: "move" | "resize-left" | "resize-right";
+  dragType: 'move' | 'resize-left' | 'resize-right';
   /** mousedown 시점 커서의 일(day) 컬럼 인덱스 (그리드 스냅 기준) */
   initialCursorDayIndex: number;
   currentDeltaDays: number;
@@ -227,14 +268,14 @@ interface DropHighlight {
 // ========================================
 
 function parseDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.split("-").map(Number);
+  const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d);
 }
 
 function formatDateStr(date: Date): string {
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 
@@ -246,8 +287,8 @@ function addDaysToDate(dateStr: string, days: number): string {
 
 function diffDays(a: string, b: string): number {
   // Use UTC to avoid DST-related off-by-one errors
-  const [ay, am, ad] = a.split("-").map(Number);
-  const [by, bm, bd] = b.split("-").map(Number);
+  const [ay, am, ad] = a.split('-').map(Number);
+  const [by, bm, bd] = b.split('-').map(Number);
   const utcA = Date.UTC(ay, am - 1, ad);
   const utcB = Date.UTC(by, bm - 1, bd);
   return Math.round((utcB - utcA) / (1000 * 60 * 60 * 24));
@@ -259,31 +300,88 @@ function isWeekend(date: Date): boolean {
 }
 
 /** 툴팁용 D-day 라벨 (오늘 기준, 마감 지남 = D+n) */
-function getDdayInfo(
-  dueDate: string | null,
-): { label: string; overdue: boolean } | null {
+function getDdayInfo(dueDate: string | null): { label: string; overdue: boolean } | null {
   if (!dueDate) return null;
   const diff = diffDays(formatDateStr(new Date()), dueDate);
   if (diff > 0) return { label: `D-${diff}`, overdue: false };
-  if (diff === 0) return { label: "D-Day", overdue: false };
+  if (diff === 0) return { label: 'D-Day', overdue: false };
   return { label: `D+${Math.abs(diff)}`, overdue: true };
 }
 
 function getDayLabel(date: Date, locale: string): string {
   const days: Record<string, string[]> = {
-    en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-    ko: ["일", "월", "화", "수", "목", "금", "토"],
-    ja: ["日", "月", "火", "水", "木", "金", "土"],
-    zh: ["日", "一", "二", "三", "四", "五", "六"],
-    "zh-TW": ["日", "一", "二", "三", "四", "五", "六"],
-    vi: ["CN", "T2", "T3", "T4", "T5", "T6", "T7"],
-    th: ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"],
-    es: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"],
-    "pt-BR": ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"],
-    hi: ["रवि", "सोम", "मंगल", "बुध", "गुरु", "शुक्र", "शनि"],
+    en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    ko: ['일', '월', '화', '수', '목', '금', '토'],
+    ja: ['日', '月', '火', '水', '木', '金', '土'],
+    zh: ['日', '一', '二', '三', '四', '五', '六'],
+    'zh-TW': ['日', '一', '二', '三', '四', '五', '六'],
+    vi: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'],
+    th: ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'],
+    es: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+    'pt-BR': ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+    hi: ['रवि', 'सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि'],
   };
   const arr = days[locale] || days.en;
   return arr[date.getDay()];
+}
+
+/**
+ * 축 이동 중 커서를 따라다니는 칩.
+ *
+ * 간트 바는 마우스 기반 커스텀 드래그라 브라우저 드래그 잔상이 없다 —
+ * 바가 원래 칸으로 돌아간 뒤엔 "무엇을 어디로 옮기는 중인지" 커서 쪽에 단서가 남지 않는다.
+ * 모양은 카드 드래그의 잔상(axisTransfer의 setAxisDragGhost)과 맞춰 둘이 같은 물건으로 읽히게 한다.
+ *
+ * 좌표를 부모 state에 두면 매 픽셀마다 간트 전체가 다시 그려지므로 자기 좌표는 자기가 듣는다.
+ */
+function AxisDragChip({
+  title,
+  zoneLabel,
+  accentHex,
+  initialX,
+  initialY,
+}: {
+  title: string;
+  zoneLabel: string;
+  accentHex: string;
+  initialX: number;
+  initialY: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // 좌표는 style prop이 아니라 DOM에 직접 쓴다 — prop으로 두면 부모가 다시 그릴 때마다
+  // 진입 시점 좌표로 되돌아가 칩이 튄다. 첫 위치는 paint 전에(useLayoutEffect) 잡는다.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el) {
+      el.style.transform = `translate3d(${initialX + 12}px, ${initialY + 12}px, 0)`;
+    }
+  }, [initialX, initialY]);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const el = ref.current;
+      if (el) {
+        el.style.transform = `translate3d(${e.clientX + 12}px, ${e.clientY + 12}px, 0)`;
+      }
+    };
+    document.addEventListener('mousemove', onMove);
+    return () => document.removeEventListener('mousemove', onMove);
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="fixed top-0 left-0 z-50 pointer-events-none max-w-[280px]
+        flex items-center gap-2 px-3 py-2 rounded-xl
+        bg-bridge-obsidian border border-foreground/10 shadow-2xl
+        text-xs font-bold text-foreground"
+    >
+      <span className="w-1.5 h-3.5 rounded-sm shrink-0" style={{ backgroundColor: accentHex }} />
+      <span className="truncate">{title}</span>
+      <span className="shrink-0 text-bridge-accent">→ {zoneLabel}</span>
+    </div>
+  );
 }
 
 // ========================================
@@ -327,9 +425,7 @@ export function ScheduleResourceView({
   }>({ open: false });
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-  const [dropHighlight, setDropHighlight] = useState<DropHighlight | null>(
-    null,
-  );
+  const [dropHighlight, setDropHighlight] = useState<DropHighlight | null>(null);
   /**
    * 행 펼침 기본값 — 임베드(대시보드 "내 워크로드")는 항상 펼친 상태로 시작한다.
    * 일정 탭 리소스 뷰는 기존대로 접힌 상태에서 시작.
@@ -338,8 +434,7 @@ export function ScheduleResourceView({
   /** 기본값에서 토글된 행만 담는다 (기본 접힘이면 "펼친 행", 기본 펼침이면 "접은 행") */
   const [toggledRows, setToggledRows] = useState<Set<string>>(new Set());
   const isRowExpanded = useCallback(
-    (rowId: string) =>
-      rowsDefaultExpanded ? !toggledRows.has(rowId) : toggledRows.has(rowId),
+    (rowId: string) => (rowsDefaultExpanded ? !toggledRows.has(rowId) : toggledRows.has(rowId)),
     [rowsDefaultExpanded, toggledRows],
   );
   /**
@@ -352,39 +447,35 @@ export function ScheduleResourceView({
     end: number;
   } | null>(null);
   /** Highlighted item id for scroll-to flash effect */
-  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(
-    null,
-  );
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
 
   // 직군별 그룹 모드
   const groupKey = `scheduleResourceGroupBy_${boardId}`;
   const collapsedKey = `scheduleResourceCollapsedRoles_${boardId}`;
   const [groupByJobRole, setGroupByJobRoleState] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem(groupKey) === "jobRole";
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(groupKey) === 'jobRole';
   });
   const setGroupByJobRole = useCallback(
     (next: boolean) => {
       setGroupByJobRoleState(next);
       try {
-        window.localStorage.setItem(groupKey, next ? "jobRole" : "member");
+        window.localStorage.setItem(groupKey, next ? 'jobRole' : 'member');
       } catch {
         /* ignore */
       }
     },
     [groupKey],
   );
-  const [collapsedRoleGroups, setCollapsedRoleGroups] = useState<Set<string>>(
-    () => {
-      if (typeof window === "undefined") return new Set();
-      try {
-        const raw = window.localStorage.getItem(collapsedKey);
-        return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-      } catch {
-        return new Set();
-      }
-    },
-  );
+  const [collapsedRoleGroups, setCollapsedRoleGroups] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const raw = window.localStorage.getItem(collapsedKey);
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
   const toggleRoleGroupCollapsed = useCallback(
     (key: string) => {
       setCollapsedRoleGroups((prev) => {
@@ -404,7 +495,7 @@ export function ScheduleResourceView({
   // ─── Zoom level state ───
   const zoomKey = `scheduleResourceZoom_${boardId}`;
   const [zoomIndex, setZoomIndexState] = useState<number>(() => {
-    if (typeof window === "undefined") return DEFAULT_ZOOM_INDEX;
+    if (typeof window === 'undefined') return DEFAULT_ZOOM_INDEX;
     try {
       const raw = window.localStorage.getItem(zoomKey);
       if (raw !== null) {
@@ -437,21 +528,18 @@ export function ScheduleResourceView({
   useEffect(() => {
     if (!settingsOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        settingsRef.current &&
-        !settingsRef.current.contains(e.target as Node)
-      ) {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
         setSettingsOpen(false);
       }
     };
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSettingsOpen(false);
+      if (e.key === 'Escape') setSettingsOpen(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleEsc);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEsc);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEsc);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEsc);
     };
   }, [settingsOpen]);
 
@@ -503,102 +591,155 @@ export function ScheduleResourceView({
     x: number;
     y: number;
     item: AssigneeItemResponse;
+    /** 어느 행의 바인지 — 타임블록에 넣을 때 누구의 열인지 알아야 한다 */
+    assigneeId: string | null;
     /** 화면에 백로그 레일이 있는지 — 일정 탭에는 없으므로 메뉴에서 감춘다 */
     hasBacklogZone: boolean;
+    /** 화면에 타임블록이 있는지 — 리소스 뷰 단독 화면에는 없으므로 메뉴에서 감춘다 */
+    hasTimeblockZone: boolean;
   } | null>(null);
 
-  // ─── Timeline range: wide fixed range (12 weeks before + 40 weeks after today) ───
-  const { timelineDays, todayIndex, rangeStart, rangeEnd } = useMemo(() => {
+  // ─── Timeline range: 오늘 기준 초기 창에서 시작해 스크롤이 끝에 닿으면 양쪽으로 늘어난다 ───
+  const [range, setRange] = useState<{ start: string; end: string }>(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayStr = formatDateStr(today);
+    return {
+      start: addDaysToDate(todayStr, -INITIAL_PAST_DAYS),
+      end: addDaysToDate(todayStr, INITIAL_FUTURE_DAYS),
+    };
+  });
+  const rangeStart = range.start;
+  const rangeEnd = range.end;
 
-    const start = new Date(today);
-    start.setDate(start.getDate() - 84); // 12 weeks before
-    const end = new Date(today);
-    end.setDate(end.getDate() + 280); // 40 weeks after
-
+  const { timelineDays, todayIndex } = useMemo(() => {
     const days: Date[] = [];
-    const cur = new Date(start);
+    const cur = parseDate(rangeStart);
+    const end = parseDate(rangeEnd);
     while (cur <= end) {
       days.push(new Date(cur));
       cur.setDate(cur.getDate() + 1);
     }
-
-    const todayStr = formatDateStr(today);
-    const todayIdx = days.findIndex((d) => formatDateStr(d) === todayStr);
-
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIdx = diffDays(rangeStart, formatDateStr(today));
     return {
       timelineDays: days,
-      todayIndex: todayIdx,
-      rangeStart: formatDateStr(start),
-      rangeEnd: formatDateStr(end),
+      todayIndex: todayIdx >= 0 && todayIdx < days.length ? todayIdx : -1,
     };
-  }, []);
+  }, [rangeStart, rangeEnd]);
 
-  // ─── Holidays (covers ~52w timeline crossing up to 3 calendar years) ───
-  const currentYear = new Date().getFullYear();
-  const { holidayMap: hPrev } = useHolidays(i18n.language, currentYear - 1);
-  const { holidayMap: hCur } = useHolidays(i18n.language, currentYear);
-  const { holidayMap: hNext } = useHolidays(i18n.language, currentYear + 1);
-  const holidayMap = useMemo(() => {
-    const merged = new Map<string, HolidayInfo[]>();
-    [hPrev, hCur, hNext].forEach((m) => m.forEach((v, k) => merged.set(k, v)));
-    return merged;
-  }, [hPrev, hCur, hNext]);
+  // ─── 월 세그먼트 — 헤더 월 밴드 + 본문 월 경계선 공용 (365칸 → 13개 내외) ───
+  const monthSegments = useMemo(() => {
+    const segs: {
+      startIdx: number;
+      days: number;
+      year: number;
+      month: number;
+    }[] = [];
+    timelineDays.forEach((d, i) => {
+      const last = segs[segs.length - 1];
+      if (last && last.year === d.getFullYear() && last.month === d.getMonth()) {
+        last.days += 1;
+      } else {
+        segs.push({
+          startIdx: i,
+          days: 1,
+          year: d.getFullYear(),
+          month: d.getMonth(),
+        });
+      }
+    });
+    return segs;
+  }, [timelineDays]);
+
+  // ─── Holidays — 타임라인이 걸치는 모든 연도 (범위가 늘어나면 새 해만 추가 로드) ───
+  const holidayYears = useMemo(() => {
+    const from = parseDate(rangeStart).getFullYear();
+    const to = parseDate(rangeEnd).getFullYear();
+    const years: number[] = [];
+    for (let y = from; y <= to; y++) years.push(y);
+    return years;
+  }, [rangeStart, rangeEnd]);
+  const { holidayMap } = useHolidaysForYears(i18n.language, holidayYears);
 
   // ─── 특별 일정 파생 (달력 예외 병합 / 팀 이벤트 / 개인 부재) ───
-  const { mergedHolidayMap, forcedWorkdaySet, teamEvents, memberAbsencesById } =
-    useMemo(() => {
-      // 라이브러리 공휴일에서 시작 (복제)
-      const holiMap = new Map<string, HolidayInfo[]>();
-      holidayMap.forEach((v, k) => holiMap.set(k, [...v]));
-      const workdaySet = new Set<string>();
+  const {
+    mergedHolidayMap,
+    forcedWorkdaySet,
+    teamEvents,
+    memberAbsencesById,
+    holidayWorkDatesById,
+  } = useMemo(() => {
+    // 라이브러리 공휴일에서 시작 (복제)
+    const holiMap = new Map<string, HolidayInfo[]>();
+    holidayMap.forEach((v, k) => holiMap.set(k, [...v]));
+    const workdaySet = new Set<string>();
 
-      // CALENDAR 타입(휴무일/근무일)을 표시 창(window) 전체에 확장 (반복 포함)
-      const calendarItems = calendarEvents.filter(
-        (e) => e.category === "CALENDAR",
-      );
-      if (calendarItems.length > 0) {
-        for (const day of timelineDays) {
-          const ds = formatDateStr(day);
-          const mmdd = ds.slice(5); // "MM-DD"
-          for (const e of calendarItems) {
-            const inRange = ds >= e.start_date && ds <= e.end_date;
-            const recurringMatch =
-              e.recurring &&
-              mmdd >= e.start_date.slice(5) &&
-              mmdd <= e.end_date.slice(5);
-            if (!inRange && !recurringMatch) continue;
-            if (e.event_type === "WORKDAY") {
-              workdaySet.add(ds);
-            } else {
-              const arr = holiMap.get(ds) || [];
-              arr.push({ date: ds, name: e.title || "휴무일", type: "custom" });
-              holiMap.set(ds, arr);
-            }
+    // CALENDAR 타입(휴무일/근무일)을 표시 창(window) 전체에 확장 (반복 포함)
+    const calendarItems = calendarEvents.filter((e) => e.category === 'CALENDAR');
+    if (calendarItems.length > 0) {
+      for (const day of timelineDays) {
+        const ds = formatDateStr(day);
+        const mmdd = ds.slice(5); // "MM-DD"
+        for (const e of calendarItems) {
+          const inRange = ds >= e.start_date && ds <= e.end_date;
+          const recurringMatch =
+            e.recurring && mmdd >= e.start_date.slice(5) && mmdd <= e.end_date.slice(5);
+          if (!inRange && !recurringMatch) continue;
+          if (e.event_type === 'WORKDAY') {
+            workdaySet.add(ds);
+          } else {
+            const arr = holiMap.get(ds) || [];
+            arr.push({ date: ds, name: e.title || '휴무일', type: 'custom' });
+            holiMap.set(ds, arr);
           }
         }
       }
-      // 근무일 지정은 공휴일/주말 셰이딩을 덮어씀
-      workdaySet.forEach((ds) => holiMap.delete(ds));
+    }
+    // 근무일 지정은 공휴일/주말 셰이딩을 덮어씀
+    workdaySet.forEach((ds) => holiMap.delete(ds));
 
-      const team = calendarEvents.filter((e) => e.category === "TEAM");
-      const absById = new Map<string, CalendarEventItem[]>();
-      calendarEvents
-        .filter((e) => e.category === "MEMBER" && e.member)
-        .forEach((e) => {
-          const arr = absById.get(e.member!.id) || [];
-          arr.push(e);
-          absById.set(e.member!.id, arr);
-        });
+    const team = calendarEvents.filter((e) => e.category === 'TEAM');
+    // 개인 일정(부재 + 휴일근무) — 둘 다 멤버 행에 바로 그려지므로 한 맵에 모은다
+    const absById = new Map<string, CalendarEventItem[]>();
+    // 멤버별 휴일근무 날짜 집합 — 그 행의 해당 날짜 주말/휴무일 빗금을 해제한다
+    const hwDatesById = new Map<string, Set<string>>();
+    calendarEvents
+      .filter((e) => e.category === 'MEMBER' && e.member)
+      .forEach((e) => {
+        const arr = absById.get(e.member!.id) || [];
+        arr.push(e);
+        absById.set(e.member!.id, arr);
+        if (isHolidayWorkType(e.event_type)) {
+          const set = hwDatesById.get(e.member!.id) || new Set<string>();
+          for (const day of timelineDays) {
+            const ds = formatDateStr(day);
+            if (ds >= e.start_date && ds <= e.end_date) set.add(ds);
+          }
+          hwDatesById.set(e.member!.id, set);
+        }
+      });
 
-      return {
-        mergedHolidayMap: holiMap,
-        forcedWorkdaySet: workdaySet,
-        teamEvents: team,
-        memberAbsencesById: absById,
-      };
-    }, [holidayMap, calendarEvents, timelineDays]);
+    return {
+      mergedHolidayMap: holiMap,
+      forcedWorkdaySet: workdaySet,
+      teamEvents: team,
+      memberAbsencesById: absById,
+      holidayWorkDatesById: hwDatesById,
+    };
+  }, [holidayMap, calendarEvents, timelineDays]);
+
+  /** 보드 달력 기준 비근무일(주말·휴무일·공휴일, 보드 근무일 지정은 제외) 여부 — 모달의 기본 탭/안내용 */
+  const isOffDayStr = useCallback(
+    (ds: string) =>
+      isBoardOffDay({
+        weekend: isWeekend(parseDate(ds)),
+        holiday: mergedHolidayMap.has(ds),
+        forcedWorkday: forcedWorkdaySet.has(ds),
+      }),
+    [mergedHolidayMap, forcedWorkdaySet],
+  );
 
   // 특별 일정 저장 후 리로드
   const reloadCalendarEvents = useCallback(async () => {
@@ -607,24 +748,24 @@ export function ScheduleResourceView({
       const res = await calendarEventAPI.list(boardId);
       setCalendarEvents(res.events);
     } catch (err) {
-      console.warn("Failed to reload calendar events", err);
+      console.warn('Failed to reload calendar events', err);
     }
   }, [boardId]);
 
   const openEventModal = useCallback(
-    (
-      initial?: CalendarEventModalInitial,
-      editing?: CalendarEventItem | null,
-    ) => {
+    (initial?: CalendarEventModalInitial, editing?: CalendarEventItem | null) => {
       setEventModal({ open: true, initial, editing: editing || null });
     },
     [],
   );
 
   // ─── Fetch data ───
+  /** 마지막 요청 번호 — 범위 확장으로 연달아 나간 요청 중 오래된(좁은 범위) 응답이 새 것을 덮지 않게 한다 */
+  const fetchSeqRef = useRef(0);
   const fetchData = useCallback(
     async (silent = false) => {
       if (!boardId) return;
+      const seq = ++fetchSeqRef.current;
       try {
         if (!silent) setLoading(true);
         const [result, contractorList, eventList] = await Promise.all([
@@ -635,11 +776,12 @@ export function ScheduleResourceView({
           contractorAPI.list(boardId).catch(() => ({ contractors: [] })),
           calendarEventAPI.list(boardId).catch(() => ({ events: [] })),
         ]);
+        if (seq !== fetchSeqRef.current) return;
         setData(result);
         setContractors(contractorList.contractors as BoardContractor[]);
         setCalendarEvents(eventList.events);
       } catch (err) {
-        console.warn("Failed to fetch checklist items by assignee", err);
+        console.warn('Failed to fetch checklist items by assignee', err);
       } finally {
         if (!silent) setLoading(false);
       }
@@ -647,9 +789,13 @@ export function ScheduleResourceView({
     [boardId, rangeStart, rangeEnd],
   );
 
+  // 첫 로드(보드 진입)만 전체 로딩 화면, 범위 확장으로 인한 재조회는 조용히 — 스크롤 컨테이너를 살려 두기 위해
+  const loadedBoardRef = useRef<string | null>(null);
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const silent = loadedBoardRef.current === boardId;
+    loadedBoardRef.current = boardId;
+    fetchData(silent);
+  }, [fetchData, boardId]);
 
   // Refresh when parent triggers (e.g. after external drop) — debounced to batch rapid updates
   useEffect(() => {
@@ -659,11 +805,18 @@ export function ScheduleResourceView({
     }
   }, [refreshTrigger, fetchData]);
 
-  // Scroll to today on mount
+  // Scroll to today on mount — 범위 확장으로 todayIndex가 바뀔 때는 다시 뛰지 않는다
+  const didInitialScrollRef = useRef(false);
   useEffect(() => {
-    if (!loading && scrollContainerRef.current && todayIndex >= 0) {
+    if (loading) {
+      didInitialScrollRef.current = false;
+      return;
+    }
+    if (didInitialScrollRef.current) return;
+    if (scrollContainerRef.current && todayIndex >= 0) {
       const scrollTo = todayIndex * dayWidth - 4 * dayWidth;
       scrollContainerRef.current.scrollLeft = Math.max(0, scrollTo);
+      didInitialScrollRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, todayIndex]);
@@ -675,8 +828,7 @@ export function ScheduleResourceView({
     if (!container || prevW === dayWidth) return;
     const viewportCenter = container.scrollLeft + container.clientWidth / 2;
     const centerDayIndex = viewportCenter / prevW;
-    container.scrollLeft =
-      centerDayIndex * dayWidth - container.clientWidth / 2;
+    container.scrollLeft = centerDayIndex * dayWidth - container.clientWidth / 2;
     prevDayWidthRef.current = dayWidth;
   }, [dayWidth]);
 
@@ -693,6 +845,55 @@ export function ScheduleResourceView({
     );
   }, [dayWidth]);
 
+  // ─── 무한 스크롤: 양 끝에 가까워지면 범위를 늘린다 ───
+  // 요청은 방향별로 한 번에 하나만 — 늘어난 범위가 렌더될 때까지 잠근다.
+  const extendLockRef = useRef({ past: false, future: false });
+  const externalDragRef = useRef(externalDragItem);
+  externalDragRef.current = externalDragItem;
+  const maybeExtendRange = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const threshold = EXTEND_THRESHOLD_DAYS * dayWidth;
+    const { scrollLeft, clientWidth } = container;
+
+    // 과거로 늘리면 모든 day-index가 밀린다. 드래그 중에는 시작 인덱스가 어긋나므로 미룬다.
+    const dragging =
+      dragStateRef.current ||
+      drawStateRef.current ||
+      eventDrawRef.current ||
+      bandDragRef.current ||
+      externalDragRef.current;
+    if (scrollLeft < threshold && !extendLockRef.current.past && !dragging) {
+      extendLockRef.current.past = true;
+      setRange((r) => ({ ...r, start: addDaysToDate(r.start, -EXTEND_DAYS) }));
+    }
+
+    const contentWidth = LEFT_COL_WIDTH + timelineDays.length * dayWidth;
+    if (scrollLeft + clientWidth > contentWidth - threshold && !extendLockRef.current.future) {
+      extendLockRef.current.future = true;
+      setRange((r) => ({ ...r, end: addDaysToDate(r.end, EXTEND_DAYS) }));
+    }
+  }, [dayWidth, timelineDays.length]);
+
+  // 과거로 늘어난 만큼 scrollLeft를 밀어 화면이 제자리에 머물게 한다 (paint 전에 보정)
+  const prevRangeStartRef = useRef(rangeStart);
+  useLayoutEffect(() => {
+    const prev = prevRangeStartRef.current;
+    if (prev === rangeStart) return;
+    prevRangeStartRef.current = rangeStart;
+    const shift = diffDays(rangeStart, prev);
+    const container = scrollContainerRef.current;
+    if (container && shift !== 0) {
+      container.scrollLeft += shift * dayWidth;
+    }
+    extendLockRef.current.past = false;
+    measureVisibleRange();
+  }, [rangeStart, dayWidth, measureVisibleRange]);
+
+  useLayoutEffect(() => {
+    extendLockRef.current.future = false;
+  }, [rangeEnd]);
+
   // onScroll 핸들러 (rAF 쓰로틀)
   const scrollRafRef = useRef<number | null>(null);
   const handleTimelineScroll = useCallback(() => {
@@ -700,15 +901,16 @@ export function ScheduleResourceView({
     scrollRafRef.current = requestAnimationFrame(() => {
       scrollRafRef.current = null;
       measureVisibleRange();
+      maybeExtendRange();
     });
-  }, [measureVisibleRange]);
+  }, [measureVisibleRange, maybeExtendRange]);
 
   // 마운트/줌 변경 시 측정 + 윈도우 리사이즈 대응
   useEffect(() => {
     measureVisibleRange();
-    window.addEventListener("resize", measureVisibleRange);
+    window.addEventListener('resize', measureVisibleRange);
     return () => {
-      window.removeEventListener("resize", measureVisibleRange);
+      window.removeEventListener('resize', measureVisibleRange);
       if (scrollRafRef.current != null) {
         cancelAnimationFrame(scrollRafRef.current);
         scrollRafRef.current = null;
@@ -716,10 +918,26 @@ export function ScheduleResourceView({
     };
   }, [measureVisibleRange, loading]);
 
+  // ─── 좌측 코너 "현재 보이는 달" 칩 라벨 — 스크롤 위치와 무관하게 항상 노출 ───
+  const visibleMonthLabel = useMemo(() => {
+    const r = visibleDayRange;
+    if (!r) return null;
+    const clamp = (i: number) => Math.max(0, Math.min(i, timelineDays.length - 1));
+    const a = timelineDays[clamp(r.start)];
+    const b = timelineDays[clamp(r.end)];
+    if (!a || !b) return null;
+    // Intl이 로케일별 어순(예: en "Aug – Sep 2026", ko "2026년 8월~9월")을 처리한다
+    const fmt = new Intl.DateTimeFormat(i18n.language || 'en', {
+      year: 'numeric',
+      month: 'short',
+    });
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()
+      ? fmt.format(a)
+      : fmt.formatRange(a, b);
+  }, [visibleDayRange, timelineDays, i18n.language]);
+
   // ─── External DnD drop tracking (from ChecklistItemPanel) ───
-  const externalDropRef = useRef<{ rowId: string; dayIndex: number } | null>(
-    null,
-  );
+  const externalDropRef = useRef<{ rowId: string; dayIndex: number } | null>(null);
 
   useEffect(() => {
     if (!externalDragItem) {
@@ -734,33 +952,28 @@ export function ScheduleResourceView({
 
       // Find which row the cursor is over via data attribute
       const el = document.elementFromPoint(e.clientX, e.clientY);
-      const rowEl = el?.closest("[data-resource-row]") as HTMLElement | null;
+      const rowEl = el?.closest('[data-resource-row]') as HTMLElement | null;
       if (!rowEl) {
         setDropHighlight(null);
         externalDropRef.current = null;
         return;
       }
 
-      const rowId = rowEl.getAttribute("data-resource-row") || "";
-      const rowIndex = Number(
-        rowEl.getAttribute("data-resource-row-index") || "0",
-      );
+      const rowId = rowEl.getAttribute('data-resource-row') || '';
+      const rowIndex = Number(rowEl.getAttribute('data-resource-row-index') || '0');
 
       // Determine day index: prefer DOM data attribute for accuracy,
       // fall back to pixel math if no grid column element is found.
       let dayIndex = -1;
       const elements = document.elementsFromPoint(e.clientX, e.clientY);
-      const gridCol = elements.find(
-        (el) => el.getAttribute("data-day-index") != null,
-      );
+      const gridCol = elements.find((el) => el.getAttribute('data-day-index') != null);
       if (gridCol) {
-        dayIndex = Number(gridCol.getAttribute("data-day-index"));
+        dayIndex = Number(gridCol.getAttribute('data-day-index'));
       } else {
         const containerRect = container.getBoundingClientRect();
         const scrollLeft = container.scrollLeft;
         dayIndex = Math.floor(
-          (e.clientX - containerRect.left - LEFT_COL_WIDTH + scrollLeft) /
-            dayWidth,
+          (e.clientX - containerRect.left - LEFT_COL_WIDTH + scrollLeft) / dayWidth,
         );
       }
 
@@ -791,9 +1004,8 @@ export function ScheduleResourceView({
                 {
                   assignee: {
                     id: drop.rowId,
-                    name: "",
-                    email: "",
-                    avatar: null,
+                    name: '',
+                    profile_image: null,
                   },
                   items: [optimisticItem],
                 },
@@ -801,9 +1013,7 @@ export function ScheduleResourceView({
               unassigned: [],
             };
 
-          const targetGroupExists = prevData.assignees.some(
-            (g) => g.assignee.id === drop.rowId,
-          );
+          const targetGroupExists = prevData.assignees.some((g) => g.assignee.id === drop.rowId);
 
           return {
             assignees: targetGroupExists
@@ -820,22 +1030,19 @@ export function ScheduleResourceView({
                   {
                     assignee: {
                       id: drop.rowId,
-                      name: "",
-                      email: "",
-                      avatar: null,
+                      name: '',
+                      profile_image: null,
                     },
                     items: [optimisticItem],
                   },
                 ],
             // Remove from unassigned if it was there
-            unassigned: prevData.unassigned.filter(
-              (i) => i.id !== externalDragItem.id,
-            ),
+            unassigned: prevData.unassigned.filter((i) => i.id !== externalDragItem.id),
           };
         });
 
         onDropChecklist(
-          { id: externalDragItem.id, task_id: externalDragItem.task?.id || "" },
+          { id: externalDragItem.id, task_id: externalDragItem.task?.id || '' },
           targetDate,
           drop.rowId,
         );
@@ -844,11 +1051,11 @@ export function ScheduleResourceView({
       externalDropRef.current = null;
     };
 
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
     return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [externalDragItem, timelineDays, onDropChecklist]);
 
@@ -856,7 +1063,7 @@ export function ScheduleResourceView({
   // Always show board members as rows, even when API data is not yet loaded
   const rows = useMemo(() => {
     type Row = {
-      kind: "member" | "contractor" | "unassigned";
+      kind: 'member' | 'contractor' | 'unassigned';
       id: string;
       contractorId?: string | null;
       managerMemberId?: string | null;
@@ -875,15 +1082,13 @@ export function ScheduleResourceView({
     };
 
     // Filter members to exclude viewers
-    const activeMembers = boardMembers.filter((m) => m.role !== "viewer");
+    const activeMembers = boardMembers.filter((m) => m.role !== 'viewer');
 
     // Build member rows
     const memberRows: Row[] = activeMembers.map((member) => {
-      const assigneeGroup = data?.assignees.find(
-        (a) => a.assignee.id === member.userId,
-      );
+      const assigneeGroup = data?.assignees.find((a) => a.assignee.id === member.userId);
       return {
-        kind: "member",
+        kind: 'member',
         id: member.userId,
         name: member.name,
         avatar: member.avatar || null,
@@ -921,7 +1126,7 @@ export function ScheduleResourceView({
     const visibleContractors = contractors.filter((c) => !c.hidden);
     visibleContractors.forEach((c) => {
       const row: Row = {
-        kind: "contractor",
+        kind: 'contractor',
         id: `contractor:${c.id}`,
         contractorId: c.id,
         managerMemberId: c.manager_member_id || null,
@@ -965,9 +1170,9 @@ export function ScheduleResourceView({
     // Add unassigned row if there are unassigned items
     if (data && data.unassigned.length > 0) {
       interleaved.push({
-        kind: "unassigned",
-        id: "__unassigned__",
-        name: t("schedule.resource.unassigned", "Unassigned"),
+        kind: 'unassigned',
+        id: '__unassigned__',
+        name: t('schedule.resource.unassigned', 'Unassigned'),
         avatar: null,
         color: null,
         items: data.unassigned,
@@ -978,15 +1183,7 @@ export function ScheduleResourceView({
     }
 
     return interleaved;
-  }, [
-    data,
-    boardMembers,
-    memberColorMap,
-    t,
-    groupByJobRole,
-    jobRoles,
-    contractors,
-  ]);
+  }, [data, boardMembers, memberColorMap, t, groupByJobRole, jobRoles, contractors]);
 
   // 외주 계약 기간이 현재 가시 날짜 구간(vr)과 겹치는지 판정.
   // 기간 중 하나라도 겹치면 표시. vr 미측정/기간 미상이면 표시(폴백).
@@ -1034,14 +1231,13 @@ export function ScheduleResourceView({
     let currentKey: string | null | undefined = undefined; // sentinel
     rows.forEach((row, idx) => {
       // __unassigned__ 행은 별도 그룹으로 노출하지 않음
-      if (row.id === "__unassigned__") return;
-      const key = row.jobRoleId || "__none__";
+      if (row.id === '__unassigned__') return;
+      const key = row.jobRoleId || '__none__';
       if (key !== currentKey) {
-        const role =
-          key === "__none__" ? null : jobRoles.find((r) => r.id === key);
+        const role = key === '__none__' ? null : jobRoles.find((r) => r.id === key);
         segments.push({
           key,
-          name: role?.name || t("jobRole.unassigned", "미지정"),
+          name: role?.name || t('jobRole.unassigned', '미지정'),
           color: role?.color || null,
           startIndex: idx,
           count: 0,
@@ -1067,58 +1263,34 @@ export function ScheduleResourceView({
     return set;
   }, [groupByJobRole, roleGroupSegments, collapsedRoleGroups]);
 
-  // ─── 'w' shortcut: toggle expand/collapse all rows + role groups ───
+  // ─── 'w' shortcut: `+N 더 보기` 행 모두 펼치기 ↔ 모두 닫기 ───
+  // 직군 그룹 접기(collapsedRoleGroups)는 건드리지 않는다 — 그룹까지 접으면
+  // 행 자체가 숨어 "더 보기"를 펼친 결과가 보이지 않기 때문.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key !== "w" && e.key !== "W") return;
+      // 한글 IME 상태에서는 e.key가 "ㅈ"으로 들어오므로 물리 키(e.code)로도 판정
+      const isW = e.code === 'KeyW' || e.key === 'w' || e.key === 'W';
+      if (!isW) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable)
-        return;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
       e.preventDefault();
-
-      if (groupByJobRole && roleGroupSegments.length > 0) {
-        const anyExpanded = roleGroupSegments.some(
-          (seg) => !collapsedRoleGroups.has(seg.key),
-        );
-        const allKeys = roleGroupSegments.map((seg) => seg.key);
-        const nextCollapsed = anyExpanded
-          ? new Set(allKeys)
-          : new Set<string>();
-        setCollapsedRoleGroups(nextCollapsed);
-        try {
-          window.localStorage.setItem(
-            collapsedKey,
-            JSON.stringify([...nextCollapsed]),
-          );
-        } catch {
-          /* ignore */
-        }
-      }
 
       setToggledRows((prev) => {
         const allIds = rows.map((r) => r.id);
-        const anyExpanded = allIds.some((id) =>
+        const allExpanded = allIds.every((id) =>
           rowsDefaultExpanded ? !prev.has(id) : prev.has(id),
         );
-        // 하나라도 펼쳐져 있으면 전부 접고, 아니면 전부 펼친다
-        const collapseAll = anyExpanded;
-        return rowsDefaultExpanded === collapseAll
-          ? new Set(allIds)
-          : new Set<string>();
+        // 전부 펼쳐져 있을 때만 모두 닫고, 하나라도 접혀 있으면 모두 펼친다
+        const expandAll = !allExpanded;
+        // toggledRows는 "기본값에서 뒤집힌 행"만 담는다
+        return expandAll === rowsDefaultExpanded ? new Set<string>() : new Set(allIds);
       });
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [
-    rows,
-    rowsDefaultExpanded,
-    groupByJobRole,
-    roleGroupSegments,
-    collapsedRoleGroups,
-    collapsedKey,
-  ]);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [rows, rowsDefaultExpanded]);
 
   // ─── Bar position calculations ───
   const getBarPosition = useCallback(
@@ -1131,10 +1303,7 @@ export function ScheduleResourceView({
       const endDayIndex = diffDays(rangeStart, effectiveEnd);
 
       const left = startDayIndex * dayWidth;
-      const width = Math.max(
-        (endDayIndex - startDayIndex + 1) * dayWidth,
-        MIN_BAR_WIDTH,
-      );
+      const width = Math.max((endDayIndex - startDayIndex + 1) * dayWidth, MIN_BAR_WIDTH);
 
       return { left, width, startDayIndex, endDayIndex };
     },
@@ -1159,7 +1328,7 @@ export function ScheduleResourceView({
     if (!targetItem) {
       const found = data.unassigned.find((i) => i.id === scrollToItem.id);
       if (found) {
-        targetRowId = "__unassigned__";
+        targetRowId = '__unassigned__';
         targetItem = found;
       }
     }
@@ -1170,21 +1339,51 @@ export function ScheduleResourceView({
       const containerWidth = scrollContainerRef.current.clientWidth;
       scrollContainerRef.current.scrollTo({
         left: Math.max(0, pos.left - containerWidth / 2 + pos.width / 2),
-        behavior: "smooth",
+        behavior: 'smooth',
       });
     }
 
-    const rowEl = scrollContainerRef.current.querySelector(
-      `[data-resource-row="${targetRowId}"]`,
-    );
+    const rowEl = scrollContainerRef.current.querySelector(`[data-resource-row="${targetRowId}"]`);
     if (rowEl) {
-      rowEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     setHighlightedItemId(scrollToItem.id);
     const timer = setTimeout(() => setHighlightedItemId(null), 2000);
     return () => clearTimeout(timer);
   }, [scrollToItem, data, getBarPosition]);
+
+  // ─── 하이라이트 요약 (칩 제목 + 마커를 달 행) ───
+  const highlightSummary = useMemo(() => {
+    if (!highlightedTaskId) return null;
+    const rowIds = new Set<string>();
+    let title: string | null = null;
+    for (const row of rows) {
+      for (const item of row.items) {
+        if (item.task?.id !== highlightedTaskId) continue;
+        rowIds.add(row.id);
+        if (!title) title = item.task?.title || item.title || null;
+      }
+    }
+    return { title, rowIds };
+  }, [highlightedTaskId, rows]);
+
+  // 하이라이트 중 Esc 로 해제 (설정 팝오버 등 다른 Esc 핸들러와 독립)
+  useEffect(() => {
+    if (!highlightedTaskId || !onToggleHighlight) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+      )
+        return;
+      onToggleHighlight(highlightedTaskId);
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [highlightedTaskId, onToggleHighlight]);
 
   // ─── Milestone bar positions ───
   const milestoneBarData = useMemo(() => {
@@ -1210,11 +1409,7 @@ export function ScheduleResourceView({
       const next = { ...prev };
       for (const id of ids) {
         const m = milestones.find((x) => x.id === id);
-        if (
-          m &&
-          m.start_date === prev[id].start_date &&
-          m.end_date === prev[id].end_date
-        ) {
+        if (m && m.start_date === prev[id].start_date && m.end_date === prev[id].end_date) {
           delete next[id];
           changed = true;
         }
@@ -1224,10 +1419,7 @@ export function ScheduleResourceView({
   }, [milestones]);
 
   // 마일스톤 id → 색 (배열 순서 기준 — 다른 뷰와 동일)
-  const milestoneColorMap = useMemo(
-    () => buildMilestoneColorMap(milestones),
-    [milestones],
-  );
+  const milestoneColorMap = useMemo(() => buildMilestoneColorMap(milestones), [milestones]);
 
   // ─── 팀 이벤트 바 위치 (이벤트 밴드용) ───
   const teamEventBarData = useMemo(() => {
@@ -1289,13 +1481,9 @@ export function ScheduleResourceView({
 
   const handleBarMouseEnter = useCallback(
     (e: React.MouseEvent, item: AssigneeItemResponse) => {
-      const featureName = item.feature?.title || "";
-      const milestoneId = item.task
-        ? (taskMilestoneMap?.[item.task.id] ?? null)
-        : null;
-      const milestone = milestoneId
-        ? (milestones.find((m) => m.id === milestoneId) ?? null)
-        : null;
+      const featureName = item.feature?.title || '';
+      const milestoneId = item.task ? (taskMilestoneMap?.[item.task.id] ?? null) : null;
+      const milestone = milestoneId ? (milestones.find((m) => m.id === milestoneId) ?? null) : null;
       setTooltip({
         x: e.clientX,
         y: e.clientY,
@@ -1317,7 +1505,7 @@ export function ScheduleResourceView({
       e: React.MouseEvent,
       item: AssigneeItemResponse,
       assigneeIndex: number,
-      type: "resize-left" | "resize-right" | "move",
+      type: 'resize-left' | 'resize-right' | 'move',
     ) => {
       if (readOnly) return;
       e.stopPropagation();
@@ -1332,33 +1520,33 @@ export function ScheduleResourceView({
       const container = scrollContainerRef.current;
       const containerRect = container?.getBoundingClientRect();
       const scrollLeft = container?.scrollLeft || 0;
-      const cursorContentX =
-        e.clientX - (containerRect?.left || 0) - LEFT_COL_WIDTH + scrollLeft;
+      const cursorContentX = e.clientX - (containerRect?.left || 0) - LEFT_COL_WIDTH + scrollLeft;
       const initialCursorDayIndex = Math.floor(cursorContentX / dayWidth);
 
       const rowId = rows[assigneeIndex]?.id || null;
-      const initialAssigneeId =
-        rowId && rowId !== "__unassigned__" ? rowId : null;
+      const initialAssigneeId = rowId && rowId !== '__unassigned__' ? rowId : null;
       const newDragState: DragState = {
         itemId: item.id,
-        taskId: item.task?.id || "",
+        taskId: item.task?.id || '',
         assigneeId: initialAssigneeId,
         assigneeIndex,
         startDate,
         dueDate,
-        featureColor: item.feature?.color || "#6366F1",
+        featureColor: item.feature?.color || '#6366F1',
         dragType: type,
         initialCursorDayIndex,
         currentDeltaDays: 0,
         originRowIndex: assigneeIndex,
         targetRowIndex: assigneeIndex,
         targetAssigneeId: initialAssigneeId,
+        axisZone: null,
+        axisCursor: null,
       };
 
       setDragState(newDragState);
       dragStateRef.current = newDragState;
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = type === "move" ? "grabbing" : "ew-resize";
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = type === 'move' ? 'grabbing' : 'ew-resize';
 
       // 축 이동 판정 기준점 — 여기서 DRAG_SLOP 이상 벗어나야 드래그로 본다
       const originX = e.clientX;
@@ -1374,8 +1562,7 @@ export function ScheduleResourceView({
         const cont = scrollContainerRef.current;
         const rect = cont?.getBoundingClientRect();
         const sl = cont?.scrollLeft || 0;
-        const contentX =
-          moveEvent.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + sl;
+        const contentX = moveEvent.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + sl;
         const currentDayIndex = Math.floor(contentX / dayWidth);
         const deltaDays = currentDayIndex - ds.initialCursorDayIndex;
 
@@ -1390,53 +1577,63 @@ export function ScheduleResourceView({
           Math.abs(moveEvent.clientX - originX) > DRAG_SLOP ||
           Math.abs(moveEvent.clientY - originY) > DRAG_SLOP;
 
-        if (ds.dragType === "move" && item.task && movedFar) {
+        if (ds.dragType === 'move' && item.task && movedFar) {
           const hovered = findAxisZoneAt(moveEvent.clientX, moveEvent.clientY);
-          const zone = hovered && hovered !== "workload" ? hovered : null;
+          const zone = hovered && hovered !== 'workload' ? hovered : null;
           if (zone !== axisZoneRef.current || !axisNotifiedRef.current) {
             axisZoneRef.current = zone;
             axisNotifiedRef.current = true;
             // 레일 위로 끌어냈다면 이건 확실히 드래그다 — 뒤따르는 click을 막는다
             if (zone) wasDraggedRef.current = true;
-            updateAxisDragOver("workload", zone);
+            updateAxisDragOver('workload', zone);
           }
         }
 
-        if (ds.dragType === "move") {
-          const el = document.elementFromPoint(
-            moveEvent.clientX,
-            moveEvent.clientY,
-          );
-          const rowEl = el?.closest(
-            "[data-resource-row]",
-          ) as HTMLElement | null;
+        if (ds.dragType === 'move') {
+          const el = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+          const rowEl = el?.closest('[data-resource-row]') as HTMLElement | null;
           if (rowEl) {
             const rowIdx = Number(
-              rowEl.getAttribute("data-resource-row-index") ??
-                ds.originRowIndex,
+              rowEl.getAttribute('data-resource-row-index') ?? ds.originRowIndex,
             );
             if (rowIdx !== newTargetRowIndex) {
               newTargetRowIndex = rowIdx;
               const targetRow = rows[rowIdx];
               newTargetAssigneeId =
-                targetRow?.id && targetRow.id !== "__unassigned__"
-                  ? targetRow.id
-                  : null;
+                targetRow?.id && targetRow.id !== '__unassigned__' ? targetRow.id : null;
             }
           }
         }
 
+        // 레일 위에 있는 동안은 날짜·행 미리보기를 접고 원래 자리로 되돌린다.
+        // 여기서 놓으면 handleMouseUp이 축 이동으로 처리해 날짜를 저장하지 않으므로,
+        // 옮겨진 모습을 계속 보여 주면 지키지 못할 약속이 된다.
+        const axisZone = ds.dragType === 'move' ? axisZoneRef.current : null;
+        const effectiveDelta = axisZone ? 0 : deltaDays;
+        const effectiveRowIndex = axisZone ? ds.originRowIndex : newTargetRowIndex;
+        const effectiveAssigneeId = axisZone ? ds.assigneeId : newTargetAssigneeId;
+
         const hasChanged =
-          deltaDays !== ds.currentDeltaDays ||
-          newTargetRowIndex !== ds.targetRowIndex;
+          effectiveDelta !== ds.currentDeltaDays ||
+          effectiveRowIndex !== ds.targetRowIndex ||
+          axisZone !== ds.axisZone;
 
         if (hasChanged) {
           wasDraggedRef.current = true;
           const updated = {
             ...ds,
-            currentDeltaDays: deltaDays,
-            targetRowIndex: newTargetRowIndex,
-            targetAssigneeId: newTargetAssigneeId,
+            currentDeltaDays: effectiveDelta,
+            targetRowIndex: effectiveRowIndex,
+            targetAssigneeId: effectiveAssigneeId,
+            axisZone,
+            // 존이 바뀌는 프레임에만 좌표를 새로 잡는다 — 칩의 첫 위치용이라
+            // 매 픽셀 갱신하면 간트 전체가 다시 그려진다
+            axisCursor:
+              axisZone && axisZone !== ds.axisZone
+                ? { x: moveEvent.clientX, y: moveEvent.clientY }
+                : axisZone
+                  ? ds.axisCursor
+                  : null,
           };
           dragStateRef.current = updated;
           setDragState(updated);
@@ -1444,10 +1641,10 @@ export function ScheduleResourceView({
       };
 
       const handleMouseUp = async () => {
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-        document.body.style.userSelect = "";
-        document.body.style.cursor = "";
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
 
         // 타임라인 밖 레일 위에서 놓았다면 날짜 이동이 아니라 축 이동이다.
         // 실제 변경은 그 존을 소유한 컴포넌트가 한다 — 여기선 알리기만 하고
@@ -1460,7 +1657,7 @@ export function ScheduleResourceView({
         }
         if (axisZone && item.task) {
           dispatchAxisDrop({
-            from: "workload",
+            from: 'workload',
             to: axisZone,
             item: {
               id: item.id,
@@ -1486,15 +1683,15 @@ export function ScheduleResourceView({
         let newStart = ds.startDate;
         let newDue = ds.dueDate;
 
-        if (ds.dragType === "move") {
+        if (ds.dragType === 'move') {
           newStart = addDaysToDate(ds.startDate, ds.currentDeltaDays);
           newDue = addDaysToDate(ds.dueDate, ds.currentDeltaDays);
-        } else if (ds.dragType === "resize-left") {
+        } else if (ds.dragType === 'resize-left') {
           newStart = addDaysToDate(ds.startDate, ds.currentDeltaDays);
           if (diffDays(newStart, newDue) < 0) {
             newStart = newDue;
           }
-        } else if (ds.dragType === "resize-right") {
+        } else if (ds.dragType === 'resize-right') {
           newDue = addDaysToDate(ds.dueDate, ds.currentDeltaDays);
           if (diffDays(newStart, newDue) < 0) {
             newDue = newStart;
@@ -1534,12 +1731,10 @@ export function ScheduleResourceView({
             if (!movedItem) return prevData;
 
             const targetRow = rows[ds.targetRowIndex];
-            if (targetRow?.id === "__unassigned__") {
+            if (targetRow?.id === '__unassigned__') {
               newUnassigned = [...newUnassigned, movedItem];
             } else {
-              const idx = newAssignees.findIndex(
-                (g) => g.assignee.id === targetRow?.id,
-              );
+              const idx = newAssignees.findIndex((g) => g.assignee.id === targetRow?.id);
               if (idx >= 0) {
                 newAssignees[idx] = {
                   ...newAssignees[idx],
@@ -1554,13 +1749,9 @@ export function ScheduleResourceView({
           // Same-row: update dates in-place
           setData((prevData) => {
             if (!prevData) return prevData;
-            const updateItems = (
-              items: AssigneeItemResponse[],
-            ): AssigneeItemResponse[] =>
+            const updateItems = (items: AssigneeItemResponse[]): AssigneeItemResponse[] =>
               items.map((item) =>
-                item.id === ds.itemId
-                  ? { ...item, start_date: newStart, due_date: newDue }
-                  : item,
+                item.id === ds.itemId ? { ...item, start_date: newStart, due_date: newDue } : item,
               );
             return {
               assignees: prevData.assignees.map((group) => ({
@@ -1579,14 +1770,13 @@ export function ScheduleResourceView({
           try {
             // newAssigneeId 가 "contractor:<id>" 라면 contractor_id 로 전송, 아니면 assignee_id
             const isContractor =
-              typeof newAssigneeId === "string" &&
-              newAssigneeId.startsWith("contractor:");
+              typeof newAssigneeId === 'string' && newAssigneeId.startsWith('contractor:');
             const payload = isContractor
               ? {
                   start_date: newStart,
                   due_date: newDue,
                   assignee_id: null as string | null,
-                  contractor_id: newAssigneeId!.substring("contractor:".length),
+                  contractor_id: newAssigneeId!.substring('contractor:'.length),
                 }
               : {
                   start_date: newStart,
@@ -1594,26 +1784,25 @@ export function ScheduleResourceView({
                   assignee_id: newAssigneeId,
                   contractor_id: null as string | null,
                 };
-            await checklistAPI.updateItem(
-              boardId,
-              ds.taskId,
-              ds.itemId,
-              payload,
-            );
+            await checklistAPI.updateItem(boardId, ds.taskId, ds.itemId, payload);
+            // 축을 넘지 않는 이동이라 dispatchAxisDrop이 안 나간다 — 그래도 같은 항목을
+            // 보고 있는 다른 존은 낡는다. 바뀐 건 날짜뿐이지만 배치 레일의 지연 판정과
+            // 타임블록 블록의 마감 색이 그 날짜를 쓴다. (듣는 쪽이 없는 일정 탭에서는 무해)
+            requestAxisRefresh();
             const result = await boardChecklistAPI.getItemsByAssignee(boardId, {
               start_date: rangeStart,
               end_date: rangeEnd,
             });
             setData(result);
           } catch (err) {
-            console.warn("Failed to update checklist item", err);
+            console.warn('Failed to update checklist item', err);
             fetchData(true);
           }
         }
       };
 
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
     },
     [boardId, fetchData, rangeStart, rangeEnd, rows, readOnly],
   );
@@ -1626,14 +1815,13 @@ export function ScheduleResourceView({
       if (externalDragItem || dragStateRef.current) return; // 다른 드래그 진행 중
       const target = e.target as HTMLElement;
       // 바/리사이즈 핸들 위에서 시작하면 무시 (바는 stopPropagation 하지만 방어적으로 한번 더)
-      if (target.closest("[data-bar]") || target.dataset.resizeHandle) return;
+      if (target.closest('[data-bar]') || target.dataset.resizeHandle) return;
 
       const container = scrollContainerRef.current;
       const rect = container?.getBoundingClientRect();
       const scrollLeft = container?.scrollLeft || 0;
       const startDayIndex = Math.floor(
-        (e.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + scrollLeft) /
-          dayWidth,
+        (e.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + scrollLeft) / dayWidth,
       );
       if (startDayIndex < 0 || startDayIndex >= timelineDays.length) return;
 
@@ -1647,8 +1835,8 @@ export function ScheduleResourceView({
       };
       drawStateRef.current = initial;
       setDrawState(initial);
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = "crosshair";
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'crosshair';
 
       const handleMove = (moveEvent: MouseEvent) => {
         const ds = drawStateRef.current;
@@ -1671,10 +1859,10 @@ export function ScheduleResourceView({
       };
 
       const handleUp = (upEvent: MouseEvent) => {
-        document.removeEventListener("mousemove", handleMove);
-        document.removeEventListener("mouseup", handleUp);
-        document.body.style.userSelect = "";
-        document.body.style.cursor = "";
+        document.removeEventListener('mousemove', handleMove);
+        document.removeEventListener('mouseup', handleUp);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
         const ds = drawStateRef.current;
         drawStateRef.current = null;
         setDrawState(null);
@@ -1691,8 +1879,8 @@ export function ScheduleResourceView({
         });
       };
 
-      document.addEventListener("mousemove", handleMove);
-      document.addEventListener("mouseup", handleUp);
+      document.addEventListener('mousemove', handleMove);
+      document.addEventListener('mouseup', handleUp);
     },
     [externalDragItem, timelineDays, readOnly],
   );
@@ -1704,14 +1892,13 @@ export function ScheduleResourceView({
       if (e.button !== 0) return;
       if (externalDragItem || dragStateRef.current) return;
       const target = e.target as HTMLElement;
-      if (target.closest("[data-bar]")) return; // 기존 이벤트 칩 위에서 시작하면 무시
+      if (target.closest('[data-bar]')) return; // 기존 이벤트 칩 위에서 시작하면 무시
 
       const container = scrollContainerRef.current;
       const rect = container?.getBoundingClientRect();
       const scrollLeft = container?.scrollLeft || 0;
       const startDayIndex = Math.floor(
-        (e.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + scrollLeft) /
-          dayWidth,
+        (e.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + scrollLeft) / dayWidth,
       );
       if (startDayIndex < 0 || startDayIndex >= timelineDays.length) return;
 
@@ -1720,8 +1907,8 @@ export function ScheduleResourceView({
       const initial = { startDayIndex, currentDayIndex: startDayIndex };
       eventDrawRef.current = initial;
       setEventDraw(initial);
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = "crosshair";
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'crosshair';
 
       const handleMove = (moveEvent: MouseEvent) => {
         const ds = eventDrawRef.current;
@@ -1744,10 +1931,10 @@ export function ScheduleResourceView({
       };
 
       const handleUp = () => {
-        document.removeEventListener("mousemove", handleMove);
-        document.removeEventListener("mouseup", handleUp);
-        document.body.style.userSelect = "";
-        document.body.style.cursor = "";
+        document.removeEventListener('mousemove', handleMove);
+        document.removeEventListener('mouseup', handleUp);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
         const ds = eventDrawRef.current;
         eventDrawRef.current = null;
         setEventDraw(null);
@@ -1757,14 +1944,14 @@ export function ScheduleResourceView({
         const b = Math.max(ds.startDayIndex, ds.currentDayIndex);
         // 드래그(여러 날)면 기간, 단순 클릭이면 그 날 하루로 프리필
         openEventModal({
-          category: "TEAM",
+          category: 'TEAM',
           date: formatDateStr(timelineDays[a]),
           endDate: formatDateStr(timelineDays[moved ? b : a]),
         });
       };
 
-      document.addEventListener("mousemove", handleMove);
-      document.addEventListener("mouseup", handleUp);
+      document.addEventListener('mousemove', handleMove);
+      document.addEventListener('mouseup', handleUp);
     },
     [externalDragItem, timelineDays, dayWidth, openEventModal, readOnly],
   );
@@ -1781,8 +1968,7 @@ export function ScheduleResourceView({
         });
         setData((prev) => {
           if (!prev) return prev;
-          const remove = (arr: AssigneeItemResponse[]) =>
-            arr.filter((i) => i.id !== item.id);
+          const remove = (arr: AssigneeItemResponse[]) => arr.filter((i) => i.id !== item.id);
           return {
             ...prev,
             assignees: prev.assignees.map((g) => ({
@@ -1796,8 +1982,10 @@ export function ScheduleResourceView({
             unassigned: remove(prev.unassigned),
           };
         });
+        // 날짜가 풀렸으니 이 항목은 배치 레일의 미배치 탭으로 올라와야 한다
+        requestAxisRefresh();
       } catch (err) {
-        console.warn("Failed to clear bar schedule", err);
+        console.warn('Failed to clear bar schedule', err);
         fetchData(true);
       }
     },
@@ -1830,7 +2018,7 @@ export function ScheduleResourceView({
           return;
         }
 
-        const rawData = e.dataTransfer.getData("application/checklist-item");
+        const rawData = e.dataTransfer.getData('application/checklist-item');
         if (!rawData) return;
         const parsed = JSON.parse(rawData);
 
@@ -1858,27 +2046,24 @@ export function ScheduleResourceView({
     [timelineDays, onDropChecklist, readOnly],
   );
 
-  const handleDragOver = useCallback(
-    (e: React.DragEvent, rowIndex: number, dayIndex: number) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      setDropHighlight({ rowIndex, dayIndex });
+  const handleDragOver = useCallback((e: React.DragEvent, rowIndex: number, dayIndex: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropHighlight({ rowIndex, dayIndex });
 
-      // 목표 날짜 칸이 화면 밖일 수 있다 — 가장자리에 오면 타임라인을 밀어 준다.
-      // HTML5 드래그 중에는 스크롤이 멈추므로 이 처리가 없으면 손이 닿지 않는다.
-      const container = scrollContainerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const leftEdge = rect.left + LEFT_COL_WIDTH + EDGE_SCROLL_ZONE;
-      const rightEdge = rect.right - EDGE_SCROLL_ZONE;
-      if (e.clientX < leftEdge) {
-        container.scrollLeft -= EDGE_SCROLL_STEP;
-      } else if (e.clientX > rightEdge) {
-        container.scrollLeft += EDGE_SCROLL_STEP;
-      }
-    },
-    [],
-  );
+    // 목표 날짜 칸이 화면 밖일 수 있다 — 가장자리에 오면 타임라인을 밀어 준다.
+    // HTML5 드래그 중에는 스크롤이 멈추므로 이 처리가 없으면 손이 닿지 않는다.
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const leftEdge = rect.left + LEFT_COL_WIDTH + EDGE_SCROLL_ZONE;
+    const rightEdge = rect.right - EDGE_SCROLL_ZONE;
+    if (e.clientX < leftEdge) {
+      container.scrollLeft -= EDGE_SCROLL_STEP;
+    } else if (e.clientX > rightEdge) {
+      container.scrollLeft += EDGE_SCROLL_STEP;
+    }
+  }, []);
 
   const handleDragLeave = useCallback(() => {
     setDropHighlight(null);
@@ -1892,13 +2077,13 @@ export function ScheduleResourceView({
       let startDate = dragState.startDate;
       let dueDate = dragState.dueDate;
 
-      if (dragState.dragType === "move") {
+      if (dragState.dragType === 'move') {
         startDate = addDaysToDate(startDate, dragState.currentDeltaDays);
         dueDate = addDaysToDate(dueDate, dragState.currentDeltaDays);
-      } else if (dragState.dragType === "resize-left") {
+      } else if (dragState.dragType === 'resize-left') {
         startDate = addDaysToDate(startDate, dragState.currentDeltaDays);
         if (diffDays(startDate, dueDate) < 0) startDate = dueDate;
-      } else if (dragState.dragType === "resize-right") {
+      } else if (dragState.dragType === 'resize-right') {
         dueDate = addDaysToDate(dueDate, dragState.currentDeltaDays);
         if (diffDays(startDate, dueDate) < 0) dueDate = startDate;
       }
@@ -1908,24 +2093,45 @@ export function ScheduleResourceView({
     [dragState, getBarPosition],
   );
 
+  /**
+   * 축 이동 칩에 적는 목적지 이름.
+   * 각 패널이 자기 헤더에 쓰는 키를 그대로 빌린다 — 칩이 가리키는 곳과
+   * 화면에 적힌 이름이 어긋나면 어디로 가는지 읽히지 않는다.
+   */
+  const axisZoneLabel = useCallback(
+    (zone: AxisZone) => {
+      switch (zone) {
+        case 'backlog':
+          return t('backlog.title', '내 백로그');
+        case 'placement':
+          return t('boardDashboard.placementTitle', '배치 대기');
+        case 'timeblock':
+          return t('schedule.subTab.timeblock', '타임블록');
+        default:
+          return '';
+      }
+    },
+    [t],
+  );
+
   // ─── 상단 밴드(마일스톤/이벤트) 바 이동·리사이즈 ───
   /** 드래그 델타를 원본 기간에 적용 (역전 방지 · 최소 1일) */
   const applyBandDelta = useCallback(
     (
       startDate: string,
       endDate: string,
-      dragType: BandDragState["dragType"],
+      dragType: BandDragState['dragType'],
       deltaDays: number,
     ): { start: string; end: string } => {
       let start = startDate;
       let end = endDate;
-      if (dragType === "move") {
+      if (dragType === 'move') {
         start = addDaysToDate(startDate, deltaDays);
         end = addDaysToDate(endDate, deltaDays);
-      } else if (dragType === "resize-left") {
+      } else if (dragType === 'resize-left') {
         start = addDaysToDate(startDate, deltaDays);
         if (diffDays(start, end) < 0) start = end;
-      } else if (dragType === "resize-right") {
+      } else if (dragType === 'resize-right') {
         end = addDaysToDate(endDate, deltaDays);
         if (diffDays(start, end) < 0) end = start;
       }
@@ -1936,15 +2142,9 @@ export function ScheduleResourceView({
 
   /** 드래그 중인 밴드 바의 실시간 위치 (없으면 원본 기간 위치) */
   const computeBandBarPosition = useCallback(
-    (
-      kind: BandDragState["kind"],
-      id: string,
-      origStart: string,
-      origEnd: string,
-    ) => {
+    (kind: BandDragState['kind'], id: string, origStart: string, origEnd: string) => {
       const ds = bandDrag;
-      if (!ds || ds.kind !== kind || ds.id !== id)
-        return getBarPosition(origStart, origEnd);
+      if (!ds || ds.kind !== kind || ds.id !== id) return getBarPosition(origStart, origEnd);
       const { start, end } = applyBandDelta(
         ds.startDate,
         ds.endDate,
@@ -1959,24 +2159,23 @@ export function ScheduleResourceView({
   const handleBandBarMouseDown = useCallback(
     (
       e: React.MouseEvent,
-      kind: BandDragState["kind"],
+      kind: BandDragState['kind'],
       id: string,
       startDate: string,
       endDate: string,
-      dragType: BandDragState["dragType"],
+      dragType: BandDragState['dragType'],
     ) => {
       if (readOnly) return;
       if (e.button !== 0) return;
       // 마일스톤은 편집 콜백이 없으면(읽기전용) 드래그 비활성
-      if (kind === "milestone" && !onUpdateMilestoneDates) return;
+      if (kind === 'milestone' && !onUpdateMilestoneDates) return;
       e.stopPropagation();
       e.preventDefault();
 
       const container = scrollContainerRef.current;
       const containerRect = container?.getBoundingClientRect();
       const scrollLeft = container?.scrollLeft || 0;
-      const cursorContentX =
-        e.clientX - (containerRect?.left || 0) - LEFT_COL_WIDTH + scrollLeft;
+      const cursorContentX = e.clientX - (containerRect?.left || 0) - LEFT_COL_WIDTH + scrollLeft;
       const initialCursorDayIndex = Math.floor(cursorContentX / dayWidth);
 
       const next: BandDragState = {
@@ -1991,9 +2190,8 @@ export function ScheduleResourceView({
       bandDragRef.current = next;
       bandWasDraggedRef.current = false;
       setBandDrag(next);
-      document.body.style.userSelect = "none";
-      document.body.style.cursor =
-        dragType === "move" ? "grabbing" : "ew-resize";
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = dragType === 'move' ? 'grabbing' : 'ew-resize';
 
       const handleMove = (moveEvent: MouseEvent) => {
         const ds = bandDragRef.current;
@@ -2001,8 +2199,7 @@ export function ScheduleResourceView({
         const cont = scrollContainerRef.current;
         const rect = cont?.getBoundingClientRect();
         const sl = cont?.scrollLeft || 0;
-        const contentX =
-          moveEvent.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + sl;
+        const contentX = moveEvent.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + sl;
         const currentDayIndex = Math.floor(contentX / dayWidth);
         const deltaDays = currentDayIndex - ds.initialCursorDayIndex;
         if (deltaDays === ds.currentDeltaDays) return;
@@ -2013,10 +2210,10 @@ export function ScheduleResourceView({
       };
 
       const handleUp = async () => {
-        document.removeEventListener("mousemove", handleMove);
-        document.removeEventListener("mouseup", handleUp);
-        document.body.style.userSelect = "";
-        document.body.style.cursor = "";
+        document.removeEventListener('mousemove', handleMove);
+        document.removeEventListener('mouseup', handleUp);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
 
         const ds = bandDragRef.current;
         bandDragRef.current = null;
@@ -2032,7 +2229,7 @@ export function ScheduleResourceView({
           ds.currentDeltaDays,
         );
 
-        if (ds.kind === "milestone") {
+        if (ds.kind === 'milestone') {
           // 낙관적 오버라이드 → 저장(부모가 milestones prop 갱신) → 효과에서 정리
           setMilestoneDateOverride((prev) => ({
             ...prev,
@@ -2053,11 +2250,7 @@ export function ScheduleResourceView({
           // 이벤트: 로컬 상태 낙관적 갱신 후 저장, 실패 시 재조회
           setBandDrag(null);
           setCalendarEvents((prev) =>
-            prev.map((ev) =>
-              ev.id === ds.id
-                ? { ...ev, start_date: start, end_date: end }
-                : ev,
-            ),
+            prev.map((ev) => (ev.id === ds.id ? { ...ev, start_date: start, end_date: end } : ev)),
           );
           try {
             await calendarEventAPI.update(boardId, ds.id, {
@@ -2065,23 +2258,16 @@ export function ScheduleResourceView({
               end_date: end,
             });
           } catch (err) {
-            console.warn("Failed to update calendar event dates", err);
+            console.warn('Failed to update calendar event dates', err);
             reloadCalendarEvents();
           }
         }
       };
 
-      document.addEventListener("mousemove", handleMove);
-      document.addEventListener("mouseup", handleUp);
+      document.addEventListener('mousemove', handleMove);
+      document.addEventListener('mouseup', handleUp);
     },
-    [
-      onUpdateMilestoneDates,
-      dayWidth,
-      applyBandDelta,
-      boardId,
-      reloadCalendarEvents,
-      readOnly,
-    ],
+    [onUpdateMilestoneDates, dayWidth, applyBandDelta, boardId, reloadCalendarEvents, readOnly],
   );
 
   // ─── Header drag-to-scroll ───
@@ -2099,8 +2285,8 @@ export function ScheduleResourceView({
       startX: e.clientX,
       scrollLeft: container.scrollLeft,
     };
-    document.body.style.cursor = "grabbing";
-    document.body.style.userSelect = "none";
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const state = headerDragRef.current;
@@ -2111,14 +2297,14 @@ export function ScheduleResourceView({
 
     const handleMouseUp = () => {
       headerDragRef.current = null;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
     };
 
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   }, []);
 
   // ─── Loading state ───
@@ -2139,10 +2325,10 @@ export function ScheduleResourceView({
             <Users className="w-7 h-7 text-bridge-secondary" />
           </div>
           <h2 className="text-sm md:text-lg font-bold text-foreground tracking-tight">
-            {t("schedule.subTab.resource", "Workload")}
+            {t('schedule.subTab.resource', 'Workload')}
           </h2>
           <p className="text-xs text-slate-500 leading-relaxed">
-            {t("schedule.resource.noItems", "No items assigned")}
+            {t('schedule.resource.noItems', 'No items assigned')}
           </p>
         </div>
       </div>
@@ -2150,6 +2336,7 @@ export function ScheduleResourceView({
   }
 
   const totalTimelineWidth = timelineDays.length * dayWidth;
+  const locale = i18n.language || 'en';
   // 밴드는 겹치는 바 수(레인)에 따라 높이가 늘어난다.
   const milestoneBandHeight = bandHeightForLanes(milestoneLaneCount);
   const eventBandHeight = bandHeightForLanes(teamEventLaneCount);
@@ -2160,6 +2347,31 @@ export function ScheduleResourceView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-bridge-dark relative">
+      {/* 하이라이트 중 칩 — 켜져 있음을 알리고 바로 해제할 수 있는 유일한 자리 */}
+      {highlightedTaskId && highlightSummary && (
+        <div
+          className="absolute right-4 z-30 inline-flex items-center gap-2 pl-3 pr-1.5 py-1 rounded-full
+            bg-amber-400 text-amber-950 text-xs font-bold shadow-[0_6px_18px_rgba(0,0,0,0.35)] max-w-[60%]"
+          style={{ top: HEADER_HEIGHT + 8 }}
+          role="status"
+        >
+          <Highlighter className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} />
+          <span className="truncate">
+            {highlightSummary.title ?? t('schedule.resource.highlight', '하이라이트')}
+          </span>
+          {onToggleHighlight && (
+            <button
+              type="button"
+              onClick={() => onToggleHighlight(highlightedTaskId)}
+              className="shrink-0 w-5 h-5 rounded-full bg-amber-950/15 hover:bg-amber-950/30 flex items-center justify-center transition-colors"
+              aria-label={t('schedule.resource.unhighlight', '하이라이트 해제')}
+              title={t('schedule.resource.unhighlight', '하이라이트 해제')}
+            >
+              <X className="w-3 h-3" strokeWidth={3} />
+            </button>
+          )}
+        </div>
+      )}
       {/* Main scrollable container */}
       <div
         ref={scrollContainerRef}
@@ -2179,11 +2391,12 @@ export function ScheduleResourceView({
               className="shrink-0 sticky left-0 z-30 bg-bridge-obsidian border-r border-foreground/[0.08] flex items-center justify-between gap-1 px-3"
               style={{ width: LEFT_COL_WIDTH, height: HEADER_HEIGHT }}
             >
-              {!embedded && (
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-400 truncate">
-                  {groupByJobRole
-                    ? t("schedule.resource.groupByJobRole", "직군별")
-                    : t("schedule.resource.groupByMember", "멤버별")}
+              {visibleMonthLabel && (
+                <span
+                  className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent whitespace-nowrap truncate min-w-0"
+                  title={visibleMonthLabel}
+                >
+                  {visibleMonthLabel}
                 </span>
               )}
               <button
@@ -2191,7 +2404,7 @@ export function ScheduleResourceView({
                 onClick={() => openEventModal()}
                 className="inline-flex items-center gap-1.5 shrink-0 h-8 px-2.5 rounded-lg text-xs font-medium
                   text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
-                title="특별 일정 추가 (이벤트/부재/휴무일)"
+                title="특별 일정 추가 (이벤트/부재·휴일근무/휴무일)"
                 aria-label="특별 일정 추가"
               >
                 <CalendarPlus className="w-4 h-4" />
@@ -2203,11 +2416,11 @@ export function ScheduleResourceView({
                   onClick={() => setSettingsOpen((v) => !v)}
                   className={`inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all ${
                     settingsOpen
-                      ? "bg-bridge-accent/20 text-bridge-accent"
-                      : "text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                      ? 'bg-bridge-accent/20 text-bridge-accent'
+                      : 'text-slate-400 hover:text-foreground hover:bg-foreground/10'
                   }`}
-                  title={t("schedule.resource.viewSettings", "보기 설정")}
-                  aria-label={t("schedule.resource.viewSettings", "보기 설정")}
+                  title={t('schedule.resource.viewSettings', '보기 설정')}
+                  aria-label={t('schedule.resource.viewSettings', '보기 설정')}
                 >
                   <Settings className="w-4 h-4" />
                 </button>
@@ -2220,7 +2433,7 @@ export function ScheduleResourceView({
                       {!embedded && jobRoles.length > 0 && (
                         <div>
                           <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
-                            {t("schedule.resource.groupBy", "그룹 기준")}
+                            {t('schedule.resource.groupBy', '그룹 기준')}
                           </p>
                           <div className="flex gap-1">
                             <button
@@ -2228,24 +2441,24 @@ export function ScheduleResourceView({
                               onClick={() => setGroupByJobRole(false)}
                               className={`flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                 !groupByJobRole
-                                  ? "bg-bridge-accent/20 text-bridge-accent"
-                                  : "bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                                  ? 'bg-bridge-accent/20 text-bridge-accent'
+                                  : 'bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10'
                               }`}
                             >
                               <Users className="w-3.5 h-3.5" />
-                              {t("schedule.resource.groupByMember", "멤버별")}
+                              {t('schedule.resource.groupByMember', '멤버별')}
                             </button>
                             <button
                               type="button"
                               onClick={() => setGroupByJobRole(true)}
                               className={`flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                 groupByJobRole
-                                  ? "bg-bridge-accent/20 text-bridge-accent"
-                                  : "bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10"
+                                  ? 'bg-bridge-accent/20 text-bridge-accent'
+                                  : 'bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10'
                               }`}
                             >
                               <Briefcase className="w-3.5 h-3.5" />
-                              {t("schedule.resource.groupByJobRole", "직군별")}
+                              {t('schedule.resource.groupByJobRole', '직군별')}
                             </button>
                           </div>
                         </div>
@@ -2254,7 +2467,7 @@ export function ScheduleResourceView({
                       {/* 줌 (바 너비) */}
                       <div>
                         <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
-                          {t("schedule.resource.zoom", "확대/축소")}
+                          {t('schedule.resource.zoom', '확대/축소')}
                         </p>
                         <div className="flex items-center gap-1">
                           <button
@@ -2262,7 +2475,7 @@ export function ScheduleResourceView({
                             onClick={() => setZoomIndex(zoomIndex - 1)}
                             disabled={zoomIndex <= 0}
                             className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all disabled:opacity-30 disabled:cursor-default"
-                            title={t("schedule.resource.zoomOut", "축소")}
+                            title={t('schedule.resource.zoomOut', '축소')}
                           >
                             <ZoomOut className="w-3.5 h-3.5" />
                           </button>
@@ -2274,7 +2487,7 @@ export function ScheduleResourceView({
                             onClick={() => setZoomIndex(zoomIndex + 1)}
                             disabled={zoomIndex >= ZOOM_PRESETS.length - 1}
                             className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all disabled:opacity-30 disabled:cursor-default"
-                            title={t("schedule.resource.zoomIn", "확대")}
+                            title={t('schedule.resource.zoomIn', '확대')}
                           >
                             <ZoomIn className="w-3.5 h-3.5" />
                           </button>
@@ -2292,7 +2505,7 @@ export function ScheduleResourceView({
                           className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-foreground/[0.06] text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
                         >
                           <Briefcase className="w-3.5 h-3.5" />
-                          {t("contractor.manage", "외주 관리")}
+                          {t('contractor.manage', '외주 관리')}
                         </button>
                       )}
                     </div>
@@ -2301,77 +2514,120 @@ export function ScheduleResourceView({
               </div>
             </div>
 
-            {/* Day headers — drag to scroll */}
+            {/* Month band + Day headers — drag to scroll */}
             <div
-              className="relative cursor-grab active:cursor-grabbing"
+              className="cursor-grab active:cursor-grabbing"
               style={{ width: totalTimelineWidth, height: HEADER_HEIGHT }}
               onMouseDown={handleHeaderMouseDown}
             >
-              {timelineDays.map((day, idx) => {
-                const dateStr = formatDateStr(day);
-                const forcedWork = forcedWorkdaySet.has(dateStr);
-                const weekend = isWeekend(day) && !forcedWork;
-                const isToday = idx === todayIndex;
-                const dayNum = day.getDate();
-                const showMonth = dayNum === 1 || idx === 0;
-                const locale = i18n.language || "en";
-                const holidays = mergedHolidayMap.get(dateStr);
-                const isHoliday = !!holidays && holidays.length > 0;
-                const holidayName = isHoliday
-                  ? holidays!.map((h) => h.name).join(", ")
-                  : undefined;
-
-                return (
-                  <div
-                    key={idx}
-                    title={holidayName || "우클릭: 휴무일/근무일 지정"}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      openEventModal({ category: "CALENDAR", date: dateStr });
-                    }}
-                    className={`absolute top-0 flex flex-col items-center justify-center border-r border-foreground/[0.04]
-                      ${isHoliday ? "bg-red-500/[0.04]" : weekend ? "bg-foreground/[0.02]" : ""}
-                      ${isToday ? "bg-bridge-accent/5" : ""}`}
-                    style={{
-                      left: idx * dayWidth,
-                      width: dayWidth,
-                      height: HEADER_HEIGHT,
-                    }}
-                  >
-                    {dayWidth >= 44 && (
+              {/* Month band — 구간 전체를 덮는 띠라 스크롤 위치와 무관하게 항상 보인다 */}
+              <div
+                className="relative border-b border-foreground/[0.06]"
+                style={{ width: totalTimelineWidth, height: MONTH_BAND_HEIGHT }}
+              >
+                {monthSegments.map((s) => {
+                  const w = s.days * dayWidth;
+                  const isNow = todayIndex >= s.startIdx && todayIndex < s.startIdx + s.days;
+                  // 좁은 세그먼트는 연도를 떨구되, 1월과 첫 세그먼트는 항상 연도 표기
+                  const withYear = w >= 90 || s.month === 0 || s.startIdx === 0;
+                  const label = new Date(s.year, s.month, 1).toLocaleDateString(
+                    locale,
+                    withYear ? { year: 'numeric', month: 'short' } : { month: 'short' },
+                  );
+                  return (
+                    <div
+                      key={`${s.year}-${s.month}`}
+                      className={`absolute top-0 h-full ${
+                        s.startIdx > 0 ? 'border-l border-foreground/[0.14]' : ''
+                      } ${isNow ? 'bg-bridge-accent/10' : ''}`}
+                      style={{ left: s.startIdx * dayWidth, width: w }}
+                    >
+                      {/* sticky 라벨 — 세그먼트가 스크롤아웃돼도 좌측 컬럼 옆에 붙어 남는다 */}
                       <span
-                        className={`text-xs ${
-                          isHoliday
-                            ? "text-red-400"
-                            : weekend
-                              ? "text-slate-500"
-                              : "text-slate-400"
+                        className="sticky inline-block px-2 text-xs font-bold text-foreground whitespace-nowrap"
+                        style={{
+                          left: LEFT_COL_WIDTH,
+                          lineHeight: `${MONTH_BAND_HEIGHT}px`,
+                        }}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Day band */}
+              <div
+                className="relative"
+                style={{ width: totalTimelineWidth, height: DAY_BAND_HEIGHT }}
+              >
+                {timelineDays.map((day, idx) => {
+                  const dateStr = formatDateStr(day);
+                  const forcedWork = forcedWorkdaySet.has(dateStr);
+                  const weekend = isWeekend(day) && !forcedWork;
+                  const isToday = idx === todayIndex;
+                  const dayNum = day.getDate();
+                  const holidays = mergedHolidayMap.get(dateStr);
+                  const isHoliday = !!holidays && holidays.length > 0;
+                  const holidayName = isHoliday
+                    ? holidays!.map((h) => h.name).join(', ')
+                    : undefined;
+
+                  return (
+                    <div
+                      key={idx}
+                      title={holidayName || '우클릭: 휴무일/근무일 지정'}
+                      aria-label={day.toLocaleDateString(locale, {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        weekday: 'long',
+                      })}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        openEventModal({ category: 'CALENDAR', date: dateStr });
+                      }}
+                      className={`absolute top-0 flex flex-col items-center justify-center border-r border-foreground/[0.04]
+                      ${dayNum === 1 && idx > 0 ? 'border-l border-foreground/[0.14]' : ''}
+                      ${isHoliday ? 'bg-red-500/[0.04]' : weekend ? 'bg-foreground/[0.02]' : ''}
+                      ${isToday ? 'bg-bridge-accent/5' : ''}`}
+                      style={{
+                        left: idx * dayWidth,
+                        width: dayWidth,
+                        height: DAY_BAND_HEIGHT,
+                      }}
+                    >
+                      {dayWidth >= 44 && (
+                        <span
+                          className={`text-xs leading-none mb-0.5 ${
+                            isHoliday
+                              ? 'text-red-400'
+                              : weekend
+                                ? 'text-slate-500'
+                                : 'text-slate-400'
+                          }`}
+                        >
+                          {getDayLabel(day, locale)}
+                        </span>
+                      )}
+                      <span
+                        className={`text-xs font-medium ${
+                          isToday
+                            ? 'w-[18px] h-[18px] rounded-full bg-bridge-accent text-white flex items-center justify-center'
+                            : isHoliday
+                              ? 'text-red-400 leading-none'
+                              : weekend
+                                ? 'text-slate-500 leading-none'
+                                : 'text-foreground leading-none'
                         }`}
                       >
-                        {getDayLabel(day, locale)}
+                        {dayNum}
                       </span>
-                    )}
-                    <span
-                      className={`text-xs font-medium ${
-                        isToday
-                          ? "w-6 h-6 rounded-full bg-bridge-accent text-white flex items-center justify-center"
-                          : isHoliday
-                            ? "text-red-400"
-                            : weekend
-                              ? "text-slate-500"
-                              : "text-foreground"
-                      }`}
-                    >
-                      {dayNum}
-                    </span>
-                    {showMonth && (
-                      <span className="text-xs text-slate-500 absolute top-0.5 left-1">
-                        {day.toLocaleDateString(locale, { month: "short" })}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -2389,7 +2645,7 @@ export function ScheduleResourceView({
               >
                 <Flag size={14} className="text-bridge-accent shrink-0" />
                 <span className="text-xs font-medium text-foreground truncate">
-                  {t("schedule.resource.milestone", "Milestone")}
+                  {t('schedule.resource.milestone', 'Milestone')}
                 </span>
               </div>
 
@@ -2405,65 +2661,61 @@ export function ScheduleResourceView({
                 {timelineDays.map((day, idx) => {
                   const dateStr = formatDateStr(day);
                   const isHoliday = mergedHolidayMap.has(dateStr);
-                  const weekend =
-                    isWeekend(day) && !forcedWorkdaySet.has(dateStr);
+                  const weekend = isWeekend(day) && !forcedWorkdaySet.has(dateStr);
                   if (!weekend && !isHoliday) return null;
                   return (
                     <div
                       key={`mw-${idx}`}
                       className={`absolute top-0 bottom-0 ${
-                        isHoliday ? "bg-red-500/[0.04]" : "bg-foreground/[0.02]"
+                        isHoliday ? 'bg-red-500/[0.04]' : 'bg-foreground/[0.02]'
                       }`}
                       style={{ left: idx * dayWidth, width: dayWidth }}
                     />
                   );
                 })}
 
+                {/* 월 경계선 — 헤더 월 밴드 구분선과 세로 정렬 */}
+                {monthSegments.map((s) =>
+                  s.startIdx === 0 ? null : (
+                    <div
+                      key={`mmb-${s.year}-${s.month}`}
+                      className="absolute top-0 bottom-0 w-px bg-foreground/[0.14] pointer-events-none"
+                      style={{ left: s.startIdx * dayWidth }}
+                    />
+                  ),
+                )}
+
                 {/* Milestone bars */}
                 {milestoneBarData.map(({ milestone, startDate, endDate }) => {
                   const editable = !!onUpdateMilestoneDates;
-                  const pos = computeBandBarPosition(
-                    "milestone",
-                    milestone.id,
-                    startDate,
-                    endDate,
-                  );
+                  const pos = computeBandBarPosition('milestone', milestone.id, startDate, endDate);
                   if (!pos) return null;
-                  const isDragging =
-                    bandDrag?.kind === "milestone" &&
-                    bandDrag.id === milestone.id;
+                  const isDragging = bandDrag?.kind === 'milestone' && bandDrag.id === milestone.id;
                   return (
                     <div
                       key={milestone.id}
                       data-bar="true"
                       className={`absolute rounded-lg flex items-center px-2 text-xs font-medium
                         text-white transition-shadow overflow-hidden
-                        ${editable ? "cursor-grab" : "cursor-pointer"}
-                        ${isDragging ? "shadow-lg ring-2 ring-white/60 z-30" : "hover:shadow-lg"}`}
+                        ${editable ? 'cursor-grab' : 'cursor-pointer'}
+                        ${isDragging ? 'shadow-lg ring-2 ring-white/60 z-30' : 'hover:shadow-lg'}`}
                       style={{
                         left: pos.left,
                         width: pos.width,
-                        top: bandBarTop(
-                          milestoneLanes[milestone.id] || 0,
-                          milestoneLaneCount,
-                        ),
+                        top: bandBarTop(milestoneLanes[milestone.id] || 0, milestoneLaneCount),
                         height: BAND_BAR_HEIGHT,
-                        backgroundColor: resolveMilestoneColor(
-                          milestone.id,
-                          milestoneColorMap,
-                        ).hex,
+                        backgroundColor: resolveMilestoneColor(milestone.id, milestoneColorMap).hex,
                       }}
                       title={`${milestone.title} (${startDate} ~ ${endDate})`}
                       onMouseDown={(e) => {
-                        if ((e.target as HTMLElement).dataset.resizeHandle)
-                          return;
+                        if ((e.target as HTMLElement).dataset.resizeHandle) return;
                         handleBandBarMouseDown(
                           e,
-                          "milestone",
+                          'milestone',
                           milestone.id,
                           startDate,
                           endDate,
-                          "move",
+                          'move',
                         );
                       }}
                       onClick={() => {
@@ -2482,11 +2734,11 @@ export function ScheduleResourceView({
                           onMouseDown={(e) =>
                             handleBandBarMouseDown(
                               e,
-                              "milestone",
+                              'milestone',
                               milestone.id,
                               startDate,
                               endDate,
-                              "resize-left",
+                              'resize-left',
                             )
                           }
                         />
@@ -2500,11 +2752,11 @@ export function ScheduleResourceView({
                           onMouseDown={(e) =>
                             handleBandBarMouseDown(
                               e,
-                              "milestone",
+                              'milestone',
                               milestone.id,
                               startDate,
                               endDate,
-                              "resize-right",
+                              'resize-right',
                             )
                           }
                         />
@@ -2517,8 +2769,7 @@ export function ScheduleResourceView({
                 {timelineDays.map((day, idx) => {
                   const dateStr = formatDateStr(day);
                   const isHol = mergedHolidayMap.has(dateStr);
-                  const isWknd =
-                    isWeekend(day) && !forcedWorkdaySet.has(dateStr);
+                  const isWknd = isWeekend(day) && !forcedWorkdaySet.has(dateStr);
                   if (!isHol && !isWknd) return null;
                   return (
                     <div
@@ -2550,9 +2801,7 @@ export function ScheduleResourceView({
             <div
               className="flex border-b border-foreground/[0.08] sticky z-[15] bg-bridge-dark"
               style={{
-                top:
-                  HEADER_HEIGHT +
-                  (milestoneBarData.length > 0 ? milestoneBandHeight : 0),
+                top: HEADER_HEIGHT + (milestoneBarData.length > 0 ? milestoneBandHeight : 0),
               }}
             >
               {/* Left label */}
@@ -2561,13 +2810,8 @@ export function ScheduleResourceView({
                   flex items-center gap-2 px-4"
                 style={{ width: LEFT_COL_WIDTH, height: eventBandHeight }}
               >
-                <CalendarPlus
-                  size={14}
-                  className="text-bridge-secondary shrink-0"
-                />
-                <span className="text-xs font-medium text-foreground truncate">
-                  이벤트
-                </span>
+                <CalendarPlus size={14} className="text-bridge-secondary shrink-0" />
+                <span className="text-xs font-medium text-foreground truncate">이벤트</span>
               </div>
 
               {/* Timeline area — 드래그로 기간 이벤트 생성 */}
@@ -2584,24 +2828,34 @@ export function ScheduleResourceView({
                 {timelineDays.map((day, idx) => {
                   const dateStr = formatDateStr(day);
                   const isHoliday = mergedHolidayMap.has(dateStr);
-                  const weekend =
-                    isWeekend(day) && !forcedWorkdaySet.has(dateStr);
+                  const weekend = isWeekend(day) && !forcedWorkdaySet.has(dateStr);
                   if (!weekend && !isHoliday) return null;
                   return (
                     <div
                       key={`ew-${idx}`}
                       className={`absolute top-0 bottom-0 ${
-                        isHoliday ? "bg-red-500/[0.04]" : "bg-foreground/[0.02]"
+                        isHoliday ? 'bg-red-500/[0.04]' : 'bg-foreground/[0.02]'
                       }`}
                       style={{ left: idx * dayWidth, width: dayWidth }}
                     />
                   );
                 })}
 
+                {/* 월 경계선 — 헤더 월 밴드 구분선과 세로 정렬 */}
+                {monthSegments.map((s) =>
+                  s.startIdx === 0 ? null : (
+                    <div
+                      key={`emb-${s.year}-${s.month}`}
+                      className="absolute top-0 bottom-0 w-px bg-foreground/[0.14] pointer-events-none"
+                      style={{ left: s.startIdx * dayWidth }}
+                    />
+                  ),
+                )}
+
                 {/* Event chips */}
                 {teamEventBarData.map(({ event }) => {
                   const pos = computeBandBarPosition(
-                    "event",
+                    'event',
                     event.id,
                     event.start_date,
                     event.end_date,
@@ -2610,42 +2864,37 @@ export function ScheduleResourceView({
                   const meta = calendarTypeMeta(event.event_type);
                   const singleDay = event.start_date === event.end_date;
                   const narrow = pos.width < 40;
-                  const isDragging =
-                    bandDrag?.kind === "event" && bandDrag.id === event.id;
+                  const isDragging = bandDrag?.kind === 'event' && bandDrag.id === event.id;
                   return (
                     <div
                       key={event.id}
                       data-bar="true"
                       className={`absolute rounded-lg flex items-center gap-1 ${
-                        narrow ? "px-1" : "px-2"
+                        narrow ? 'px-1' : 'px-2'
                       } text-xs font-medium text-white transition-shadow
                         cursor-grab overflow-hidden
-                        ${isDragging ? "shadow-lg ring-2 ring-white/60 z-30" : "hover:shadow-lg"}`}
+                        ${isDragging ? 'shadow-lg ring-2 ring-white/60 z-30' : 'hover:shadow-lg'}`}
                       style={{
                         left: pos.left,
                         width: pos.width,
-                        top: bandBarTop(
-                          teamEventLanes[event.id] || 0,
-                          teamEventLaneCount,
-                        ),
+                        top: bandBarTop(teamEventLanes[event.id] || 0, teamEventLaneCount),
                         height: BAND_BAR_HEIGHT,
                         backgroundColor: event.color || meta.color,
                       }}
                       title={`${meta.label}${
-                        event.title ? " · " + event.title : ""
+                        event.title ? ' · ' + event.title : ''
                       } (${event.start_date}${
-                        singleDay ? "" : " ~ " + event.end_date
-                      })`}
+                        singleDay ? '' : ' ~ ' + event.end_date
+                      })${memoTitleSuffix(event)}`}
                       onMouseDown={(e) => {
-                        if ((e.target as HTMLElement).dataset.resizeHandle)
-                          return;
+                        if ((e.target as HTMLElement).dataset.resizeHandle) return;
                         handleBandBarMouseDown(
                           e,
-                          "event",
+                          'event',
                           event.id,
                           event.start_date,
                           event.end_date,
-                          "move",
+                          'move',
                         );
                       }}
                       onClick={() => {
@@ -2663,18 +2912,16 @@ export function ScheduleResourceView({
                         onMouseDown={(e) =>
                           handleBandBarMouseDown(
                             e,
-                            "event",
+                            'event',
                             event.id,
                             event.start_date,
                             event.end_date,
-                            "resize-left",
+                            'resize-left',
                           )
                         }
                       />
                       <span className="shrink-0">{meta.icon}</span>
-                      <span className="truncate">
-                        {event.title || meta.label}
-                      </span>
+                      <span className="truncate">{event.title || meta.label}</span>
                       <div
                         data-resize-handle="true"
                         className="absolute top-0 right-0 w-2 h-full cursor-ew-resize
@@ -2682,11 +2929,11 @@ export function ScheduleResourceView({
                         onMouseDown={(e) =>
                           handleBandBarMouseDown(
                             e,
-                            "event",
+                            'event',
                             event.id,
                             event.start_date,
                             event.end_date,
-                            "resize-right",
+                            'resize-right',
                           )
                         }
                       />
@@ -2697,14 +2944,8 @@ export function ScheduleResourceView({
                 {/* 드래그 중 고스트 선택 영역 */}
                 {eventDraw &&
                   (() => {
-                    const a = Math.min(
-                      eventDraw.startDayIndex,
-                      eventDraw.currentDayIndex,
-                    );
-                    const b = Math.max(
-                      eventDraw.startDayIndex,
-                      eventDraw.currentDayIndex,
-                    );
+                    const a = Math.min(eventDraw.startDayIndex, eventDraw.currentDayIndex);
+                    const b = Math.max(eventDraw.startDayIndex, eventDraw.currentDayIndex);
                     return (
                       <div
                         className="absolute rounded-lg border-2 border-dashed border-bridge-secondary
@@ -2723,8 +2964,7 @@ export function ScheduleResourceView({
                 {timelineDays.map((day, idx) => {
                   const dateStr = formatDateStr(day);
                   const isHol = mergedHolidayMap.has(dateStr);
-                  const isWknd =
-                    isWeekend(day) && !forcedWorkdaySet.has(dateStr);
+                  const isWknd = isWeekend(day) && !forcedWorkdaySet.has(dateStr);
                   if (!isHol && !isWknd) return null;
                   return (
                     <div
@@ -2754,14 +2994,12 @@ export function ScheduleResourceView({
           {/* ─── Member rows ─── */}
           {rows.map((row, rowIndex) => {
             const isCrossRowTarget =
-              dragState?.dragType === "move" &&
+              dragState?.dragType === 'move' &&
               dragState.targetRowIndex === rowIndex &&
               dragState.originRowIndex !== rowIndex;
 
             // 직군 그룹 헤더 — 이 row가 그룹의 시작이면 헤더 먼저 렌더
-            const groupSegment = roleGroupSegments.find(
-              (s) => s.startIndex === rowIndex,
-            );
+            const groupSegment = roleGroupSegments.find((s) => s.startIndex === rowIndex);
             const groupHeader = groupSegment ? (
               <div
                 key={`group-${groupSegment.key}`}
@@ -2776,7 +3014,7 @@ export function ScheduleResourceView({
                 >
                   <span
                     className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: groupSegment.color || "#64748b" }}
+                    style={{ backgroundColor: groupSegment.color || '#64748b' }}
                   />
                   <Briefcase size={12} className="text-slate-400 shrink-0" />
                   <span className="text-xs font-bold text-foreground truncate flex-1 text-left">
@@ -2791,10 +3029,7 @@ export function ScheduleResourceView({
                     <ChevronUp size={14} className="text-slate-400" />
                   )}
                 </button>
-                <div
-                  className="bg-bridge-surface/40"
-                  style={{ width: totalTimelineWidth }}
-                />
+                <div className="bg-bridge-surface/40" style={{ width: totalTimelineWidth }} />
               </div>
             ) : null;
 
@@ -2806,7 +3041,7 @@ export function ScheduleResourceView({
             // 외주 행: 계약 기간이 현재 가시 날짜 구간과 하나도 겹치지 않으면 숨김.
             // (member/미할당 행은 항상 표시. visibleDayRange 미측정 시 폴백으로 표시.)
             if (
-              row.kind === "contractor" &&
+              row.kind === 'contractor' &&
               !contractorOverlapsVisibleRange(row, visibleDayRange)
             ) {
               return <Fragment key={row.id}>{groupHeader}</Fragment>;
@@ -2840,9 +3075,7 @@ export function ScheduleResourceView({
             const vr = visibleDayRange;
             const visibleBars = vr
               ? itemsWithBars.filter(
-                  (d) =>
-                    d.pos!.startDayIndex <= vr.end &&
-                    d.pos!.endDayIndex >= vr.start,
+                  (d) => d.pos!.startDayIndex <= vr.end && d.pos!.endDayIndex >= vr.start,
                 )
               : itemsWithBars;
             const visibleMaxLaneRaw = Math.max(
@@ -2851,62 +3084,60 @@ export function ScheduleResourceView({
             );
             const needsCollapse = visibleMaxLaneRaw >= MAX_VISIBLE_LANES;
             const visibleMaxLane =
-              !isExpanded && needsCollapse
-                ? MAX_VISIBLE_LANES - 1
-                : visibleMaxLaneRaw;
+              !isExpanded && needsCollapse ? MAX_VISIBLE_LANES - 1 : visibleMaxLaneRaw;
             const hiddenCount =
               needsCollapse && !isExpanded
-                ? visibleBars.filter(
-                    (d) => (barLanes[d.item.id] || 0) >= MAX_VISIBLE_LANES,
-                  ).length
+                ? visibleBars.filter((d) => (barLanes[d.item.id] || 0) >= MAX_VISIBLE_LANES).length
                 : 0;
 
-            // 개인 부재 바 — "행 전체 최대 레인" 아래가 아니라, 그 부재 날짜에
-            // 실제로 걸치는 태스크의 최대 레인 바로 아래에 배치한다.
-            // (전역 최대 레인에 고정하면, 부재 날짜에 태스크가 적을 때 태스크와
-            //  부재 바 사이에 빈 레인이 노출되던 문제 제거)
-            const rowAbsences =
-              row.kind === "member" ? memberAbsencesById.get(row.id) || [] : [];
-            const absenceBars = rowAbsences
+            // 개인 일정(부재/휴일근무) 띠 — 태스크 레인과 섞지 않고 행 바닥에 고정한다.
+            // 부재는 "그 날의 상태"라 태스크처럼 보이면 안 되고, 어느 행이든 같은 자리(바닥)에서
+            // 읽혀야 한다. 같은 날짜에 개인 일정이 겹치면(오전 반차 + 오후 반차) 바닥에서 위로 쌓는다.
+            const rowAbsences = row.kind === 'member' ? memberAbsencesById.get(row.id) || [] : [];
+            const rowHolidayWorkDates =
+              row.kind === 'member' ? holidayWorkDatesById.get(row.id) : undefined;
+            const absenceBarsRaw = rowAbsences
               .map((a) => ({
                 absence: a,
                 pos: getBarPosition(a.start_date, a.end_date),
               }))
-              .filter((d) => d.pos !== null)
-              .map((d) => {
-                // 이 부재 기간과 겹치는 태스크 바 중 (접힘 시 숨겨지는 레인 제외)
-                // 가장 아래 레인을 찾아 그 바로 아래 레인에 부재 바를 놓는다.
-                let localMaxLane = -1;
-                for (const vb of itemsWithBars) {
-                  const lane = barLanes[vb.item.id] || 0;
-                  if (lane > visibleMaxLane) continue; // 접힘 상태에서 숨겨진 바
-                  if (
-                    vb.pos!.startDayIndex <= d.pos!.endDayIndex &&
-                    vb.pos!.endDayIndex >= d.pos!.startDayIndex
-                  ) {
-                    if (lane > localMaxLane) localMaxLane = lane;
-                  }
-                }
-                const laneIndex = Math.min(localMaxLane, visibleMaxLane) + 1;
-                return { ...d, laneIndex };
-              });
-            const maxAbsenceLaneIndex = absenceBars.length
-              ? Math.max(...absenceBars.map((d) => d.laneIndex))
-              : -1;
+              .filter((d) => d.pos !== null);
+            const personalLanes = computeBarLanes(
+              absenceBarsRaw.map((d) => ({
+                id: d.absence.id,
+                startDayIndex: d.pos!.startDayIndex,
+                endDayIndex: d.pos!.endDayIndex,
+              })),
+            );
+            // laneIndex 0 = 맨 바닥, 커질수록 위로
+            const absenceBars = absenceBarsRaw.map((d) => ({
+              ...d,
+              laneIndex: personalLanes[d.absence.id] || 0,
+            }));
+            const personalLaneCount = absenceBars.length
+              ? Math.max(...absenceBars.map((d) => d.laneIndex)) + 1
+              : 0;
+            // 개인 일정 띠가 차지하는 높이 — 태스크 레인 아래에 더해진다
+            const personalBandHeight =
+              personalLaneCount * (PERSONAL_STRIP_HEIGHT + PERSONAL_STRIP_GAP);
 
-            // 행 높이는 태스크 최대 레인과 부재 바 최대 레인 중 더 깊은 쪽 기준.
-            const deepestLane = Math.max(visibleMaxLane, maxAbsenceLaneIndex);
+            // 행 높이 = 태스크 레인 + 개인 일정 띠. 개인 일정이 없는 행은 기존과 동일.
             const dynamicRowHeight = Math.max(
               ROW_HEIGHT,
-              (deepestLane + 1) * (BAR_HEIGHT + BAR_TOP_OFFSET) +
-                BAR_TOP_OFFSET * 2,
+              (visibleMaxLane + 1) * (BAR_HEIGHT + BAR_TOP_OFFSET) +
+                BAR_TOP_OFFSET * 2 +
+                personalBandHeight,
             );
+
+            // 이 행에 하이라이트된 태스크의 바가 있으면 이름 컬럼에 앰버 마커 —
+            // 가로 스크롤로 바가 화면 밖에 있어도 위치를 알 수 있다
+            const isHighlightRow = !!highlightSummary && highlightSummary.rowIds.has(row.id);
 
             return (
               <Fragment key={row.id}>
                 {groupHeader}
                 <div
-                  className={`flex border-b border-foreground/[0.08] ${isCrossRowTarget ? "bg-bridge-accent/5" : ""}`}
+                  className={`flex border-b border-foreground/[0.08] ${isCrossRowTarget ? 'bg-bridge-accent/5' : ''}`}
                   style={{ height: dynamicRowHeight }}
                   data-resource-row={row.id}
                   data-resource-row-index={rowIndex}
@@ -2914,22 +3145,23 @@ export function ScheduleResourceView({
                   {/* Left label */}
                   <div
                     className={`shrink-0 sticky left-0 z-10 bg-bridge-obsidian border-r border-foreground/[0.08]
-                    flex flex-col ${row.kind === "contractor" ? "pl-8 pr-4" : "px-4"} pt-3 ${isCrossRowTarget ? "ring-2 ring-bridge-accent/30 ring-inset" : ""}`}
+                    flex flex-col ${row.kind === 'contractor' ? 'pl-8 pr-4' : 'px-4'} pt-3 ${isCrossRowTarget ? 'ring-2 ring-bridge-accent/30 ring-inset' : ''}
+                    ${isHighlightRow ? 'shadow-[inset_3px_0_0_0_#fbbf24]' : ''}`}
                     style={{
                       width: LEFT_COL_WIDTH,
                       minHeight: dynamicRowHeight,
                     }}
                     title={
-                      row.kind === "member" && !readOnly
-                        ? "우클릭: 부재(휴가/출장 등) 추가"
+                      row.kind === 'member' && !readOnly
+                        ? '우클릭: 부재(휴가/출장 등) 추가'
                         : undefined
                     }
                     onContextMenu={
-                      row.kind === "member" && !readOnly
+                      row.kind === 'member' && !readOnly
                         ? (e) => {
                             e.preventDefault();
                             openEventModal({
-                              category: "MEMBER",
+                              category: 'MEMBER',
                               memberId: row.id,
                             });
                           }
@@ -2945,13 +3177,13 @@ export function ScheduleResourceView({
                         />
                       ) : (
                         <div
-                          className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white ${row.kind === "contractor" ? "border-2 border-dashed border-foreground/30" : ""}`}
+                          className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white ${row.kind === 'contractor' ? 'border-2 border-dashed border-foreground/30' : ''}`}
                           style={{
                             backgroundColor:
-                              row.id === "__unassigned__"
-                                ? "#64748b"
-                                : row.kind === "contractor"
-                                  ? row.color || "#94a3b8"
+                              row.id === '__unassigned__'
+                                ? '#64748b'
+                                : row.kind === 'contractor'
+                                  ? row.color || '#94a3b8'
                                   : getAssigneeHex(row.name, row.color),
                           }}
                         >
@@ -2959,27 +3191,26 @@ export function ScheduleResourceView({
                         </div>
                       )}
                       <div className="flex flex-col min-w-0 mt-0.5">
-                        <span className="text-sm font-medium text-foreground truncate">
+                        <span
+                          className={`text-sm font-medium truncate ${isHighlightRow ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'}`}
+                        >
                           {row.name}
                         </span>
-                        {row.kind === "contractor" && (
+                        {row.kind === 'contractor' && (
                           <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-0.5">
-                            {t("schedule.resource.contractor", "외주")}
+                            {t('schedule.resource.contractor', '외주')}
                             {(row.startDate || row.endDate) && (
                               <span className="font-medium normal-case tracking-normal ml-1">
-                                ·{" "}
-                                {row.startDate?.slice(5).replace("-", ".") ||
-                                  "?"}
-                                ~
-                                {row.endDate?.slice(5).replace("-", ".") || "?"}
+                                · {row.startDate?.slice(5).replace('-', '.') || '?'}~
+                                {row.endDate?.slice(5).replace('-', '.') || '?'}
                               </span>
                             )}
                             {(row.periods?.length ?? 0) > 1 && (
                               <span className="font-medium normal-case tracking-normal ml-1 text-slate-600">
-                                ·{" "}
-                                {t("schedule.resource.periodCount", {
+                                ·{' '}
+                                {t('schedule.resource.periodCount', {
                                   count: row.periods!.length,
-                                  defaultValue: "{{count}}개 기간",
+                                  defaultValue: '{{count}}개 기간',
                                 })}
                               </span>
                             )}
@@ -3005,12 +3236,12 @@ export function ScheduleResourceView({
                         {isExpanded ? (
                           <>
                             <ChevronUp size={12} />
-                            {t("schedule.resource.collapse", "Collapse")}
+                            {t('schedule.resource.collapse', 'Collapse')}
                           </>
                         ) : (
                           <>
-                            <ChevronDown size={12} />+{hiddenCount}{" "}
-                            {t("schedule.resource.more", "more")}
+                            <ChevronDown size={12} />+{hiddenCount}{' '}
+                            {t('schedule.resource.more', 'more')}
                           </>
                         )}
                       </button>
@@ -3026,31 +3257,19 @@ export function ScheduleResourceView({
                     }}
                     onMouseDown={(e) => handleDrawStart(e, rowIndex, row.id)}
                     onDragOver={(e) => {
-                      const rect =
-                        scrollContainerRef.current?.getBoundingClientRect();
-                      const scrollLeft =
-                        scrollContainerRef.current?.scrollLeft || 0;
+                      const rect = scrollContainerRef.current?.getBoundingClientRect();
+                      const scrollLeft = scrollContainerRef.current?.scrollLeft || 0;
                       const di = Math.floor(
-                        (e.clientX -
-                          (rect?.left || 0) -
-                          LEFT_COL_WIDTH +
-                          scrollLeft) /
-                          dayWidth,
+                        (e.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + scrollLeft) / dayWidth,
                       );
                       handleDragOver(e, rowIndex, di);
                     }}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => {
-                      const rect =
-                        scrollContainerRef.current?.getBoundingClientRect();
-                      const scrollLeft =
-                        scrollContainerRef.current?.scrollLeft || 0;
+                      const rect = scrollContainerRef.current?.getBoundingClientRect();
+                      const scrollLeft = scrollContainerRef.current?.scrollLeft || 0;
                       const dayIndex = Math.floor(
-                        (e.clientX -
-                          (rect?.left || 0) -
-                          LEFT_COL_WIDTH +
-                          scrollLeft) /
-                          dayWidth,
+                        (e.clientX - (rect?.left || 0) - LEFT_COL_WIDTH + scrollLeft) / dayWidth,
                       );
                       handleDrop(e, row.id, dayIndex);
                     }}
@@ -3059,32 +3278,51 @@ export function ScheduleResourceView({
                     {timelineDays.map((day, idx) => {
                       const dateStr = formatDateStr(day);
                       const isHoliday = mergedHolidayMap.has(dateStr);
-                      const weekend =
-                        isWeekend(day) && !forcedWorkdaySet.has(dateStr);
+                      const weekend = isWeekend(day) && !forcedWorkdaySet.has(dateStr);
+                      // 이 멤버의 휴일근무 날짜 — 비근무일 셰이딩을 걷고 초록 틴트로 "근무 칸" 표시
+                      const holidayWorkOverride =
+                        (isHoliday || weekend) && !!rowHolidayWorkDates?.has(dateStr);
                       const isHighlighted =
-                        dropHighlight?.rowIndex === rowIndex &&
-                        dropHighlight?.dayIndex === idx;
+                        dropHighlight?.rowIndex === rowIndex && dropHighlight?.dayIndex === idx;
 
                       return (
                         <div
                           key={`grid-${idx}`}
                           data-day-index={idx}
                           className={`absolute top-0 bottom-0 border-r border-foreground/[0.04]
-                          ${isHoliday ? "bg-red-500/[0.04]" : weekend ? "bg-foreground/[0.02]" : ""}
-                          ${isHighlighted ? "bg-bridge-accent/10 ring-2 ring-bridge-accent/30 ring-inset" : ""}`}
-                          style={{ left: idx * dayWidth, width: dayWidth }}
+                          ${holidayWorkOverride ? '' : isHoliday ? 'bg-red-500/[0.04]' : weekend ? 'bg-foreground/[0.02]' : ''}
+                          ${isHighlighted ? 'bg-bridge-accent/10 ring-2 ring-bridge-accent/30 ring-inset' : ''}`}
+                          style={{
+                            left: idx * dayWidth,
+                            width: dayWidth,
+                            ...(holidayWorkOverride && !isHighlighted
+                              ? {
+                                  backgroundColor: HOLIDAY_WORK_CELL_BG,
+                                  outline: HOLIDAY_WORK_CELL_OUTLINE,
+                                  outlineOffset: -1,
+                                }
+                              : {}),
+                          }}
                         />
                       );
                     })}
 
+                    {/* 월 경계선 — 헤더 월 밴드 구분선과 세로 정렬 */}
+                    {monthSegments.map((s) =>
+                      s.startIdx === 0 ? null : (
+                        <div
+                          key={`rmb-${s.year}-${s.month}`}
+                          className="absolute top-0 bottom-0 w-px bg-foreground/[0.14] pointer-events-none"
+                          style={{ left: s.startIdx * dayWidth }}
+                        />
+                      ),
+                    )}
+
                     {/* Contract period background bars for contractor rows (기간마다 1개) */}
-                    {row.kind === "contractor" &&
+                    {row.kind === 'contractor' &&
                       (row.periods ?? []).map((p, pi) => {
                         if (!p.start && !p.end) return null;
-                        const periodPos = getBarPosition(
-                          p.start || null,
-                          p.end || null,
-                        );
+                        const periodPos = getBarPosition(p.start || null, p.end || null);
                         if (!periodPos) return null;
                         return (
                           <div
@@ -3095,8 +3333,8 @@ export function ScheduleResourceView({
                               width: periodPos.width,
                               top: 0,
                               bottom: 0,
-                              borderColor: `${row.color || "#14b8a6"}40`,
-                              backgroundColor: `${row.color || "#14b8a6"}08`,
+                              borderColor: `${row.color || '#14b8a6'}40`,
+                              backgroundColor: `${row.color || '#14b8a6'}08`,
                             }}
                           />
                         );
@@ -3105,14 +3343,8 @@ export function ScheduleResourceView({
                     {/* 업무 생성 바 그리기 미리보기 */}
                     {drawState?.rowIndex === rowIndex &&
                       (() => {
-                        const a = Math.min(
-                          drawState.startDayIndex,
-                          drawState.currentDayIndex,
-                        );
-                        const b = Math.max(
-                          drawState.startDayIndex,
-                          drawState.currentDayIndex,
-                        );
+                        const a = Math.min(drawState.startDayIndex, drawState.currentDayIndex);
+                        const b = Math.max(drawState.startDayIndex, drawState.currentDayIndex);
                         return (
                           <div
                             className="absolute rounded-lg border-2 border-dashed border-bridge-accent bg-bridge-accent/15 pointer-events-none z-20 flex items-center px-2"
@@ -3124,159 +3356,170 @@ export function ScheduleResourceView({
                             }}
                           >
                             <span className="text-xs font-bold text-bridge-accent truncate">
-                              {formatDateStr(timelineDays[a])} ~{" "}
-                              {formatDateStr(timelineDays[b])}
+                              {formatDateStr(timelineDays[a])} ~ {formatDateStr(timelineDays[b])}
                             </span>
                           </div>
                         );
                       })()}
 
                     {/* Checklist item bars */}
-                    {itemsWithBars.map(
-                      ({ item, pos, isDragging: isItemDragging }) => {
-                        if (!pos) return null;
+                    {itemsWithBars.map(({ item, pos, isDragging: isItemDragging }) => {
+                      if (!pos) return null;
 
-                        const lane = barLanes[item.id] || 0;
-                        // Hide bars beyond MAX_VISIBLE_LANES when collapsed
-                        if (
-                          !isExpanded &&
-                          needsCollapse &&
-                          lane >= MAX_VISIBLE_LANES
-                        )
-                          return null;
+                      const lane = barLanes[item.id] || 0;
+                      // 행 높이는 "현재 가시 날짜 범위의 바"만 기준으로 잡히지만 레인은
+                      // 전역이라, 화면 밖 바가 더 깊은 레인에 있으면 행 아래로 삐져나와
+                      // 좌측 이름 컬럼 밑에 노출된다. 행 높이에 못 들어가는 레인은
+                      // (접힘으로 숨긴 레인 포함) 어차피 가시 범위 밖이므로 그리지 않는다.
+                      if (lane > visibleMaxLane) return null;
 
-                        const featureColor = item.feature?.color || "#6366F1";
-                        const barTop =
-                          BAR_TOP_OFFSET + lane * (BAR_HEIGHT + BAR_TOP_OFFSET);
+                      const featureColor = item.feature?.color || '#6366F1';
+                      const barTop = BAR_TOP_OFFSET + lane * (BAR_HEIGHT + BAR_TOP_OFFSET);
 
-                        const isHighlightTarget = highlightedItemId === item.id;
-                        const isTaskHighlighted =
-                          !!highlightedTaskId &&
-                          item.task?.id === highlightedTaskId;
+                      const isHighlightTarget = highlightedItemId === item.id;
+                      const isTaskHighlighted =
+                        !!highlightedTaskId && item.task?.id === highlightedTaskId;
+                      // 하이라이트 중이면 대상 외 바는 흐리게 — 바 색과 무관하게 대상이 드러난다
+                      const isSpotlightDimmed =
+                        !!highlightedTaskId &&
+                        !isTaskHighlighted &&
+                        !isHighlightTarget &&
+                        !isItemDragging;
+                      // 축 이동 판정 중 — 바는 원래 칸에 남아 자리를 비울 모습이 된다
+                      const isVacating = isItemDragging && !!dragState?.axisZone;
 
-                        return (
-                          <div
-                            key={item.id}
-                            data-bar="true"
-                            className={`absolute rounded-lg flex items-center px-2 text-xs font-medium
+                      return (
+                        <div
+                          key={item.id}
+                          data-bar="true"
+                          className={`absolute rounded-lg flex items-center px-2 text-xs font-medium
                           cursor-pointer hover:brightness-110 hover:shadow-lg transition-all text-white
-                          ${item.completed ? "opacity-50" : ""}
+                          ${item.completed ? 'opacity-50' : ''}
                           ${
-                            isItemDragging
-                              ? dragState?.targetRowIndex !==
-                                dragState?.originRowIndex
-                                ? "z-20 opacity-30"
-                                : "z-20 shadow-2xl ring-2 ring-white/30"
-                              : ""
+                            isVacating
+                              ? 'z-20 opacity-40 shadow-none'
+                              : isItemDragging
+                                ? dragState?.targetRowIndex !== dragState?.originRowIndex
+                                  ? 'z-20 opacity-30'
+                                  : 'z-20 shadow-2xl ring-2 ring-white/30'
+                                : ''
                           }
-                          ${isHighlightTarget ? "z-30 ring-2 ring-white/70 shadow-[0_0_16px_rgba(255,255,255,0.4)] animate-pulse" : ""}
-                          ${isTaskHighlighted && !isHighlightTarget ? "z-20 ring-2 ring-bridge-accent shadow-[0_0_16px_rgba(99,102,241,0.5)]" : ""}`}
-                            style={{
-                              left: pos.left,
-                              width: pos.width,
-                              top: barTop,
-                              height: BAR_HEIGHT,
-                              backgroundColor: featureColor,
-                            }}
-                            onClick={() => handleBarClick(item)}
-                            onContextMenu={(e) => {
-                              if (readOnly) return;
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setBarContextMenu({
-                                x: e.clientX,
-                                y: e.clientY,
-                                item,
-                                hasBacklogZone: !!document.querySelector(
-                                  '[data-axis-zone="backlog"]',
-                                ),
-                              });
-                            }}
-                            onMouseDown={(e) => {
-                              // Ignore if clicking on resize handles
-                              if (
-                                (e.target as HTMLElement).dataset.resizeHandle
-                              )
-                                return;
-                              handleResizeStart(e, item, rowIndex, "move");
-                            }}
-                            onMouseEnter={(e) => handleBarMouseEnter(e, item)}
-                            onMouseLeave={handleBarMouseLeave}
-                          >
-                            {/* Left resize handle */}
-                            <div
-                              data-resize-handle="true"
-                              className="absolute top-0 left-0 w-2 h-full cursor-ew-resize
+                          ${isHighlightTarget ? 'z-30 ring-2 ring-white/70 shadow-[0_0_16px_rgba(255,255,255,0.4)] animate-pulse' : ''}
+                          ${isTaskHighlighted && !isHighlightTarget ? 'z-20 ring-2 ring-amber-400 ring-offset-2 ring-offset-amber-400/25 shadow-[0_8px_24px_rgba(0,0,0,0.55)] animate-highlight-settle' : ''}
+                          ${isSpotlightDimmed ? 'opacity-25 saturate-[.3]' : ''}`}
+                          style={{
+                            left: pos.left,
+                            width: pos.width,
+                            top: barTop,
+                            height: BAR_HEIGHT,
+                            backgroundColor: featureColor,
+                            // 점선 = 곧 비는 자리. ring 유틸엔 점선이 없어 outline으로 그린다
+                            ...(isVacating
+                              ? {
+                                  outline: '2px dashed rgba(255,255,255,0.9)',
+                                  outlineOffset: '-2px',
+                                }
+                              : null),
+                          }}
+                          onClick={() => handleBarClick(item)}
+                          onContextMenu={(e) => {
+                            if (readOnly) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setBarContextMenu({
+                              x: e.clientX,
+                              y: e.clientY,
+                              item,
+                              assigneeId: row.id && row.id !== '__unassigned__' ? row.id : null,
+                              hasBacklogZone: !!document.querySelector(
+                                '[data-axis-zone="backlog"]',
+                              ),
+                              hasTimeblockZone: !!document.querySelector(
+                                '[data-axis-zone="timeblock"]',
+                              ),
+                            });
+                          }}
+                          onMouseDown={(e) => {
+                            // Ignore if clicking on resize handles
+                            if ((e.target as HTMLElement).dataset.resizeHandle) return;
+                            handleResizeStart(e, item, rowIndex, 'move');
+                          }}
+                          onMouseEnter={(e) => handleBarMouseEnter(e, item)}
+                          onMouseLeave={handleBarMouseLeave}
+                        >
+                          {/* Left resize handle */}
+                          <div
+                            data-resize-handle="true"
+                            className="absolute top-0 left-0 w-2 h-full cursor-ew-resize
                             hover:bg-white/30 rounded-l-lg"
-                              onMouseDown={(e) =>
-                                handleResizeStart(
-                                  e,
-                                  item,
-                                  rowIndex,
-                                  "resize-left",
-                                )
-                              }
-                            />
+                            onMouseDown={(e) => handleResizeStart(e, item, rowIndex, 'resize-left')}
+                          />
 
-                            {/* Content */}
+                          {/* 하이라이트 핀 — 우클릭 메뉴의 Highlighter 와 같은 은유 */}
+                          {isTaskHighlighted && !isHighlightTarget && (
                             <span
-                              className={`truncate flex-1 ${item.completed ? "line-through" : ""}`}
+                              className="shrink-0 w-4 h-4 mr-1.5 -ml-0.5 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center"
+                              aria-hidden="true"
                             >
-                              {item.title}
+                              <Highlighter className="w-2.5 h-2.5" strokeWidth={3} />
                             </span>
-                            {item.completed && (
-                              <CheckCircle2
-                                size={12}
-                                className="ml-1 shrink-0"
-                              />
-                            )}
+                          )}
 
-                            {/* Right resize handle */}
-                            <div
-                              data-resize-handle="true"
-                              className="absolute top-0 right-0 w-2 h-full cursor-ew-resize
+                          {/* Content */}
+                          <span
+                            className={`truncate flex-1 ${item.completed ? 'line-through' : ''}`}
+                          >
+                            {item.title}
+                          </span>
+                          {item.completed && <CheckCircle2 size={12} className="ml-1 shrink-0" />}
+
+                          {/* Right resize handle */}
+                          <div
+                            data-resize-handle="true"
+                            className="absolute top-0 right-0 w-2 h-full cursor-ew-resize
                             hover:bg-white/30 rounded-r-lg"
-                              onMouseDown={(e) =>
-                                handleResizeStart(
-                                  e,
-                                  item,
-                                  rowIndex,
-                                  "resize-right",
-                                )
-                              }
-                            />
-                          </div>
-                        );
-                      },
-                    )}
+                            onMouseDown={(e) =>
+                              handleResizeStart(e, item, rowIndex, 'resize-right')
+                            }
+                          />
+                        </div>
+                      );
+                    })}
 
-                    {/* 개인 부재 오버레이 바 (휴가/출장/병가/재택) */}
+                    {/* 개인 일정 띠 — 행 바닥 고정. 부재(점선+빗금) / 휴일근무(실선, 빗금 없음) */}
                     {absenceBars.map(({ absence, pos, laneIndex }) => {
                       if (!pos) return null;
                       const meta = calendarTypeMeta(absence.event_type);
                       const c = absence.color || meta.color;
-                      const top =
-                        BAR_TOP_OFFSET +
-                        laneIndex * (BAR_HEIGHT + BAR_TOP_OFFSET);
+                      const holidayWork = isHolidayWorkType(absence.event_type);
+                      const bottom =
+                        BAR_TOP_OFFSET + laneIndex * (PERSONAL_STRIP_HEIGHT + PERSONAL_STRIP_GAP);
                       return (
                         <div
                           key={absence.id}
                           data-bar="true"
-                          className="absolute rounded-lg flex items-center gap-1 px-2 text-xs font-medium
+                          className="absolute rounded-md flex items-center gap-1 px-1.5 text-xs font-medium leading-none
                           cursor-pointer hover:brightness-110 transition-all overflow-hidden"
                           style={{
                             left: pos.left,
                             width: pos.width,
-                            top,
-                            height: BAR_HEIGHT,
-                            color: "#e9edf5",
-                            border: `1px dashed ${c}99`,
-                            backgroundColor: `${c}1f`,
-                            backgroundImage: `repeating-linear-gradient(45deg, ${c}44 0 5px, ${c}14 5px 10px)`,
+                            bottom,
+                            height: PERSONAL_STRIP_HEIGHT,
+                            zIndex: HATCH_OVERLAY_Z + 1,
+                            color: holidayWork ? '#a7f3d0' : '#dbe1ec',
+                            ...(holidayWork
+                              ? {
+                                  border: `1px solid ${c}e6`,
+                                  backgroundColor: `${c}47`,
+                                }
+                              : {
+                                  border: `1px dashed ${c}b3`,
+                                  backgroundColor: `${c}38`,
+                                }),
                           }}
                           title={`${meta.label}${
-                            absence.title ? " · " + absence.title : ""
-                          } (${absence.start_date} ~ ${absence.end_date})`}
+                            absence.title ? ' · ' + absence.title : ''
+                          } (${absence.start_date} ~ ${absence.end_date})${memoTitleSuffix(absence)}`}
                           onMouseDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -3284,9 +3527,10 @@ export function ScheduleResourceView({
                           }}
                         >
                           <span>{meta.icon}</span>
-                          <span className="truncate">
-                            {absence.title || meta.label}
-                          </span>
+                          <span className="truncate">{absence.title || meta.label}</span>
+                          {absence.memo && (
+                            <MessageSquare className="w-3 h-3 shrink-0 ml-auto opacity-80" />
+                          )}
                         </div>
                       );
                     })}
@@ -3296,9 +3540,10 @@ export function ScheduleResourceView({
                     {timelineDays.map((day, idx) => {
                       const dateStr = formatDateStr(day);
                       const isHol = mergedHolidayMap.has(dateStr);
-                      const isWknd =
-                        isWeekend(day) && !forcedWorkdaySet.has(dateStr);
+                      const isWknd = isWeekend(day) && !forcedWorkdaySet.has(dateStr);
                       if (!isHol && !isWknd) return null;
+                      // 이 멤버의 휴일근무 날짜는 빗금을 그리지 않는다 (개인 단위 근무일)
+                      if (rowHolidayWorkDates?.has(dateStr)) return null;
                       return (
                         <div
                           key={`hatch-${idx}`}
@@ -3307,32 +3552,26 @@ export function ScheduleResourceView({
                             left: idx * dayWidth,
                             width: dayWidth,
                             zIndex: HATCH_OVERLAY_Z,
-                            background: isHol
-                              ? HATCH_HOLIDAY_BG
-                              : HATCH_WEEKEND_BG,
+                            background: isHol ? HATCH_HOLIDAY_BG : HATCH_WEEKEND_BG,
                           }}
                         />
                       );
                     })}
-                    {/* Member absence hatching — 태스크 + 부재 바까지만 칠하고
-                        그 아래 빈 레인은 칠하지 않는다(빈 줄처럼 보이던 문제 제거) */}
-                    {row.kind === "member" &&
-                      absenceBars.map(({ absence, pos: hPos, laneIndex }) => {
+                    {/* Member absence hatching — 주말/휴무일과 같은 언어로 그 날짜 열 전체를 덮는다 */}
+                    {row.kind === 'member' &&
+                      absenceBars.map(({ absence, pos: hPos }) => {
                         if (!hPos) return null;
+                        // 휴일근무는 "있음"이므로 부재 빗금을 씌우지 않는다
+                        if (isHolidayWorkType(absence.event_type)) return null;
                         const meta = calendarTypeMeta(absence.event_type);
                         const c = absence.color || meta.color;
-                        const hatchHeight =
-                          BAR_TOP_OFFSET +
-                          laneIndex * (BAR_HEIGHT + BAR_TOP_OFFSET) +
-                          BAR_HEIGHT;
                         return (
                           <div
                             key={`abs-hatch-${absence.id}`}
-                            className="absolute top-0 pointer-events-none"
+                            className="absolute top-0 bottom-0 pointer-events-none"
                             style={{
                               left: hPos.left,
                               width: hPos.width,
-                              height: hatchHeight,
                               zIndex: HATCH_OVERLAY_Z,
                               background: makeAbsenceHatchBg(c),
                             }}
@@ -3344,20 +3583,12 @@ export function ScheduleResourceView({
                     {isCrossRowTarget &&
                       dragState &&
                       (() => {
-                        const gs = addDaysToDate(
-                          dragState.startDate,
-                          dragState.currentDeltaDays,
-                        );
-                        const ge = addDaysToDate(
-                          dragState.dueDate,
-                          dragState.currentDeltaDays,
-                        );
+                        const gs = addDaysToDate(dragState.startDate, dragState.currentDeltaDays);
+                        const ge = addDaysToDate(dragState.dueDate, dragState.currentDeltaDays);
                         const gPos = getBarPosition(gs, ge);
                         if (!gPos) return null;
                         const originRow = rows[dragState.originRowIndex];
-                        const draggedItem = originRow?.items.find(
-                          (i) => i.id === dragState.itemId,
-                        );
+                        const draggedItem = originRow?.items.find((i) => i.id === dragState.itemId);
                         return (
                           <div
                             className="absolute rounded-lg flex items-center px-2 text-xs font-medium
@@ -3370,9 +3601,7 @@ export function ScheduleResourceView({
                               backgroundColor: dragState.featureColor,
                             }}
                           >
-                            <span className="truncate">
-                              {draggedItem?.title || ""}
-                            </span>
+                            <span className="truncate">{draggedItem?.title || ''}</span>
                           </div>
                         );
                       })()}
@@ -3383,8 +3612,8 @@ export function ScheduleResourceView({
                         className="absolute top-0 bottom-0 w-px bg-red-400 z-10 pointer-events-none"
                         style={{
                           left: todayIndex * dayWidth + dayWidth / 2,
-                          borderLeft: "1px dashed",
-                          borderColor: "rgb(248 113 113)",
+                          borderLeft: '1px dashed',
+                          borderColor: 'rgb(248 113 113)',
                           width: 0,
                         }}
                       />
@@ -3396,6 +3625,26 @@ export function ScheduleResourceView({
           })}
         </div>
       </div>
+
+      {/* ─── 축 이동 칩 (레일 위로 끌어내는 중) ─── */}
+      {dragState?.axisZone &&
+        dragState.axisCursor &&
+        (() => {
+          const draggedItem = rows[dragState.originRowIndex]?.items.find(
+            (i) => i.id === dragState.itemId,
+          );
+          const label = axisZoneLabel(dragState.axisZone);
+          if (!draggedItem || !label) return null;
+          return (
+            <AxisDragChip
+              title={draggedItem.title}
+              zoneLabel={label}
+              accentHex={dragState.featureColor}
+              initialX={dragState.axisCursor.x}
+              initialY={dragState.axisCursor.y}
+            />
+          );
+        })()}
 
       {/* ─── Tooltip ─── */}
       {tooltip &&
@@ -3429,21 +3678,19 @@ export function ScheduleResourceView({
                     </span>
                     {milestone.end_date && (
                       <span className="text-xs text-slate-600 shrink-0 tabular-nums">
-                        ~ {milestone.end_date.slice(5).replace("-", "/")}
+                        ~ {milestone.end_date.slice(5).replace('-', '/')}
                       </span>
                     )}
                   </div>
                 )}
-                <p className="text-xs font-medium text-foreground truncate">
-                  {item.title}
-                </p>
+                <p className="text-xs font-medium text-foreground truncate">{item.title}</p>
                 {/* 피처 › 태스크 경로 (피처 컬러 도트) */}
                 {featureName && (
                   <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
                     <span
                       className="w-1.5 h-1.5 rounded-full shrink-0"
                       style={{
-                        backgroundColor: item.feature?.color || "#6366F1",
+                        backgroundColor: item.feature?.color || '#6366F1',
                       }}
                     />
                     <span className="text-xs text-slate-500 truncate">
@@ -3456,19 +3703,19 @@ export function ScheduleResourceView({
                 {hasDateRow && (
                   <div className="flex items-center justify-between gap-3 mt-1.5 pt-1.5 border-t border-foreground/[0.08]">
                     <span className="text-xs text-slate-400 tabular-nums">
-                      {item.start_date || "?"} ~ {item.due_date || "?"}
+                      {item.start_date || '?'} ~ {item.due_date || '?'}
                     </span>
                     {item.completed ? (
                       <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
-                        {t("schedule.resource.completed", "Completed")}
+                        {t('schedule.resource.completed', 'Completed')}
                       </span>
                     ) : (
                       dday && (
                         <span
                           className={`text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
                             dday.overdue
-                              ? "bg-red-500/15 text-red-600 dark:text-red-400"
-                              : "bg-bridge-secondary/15 text-bridge-secondary"
+                              ? 'bg-red-500/15 text-red-600 dark:text-red-400'
+                              : 'bg-bridge-secondary/15 text-bridge-secondary'
                           }`}
                         >
                           {dday.label}
@@ -3491,26 +3738,26 @@ export function ScheduleResourceView({
         milestones={milestones}
         assigneeId={
           pendingCreate &&
-          !pendingCreate.rowId.startsWith("contractor:") &&
-          pendingCreate.rowId !== "__unassigned__"
+          !pendingCreate.rowId.startsWith('contractor:') &&
+          pendingCreate.rowId !== '__unassigned__'
             ? pendingCreate.rowId
             : null
         }
         assigneeName={
           pendingCreate &&
-          !pendingCreate.rowId.startsWith("contractor:") &&
-          pendingCreate.rowId !== "__unassigned__"
-            ? boardMembers.find((m) => m.userId === pendingCreate.rowId)
-                ?.name || null
+          !pendingCreate.rowId.startsWith('contractor:') &&
+          pendingCreate.rowId !== '__unassigned__'
+            ? boardMembers.find((m) => m.userId === pendingCreate.rowId)?.name || null
             : null
         }
         contractorId={
-          pendingCreate?.rowId.startsWith("contractor:")
-            ? pendingCreate.rowId.replace("contractor:", "")
+          pendingCreate?.rowId.startsWith('contractor:')
+            ? pendingCreate.rowId.replace('contractor:', '')
             : null
         }
-        startDate={pendingCreate?.startDate || ""}
-        dueDate={pendingCreate?.dueDate || ""}
+        startDate={pendingCreate?.startDate || ''}
+        dueDate={pendingCreate?.dueDate || ''}
+        isOffDay={isOffDayStr}
         onCreated={() => {
           setPendingCreate(null);
           fetchData(true);
@@ -3522,7 +3769,7 @@ export function ScheduleResourceView({
         open={!!moveTarget}
         onClose={() => setMoveTarget(null)}
         boardId={boardId}
-        item={moveTarget || { id: "", title: "", taskId: "", taskTitle: "" }}
+        item={moveTarget || { id: '', title: '', taskId: '', taskTitle: '' }}
         features={features}
         milestones={milestones}
         onMoved={() => {
@@ -3537,7 +3784,7 @@ export function ScheduleResourceView({
         onClose={() => setEventModal({ open: false })}
         boardId={boardId}
         members={boardMembers
-          .filter((m) => m.role !== "viewer")
+          .filter((m) => m.role !== 'viewer')
           .map((m) => ({
             id: m.userId,
             name: m.name,
@@ -3545,6 +3792,7 @@ export function ScheduleResourceView({
           }))}
         initial={eventModal.initial}
         editing={eventModal.editing}
+        isOffDay={isOffDayStr}
         onSaved={reloadCalendarEvents}
       />
 
@@ -3580,7 +3828,7 @@ export function ScheduleResourceView({
                 }}
               >
                 <ArrowRightLeft className="w-3.5 h-3.5" />
-                {t("schedule.resource.moveToTask", "태스크 이동")}
+                {t('schedule.resource.moveToTask', '태스크 이동')}
               </button>
             )}
             {barContextMenu.item.task && onToggleHighlight && (
@@ -3596,8 +3844,8 @@ export function ScheduleResourceView({
               >
                 <Highlighter className="w-3.5 h-3.5" />
                 {highlightedTaskId === barContextMenu.item.task.id
-                  ? t("schedule.resource.unhighlight", "하이라이트 해제")
-                  : t("schedule.resource.highlight", "하이라이트")}
+                  ? t('schedule.resource.unhighlight', '하이라이트 해제')
+                  : t('schedule.resource.highlight', '하이라이트')}
               </button>
             )}
             <button
@@ -3606,8 +3854,34 @@ export function ScheduleResourceView({
               onClick={() => handleClearBarSchedule(barContextMenu.item)}
             >
               <CalendarX className="w-4 h-4 shrink-0" />
-              {t("schedule.resource.clearSchedule", "일정에서 제거")}
+              {t('schedule.resource.clearSchedule', '일정에서 제거')}
             </button>
+            {/* 드래그를 못 쓰는 환경(터치·키보드)의 상향 경로 — 바를 타임블록으로.
+                시각은 타임블록이 정한다(지금 시각부터). 듣는 타임블록이 있을 때만 보인다 */}
+            {barContextMenu.item.task && barContextMenu.hasTimeblockZone && (
+              <button
+                type="button"
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors"
+                onClick={() => {
+                  const item = barContextMenu.item;
+                  const assigneeId = barContextMenu.assigneeId;
+                  setBarContextMenu(null);
+                  if (!item.task) return;
+                  requestTimeblockPlacement({
+                    id: item.id,
+                    task_id: item.task.id,
+                    title: item.title,
+                    start_date: item.start_date ?? null,
+                    due_date: item.due_date ?? null,
+                    assignee_id: assigneeId,
+                  });
+                }}
+              >
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                {t('schedule.resource.toTimeblockNow', '지금 타임블록에 넣기')}
+              </button>
+            )}
+
             {/* 드래그를 못 쓰는 환경의 하향 경로. 듣는 백로그 레일이 있을 때만 보인다
                 — 일정 탭에는 백로그가 없어 여기서만 노출된다 */}
             {barContextMenu.item.task && barContextMenu.hasBacklogZone && (
@@ -3619,8 +3893,8 @@ export function ScheduleResourceView({
                   setBarContextMenu(null);
                   if (!item.task) return;
                   dispatchAxisDrop({
-                    from: "workload",
-                    to: "backlog",
+                    from: 'workload',
+                    to: 'backlog',
                     item: {
                       id: item.id,
                       task_id: item.task.id,
@@ -3632,7 +3906,7 @@ export function ScheduleResourceView({
                 }}
               >
                 <ArrowDownToLine className="w-3.5 h-3.5 shrink-0" />
-                {t("schedule.resource.demoteToBacklog", "백로그로 내리기")}
+                {t('schedule.resource.demoteToBacklog', '백로그로 내리기')}
               </button>
             )}
           </div>
@@ -3642,7 +3916,7 @@ export function ScheduleResourceView({
   );
 }
 
-ScheduleResourceView.displayName = "ScheduleResourceView";
+ScheduleResourceView.displayName = 'ScheduleResourceView';
 
 // ========================================
 // Bar lane computation (stack bars to avoid overlap)
@@ -3669,8 +3943,7 @@ function bandBarTop(lane: number, laneCount: number): number {
 function computeBarLanes(bars: BarRange[]): Record<string, number> {
   // Sort by start, then by width (wider first)
   const sorted = [...bars].sort((a, b) => {
-    if (a.startDayIndex !== b.startDayIndex)
-      return a.startDayIndex - b.startDayIndex;
+    if (a.startDayIndex !== b.startDayIndex) return a.startDayIndex - b.startDayIndex;
     return b.endDayIndex - b.startDayIndex - (a.endDayIndex - a.startDayIndex);
   });
 

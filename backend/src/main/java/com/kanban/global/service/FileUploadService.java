@@ -37,6 +37,18 @@ public interface FileUploadService {
         return -1L;
     }
 
+    /**
+     * 객체의 앞 {@code length} 바이트만 읽는다 (매직바이트 검증용). 없거나 실패하면 null.
+     * 기본 구현은 스트림을 열어 앞부분만 읽는다 — S3 구현은 Range GET 으로 대체.
+     */
+    default byte[] readHeadBytes(String key, int length) {
+        try (InputStream is = getAsStream(key)) {
+            return is.readNBytes(length);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /** 지정된 key 경로에 직접 업로드 (temp 단계 없음) */
     String uploadDirect(MultipartFile file, String key);
 
@@ -53,11 +65,28 @@ public interface FileUploadService {
     /** S3 key로부터 InputStream 반환 (ZIP 다운로드 등) */
     InputStream getAsStream(String key);
 
+    /**
+     * 브라우저가 S3 에서 직접 받는 presigned GET URL 생성 (S3 전용, 미지원 시 null 반환).
+     * 응답 헤더에 Content-Disposition(attachment; 원본 파일명)·Content-Type 을 실어 저장 파일명이 보존된다.
+     * null 이면 호출측은 백엔드 프록시 스트리밍으로 폴백한다.
+     */
+    default String presignDownload(String key, String filename, String contentType) {
+        return null;
+    }
+
     /** 임시 파일 → 영구 경로 이동 + 썸네일 생성 */
     PermanentResult moveToPermanent(String tempKey, String boardId, String commentId);
 
     /** 파일 삭제 (영구 경로) */
     void delete(String key);
+
+    /**
+     * 여러 key 일괄 삭제 (파생 _thumb.jpg 는 포함하지 않음 — 호출측이 key 목록에 넣는다).
+     * 기본 구현은 건별 delete. S3 구현은 DeleteObjects(1000개 단위)로 대체.
+     */
+    default void deleteAll(java.util.Collection<String> keys) {
+        keys.forEach(this::delete);
+    }
 
     /** 임시 파일 존재 여부 확인 */
     boolean tempFileExists(String tempKey);

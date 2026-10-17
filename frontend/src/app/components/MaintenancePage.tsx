@@ -71,7 +71,10 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
       <div className="absolute inset-0 overflow-hidden">
         {/* Gradient Orbs */}
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-bridge-accent/20 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple-500/15 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
+        <div
+          className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple-500/15 rounded-full blur-[120px] animate-pulse"
+          style={{ animationDelay: '1s' }}
+        />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-bridge-accent/5 rounded-full blur-[150px]" />
 
         {/* Grid Pattern */}
@@ -80,7 +83,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
           style={{
             backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
                              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-            backgroundSize: '50px 50px'
+            backgroundSize: '50px 50px',
           }}
         />
       </div>
@@ -121,7 +124,10 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
           {/* Inner Icon */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-bridge-accent/20 to-purple-500/20 backdrop-blur-sm border border-foreground/10 flex items-center justify-center">
-              <Settings className="h-9 w-9 text-bridge-accent animate-spin" style={{ animationDuration: '8s' }} />
+              <Settings
+                className="h-9 w-9 text-bridge-accent animate-spin"
+                style={{ animationDuration: '8s' }}
+              />
             </div>
           </div>
 
@@ -157,7 +163,9 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
                         {formatNumber(countdown.hours)}
                       </span>
                     </div>
-                    <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">{t('maintenance.hours')}</span>
+                    <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">
+                      {t('maintenance.hours')}
+                    </span>
                   </div>
                   <span className="text-2xl text-slate-600 font-normal mb-5">:</span>
                 </>
@@ -168,7 +176,9 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
                     {formatNumber(countdown.minutes)}
                   </span>
                 </div>
-                <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">{t('maintenance.minutes')}</span>
+                <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">
+                  {t('maintenance.minutes')}
+                </span>
               </div>
               <span className="text-2xl text-slate-600 font-normal mb-5">:</span>
               <div className="flex flex-col items-center">
@@ -177,7 +187,9 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
                     {formatNumber(countdown.seconds)}
                   </span>
                 </div>
-                <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">{t('maintenance.seconds')}</span>
+                <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">
+                  {t('maintenance.seconds')}
+                </span>
               </div>
             </div>
 
@@ -201,7 +213,9 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
           className="group inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-bridge-accent to-purple-500 text-white rounded-2xl font-bold text-lg
             hover:shadow-[0_0_40px_rgba(99,102,241,0.4)] hover:scale-105 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          <RefreshCw className={`h-5 w-5 transition-transform ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180'}`} />
+          <RefreshCw
+            className={`h-5 w-5 transition-transform ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180'}`}
+          />
           {isRefreshing ? t('maintenance.checking') : t('maintenance.checkNow')}
         </button>
 

@@ -1,17 +1,50 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Clock, Loader2, CheckCircle2, AlertCircle, Send, ChevronLeft, Paperclip, X } from 'lucide-react';
+import {
+  MessageSquare,
+  Clock,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Send,
+  ChevronLeft,
+  Paperclip,
+  X,
+} from 'lucide-react';
 import { adminService } from '../../utils/services';
-import type { InquirySummary, InquiryDetail, InquiryStatus, InquiryListResponse } from '../../types';
+import type {
+  InquirySummary,
+  InquiryDetail,
+  InquiryStatus,
+  InquiryListResponse,
+} from '../../types';
 import { formatDate } from '../../utils/dateUtils';
 import type { TFunction } from 'i18next';
 
-function getStatusConfig(t: TFunction): Record<InquiryStatus, { label: string; color: string; bgColor: string }> {
+function getStatusConfig(
+  t: TFunction,
+): Record<InquiryStatus, { label: string; color: string; bgColor: string }> {
   return {
-    PENDING: { label: t('admin.inquiries.statusPending'), color: 'text-yellow-400', bgColor: 'bg-yellow-400/10' },
-    IN_PROGRESS: { label: t('admin.inquiries.statusInProgress'), color: 'text-blue-400', bgColor: 'bg-blue-400/10' },
-    RESOLVED: { label: t('admin.inquiries.statusResolved'), color: 'text-green-400', bgColor: 'bg-green-400/10' },
-    CLOSED: { label: t('admin.inquiries.statusClosed'), color: 'text-slate-400', bgColor: 'bg-slate-400/10' },
+    PENDING: {
+      label: t('admin.inquiries.statusPending'),
+      color: 'text-yellow-400',
+      bgColor: 'bg-yellow-400/10',
+    },
+    IN_PROGRESS: {
+      label: t('admin.inquiries.statusInProgress'),
+      color: 'text-blue-400',
+      bgColor: 'bg-blue-400/10',
+    },
+    RESOLVED: {
+      label: t('admin.inquiries.statusResolved'),
+      color: 'text-green-400',
+      bgColor: 'bg-green-400/10',
+    },
+    CLOSED: {
+      label: t('admin.inquiries.statusClosed'),
+      color: 'text-slate-400',
+      bgColor: 'bg-slate-400/10',
+    },
   };
 }
 
@@ -126,10 +159,13 @@ export function AdminInquiriesTab() {
 
       {/* Filters */}
       <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-1">
-        {STATUS_OPTIONS.map(option => (
+        {STATUS_OPTIONS.map((option) => (
           <button
             key={option.value}
-            onClick={() => { setStatusFilter(option.value); setPage(0); }}
+            onClick={() => {
+              setStatusFilter(option.value);
+              setPage(0);
+            }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               statusFilter === option.value
                 ? 'bg-bridge-accent text-white'
@@ -169,15 +205,25 @@ export function AdminInquiriesTab() {
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-foreground/[0.08]">
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.subject')}</th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.author')}</th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.status')}</th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.replies')}</th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.date')}</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    {t('admin.inquiries.subject')}
+                  </th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    {t('admin.inquiries.author')}
+                  </th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    {t('admin.inquiries.status')}
+                  </th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    {t('admin.inquiries.replies')}
+                  </th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    {t('admin.inquiries.date')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {inquiries.map(inquiry => {
+                {inquiries.map((inquiry) => {
                   const statusConfig = STATUS_CONFIG[inquiry.status];
                   return (
                     <tr
@@ -198,16 +244,22 @@ export function AdminInquiriesTab() {
                               {inquiry.user?.name?.charAt(0) || '?'}
                             </span>
                           </div>
-                          <span className="text-muted-foreground text-sm">{inquiry.user?.name || '-'}</span>
+                          <span className="text-muted-foreground text-sm">
+                            {inquiry.user?.name || '-'}
+                          </span>
                         </div>
                       </td>
                       <td className="px-3 py-3 md:px-6 md:py-4">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color} ${statusConfig.bgColor}`}>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color} ${statusConfig.bgColor}`}
+                        >
                           {statusConfig.label}
                         </span>
                       </td>
                       <td className="px-3 py-3 md:px-6 md:py-4">
-                        <span className="text-slate-400 text-sm">{t('admin.inquiries.replyCount', { count: inquiry.reply_count })}</span>
+                        <span className="text-slate-400 text-sm">
+                          {t('admin.inquiries.replyCount', { count: inquiry.reply_count })}
+                        </span>
                       </td>
                       <td className="px-3 py-3 md:px-6 md:py-4">
                         <span className="text-slate-500 text-sm">
@@ -225,7 +277,7 @@ export function AdminInquiriesTab() {
           {total > 20 && (
             <div className="flex items-center justify-center gap-2">
               <button
-                onClick={() => setPage(p => Math.max(0, p - 1))}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={page === 0}
                 className="px-3 py-1.5 bg-foreground/5 text-slate-400 rounded-lg text-sm hover:bg-foreground/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -235,7 +287,7 @@ export function AdminInquiriesTab() {
                 {page + 1} / {Math.ceil(total / 20)}
               </span>
               <button
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setPage((p) => p + 1)}
                 disabled={(page + 1) * 20 >= total}
                 className="px-3 py-1.5 bg-foreground/5 text-slate-400 rounded-lg text-sm hover:bg-foreground/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -285,10 +337,7 @@ function InquiryDetailPanel({
     <div className="space-y-6">
       {/* Back Button + Header */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="text-slate-400 hover:text-foreground transition-colors"
-        >
+        <button onClick={onBack} className="text-slate-400 hover:text-foreground transition-colors">
           <ChevronLeft size={20} />
         </button>
         <h2 className="text-2xl font-bold text-foreground">{t('admin.inquiries.detail')}</h2>
@@ -318,7 +367,7 @@ function InquiryDetailPanel({
           {/* Status Dropdown */}
           <select
             value={inquiry.status}
-            onChange={e => onStatusChange(e.target.value)}
+            onChange={(e) => onStatusChange(e.target.value)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium border-0 outline-none cursor-pointer ${statusConfig.color} ${statusConfig.bgColor}`}
           >
             <option value="PENDING">{t('admin.inquiries.statusPending')}</option>
@@ -329,14 +378,18 @@ function InquiryDetailPanel({
         </div>
 
         <div className="bg-foreground/5 rounded-xl p-4">
-          <p className="text-muted-foreground text-sm whitespace-pre-wrap leading-relaxed">{inquiry.content}</p>
+          <p className="text-muted-foreground text-sm whitespace-pre-wrap leading-relaxed">
+            {inquiry.content}
+          </p>
         </div>
 
         {inquiry.attachments.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.attachments')}</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              {t('admin.inquiries.attachments')}
+            </p>
             <div className="flex flex-wrap gap-2">
-              {inquiry.attachments.map(att => (
+              {inquiry.attachments.map((att) => (
                 <a
                   key={att.id}
                   href={att.url}
@@ -356,9 +409,14 @@ function InquiryDetailPanel({
       {/* Replies */}
       {inquiry.replies.length > 0 && (
         <div className="space-y-3">
-          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.replyHistory')}</h4>
-          {inquiry.replies.map(reply => (
-            <div key={reply.id} className="bg-bridge-accent/10 border border-bridge-accent/20 rounded-xl p-4">
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+            {t('admin.inquiries.replyHistory')}
+          </h4>
+          {inquiry.replies.map((reply) => (
+            <div
+              key={reply.id}
+              className="bg-bridge-accent/10 border border-bridge-accent/20 rounded-xl p-4"
+            >
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-6 h-6 rounded-full bg-bridge-accent/30 flex items-center justify-center">
                   <span className="text-xs text-white font-bold">
@@ -370,7 +428,9 @@ function InquiryDetailPanel({
                   {formatDate(reply.created_at, t('admin.common.dateTimeFormat'))}
                 </span>
               </div>
-              <p className="text-muted-foreground text-sm whitespace-pre-wrap leading-relaxed">{reply.content}</p>
+              <p className="text-muted-foreground text-sm whitespace-pre-wrap leading-relaxed">
+                {reply.content}
+              </p>
             </div>
           ))}
         </div>
@@ -378,10 +438,12 @@ function InquiryDetailPanel({
 
       {/* Reply Form */}
       <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-3 md:p-4 space-y-3">
-        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.writeReply')}</h4>
+        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+          {t('admin.inquiries.writeReply')}
+        </h4>
         <textarea
           value={replyContent}
-          onChange={e => onReplyContentChange(e.target.value)}
+          onChange={(e) => onReplyContentChange(e.target.value)}
           placeholder={t('admin.inquiries.replyPlaceholder')}
           rows={4}
           className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
@@ -393,11 +455,7 @@ function InquiryDetailPanel({
             disabled={isReplying || !replyContent.trim()}
             className="flex items-center gap-2 px-5 py-2.5 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isReplying ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Send size={16} />
-            )}
+            {isReplying ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             {t('admin.inquiries.sendReply')}
           </button>
         </div>

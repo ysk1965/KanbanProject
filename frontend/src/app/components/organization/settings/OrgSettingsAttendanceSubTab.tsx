@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { leaveService } from "../../../utils/services";
-import { OrgAttendancePolicySection } from "./OrgAttendancePolicySection";
-import { OrgLeavePoliciesSection } from "./OrgLeavePoliciesSection";
-import type { LeavePolicy } from "../../../types";
+import { useState, useEffect, useCallback } from 'react';
+import { leaveService } from '../../../utils/services';
+import { OrgAttendancePolicySection } from './OrgAttendancePolicySection';
+import { OrgLeavePoliciesSection } from './OrgLeavePoliciesSection';
+import type { LeavePolicy } from '../../../types';
 
 interface OrgSettingsAttendanceSubTabProps {
   orgId: string;
@@ -23,7 +23,7 @@ export function OrgSettingsAttendanceSubTab({
       const policies = await leaveService.getPolicies(orgId);
       setLeavePolicies(policies);
     } catch (error) {
-      console.warn("Failed to fetch leave policies:", error);
+      console.warn('Failed to fetch leave policies:', error);
     }
   }, [orgId, hrSystemEnabled]);
 
@@ -45,7 +45,10 @@ export function OrgSettingsAttendanceSubTab({
       <OrgLeavePoliciesSection
         orgId={orgId}
         leavePolicies={leavePolicies}
-        onRefresh={() => { fetchPolicies(); onLeaveBalanceChange?.(); }}
+        onRefresh={() => {
+          fetchPolicies();
+          onLeaveBalanceChange?.();
+        }}
       />
     </div>
   );

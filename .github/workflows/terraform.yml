@@ -1,14 +1,28 @@
 # Terraform Infrastructure Management
+#
+# 흐름
+#   pull_request (infrastructure/terraform/**) → fmt + validate(dev, prod) + plan(dev, prod) → PR 코멘트
+#   push main    (infrastructure/terraform/**) → fmt + validate + plan(dev) → apply(dev)        [environment: dev]
+#   workflow_dispatch                          → fmt + validate + plan(선택 env) [→ apply(선택 env)] [environment: dev | production]
+#
+# apply 는 plan 잡이 저장한 계획 파일(tfplan)을 그대로 적용한다. plan 이후 state 가 바뀌면
+# terraform 이 그 계획을 거부하므로 "검토한 것과 다른 변경이 적용되는" 일은 없다.
+# tfplan 에는 민감 변수 값이 평문으로 들어가고 이 저장소는 public 이므로, 아티팩트는
+# secret TF_PLAN_ENCRYPTION_KEY 로 암호화한 것만 올린다 (apply 가 필요한 실행에서만).
+#
+# 승인 게이트(required reviewers)는 저장소 Settings → Environments 에서 건다 (production 에는 이미 설정됨).
 name: Terraform
 
 on:
   pull_request:
     paths:
       - 'infrastructure/terraform/**'
+      - '.github/workflows/terraform.yml'
   push:
     branches: [main]
     paths:
       - 'infrastructure/terraform/**'
+      - '.github/workflows/terraform.yml'
   workflow_dispatch:
     inputs:
       environment:
@@ -30,23 +44,72 @@ on:
 
 env:
   TF_VERSION: '1.9.8'
+  TF_ROOT: infrastructure/terraform
   AWS_REGION: ap-northeast-2
+  TF_IN_AUTOMATION: 'true'
+
+permissions:
+  contents: read
+
+# PR 은 PR 단위로, apply 가 가능한 실행(main push / dispatch)은 전부 한 줄로 직렬화한다.
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('terraform-pr-{0}', github.event.pull_request.number) || 'terraform-apply' }}
+  cancel-in-progress: false
 
 jobs:
-  # Terraform Plan on PR
-  terraform-plan:
-    name: Terraform Plan
+  # 이벤트별로 어떤 환경을 plan/apply 할지 결정 + 포맷 검사
+  prepare:
+    name: Prepare & Format Check
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    timeout-minutes: 5
+    outputs:
+      environments: ${{ steps.targets.outputs.environments }}
+      apply: ${{ steps.targets.outputs.apply }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    permissions:
-      id-token: write
-      contents: read
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
 
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive -diff "$TF_ROOT"
+
+      - name: Resolve target environments
+        id: targets
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+          INPUT_ACTION: ${{ inputs.action }}
+        run: |
+          case "$EVENT_NAME" in
+            pull_request)
+              ENVS='["dev","prod"]'; APPLY=false ;;
+            push)
+              ENVS='["dev"]'; APPLY=true ;;
+            workflow_dispatch)
+              ENVS="[\"${INPUT_ENVIRONMENT}\"]"
+              if [ "$INPUT_ACTION" = "apply" ]; then APPLY=true; else APPLY=false; fi ;;
+            *)
+              echo "::error::Unsupported event: $EVENT_NAME"; exit 1 ;;
+          esac
+          echo "environments=$ENVS" >> "$GITHUB_OUTPUT"
+          echo "apply=$APPLY" >> "$GITHUB_OUTPUT"
+          echo "targets=$ENVS apply=$APPLY"
+
+  # 자격증명 없이 구문/스키마 검증 (backend 미초기화)
+  validate:
+    name: Validate (${{ matrix.environment }})
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
+      fail-fast: false
       matrix:
         environment: [dev, prod]
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,74 +118,71 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.AWS_GHA_TF_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Terraform Init
-        working-directory: infrastructure/terraform/environments/${{ matrix.environment }}
-        run: terraform init
+      - name: Terraform Init (no backend)
+        working-directory: ${{ env.TF_ROOT }}/environments/${{ matrix.environment }}
+        run: terraform init -backend=false -input=false
 
       - name: Terraform Validate
-        working-directory: infrastructure/terraform/environments/${{ matrix.environment }}
-        run: terraform validate
+        working-directory: ${{ env.TF_ROOT }}/environments/${{ matrix.environment }}
+        run: terraform validate -no-color
 
-      - name: Terraform Plan
-        working-directory: infrastructure/terraform/environments/${{ matrix.environment }}
-        run: terraform plan -no-color -input=false
-        env:
-          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-          TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
-          TF_VAR_claude_api_key: ${{ secrets.CLAUDE_API_KEY }}
-          TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          TF_VAR_openai_admin_key: ${{ secrets.OPENAI_ADMIN_KEY }}
-          TF_VAR_mail_username: ${{ secrets.MAIL_USERNAME }}
-          TF_VAR_mail_password: ${{ secrets.MAIL_PASSWORD }}
-          TF_VAR_google_client_id: ${{ secrets.GOOGLE_CLIENT_ID }}
-          TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
-          TF_VAR_polar_api_key: ${{ secrets.POLAR_API_KEY }}
-          TF_VAR_polar_webhook_secret: ${{ secrets.POLAR_WEBHOOK_SECRET }}
-          TF_VAR_polar_org_id: ${{ secrets.POLAR_ORG_ID }}
-          TF_VAR_polar_product_board_monthly: ${{ secrets.POLAR_PRODUCT_BOARD_MONTHLY }}
-          TF_VAR_polar_product_board_yearly: ${{ secrets.POLAR_PRODUCT_BOARD_YEARLY }}
-          TF_VAR_polar_product_org_monthly: ${{ secrets.POLAR_PRODUCT_ORG_MONTHLY }}
-          TF_VAR_polar_product_org_yearly: ${{ secrets.POLAR_PRODUCT_ORG_YEARLY }}
-          TF_VAR_polar_product_credit_100: ${{ secrets.POLAR_PRODUCT_CREDIT_100 }}
-          TF_VAR_polar_product_credit_500: ${{ secrets.POLAR_PRODUCT_CREDIT_500 }}
-          TF_VAR_polar_product_credit_1000: ${{ secrets.POLAR_PRODUCT_CREDIT_1000 }}
-          TF_VAR_discord_client_id: ${{ secrets.DISCORD_CLIENT_ID }}
-          TF_VAR_discord_client_secret: ${{ secrets.DISCORD_CLIENT_SECRET }}
-          TF_VAR_discord_bot_token: ${{ secrets.DISCORD_BOT_TOKEN }}
-          TF_VAR_jira_oauth_client_id: ${{ secrets.JIRA_OAUTH_CLIENT_ID }}
-          TF_VAR_jira_oauth_client_secret: ${{ secrets.JIRA_OAUTH_CLIENT_SECRET }}
-          TF_VAR_github_app_id: ${{ secrets.GH_APP_ID }}
-          TF_VAR_github_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
-          TF_VAR_github_app_slug: ${{ secrets.GH_APP_SLUG }}
-          TF_VAR_confluence_oauth_client_id: ${{ secrets.CONFLUENCE_OAUTH_CLIENT_ID }}
-          TF_VAR_confluence_oauth_client_secret: ${{ secrets.CONFLUENCE_OAUTH_CLIENT_SECRET }}
-          TF_VAR_slack_client_id: ${{ secrets.SLACK_CLIENT_ID }}
-          TF_VAR_slack_client_secret: ${{ secrets.SLACK_CLIENT_SECRET }}
-          TF_VAR_slack_signing_secret: ${{ secrets.SLACK_SIGNING_SECRET }}
-          TF_VAR_slack_token_encryption_key: ${{ secrets.SLACK_TOKEN_ENCRYPTION_KEY }}
-          TF_VAR_slack_redirect_uri: ${{ secrets.SLACK_REDIRECT_URI }}
-          TF_VAR_slack_user_redirect_uri: ${{ secrets.SLACK_USER_REDIRECT_URI }}
-
-  # Terraform Apply (Manual or on main branch)
-  terraform-apply:
-    name: Terraform Apply
+  # Plan: 대상 환경마다 tfplan 생성. PR 이면 코멘트, apply 대상이면 암호화해서 아티팩트로 전달.
+  plan:
+    name: Plan (${{ matrix.environment }})
+    needs: [prepare, validate]
+    # 포크 PR 은 OIDC/secrets 를 받지 못해 실패만 남기므로 같은 저장소 PR 만 plan 한다.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    environment: ${{ (github.event.inputs.environment == 'prod' && 'production') || github.event.inputs.environment || 'dev' }}
-
+    timeout-minutes: 20
     permissions:
       id-token: write
       contents: read
-
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: ${{ fromJSON(needs.prepare.outputs.environments) }}
+    env:
+      TF_DIR: infrastructure/terraform/environments/${{ matrix.environment }}
+      # TF_VAR_* 는 plan 에서만 필요하다. apply 는 저장된 tfplan 을 적용하므로 변수 입력을 받지 않는다
+      # (변수 값은 tfplan 안에 들어 있다) — 이 블록이 유일한 정의처.
+      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+      TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+      TF_VAR_claude_api_key: ${{ secrets.CLAUDE_API_KEY }}
+      TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      TF_VAR_openai_admin_key: ${{ secrets.OPENAI_ADMIN_KEY }}
+      TF_VAR_mail_username: ${{ secrets.MAIL_USERNAME }}
+      TF_VAR_mail_password: ${{ secrets.MAIL_PASSWORD }}
+      TF_VAR_google_client_id: ${{ secrets.GOOGLE_CLIENT_ID }}
+      TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+      TF_VAR_polar_api_key: ${{ secrets.POLAR_API_KEY }}
+      TF_VAR_polar_webhook_secret: ${{ secrets.POLAR_WEBHOOK_SECRET }}
+      TF_VAR_polar_org_id: ${{ secrets.POLAR_ORG_ID }}
+      TF_VAR_polar_product_board_monthly: ${{ secrets.POLAR_PRODUCT_BOARD_MONTHLY }}
+      TF_VAR_polar_product_board_yearly: ${{ secrets.POLAR_PRODUCT_BOARD_YEARLY }}
+      TF_VAR_polar_product_org_monthly: ${{ secrets.POLAR_PRODUCT_ORG_MONTHLY }}
+      TF_VAR_polar_product_org_yearly: ${{ secrets.POLAR_PRODUCT_ORG_YEARLY }}
+      TF_VAR_polar_product_credit_100: ${{ secrets.POLAR_PRODUCT_CREDIT_100 }}
+      TF_VAR_polar_product_credit_500: ${{ secrets.POLAR_PRODUCT_CREDIT_500 }}
+      TF_VAR_polar_product_credit_1000: ${{ secrets.POLAR_PRODUCT_CREDIT_1000 }}
+      TF_VAR_discord_client_id: ${{ secrets.DISCORD_CLIENT_ID }}
+      TF_VAR_discord_client_secret: ${{ secrets.DISCORD_CLIENT_SECRET }}
+      TF_VAR_discord_bot_token: ${{ secrets.DISCORD_BOT_TOKEN }}
+      TF_VAR_jira_oauth_client_id: ${{ secrets.JIRA_OAUTH_CLIENT_ID }}
+      TF_VAR_jira_oauth_client_secret: ${{ secrets.JIRA_OAUTH_CLIENT_SECRET }}
+      TF_VAR_github_app_id: ${{ secrets.GH_APP_ID }}
+      TF_VAR_github_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+      TF_VAR_github_app_slug: ${{ secrets.GH_APP_SLUG }}
+      TF_VAR_confluence_oauth_client_id: ${{ secrets.CONFLUENCE_OAUTH_CLIENT_ID }}
+      TF_VAR_confluence_oauth_client_secret: ${{ secrets.CONFLUENCE_OAUTH_CLIENT_SECRET }}
+      TF_VAR_slack_client_id: ${{ secrets.SLACK_CLIENT_ID }}
+      TF_VAR_slack_client_secret: ${{ secrets.SLACK_CLIENT_SECRET }}
+      TF_VAR_slack_signing_secret: ${{ secrets.SLACK_SIGNING_SECRET }}
+      TF_VAR_slack_token_encryption_key: ${{ secrets.SLACK_TOKEN_ENCRYPTION_KEY }}
+      TF_VAR_slack_redirect_uri: ${{ secrets.SLACK_REDIRECT_URI }}
+      TF_VAR_slack_user_redirect_uri: ${{ secrets.SLACK_USER_REDIRECT_URI }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -131,6 +191,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -139,49 +200,151 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Init
-        working-directory: infrastructure/terraform/environments/${{ github.event.inputs.environment || 'dev' }}
-        run: terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false
 
-      - name: Terraform Apply
-        working-directory: infrastructure/terraform/environments/${{ github.event.inputs.environment || 'dev' }}
-        run: terraform apply -auto-approve -input=false
+      - name: Terraform Plan
+        id: plan
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          set -o pipefail
+          terraform plan -no-color -input=false -lock-timeout=5m -out=tfplan 2>&1 | tee plan.log
+          terraform show -no-color tfplan > plan.txt
+
+      # tfplan 은 민감 변수 값을 평문으로 담는다 → public 저장소 아티팩트에는 암호화한 것만 올린다.
+      - name: Encrypt plan for apply
+        if: needs.prepare.outputs.apply == 'true'
+        working-directory: ${{ env.TF_DIR }}
         env:
-          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-          TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
-          TF_VAR_claude_api_key: ${{ secrets.CLAUDE_API_KEY }}
-          TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          TF_VAR_openai_admin_key: ${{ secrets.OPENAI_ADMIN_KEY }}
-          TF_VAR_mail_username: ${{ secrets.MAIL_USERNAME }}
-          TF_VAR_mail_password: ${{ secrets.MAIL_PASSWORD }}
-          TF_VAR_google_client_id: ${{ secrets.GOOGLE_CLIENT_ID }}
-          TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
-          TF_VAR_polar_api_key: ${{ secrets.POLAR_API_KEY }}
-          TF_VAR_polar_webhook_secret: ${{ secrets.POLAR_WEBHOOK_SECRET }}
-          TF_VAR_polar_org_id: ${{ secrets.POLAR_ORG_ID }}
-          TF_VAR_polar_product_board_monthly: ${{ secrets.POLAR_PRODUCT_BOARD_MONTHLY }}
-          TF_VAR_polar_product_board_yearly: ${{ secrets.POLAR_PRODUCT_BOARD_YEARLY }}
-          TF_VAR_polar_product_org_monthly: ${{ secrets.POLAR_PRODUCT_ORG_MONTHLY }}
-          TF_VAR_polar_product_org_yearly: ${{ secrets.POLAR_PRODUCT_ORG_YEARLY }}
-          TF_VAR_polar_product_credit_100: ${{ secrets.POLAR_PRODUCT_CREDIT_100 }}
-          TF_VAR_polar_product_credit_500: ${{ secrets.POLAR_PRODUCT_CREDIT_500 }}
-          TF_VAR_polar_product_credit_1000: ${{ secrets.POLAR_PRODUCT_CREDIT_1000 }}
-          TF_VAR_discord_client_id: ${{ secrets.DISCORD_CLIENT_ID }}
-          TF_VAR_discord_client_secret: ${{ secrets.DISCORD_CLIENT_SECRET }}
-          TF_VAR_discord_bot_token: ${{ secrets.DISCORD_BOT_TOKEN }}
-          TF_VAR_jira_oauth_client_id: ${{ secrets.JIRA_OAUTH_CLIENT_ID }}
-          TF_VAR_jira_oauth_client_secret: ${{ secrets.JIRA_OAUTH_CLIENT_SECRET }}
-          TF_VAR_github_app_id: ${{ secrets.GH_APP_ID }}
-          TF_VAR_github_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
-          TF_VAR_github_app_slug: ${{ secrets.GH_APP_SLUG }}
-          TF_VAR_confluence_oauth_client_id: ${{ secrets.CONFLUENCE_OAUTH_CLIENT_ID }}
-          TF_VAR_confluence_oauth_client_secret: ${{ secrets.CONFLUENCE_OAUTH_CLIENT_SECRET }}
-          TF_VAR_slack_client_id: ${{ secrets.SLACK_CLIENT_ID }}
-          TF_VAR_slack_client_secret: ${{ secrets.SLACK_CLIENT_SECRET }}
-          TF_VAR_slack_signing_secret: ${{ secrets.SLACK_SIGNING_SECRET }}
-          TF_VAR_slack_token_encryption_key: ${{ secrets.SLACK_TOKEN_ENCRYPTION_KEY }}
-          TF_VAR_slack_redirect_uri: ${{ secrets.SLACK_REDIRECT_URI }}
-          TF_VAR_slack_user_redirect_uri: ${{ secrets.SLACK_USER_REDIRECT_URI }}
+          TF_PLAN_ENCRYPTION_KEY: ${{ secrets.TF_PLAN_ENCRYPTION_KEY }}
+        run: |
+          if [ -z "$TF_PLAN_ENCRYPTION_KEY" ]; then
+            echo '::error::Secret TF_PLAN_ENCRYPTION_KEY is not set. The saved plan contains sensitive variable values and this repository is public, so it is only uploaded encrypted. Create it once with: gh secret set TF_PLAN_ENCRYPTION_KEY --body "$(openssl rand -hex 32)"'
+            exit 1
+          fi
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in tfplan -out tfplan.enc -pass env:TF_PLAN_ENCRYPTION_KEY
+          rm -f tfplan
+
+      - name: Upload plan artifact
+        if: needs.prepare.outputs.apply == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ matrix.environment }}
+          path: |
+            ${{ env.TF_DIR }}/tfplan.enc
+            ${{ env.TF_DIR }}/plan.txt
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Comment plan on PR
+        if: github.event_name == 'pull_request' && !cancelled()
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          TF_ENV: ${{ matrix.environment }}
+          PLAN_DIR: ${{ env.TF_DIR }}
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const env = process.env.TF_ENV;
+            const ok = process.env.PLAN_OUTCOME === 'success';
+            const file = path.join(process.env.PLAN_DIR, ok ? 'plan.txt' : 'plan.log');
+            let body = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '(no plan output)';
+            const MAX = 60000; // GitHub comment hard limit is 65536 chars
+            if (body.length > MAX) {
+              body = body.slice(0, MAX) + '\n\n... (truncated — see the workflow run for the full plan)';
+            }
+            const summary = ok
+              ? ((body.match(/^(Plan: .*|No changes\. .*)$/m) || [])[0] || 'Plan succeeded')
+              : 'Plan failed';
+            const marker = `<!-- terraform-plan:${env} -->`;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const comment = [
+              marker,
+              `### Terraform plan · \`${env}\` ${ok ? '✅' : '❌'}`,
+              `**${summary}**`,
+              '',
+              '<details><summary>Show plan</summary>',
+              '',
+              '```hcl',
+              body,
+              '```',
+              '',
+              '</details>',
+              '',
+              `_Commit ${context.sha.slice(0, 7)} · [workflow run](${runUrl})_`,
+            ].join('\n');
+
+            // 같은 환경의 이전 코멘트가 있으면 갱신 (푸시마다 코멘트가 쌓이지 않게)
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo, issue_number: context.issue.number, per_page: 100,
+            });
+            const existing = comments.find(c => c.user && c.user.type === 'Bot' && c.body && c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body: comment });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body: comment });
+            }
+
+  # Apply: plan 잡이 만든 tfplan 을 그대로 적용. environment 보호 규칙이 승인 게이트 역할.
+  apply:
+    name: Apply (${{ matrix.environment }})
+    needs: [prepare, plan]
+    if: needs.prepare.outputs.apply == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      max-parallel: 1
+      matrix:
+        environment: ${{ fromJSON(needs.prepare.outputs.environments) }}
+    # GitHub environment 이름: dev → dev, prod → production (기존 환경, required reviewer 설정됨)
+    environment:
+      name: ${{ matrix.environment == 'prod' && 'production' || 'dev' }}
+    env:
+      TF_DIR: infrastructure/terraform/environments/${{ matrix.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GHA_TF_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ matrix.environment }}
+          path: ${{ env.TF_DIR }}
+
+      - name: Decrypt plan
+        working-directory: ${{ env.TF_DIR }}
+        env:
+          TF_PLAN_ENCRYPTION_KEY: ${{ secrets.TF_PLAN_ENCRYPTION_KEY }}
+        run: |
+          openssl enc -d -aes-256-cbc -pbkdf2 -in tfplan.enc -out tfplan -pass env:TF_PLAN_ENCRYPTION_KEY
+          rm -f tfplan.enc
+
+      # 저장된 plan 은 plan 시점과 같은 provider 버전을 요구한다 → .terraform.lock.hcl 을 커밋해 두어야 한다.
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false
+
+      - name: Terraform Apply (saved plan)
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -no-color -input=false -lock-timeout=5m tfplan
 
       - name: Output Terraform Values
-        working-directory: infrastructure/terraform/environments/${{ github.event.inputs.environment || 'dev' }}
-        run: terraform output
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform output -no-color

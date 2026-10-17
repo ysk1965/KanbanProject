@@ -61,7 +61,11 @@ public interface MilestoneFeatureRepository extends JpaRepository<MilestoneFeatu
 
     void deleteByMilestoneIdAndFeatureId(String milestoneId, String featureId);
 
-    void deleteByFeatureId(String featureId);
+    // native: 파생 쿼리는 Feature의 @SQLRestriction 때문에 soft-deleted 피처의 링크를
+    // 못 찾아 하드 삭제 시 FK 위반이 났다 (BoardItemCleanupScheduler)
+    @Modifying
+    @Query(value = "DELETE FROM milestone_features WHERE feature_id = :featureId", nativeQuery = true)
+    void deleteByFeatureId(@Param("featureId") String featureId);
 
     int countByMilestoneId(String milestoneId);
 

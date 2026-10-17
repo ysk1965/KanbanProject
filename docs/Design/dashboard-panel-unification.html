@@ -1,0 +1,1341 @@
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>네 칸이 한 화면이 되려면 — 보드 대시보드 패널 통일안</title>
+<style>
+  :root {
+    --ground: #fffcf8;
+    --panel: #f7f1e7;
+    --panel-2: #efe6d8;
+    --rule: #e3dacb;
+    --rule-strong: #c9bda7;
+    --ink: #2b2318;
+    --ink-2: #6a6151;
+    --ink-3: #928872;
+    --accent: #4b4fd4;
+    --accent-soft: rgba(75, 79, 212, 0.1);
+    --teal: #0d9488;
+    --teal-soft: rgba(13, 148, 136, 0.12);
+    --warn: #a06a06;
+    --warn-soft: rgba(160, 106, 6, 0.12);
+    --bad: #c0384f;
+    --bad-soft: rgba(192, 56, 79, 0.1);
+
+    /* 목업 안에서 쓰는 앱 실색 (Bridge 라이트 모드) */
+    --app-bg: #fffcf8;
+    --app-card: #efe6d8;
+    --app-line: rgba(61, 46, 31, 0.1);
+    --app-line-2: rgba(61, 46, 31, 0.06);
+    --app-fg: #3d2e1f;
+    --app-mute: #94a3b8;
+    --app-mute-2: #64748b;
+    --app-accent: #6366f1;
+    --app-teal: #14b8a6;
+    --app-amber: #d97706;
+    --app-rose: #e11d48;
+    --app-fill: rgba(61, 46, 31, 0.06);
+
+    --sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+      "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+    --serif: "Apple SD Myungjo", AppleMyungjo, "Nanum Myeongjo", "Noto Serif KR",
+      Georgia, serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #121826;
+      --panel: #1a2131;
+      --panel-2: #212a3d;
+      --rule: #2c3750;
+      --rule-strong: #435573;
+      --ink: #e9edf6;
+      --ink-2: #9daac2;
+      --ink-3: #6d7b96;
+      --accent: #868cf9;
+      --accent-soft: rgba(134, 140, 249, 0.14);
+      --teal: #35d6c1;
+      --teal-soft: rgba(53, 214, 193, 0.13);
+      --warn: #f0b429;
+      --warn-soft: rgba(240, 180, 41, 0.14);
+      --bad: #f47b92;
+      --bad-soft: rgba(244, 123, 146, 0.13);
+
+      --app-bg: #191f2d;
+      --app-card: #151b28;
+      --app-line: rgba(255, 255, 255, 0.08);
+      --app-line-2: rgba(255, 255, 255, 0.05);
+      --app-fg: #f2f5fb;
+      --app-mute: #94a3b8;
+      --app-mute-2: #64748b;
+      --app-accent: #6366f1;
+      --app-teal: #2dd4bf;
+      --app-amber: #f59e0b;
+      --app-rose: #fb7185;
+      --app-fill: rgba(255, 255, 255, 0.06);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #121826;
+    --panel: #1a2131;
+    --panel-2: #212a3d;
+    --rule: #2c3750;
+    --rule-strong: #435573;
+    --ink: #e9edf6;
+    --ink-2: #9daac2;
+    --ink-3: #6d7b96;
+    --accent: #868cf9;
+    --accent-soft: rgba(134, 140, 249, 0.14);
+    --teal: #35d6c1;
+    --teal-soft: rgba(53, 214, 193, 0.13);
+    --warn: #f0b429;
+    --warn-soft: rgba(240, 180, 41, 0.14);
+    --bad: #f47b92;
+    --bad-soft: rgba(244, 123, 146, 0.13);
+
+    --app-bg: #191f2d;
+    --app-card: #151b28;
+    --app-line: rgba(255, 255, 255, 0.08);
+    --app-line-2: rgba(255, 255, 255, 0.05);
+    --app-fg: #f2f5fb;
+    --app-mute: #94a3b8;
+    --app-mute-2: #64748b;
+    --app-accent: #6366f1;
+    --app-teal: #2dd4bf;
+    --app-amber: #f59e0b;
+    --app-rose: #fb7185;
+    --app-fill: rgba(255, 255, 255, 0.06);
+  }
+
+  :root[data-theme="light"] {
+    --ground: #fffcf8;
+    --panel: #f7f1e7;
+    --panel-2: #efe6d8;
+    --rule: #e3dacb;
+    --rule-strong: #c9bda7;
+    --ink: #2b2318;
+    --ink-2: #6a6151;
+    --ink-3: #928872;
+    --accent: #4b4fd4;
+    --accent-soft: rgba(75, 79, 212, 0.1);
+    --teal: #0d9488;
+    --teal-soft: rgba(13, 148, 136, 0.12);
+    --warn: #a06a06;
+    --warn-soft: rgba(160, 106, 6, 0.12);
+    --bad: #c0384f;
+    --bad-soft: rgba(192, 56, 79, 0.1);
+
+    --app-bg: #fffcf8;
+    --app-card: #efe6d8;
+    --app-line: rgba(61, 46, 31, 0.1);
+    --app-line-2: rgba(61, 46, 31, 0.06);
+    --app-fg: #3d2e1f;
+    --app-mute: #94a3b8;
+    --app-mute-2: #64748b;
+    --app-accent: #6366f1;
+    --app-teal: #14b8a6;
+    --app-amber: #d97706;
+    --app-rose: #e11d48;
+    --app-fill: rgba(61, 46, 31, 0.06);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+  }
+
+  .wrap {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 28px 120px;
+  }
+
+  /* ── 문서 헤더 ───────────────────────── */
+  header.doc {
+    padding: 72px 0 40px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 20px;
+  }
+  h1 {
+    font-size: clamp(32px, 5.4vw, 52px);
+    line-height: 1.15;
+    letter-spacing: -0.035em;
+    font-weight: 800;
+    margin: 0 0 22px;
+    text-wrap: balance;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+  .deck {
+    font-size: clamp(16px, 2.2vw, 19px);
+    color: var(--ink-2);
+    max-width: 62ch;
+    margin: 0 0 34px;
+    line-height: 1.66;
+  }
+  .metarow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .metarow b { color: var(--ink-2); font-weight: 500; }
+
+  /* ── 섹션 ────────────────────────────── */
+  section { padding-top: 62px; }
+  .sec-label {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h2 {
+    font-size: clamp(23px, 3.4vw, 30px);
+    line-height: 1.3;
+    letter-spacing: -0.025em;
+    font-weight: 700;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+  h3 {
+    font-size: 18px;
+    letter-spacing: -0.015em;
+    font-weight: 700;
+    margin: 42px 0 10px;
+  }
+  h4 {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 26px 0 8px;
+    color: var(--ink);
+  }
+  p { margin: 0 0 16px; max-width: 68ch; }
+  .lede { color: var(--ink-2); }
+  code {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: var(--ink);
+    word-break: break-all;
+  }
+
+  /* ── 판정 ────────────────────────────── */
+  .verdict {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 32px 34px;
+  }
+  .verdict .stmt {
+    font-family: var(--serif);
+    font-size: clamp(19px, 2.8vw, 25px);
+    line-height: 1.62;
+    letter-spacing: -0.01em;
+    margin: 0 0 20px;
+    max-width: 48ch;
+  }
+  .verdict p:last-child { margin-bottom: 0; }
+
+  /* ── 표 ──────────────────────────────── */
+  .tablewrap {
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    margin-top: 26px;
+  }
+  table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 14px; }
+  thead th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--ink-3);
+    padding: 13px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    line-height: 1.6;
+    color: var(--ink-2);
+    font-size: 13.5px;
+  }
+  tbody th {
+    text-align: left;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--rule);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink);
+    white-space: nowrap;
+    vertical-align: top;
+  }
+  tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0; }
+  td.bad { background: var(--bad-soft); color: var(--ink); }
+  td.ok { background: var(--teal-soft); color: var(--ink); }
+  td.mono, th.mono { font-family: var(--mono); font-size: 12px; }
+
+  /* ── 목업 ────────────────────────────── */
+  .mockwrap {
+    margin: 26px 0 0;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--panel);
+  }
+  .mockbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .mockbar .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .mockbar .tag.now { background: var(--bad-soft); color: var(--bad); }
+  .mockbar .tag.next { background: var(--teal-soft); color: var(--teal); }
+  .mockstage {
+    background: var(--app-bg);
+    padding: 14px;
+    overflow-x: auto;
+  }
+  .mockstage > .board { min-width: 720px; }
+
+  /* 앱 목업 원자 */
+  .board {
+    display: grid;
+    grid-template-columns: 236px 12px minmax(0, 1fr);
+    gap: 0;
+    font-family: var(--sans);
+    color: var(--app-fg);
+  }
+  .board.wide3 { grid-template-columns: 210px 12px minmax(0,1fr) 12px 250px; }
+  .col { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+  .card {
+    background: var(--app-card);
+    border: 1px solid var(--app-line);
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .chead {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border-bottom: 1px solid var(--app-line);
+    min-width: 0;
+  }
+  /* 현재: 제목형 헤더 px-4 py-3 */
+  .chead.v-title { padding: 9px 14px; }
+  /* 현재: 탭형 헤더 px-3 py-2 */
+  .chead.v-tabs { padding: 6px 10px; }
+  /* 제안: 단일 규격 40px / px-14 */
+  .chead.v-unified { padding: 0 14px; height: 34px; }
+
+  .ctitle { font-size: 11.5px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
+  .csub { font-size: 10.5px; color: var(--app-mute-2); white-space: nowrap; }
+  .clink {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    color: var(--app-mute);
+    white-space: nowrap;
+    flex: none;
+  }
+  .clink::after {
+    content: "";
+    width: 8px; height: 8px;
+    border: 1.2px solid currentColor;
+    border-left: 0; border-bottom: 0;
+    transform: rotate(45deg) translate(-1px, 1px);
+    opacity: 0.8;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 999px; flex: none; }
+  .dot.teal { background: var(--app-teal); }
+  .dot.accent { background: var(--app-accent); }
+  .dot.amber { background: var(--app-amber); }
+  .dot.rose { background: var(--app-rose); }
+  .dot.slate { background: var(--app-mute-2); }
+
+  .tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 7px;
+    color: var(--app-mute);
+    white-space: nowrap;
+  }
+  .tab.on { background: var(--app-fill); color: var(--app-fg); }
+  .cnt {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--app-mute-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 999px;
+    border: 1px solid var(--app-line);
+    color: var(--app-mute);
+    white-space: nowrap;
+  }
+  .pill.teal { border-color: color-mix(in srgb, var(--app-teal) 40%, transparent); background: color-mix(in srgb, var(--app-teal) 15%, transparent); color: var(--app-teal); }
+  .pill.count { border: 0; background: var(--app-fill); color: var(--app-mute-2); padding: 1px 6px; }
+  .hint { font-size: 10px; color: var(--app-mute-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .cbody { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+  .cbody.flush { padding: 0; }
+  .row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border-bottom: 1px solid var(--app-line-2);
+    font-size: 10.5px;
+  }
+  .row.pad14 { padding: 4px 14px; }
+  .row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--app-fg); font-weight: 500; }
+  .chip {
+    font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 999px;
+    background: var(--app-fill); color: var(--app-mute-2); white-space: nowrap;
+  }
+  .chip.rose { background: color-mix(in srgb, var(--app-rose) 15%, transparent); color: var(--app-rose); }
+  .chip.teal { background: color-mix(in srgb, var(--app-teal) 15%, transparent); color: var(--app-teal); }
+
+  /* 타임블록 목업 */
+  .tb { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; }
+  .tb .slot { display: flex; align-items: stretch; gap: 6px; }
+  .tb .hr { font-size: 9px; color: var(--app-mute-2); width: 24px; flex: none; text-align: right; font-variant-numeric: tabular-nums; }
+  .tb .lane { flex: 1; border-top: 1px solid var(--app-line-2); min-height: 15px; position: relative; }
+  .tb .blk {
+    position: absolute; left: 2px; right: 2px; top: 2px; bottom: -13px;
+    border-radius: 5px; font-size: 9px; font-weight: 700;
+    padding: 2px 5px; overflow: hidden; white-space: nowrap;
+    display: flex; align-items: center;
+  }
+  .tb .blk.a { background: color-mix(in srgb, var(--app-accent) 22%, transparent); color: var(--app-accent); border-left: 2px solid var(--app-accent); }
+  .tb .blk.t { background: color-mix(in srgb, var(--app-teal) 20%, transparent); color: var(--app-teal); border-left: 2px solid var(--app-teal); }
+
+  /* 간트 목업 */
+  .gantt { padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; }
+  .gantt .days { display: grid; grid-template-columns: 58px repeat(7, 1fr); gap: 3px; font-size: 9px; color: var(--app-mute-2); }
+  .gantt .grow { display: grid; grid-template-columns: 58px repeat(7, 1fr); gap: 3px; align-items: center; }
+  .gantt .glabel { font-size: 10px; color: var(--app-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gantt .cell { height: 13px; border-radius: 3px; background: var(--app-line-2); }
+  .gantt .bar { height: 13px; border-radius: 3px; }
+  .gantt .bar.a { background: color-mix(in srgb, var(--app-accent) 55%, transparent); }
+  .gantt .bar.t { background: color-mix(in srgb, var(--app-teal) 50%, transparent); }
+  .gantt .bar.r { background: color-mix(in srgb, var(--app-rose) 45%, transparent); }
+
+  .handle-v { display: flex; align-items: center; justify-content: center; }
+  .handle-v::before { content: ""; width: 2px; height: 26px; border-radius: 2px; background: var(--app-line); }
+  .handle-h { height: 12px; display: flex; align-items: center; justify-content: center; }
+  .handle-h::before { content: ""; height: 2px; width: 26px; border-radius: 2px; background: var(--app-line); }
+
+  .banner {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 14px; font-size: 10px;
+    background: var(--app-fill);
+    border-bottom: 1px solid var(--app-line);
+    color: var(--app-mute);
+  }
+  .banner b { margin-left: auto; color: var(--app-accent); font-weight: 700; }
+
+  /* 현재안의 백로그 틴트 */
+  .backlog-legacy {
+    border-top: 1px solid color-mix(in srgb, var(--app-accent) 25%, transparent);
+    background: color-mix(in srgb, var(--app-accent) 5%, transparent);
+  }
+
+  /* 결함 마커 */
+  .flag {
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    width: 15px; height: 15px;
+    border-radius: 999px;
+    background: var(--bad);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 9px; font-weight: 700;
+    flex: none;
+    line-height: 1;
+    margin-left: 2px;
+  }
+  .flag.good { background: var(--teal); }
+
+  .findings {
+    list-style: none;
+    padding: 0;
+    margin: 22px 0 0;
+    display: grid;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .findings li {
+    background: var(--ground);
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+  .findings .n {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--bad);
+    border-radius: 999px;
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 3px;
+  }
+  .findings .t { font-weight: 700; font-size: 14.5px; margin: 0 0 4px; color: var(--ink); }
+  .findings .d { font-size: 13.5px; color: var(--ink-2); margin: 0; line-height: 1.62; max-width: none; }
+  .findings .d code { font-size: 11.5px; }
+
+  .note {
+    border-left: 2px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 14px 18px;
+    border-radius: 0 6px 6px 0;
+    margin: 24px 0 0;
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+  .note b { color: var(--ink); }
+  .note p { margin: 0; max-width: none; }
+
+  .specgrid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 24px;
+  }
+  @media (min-width: 720px) { .specgrid { grid-template-columns: 1fr 1fr; } }
+  .spec { background: var(--ground); padding: 20px 22px; }
+  .spec .k {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 8px;
+  }
+  .spec .v {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    margin: 0 0 8px;
+    line-height: 1.6;
+    word-break: break-all;
+  }
+  .spec .n { font-size: 13px; color: var(--ink-2); margin: 0; line-height: 1.6; }
+
+  ol.steps { margin: 22px 0 0; padding-left: 0; list-style: none; counter-reset: s; }
+  ol.steps > li {
+    counter-increment: s;
+    position: relative;
+    padding: 0 0 22px 40px;
+    border-left: 1px solid var(--rule);
+    margin-left: 11px;
+  }
+  ol.steps > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  ol.steps > li::before {
+    content: counter(s);
+    position: absolute;
+    left: -11px; top: 0;
+    width: 22px; height: 22px;
+    border-radius: 999px;
+    background: var(--ground);
+    border: 1px solid var(--rule-strong);
+    color: var(--ink-2);
+    font-family: var(--mono);
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  ol.steps .st { font-weight: 700; font-size: 15px; margin: 0 0 4px; display: block; color: var(--ink); }
+  ol.steps .sf { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); margin: 0 0 6px; }
+  ol.steps p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+
+  .themetoggle {
+    position: fixed; right: 18px; top: 18px; z-index: 20;
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    background: var(--panel); color: var(--ink-2);
+    border: 1px solid var(--rule); border-radius: 999px;
+    padding: 7px 14px; cursor: pointer;
+  }
+  .themetoggle:hover { color: var(--ink); border-color: var(--rule-strong); }
+
+  footer.doc {
+    margin-top: 78px;
+    padding-top: 26px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+</style>
+
+<button class="themetoggle" id="tt" type="button">테마 전환</button>
+
+<div class="wrap">
+  <header class="doc">
+    <p class="eyebrow">Board Dashboard · Layout Proposal</p>
+    <h1>네 칸이 <em>한 화면</em>이 되려면</h1>
+    <p class="deck">
+      오늘의 타임블록 · 내 워크로드 · 미배치/지연 · 백로그. 네 패널은 같은 화면에 있지만
+      머리를 그리는 문법이 셋, 좌우 여백이 셋, 되돌리기 배너가 뜨는 자리가 둘이다.
+      내용을 바꾸지 않고 <b>셸 하나</b>로 묶어 통일감을 만드는 안이다.
+    </p>
+    <div class="metarow">
+      <span><b>대상</b> DashboardView · TodayTimeblockWidget · MyWorkloadWidget · PlacementRail · BacklogRail</span>
+      <span><b>성격</b> 시각 규격 통일 (기능 변경 없음)</span>
+    </div>
+  </header>
+
+  <!-- ───────────────────────── 진단 ───────────────────────── -->
+  <section>
+    <p class="sec-label">01 · 진단</p>
+    <h2>패널은 넷인데, 카드 경계는 셋이고 헤더 문법은 셋이다</h2>
+
+    <div class="verdict">
+      <p class="stmt">
+        통일감이 깨지는 지점은 색이나 폰트가 아니다. <b>“이것이 한 패널의 머리다”라고
+        말하는 방식</b>이 패널마다 다르다는 것이다.
+      </p>
+      <p>
+        타임블록과 워크로드는 <code>&lt;header&gt;</code> 안에 제목 한 줄을 놓는다.
+        미배치·지연은 제목 없이 탭 스트립이 머리 노릇을 한다. 백로그는 탭 스트립인 데다
+        혼자만 배경에 인디고 틴트가 깔려 있다. 그래서 눈은 네 개의 동등한 패널이 아니라
+        <b>“카드 둘 + 그 안에 뭔가 두 덩이”</b>로 읽는다.
+      </p>
+    </div>
+
+    <h3>현재 화면 — 어긋나는 자리</h3>
+    <div class="mockwrap">
+      <div class="mockbar">
+        <span class="tag now">현재</span>
+        <span>xl 이상 · 2열</span>
+      </div>
+      <div class="mockstage">
+        <div class="board">
+          <!-- 왼쪽: 타임블록 -->
+          <div class="col">
+            <div class="card" style="flex:1">
+              <div class="chead v-title">
+                <span class="ctitle">오늘의 타임블록</span>
+                <span class="clink">주간 타임블록</span>
+                <span class="flag">1</span>
+              </div>
+              <div class="tb">
+                <div class="slot"><span class="hr">09</span><div class="lane"><div class="blk a">기획서 리뷰</div></div></div>
+                <div class="slot"><span class="hr">10</span><div class="lane"></div></div>
+                <div class="slot"><span class="hr">11</span><div class="lane"><div class="blk t">스탠드업</div></div></div>
+                <div class="slot"><span class="hr">12</span><div class="lane"></div></div>
+                <div class="slot"><span class="hr">13</span><div class="lane"><div class="blk a">API 연동</div></div></div>
+                <div class="slot"><span class="hr">14</span><div class="lane"></div></div>
+                <div class="slot"><span class="hr">15</span><div class="lane"></div></div>
+                <div class="slot"><span class="hr">16</span><div class="lane"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="handle-v"></div>
+
+          <!-- 오른쪽 -->
+          <div class="col">
+            <div class="card">
+              <div class="chead v-title">
+                <span class="ctitle">내 워크로드</span>
+                <span class="clink">리소스 뷰에서 열기</span>
+              </div>
+              <div class="banner">
+                「API 연동」 3월 12일에 배치됨 <b>되돌리기</b>
+                <span class="flag">4</span>
+              </div>
+              <div class="gantt">
+                <div class="days"><span></span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span><span>일</span></div>
+                <div class="grow">
+                  <span class="glabel">유선규</span>
+                  <span class="cell"></span><span class="bar a"></span><span class="bar a"></span><span class="cell"></span>
+                  <span class="bar t"></span><span class="cell"></span><span class="cell"></span>
+                </div>
+                <div class="grow">
+                  <span class="glabel"></span>
+                  <span class="cell"></span><span class="cell"></span><span class="bar r"></span><span class="bar r"></span>
+                  <span class="cell"></span><span class="cell"></span><span class="cell"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="handle-h"></div>
+
+            <!-- 큐 카드: 제목 없음 -->
+            <div class="card" style="flex:1">
+              <div class="chead v-tabs">
+                <span class="tab on"><span class="dot amber"></span>미배치<span class="cnt">8</span></span>
+                <span class="tab"><span class="dot rose"></span>지연<span class="cnt">3</span></span>
+                <span class="pill teal"><span class="dot teal"></span>오늘 2</span>
+                <span class="hint" style="margin-left:auto">끌어서 날짜 칸에 놓으면 배치…</span>
+                <span class="clink" style="margin-left:12px">칸반에서 보기</span>
+                <span class="flag">2</span>
+              </div>
+              <div class="cbody flush">
+                <div class="row"><span class="chip">v1.5 출시</span><span class="name">결제 예외 처리 분기</span><span class="chip rose">D+2</span></div>
+                <div class="row"><span class="chip">v1.5 출시</span><span class="name">웹훅 재시도 큐</span><span class="chip">미정</span></div>
+                <div class="row"><span class="chip">백오피스</span><span class="name">권한 매트릭스 정리</span><span class="chip">미정</span></div>
+              </div>
+
+              <!-- 백로그: 카드 안의 카드처럼 보이는 틴트 -->
+              <div class="backlog-legacy">
+                <div class="chead v-tabs" style="border-bottom:0">
+                  <span class="tab on"><span class="dot accent"></span>내 백로그<span class="cnt">5</span></span>
+                  <span class="tab"><span class="dot teal"></span>승격됨<span class="cnt">2</span></span>
+                  <span class="flag">3</span>
+                </div>
+                <div class="cbody flush">
+                  <div class="row"><span class="name">모바일 레이아웃 점검</span><span class="chip">초안</span></div>
+                  <div class="row" style="border-bottom:0"><span class="name">온보딩 문구 다시 쓰기</span><span class="chip">초안</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ul class="findings">
+      <li>
+        <span class="n">1</span>
+        <div>
+          <p class="t">머리 문법이 셋 — 제목형 / 탭형 / 틴트 탭형</p>
+          <p class="d">
+            타임블록·워크로드는 <code>&lt;header&gt;</code> + <code>h2</code>,
+            미배치·지연은 <code>role="tablist"</code> 한 줄, 백로그는 tablist + 인디고 틴트.
+            같은 층위인데 활자 무게와 형태가 다르니 “동등한 네 패널”로 안 읽힌다.
+          </p>
+        </div>
+      </li>
+      <li>
+        <span class="n">2</span>
+        <div>
+          <p class="t">좌우 여백이 카드마다 다르다 — px-4 / px-3 / px-3</p>
+          <p class="d">
+            제목형 헤더는 <code>px-4 py-3</code>, 탭형은 <code>px-3 py-2</code>, 리스트 행도
+            <code>px-3</code>. 왼쪽 정렬선이 4px씩 어긋나고 헤더 높이도 제각각이라
+            카드를 세로로 쌓았을 때 눈금이 안 맞는다. 링크 아이콘 크기도
+            <code>size={12}</code>와 <code>size={11}</code>로 갈렸다.
+          </p>
+        </div>
+      </li>
+      <li>
+        <span class="n">3</span>
+        <div>
+          <p class="t">백로그만 배경 틴트 — 넷 중 하나만 색이 다르다</p>
+          <p class="d">
+            <code>bg-bridge-accent/[0.04]</code> + <code>border-bridge-accent/25</code>가
+            상시로 깔려 있다. 그런데 같은 인디고는 드롭 가능 상태(<code>/[0.05]</code>)와
+            드롭 오버(<code>/[0.12]</code>)에도 쓰인다. <b>상시 정체성 색과 일시적 상태 색이
+            같은 팔레트를 나눠 쓰니</b> 지금 드래그가 걸린 건지 원래 저 색인지 구분이 안 된다.
+          </p>
+        </div>
+      </li>
+      <li>
+        <span class="n">4</span>
+        <div>
+          <p class="t">되돌리기 배너가 두 곳에서 서로 다른 자리에 뜬다</p>
+          <p class="d">
+            워크로드는 헤더 <b>아래</b>(<code>MyWorkloadWidget:440</code>),
+            백로그는 자기 탭 줄 <b>위</b>(<code>BacklogRail:521</code>). 문구·되돌리기 버튼·
+            8초 TTL까지 똑같은 UI인데 나타나는 위치만 다르다.
+          </p>
+        </div>
+      </li>
+      <li>
+        <span class="n">5</span>
+        <div>
+          <p class="t">우측 “더 큰 화면 링크” 자리가 미배치 패널에서만 흔들린다</p>
+          <p class="d">
+            <code>PlacementRail</code>은 힌트 <code>&lt;p&gt;</code>와 링크
+            <code>&lt;button&gt;</code>에 <code>ml-auto</code>를 <b>둘 다</b> 걸었다
+            (<code>:326</code>, <code>:346</code>). flex에서 앞 요소가 남은 공간을 먼저 먹으므로
+            뒤의 <code>ml-auto</code>는 무효가 되고, 힌트 길이에 따라 링크 위치가 밀린다.
+            다른 세 패널은 링크가 항상 오른쪽 끝에 고정된다.
+          </p>
+        </div>
+      </li>
+      <li>
+        <span class="n">6</span>
+        <div>
+          <p class="t">공용 셸이 이미 있는데 아무도 안 쓴다</p>
+          <p class="d">
+            <code>DashboardCard.tsx</code>에 카드 셸(<code>DashboardCard</code>)이 정의돼 있고
+            “헤더 우측은 더 큰 화면 링크 자리로 고정한다”는 주석까지 달려 있다.
+            그런데 실제로 import 되는 건 <code>DashboardEmpty</code>뿐이고
+            <b><code>DashboardCard</code>는 어디에서도 쓰이지 않는다.</b>
+            네 패널 모두 헤더를 손으로 다시 그렸고, 그래서 갈라졌다.
+          </p>
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ───────────────────────── 개선안 ───────────────────────── -->
+  <section>
+    <p class="sec-label">02 · 개선안 A (권장)</p>
+    <h2>셸 하나, 헤더 한 줄, 카드 넷</h2>
+
+    <p class="lede">
+      골격(좌 타임블록 / 우 워크로드+큐, 손잡이 1개)은 그대로 둔다. 바꾸는 것은
+      <b>패널의 머리를 그리는 방식</b> 하나뿐이다. 그 대신 큐 카드를 갈라
+      화면에 보이는 덩어리 수(4)와 카드 경계 수(4)를 일치시킨다.
+    </p>
+
+    <div class="mockwrap">
+      <div class="mockbar">
+        <span class="tag next">제안</span>
+        <span>xl 이상 · 2열 · 헤더 규격 통일</span>
+      </div>
+      <div class="mockstage">
+        <div class="board">
+          <div class="col">
+            <div class="card" style="flex:1">
+              <div class="chead v-unified">
+                <span class="dot teal"></span>
+                <span class="ctitle">오늘의 타임블록</span>
+                <span class="csub">3월 12일 (수)</span>
+                <span class="clink">주간</span>
+              </div>
+              <div class="tb">
+                <div class="slot"><span class="hr">09</span><div class="lane"><div class="blk a">기획서 리뷰</div></div></div>
+                <div class="slot"><span class="hr">10</span><div class="lane"></div></div>
+                <div class="slot"><span class="hr">11</span><div class="lane"><div class="blk t">스탠드업</div></div></div>
+                <div class="slot"><span class="hr">12</span><div class="lane"></div></div>
+                <div class="slot"><span class="hr">13</span><div class="lane"><div class="blk a">API 연동</div></div></div>
+                <div class="slot"><span class="hr">14</span><div class="lane"></div></div>
+                <div class="slot"><span class="hr">15</span><div class="lane"></div></div>
+                <div class="slot"><span class="hr">16</span><div class="lane"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="handle-v"></div>
+
+          <div class="col">
+            <!-- 워크로드 -->
+            <div class="card">
+              <div class="chead v-unified">
+                <span class="dot accent"></span>
+                <span class="ctitle">내 워크로드</span>
+                <span class="csub">이번 주</span>
+                <span class="clink">리소스 뷰</span>
+              </div>
+              <div class="banner">
+                「API 연동」 3월 12일에 배치됨 <b>되돌리기</b>
+              </div>
+              <div class="gantt">
+                <div class="days"><span></span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span><span>일</span></div>
+                <div class="grow">
+                  <span class="glabel">유선규</span>
+                  <span class="cell"></span><span class="bar a"></span><span class="bar a"></span><span class="cell"></span>
+                  <span class="bar t"></span><span class="cell"></span><span class="cell"></span>
+                </div>
+                <div class="grow">
+                  <span class="glabel"></span>
+                  <span class="cell"></span><span class="cell"></span><span class="bar r"></span><span class="bar r"></span>
+                  <span class="cell"></span><span class="cell"></span><span class="cell"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="handle-h"></div>
+
+            <!-- 미배치 · 지연: 이제 자기 카드 -->
+            <div class="card" style="flex:1">
+              <div class="chead v-unified">
+                <span class="dot amber"></span>
+                <span class="ctitle">배치 대기</span>
+                <span class="tab on">미배치<span class="pill count">8</span></span>
+                <span class="tab">지연<span class="pill count">3</span></span>
+                <span class="clink">칸반</span>
+              </div>
+              <div class="cbody flush">
+                <div class="row pad14"><span class="chip">v1.5 출시</span><span class="name">결제 예외 처리 분기</span><span class="chip rose">D+2</span></div>
+                <div class="row pad14"><span class="chip">v1.5 출시</span><span class="name">웹훅 재시도 큐</span><span class="chip">미정</span></div>
+                <div class="row pad14"><span class="chip">백오피스</span><span class="name">권한 매트릭스 정리</span><span class="chip">미정</span></div>
+                <div class="row pad14" style="border-bottom:0"><span class="chip">백오피스</span><span class="name">감사 로그 보존 기간</span><span class="chip teal">오늘</span></div>
+              </div>
+            </div>
+
+            <div class="handle-h"></div>
+
+            <!-- 백로그: 독립 카드, 틴트 없음, 도트로만 구분 -->
+            <div class="card">
+              <div class="chead v-unified">
+                <span class="dot slate"></span>
+                <span class="ctitle">내 백로그</span>
+                <span class="tab on">대기<span class="pill count">5</span></span>
+                <span class="tab">승격됨<span class="pill count">2</span></span>
+                <span class="clink">접기</span>
+              </div>
+              <div class="cbody flush">
+                <div class="row pad14"><span class="name">모바일 레이아웃 점검</span><span class="chip">초안</span></div>
+                <div class="row pad14" style="border-bottom:0"><span class="name">온보딩 문구 다시 쓰기</span><span class="chip">초안</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>무엇이 달라졌나</h3>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>축</th>
+            <th class="mono">현재</th>
+            <th class="mono">제안</th>
+            <th>얻는 것</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>헤더 높이</th>
+            <td class="bad mono">py-3 / py-2 혼재</td>
+            <td class="ok mono">h-10 고정 (40px)</td>
+            <td>카드를 세로로 쌓아도 머리 줄이 같은 리듬으로 반복된다</td>
+          </tr>
+          <tr>
+            <th>좌우 여백</th>
+            <td class="bad mono">px-4 / px-3</td>
+            <td class="ok mono">px-3.5 전면 통일</td>
+            <td>헤더 제목과 본문 행의 왼쪽 정렬선이 하나로 맞는다</td>
+          </tr>
+          <tr>
+            <th>머리 구성</th>
+            <td class="bad">제목 / 탭 / 틴트 탭</td>
+            <td class="ok">도트 + 제목 + (탭) + 링크</td>
+            <td>탭이 있는 패널도 “제목이 있는 패널”이 된다</td>
+          </tr>
+          <tr>
+            <th>카운트</th>
+            <td class="bad">회색 텍스트 · 테두리 pill 혼재</td>
+            <td class="ok mono">pill 하나 (bg-foreground/[0.06])</td>
+            <td>숫자가 어디에 있든 같은 물건으로 읽힌다</td>
+          </tr>
+          <tr>
+            <th>단계 표식</th>
+            <td class="bad">백로그만 배경 틴트</td>
+            <td class="ok">6px 도트 (teal→indigo→amber→slate)</td>
+            <td>인디고 틴트가 드래그 상태 전용으로 되돌아온다</td>
+          </tr>
+          <tr>
+            <th>배너 위치</th>
+            <td class="bad">헤더 아래 / 탭 위</td>
+            <td class="ok">항상 헤더 바로 아래</td>
+            <td>어느 패널에서 되돌리든 같은 자리를 본다</td>
+          </tr>
+          <tr>
+            <th>카드 경계</th>
+            <td class="bad">3장 (백로그가 큐 안에)</td>
+            <td class="ok">4장 = 패널 수와 일치</td>
+            <td>“카드 안의 카드”가 사라진다</td>
+          </tr>
+          <tr>
+            <th>우측 링크</th>
+            <td class="bad mono">ml-auto 2회 (위치 흔들림)</td>
+            <td class="ok mono">우측 그룹에 ml-auto 1회</td>
+            <td>링크가 네 패널 모두 같은 x좌표에 선다</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <p>
+        <b>단계 색은 파이프라인 순서를 따른다.</b>
+        백로그(slate) → 배치 대기(amber) → 워크로드(indigo) → 타임블록(teal).
+        <code>MyWorkloadWidget</code> 주석이 이미 말하는 “성숙도 순”을 그대로 색에 옮긴 것이라
+        새 규칙을 외울 필요가 없다. 지연 탭이 활성일 때만 도트가 rose로 바뀐다.
+      </p>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── 규격 ───────────────────────── -->
+  <section>
+    <p class="sec-label">03 · 규격</p>
+    <h2>PanelShell — 네 패널이 공유하는 단 하나의 머리</h2>
+
+    <p class="lede">
+      이미 있는 <code>DashboardCard</code>를 버리지 않고 확장한다. 탭·카운트·접기를 받도록
+      슬롯을 넓히면 네 패널이 전부 이 셸 하나로 들어온다.
+    </p>
+
+    <div class="specgrid">
+      <div class="spec">
+        <p class="k">Card</p>
+        <p class="v">bg-bridge-obsidian rounded-2xl<br />border border-foreground/[0.08]<br />overflow-hidden flex flex-col</p>
+        <p class="n">지금 네 곳에 복붙돼 있는 문자열. 그대로 유지하되 한 군데에서만 정의한다.</p>
+      </div>
+      <div class="spec">
+        <p class="k">Header</p>
+        <p class="v">h-10 flex items-center gap-2<br />px-3.5 flex-none<br />border-b border-foreground/[0.08]</p>
+        <p class="n">py-* 대신 고정 높이. 탭이 들어와도 줄 높이가 안 변한다.</p>
+      </div>
+      <div class="spec">
+        <p class="k">Dot · Title</p>
+        <p class="v">w-1.5 h-1.5 rounded-full<br />text-xs md:text-sm font-bold<br />text-foreground truncate</p>
+        <p class="n">도트는 단계 표식. 제목은 탭이 있어도 반드시 남긴다.</p>
+      </div>
+      <div class="spec">
+        <p class="k">Tab</p>
+        <p class="v">px-2 py-1 rounded-lg text-xs font-bold<br />on: bg-foreground/[0.08] text-foreground<br />off: text-slate-400 hover:bg-foreground/5</p>
+        <p class="n">현재 PlacementRail·BacklogRail 값과 동일 — 도트만 헤더 왼쪽으로 옮긴다.</p>
+      </div>
+      <div class="spec">
+        <p class="k">Count pill</p>
+        <p class="v">text-xs font-bold px-1.5 rounded-full<br />bg-foreground/[0.06] text-slate-500</p>
+        <p class="n">탭 안 숫자, “오늘 N”, 백로그 개수 — 전부 이 하나로.</p>
+      </div>
+      <div class="spec">
+        <p class="k">Right group</p>
+        <p class="v">ml-auto flex items-center gap-2<br />&nbsp;└ extra → link(ExternalLink size=12)</p>
+        <p class="n">ml-auto는 이 컨테이너에만. 힌트 문구는 헤더에서 빼 본문 빈 상태로 내린다.</p>
+      </div>
+      <div class="spec">
+        <p class="k">Banner</p>
+        <p class="v">flex items-center gap-2 px-3.5 py-1.5<br />bg-foreground/[0.03] flex-none<br />border-b border-foreground/[0.08]</p>
+        <p class="n">항상 헤더 직하. role="status", 8초 TTL, 우측 되돌리기 — 두 패널 공통.</p>
+      </div>
+      <div class="spec">
+        <p class="k">Row</p>
+        <p class="v">px-3.5 py-1.5<br />border-b border-foreground/[0.06]<br />hover:bg-foreground/[0.03]</p>
+        <p class="n">px-3 → px-3.5. 헤더 제목과 행 텍스트가 같은 선에서 시작한다.</p>
+      </div>
+    </div>
+
+    <h3>단계 색 매핑</h3>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>패널</th><th class="mono">도트</th><th>근거</th></tr>
+        </thead>
+        <tbody>
+          <tr><th>오늘의 타임블록</th><td class="mono">bg-bridge-secondary</td><td>가장 확정된 단계 — 시각까지 잡힌 일</td></tr>
+          <tr><th>내 워크로드</th><td class="mono">bg-bridge-accent</td><td>날짜가 잡힌 일</td></tr>
+          <tr><th>배치 대기 (미배치)</th><td class="mono">bg-amber-500</td><td>태스크는 됐지만 날짜가 없다</td></tr>
+          <tr><th>배치 대기 (지연 탭)</th><td class="mono">bg-rose-500</td><td>탭 전환 시에만 rose — 기존 지연 색 그대로</td></tr>
+          <tr><th>내 백로그</th><td class="mono">bg-slate-500</td><td>아직 아무것도 아닌 단계</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── 옵션 B ───────────────────────── -->
+  <section>
+    <p class="sec-label">04 · 개선안 B (선택)</p>
+    <h2>1600px 이상에서는 세 열로 펼친다</h2>
+
+    <p class="lede">
+      A안을 적용하면 오른쪽 열에 카드가 셋 쌓인다. 넓은 모니터에서는 세로가 남는 게 아니라
+      <b>가로가 남는다</b>. 백로그를 세 번째 열로 빼면 오른쪽 스택이 둘로 줄어
+      각 패널이 세로를 더 쓴다. A안 위에 미디어 쿼리 한 줄로 얹는 구조라 별도 작업이 아니다.
+    </p>
+
+    <div class="mockwrap">
+      <div class="mockbar">
+        <span class="tag next">제안 B</span>
+        <span>2xl 이상 · 3열</span>
+      </div>
+      <div class="mockstage">
+        <div class="board wide3">
+          <div class="col">
+            <div class="card" style="flex:1">
+              <div class="chead v-unified">
+                <span class="dot teal"></span><span class="ctitle">오늘의 타임블록</span>
+                <span class="clink">주간</span>
+              </div>
+              <div class="tb">
+                <div class="slot"><span class="hr">09</span><div class="lane"><div class="blk a">기획서 리뷰</div></div></div>
+                <div class="slot"><span class="hr">10</span><div class="lane"></div></div>
+                <div class="slot"><span class="hr">11</span><div class="lane"><div class="blk t">스탠드업</div></div></div>
+                <div class="slot"><span class="hr">12</span><div class="lane"></div></div>
+                <div class="slot"><span class="hr">13</span><div class="lane"><div class="blk a">API 연동</div></div></div>
+                <div class="slot"><span class="hr">14</span><div class="lane"></div></div>
+                <div class="slot"><span class="hr">15</span><div class="lane"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="handle-v"></div>
+          <div class="col">
+            <div class="card">
+              <div class="chead v-unified">
+                <span class="dot accent"></span><span class="ctitle">내 워크로드</span>
+                <span class="clink">리소스 뷰</span>
+              </div>
+              <div class="gantt">
+                <div class="days"><span></span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span><span>일</span></div>
+                <div class="grow">
+                  <span class="glabel">유선규</span>
+                  <span class="cell"></span><span class="bar a"></span><span class="bar a"></span><span class="cell"></span>
+                  <span class="bar t"></span><span class="cell"></span><span class="cell"></span>
+                </div>
+                <div class="grow">
+                  <span class="glabel"></span>
+                  <span class="cell"></span><span class="cell"></span><span class="bar r"></span><span class="bar r"></span>
+                  <span class="cell"></span><span class="cell"></span><span class="cell"></span>
+                </div>
+              </div>
+            </div>
+            <div class="handle-h"></div>
+            <div class="card" style="flex:1">
+              <div class="chead v-unified">
+                <span class="dot amber"></span><span class="ctitle">배치 대기</span>
+                <span class="tab on">미배치<span class="pill count">8</span></span>
+                <span class="tab">지연<span class="pill count">3</span></span>
+                <span class="clink">칸반</span>
+              </div>
+              <div class="cbody flush">
+                <div class="row pad14"><span class="chip">v1.5 출시</span><span class="name">결제 예외 처리 분기</span><span class="chip rose">D+2</span></div>
+                <div class="row pad14"><span class="chip">v1.5 출시</span><span class="name">웹훅 재시도 큐</span><span class="chip">미정</span></div>
+                <div class="row pad14"><span class="chip">백오피스</span><span class="name">권한 매트릭스 정리</span><span class="chip">미정</span></div>
+                <div class="row pad14" style="border-bottom:0"><span class="chip">백오피스</span><span class="name">감사 로그 보존 기간</span><span class="chip teal">오늘</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="handle-v"></div>
+          <div class="col">
+            <div class="card" style="flex:1">
+              <div class="chead v-unified">
+                <span class="dot slate"></span><span class="ctitle">내 백로그</span>
+                <span class="pill count">5</span>
+                <span class="clink">추가</span>
+              </div>
+              <div class="cbody flush">
+                <div class="row pad14"><span class="name">모바일 레이아웃 점검</span><span class="chip">초안</span></div>
+                <div class="row pad14"><span class="name">온보딩 문구 다시 쓰기</span><span class="chip">초안</span></div>
+                <div class="row pad14"><span class="name">알림 설정 화면 분리</span><span class="chip">초안</span></div>
+                <div class="row pad14" style="border-bottom:0"><span class="name">리포트 PDF 내보내기</span><span class="chip">초안</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <p>
+        <b>주의 — 백로그가 세 번째 열로 가면 드롭 거리(drag distance)가 늘어난다.</b>
+        지금 백로그는 배치 대기 바로 아래에 붙어 있어 “한 칸 내리기”가 짧다.
+        B안을 택한다면 3열 전환 폭을 넉넉히(2xl / 1536px 이상) 잡아, 그 정도 화면에서만
+        가로 이동이 부담되지 않게 한다. 그 아래에서는 A안 배치가 그대로 유지된다.
+      </p>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── 적용 ───────────────────────── -->
+  <section>
+    <p class="sec-label">05 · 적용</p>
+    <h2>순서 — 셸부터 만들고, 네 패널을 갈아 끼운다</h2>
+
+    <ol class="steps">
+      <li>
+        <span class="st">DashboardCard를 PanelShell로 확장</span>
+        <p class="sf">frontend/src/app/components/boarddashboard/DashboardCard.tsx</p>
+        <p>
+          <code>dot</code>(단계 색), <code>tabs</code>(ReactNode), <code>banner</code>(ReactNode),
+          <code>collapsible</code> 슬롯을 추가한다. 헤더를 <code>h-10 px-3.5</code>로 고정하고
+          우측은 <code>ml-auto</code> 한 컨테이너로 묶는다. 배너는 헤더 직하 고정 위치에 렌더한다.
+          기존 <code>DashboardEmpty</code>는 건드리지 않는다.
+        </p>
+      </li>
+      <li>
+        <span class="st">TodayTimeblockWidget · MyWorkloadWidget 헤더 교체</span>
+        <p class="sf">TodayTimeblockWidget.tsx:64 · MyWorkloadWidget.tsx:422</p>
+        <p>
+          손으로 그린 <code>&lt;header&gt;</code>를 셸로 치환. 워크로드의 notice/error 블록
+          (<code>:440–511</code>)은 그대로 <code>banner</code> 슬롯으로 옮긴다 — 로직은 무변경.
+        </p>
+      </li>
+      <li>
+        <span class="st">PlacementRail을 “배치 대기” 카드로 승격</span>
+        <p class="sf">PlacementRail.tsx:259–351</p>
+        <p>
+          tablist 줄을 셸 헤더로 흡수한다. 이때 <code>ml-auto</code> 중복(<code>:326</code>,
+          <code>:346</code>)이 자연히 사라진다. 헤더에서 밀려난 드래그 힌트 문구는
+          빈 상태 문구와 드롭 오버레이로 내린다 — 헤더가 아니라 놓을 자리에 있어야 읽힌다.
+        </p>
+      </li>
+      <li>
+        <span class="st">BacklogRail 독립 카드화 + 틴트 제거</span>
+        <p class="sf">BacklogRail.tsx:509–563</p>
+        <p>
+          <code>bg-bridge-accent/[0.04]</code> · <code>border-bridge-accent/25</code>를 걷어내고
+          일반 카드 배경으로. 인디고는 <code>dropActive</code> / <code>dropOver</code>일 때만
+          나타나게 남긴다. 되돌리기 배너(<code>:521</code>)는 탭 줄 위 → 헤더 아래로 이동.
+        </p>
+      </li>
+      <li>
+        <span class="st">MyWorkloadWidget의 큐 섹션 분해</span>
+        <p class="sf">MyWorkloadWidget.tsx:572–601</p>
+        <p>
+          지금 하나의 <code>&lt;section&gt;</code>이 PlacementRail + BacklogRail을 감싸고 있다.
+          둘이 각자 카드가 되므로 이 래퍼를 없애고 12px 간격으로 나란히 쌓는다.
+          백로그는 접힘 상태를 <code>usePersistentSplit</code>과 같은 방식으로 기억시킨다.
+        </p>
+      </li>
+      <li>
+        <span class="st">DashboardView 그리드 정리</span>
+        <p class="sf">DashboardView.tsx:212–279</p>
+        <p>
+          A안은 현재 <code>grid-cols-[var(--dash-timeblock-w)_auto_minmax(0,1fr)]</code>을
+          그대로 쓴다. B안을 얹는다면 <code>2xl:</code> 브레이크포인트에 열 하나를 추가하고
+          백로그를 세 번째 열로 옮긴다.
+        </p>
+      </li>
+    </ol>
+
+    <h3>검증 항목</h3>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>확인</th><th>기대</th></tr></thead>
+        <tbody>
+          <tr><th>헤더 정렬</th><td>네 패널의 제목 왼쪽 끝과 링크 오른쪽 끝이 각각 같은 x좌표에 선다</td></tr>
+          <tr><th>본문 정렬</th><td>리스트 행 텍스트가 헤더 제목과 같은 선에서 시작한다</td></tr>
+          <tr><th>드래그 색</th><td>드래그를 걸지 않은 상태에서 인디고 틴트가 어디에도 없다</td></tr>
+          <tr><th>배너</th><td>배치·해제·강등 어느 경우든 배너가 해당 카드 헤더 바로 아래에 뜬다</td></tr>
+          <tr><th>xl 미만</th><td>네 카드가 한 줄로 접히고 각자 고정 높이를 유지한다 (현재 동작 보존)</td></tr>
+          <tr><th>남의 대시보드</th><td><code>showBacklog=false</code>일 때 백로그 카드가 통째로 없다 (읽기 전용 아님, 부재)</td></tr>
+          <tr><th>다크/라이트</th><td>도트 5색이 두 테마에서 모두 구분된다</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <p>
+        <b>기능은 하나도 건드리지 않는다.</b> 드래그·드롭 축 이동, 되돌리기, 탭 상태,
+        스플릿 손잡이, WS 리프레시 경로는 전부 그대로다. 바뀌는 것은 헤더 마크업과
+        패딩 값, 그리고 백로그를 감싸던 래퍼 하나뿐이다.
+      </p>
+    </div>
+
+    <h3>구현하며 달라진 것</h3>
+    <p class="lede">A안을 코드에 옮기면서 이 문서의 스케치와 어긋난 지점.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>지점</th><th>문서</th><th>구현</th></tr></thead>
+        <tbody>
+          <tr>
+            <th>백로그 본문</th>
+            <td>세로 목록으로 그렸다</td>
+            <td>
+              실제로는 208px 카드가 옆으로 흐르는 가로 독이다. 그대로 두되
+              <code>flex-col flex-wrap</code>으로 바꿔, 손잡이로 키운 높이만큼
+              한 열에 카드가 더 들어오게 했다 (142px 1장 → 240px 2장 → 340px 4장).
+              키운 만큼 빈 칸만 늘던 문제가 사라진다.
+            </td>
+          </tr>
+          <tr>
+            <th>손잡이 수</th>
+            <td>둘 (열 폭 · 워크로드 높이)</td>
+            <td>
+              셋. 배치 대기 ↔ 백로그 경계에 하나를 더 놓았다.
+              아래 칸을 잡으므로 드래그 방향이 뒤집힌다 —
+              <code>usePersistentSplit</code>에 <code>anchor: "end"</code>를 추가했다.
+            </td>
+          </tr>
+          <tr>
+            <th>드롭 틴트</th>
+            <td>카드 className에 배경을 얹는 것으로 그렸다</td>
+            <td>
+              <code>bg-bridge-obsidian</code>과 다투게 되는데, 승자는 클래스 문자열
+              순서가 아니라 컴파일된 CSS 순서가 정한다. 덮는 층
+              (<code>overlayClassName</code>)으로 올려 순서 의존을 없앴다.
+            </td>
+          </tr>
+          <tr>
+            <th>백로그 접기</th>
+            <td>새로 만드는 것으로 적었다</td>
+            <td>이미 있었다(<code>bridge.backlog.collapsed.*</code>). 머리 오른쪽 끝으로 옮기고, 접히면 손잡이가 사라지게만 했다.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="doc">
+    docs/Design/dashboard-panel-unification.html · 보드 대시보드 4패널 레이아웃 통일안
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var btn = document.getElementById("tt");
+    btn.addEventListener("click", function () {
+      var cur = document.documentElement.getAttribute("data-theme");
+      if (!cur) {
+        cur = window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
+      }
+      document.documentElement.setAttribute(
+        "data-theme",
+        cur === "dark" ? "light" : "dark"
+      );
+    });
+  })();
+</script>

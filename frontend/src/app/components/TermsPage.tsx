@@ -25,10 +25,7 @@ export function TermsPage() {
 
       {/* Content */}
       <main className="max-w-4xl mx-auto px-6 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           {/* Title */}
           <div className="flex items-center gap-4 mb-8">
             <div className="w-14 h-14 bg-gradient-to-br from-bridge-accent to-bridge-secondary rounded-2xl flex items-center justify-center">
@@ -45,9 +42,7 @@ export function TermsPage() {
             {/* Section 1 */}
             <section>
               <h2 className="text-xl font-bold text-foreground mb-4">{t('terms.article1Title')}</h2>
-              <p className="text-slate-400 leading-relaxed">
-                {t('terms.article1Content')}
-              </p>
+              <p className="text-slate-400 leading-relaxed">{t('terms.article1Content')}</p>
             </section>
 
             {/* Section 2 */}
@@ -124,18 +119,13 @@ export function TermsPage() {
 
             {/* Placeholder Notice */}
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mt-8">
-              <p className="text-yellow-400 text-sm">
-                {t('terms.draftNotice')}
-              </p>
+              <p className="text-yellow-400 text-sm">{t('terms.draftNotice')}</p>
             </div>
           </div>
 
           {/* Footer Links */}
           <div className="mt-8 flex items-center justify-center gap-6 text-sm">
-            <Link
-              to="/privacy"
-              className="text-slate-400 hover:text-foreground transition-colors"
-            >
+            <Link to="/privacy" className="text-slate-400 hover:text-foreground transition-colors">
               {t('terms.privacyLink')}
             </Link>
             <span className="text-slate-400">|</span>

@@ -25,6 +25,17 @@ public interface JiraUserMappingRepository extends JpaRepository<JiraUserMapping
     @Query("SELECT m FROM JiraUserMapping m WHERE m.board.id = :boardId")
     List<JiraUserMapping> findByBoardId(@Param("boardId") String boardId);
 
+    /**
+     * 역방향 해석 — BRIDGE 멤버로 JIRA 계정을 찾는다. 담당자를 JIRA로 밀어 넣을 때 쓴다.
+     *
+     * <p>한 사람이 JIRA 계정을 둘 이상 가진 조직이 있어(사번 이관·게스트 계정) 유일성을 가정하지
+     * 않는다. 최근에 이어진 매핑이 현재 쓰는 계정일 가능성이 높아 갱신 시각 내림차순으로 준다.
+     */
+    @Query("SELECT m FROM JiraUserMapping m WHERE m.board.id = :boardId AND m.bridgeUser.id = :userId "
+         + "ORDER BY m.updatedAt DESC")
+    List<JiraUserMapping> findByBoardIdAndBridgeUserId(@Param("boardId") String boardId,
+                                                       @Param("userId") String userId);
+
     @Modifying
     @Query("DELETE FROM JiraUserMapping m WHERE m.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);

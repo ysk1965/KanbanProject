@@ -58,7 +58,10 @@ export function MemberSettingsTab({ member, isSelf, onLeaveOrg }: MemberSettings
                 {t('organization.members.detail.settings.leaveOrg', '조직 나가기')}
               </p>
               <p className="text-xs text-slate-400 mt-1">
-                {t('organization.members.detail.settings.leaveOrgDesc', '조직에서 나가면 소속된 모든 보드에서도 함께 제거됩니다. 이 작업은 되돌릴 수 없습니다.')}
+                {t(
+                  'organization.members.detail.settings.leaveOrgDesc',
+                  '조직에서 나가면 소속된 모든 보드에서도 함께 제거됩니다. 이 작업은 되돌릴 수 없습니다.',
+                )}
               </p>
             </div>
             <button
@@ -77,7 +80,10 @@ export function MemberSettingsTab({ member, isSelf, onLeaveOrg }: MemberSettings
 
           {isOwner && (
             <p className="text-xs text-amber-400">
-              {t('organization.members.detail.settings.ownerCannotLeave', '조직 소유자는 나갈 수 없습니다. 먼저 소유권을 이전해주세요.')}
+              {t(
+                'organization.members.detail.settings.ownerCannotLeave',
+                '조직 소유자는 나갈 수 없습니다. 먼저 소유권을 이전해주세요.',
+              )}
             </p>
           )}
 
@@ -89,7 +95,10 @@ export function MemberSettingsTab({ member, isSelf, onLeaveOrg }: MemberSettings
               className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl"
             >
               <p className="text-sm text-red-400 mb-3">
-                {t('organization.members.detail.settings.leaveConfirm', '정말 이 조직에서 나가시겠습니까? 소속된 모든 보드에서 제거되며, 다시 참여하려면 새로 초대를 받아야 합니다.')}
+                {t(
+                  'organization.members.detail.settings.leaveConfirm',
+                  '정말 이 조직에서 나가시겠습니까? 소속된 모든 보드에서 제거되며, 다시 참여하려면 새로 초대를 받아야 합니다.',
+                )}
               </p>
               <div className="flex gap-2 justify-end">
                 <button

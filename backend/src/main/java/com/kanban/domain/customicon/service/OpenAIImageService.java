@@ -3,6 +3,7 @@ package com.kanban.domain.customicon.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.customicon.dto.CustomIconResponse;
+import com.kanban.global.ai.AiInvocationTemplate;
 import com.kanban.global.config.AiApiKeyResolver;
 import com.kanban.global.config.AiProviderType;
 import com.kanban.global.exception.BusinessException;
@@ -360,27 +361,6 @@ public class OpenAIImageService {
      * GPT 응답에서 JSON 객체만 추출 (코드블록, 텍스트 내 JSON, 순수 JSON 지원)
      */
     private String extractJson(String content) {
-        if (content == null || content.isBlank()) {
-            return "{}";
-        }
-        content = content.trim();
-
-        // 코드블록 내 JSON 추출: ```json ... ``` 또는 ``` ... ```
-        java.util.regex.Matcher codeBlock = java.util.regex.Pattern
-                .compile("```(?:json)?\\s*(\\{.*?})\\s*```", java.util.regex.Pattern.DOTALL)
-                .matcher(content);
-        if (codeBlock.find()) {
-            return codeBlock.group(1).trim();
-        }
-
-        // 첫 번째 { ... } 추출
-        int start = content.indexOf('{');
-        int end = content.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            return content.substring(start, end + 1);
-        }
-
-        // 그대로 반환 (파싱 시도)
-        return content;
+        return AiInvocationTemplate.extractJson(content);
     }
 }

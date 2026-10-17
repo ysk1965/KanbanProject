@@ -2,6 +2,9 @@ package com.kanban.domain.note.service;
 
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
+import com.kanban.domain.activity.ActivityAction;
+import com.kanban.domain.activity.TargetType;
+import com.kanban.domain.activity.service.ActivityService;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.note.*;
 import com.kanban.domain.note.dto.NoteRequest;
@@ -19,6 +22,8 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.PageRequest;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -32,16 +37,15 @@ public class NoteService {
     private final NoteTagRepository noteTagRepository;
     private final NoteTagMappingRepository noteTagMappingRepository;
     private final NoteVersionRepository noteVersionRepository;
-    private final NoteCommentRepository noteCommentRepository;
-    private final NoteCommentReactionRepository noteCommentReactionRepository;
-    private final NoteCollabStateRepository noteCollabStateRepository;
-    private final NoteDraftArchiveRepository noteDraftArchiveRepository;
     private final NoteCollabService noteCollabService;
     private final NoteLikeRepository noteLikeRepository;
+    private final NoteHardDeleteSupport noteHardDeleteSupport;
+    private final NoteContributorService noteContributorService;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final ApplicationEventPublisher eventPublisher;
+    private final ActivityService activityService;
 
     // ===== Note CRUD =====
 
@@ -103,7 +107,7 @@ public class NoteService {
         int likeCount = noteLikeRepository.countByNoteId(noteId);
         boolean liked = noteLikeRepository.existsByNoteIdAndUserId(noteId, userId);
 
-        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked);
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -126,7 +130,7 @@ public class NoteService {
         int likeCount = noteLikeRepository.countByNoteId(noteId);
         boolean liked = !exists;
 
-        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked);
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft, likeCount, liked).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -167,6 +171,8 @@ public class NoteService {
                 .build();
 
         noteRepository.save(note);
+        logNoteActivity(note, user, ActivityAction.NOTE_CREATED,
+                meta("title", note.getTitle(), "type", note.getType().name()));
 
         // Handle tags
         if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
@@ -174,7 +180,7 @@ public class NoteService {
         }
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(note.getId());
-        return NoteResponse.Detail.of(note, tags, 0);
+        return NoteResponse.Detail.of(note, tags, 0).withContributors(noteContributorService.resolve(note));
     }
 
     // 동시 명시 저장으로 note_versions(note_id, version_number) UNIQUE 충돌 시 재시도.
@@ -205,7 +211,7 @@ public class NoteService {
         // Create version snapshot before updating (only on manual save with diff)
         if (createVersion && hasChanges) {
             versionCount = versionCount + 1;
-            NoteVersion version = NoteVersion.createFrom(note, user, versionCount);
+            NoteVersion version = NoteVersion.createFrom(note, user, versionCount, request.getVersionNote());
             noteVersionRepository.save(version);
         }
 
@@ -229,6 +235,12 @@ public class NoteService {
             }
         }
 
+        if (publishedNewSnapshot) {
+            logNoteActivity(note, user, ActivityAction.NOTE_PUBLISHED,
+                    meta("title", note.getTitle(), "version_number", versionCount,
+                         "version_note", NoteVersion.normalizeMemo(request.getVersionNote())));
+        }
+
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
 
         // 정식 저장으로 새 발행본이 만들어졌으면 stale Yjs draft를 함께 폐기한다.
@@ -249,7 +261,7 @@ public class NoteService {
         boolean draftDiscarded = publishedNewSnapshot && discardDraft;
         boolean hasDraft = !draftDiscarded
                 && noteCollabService.hasUnpublishedDraft(noteId, note.getUpdatedAt());
-        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft);
+        return NoteResponse.Detail.of(note, tags, versionCount, hasDraft).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -262,6 +274,8 @@ public class NoteService {
 
         // Soft delete: also delete children recursively
         softDeleteRecursive(note, actor);
+        logNoteActivity(note, actor, ActivityAction.NOTE_DELETED,
+                meta("title", note.getTitle(), "type", note.getType().name()));
     }
 
     // ===== Trash =====
@@ -301,10 +315,12 @@ public class NoteService {
         }
         // 자기 + 자식 노트 재귀 복구 (자식 isDeleted=true만)
         restoreRecursive(note);
+        logNoteActivity(note, findUser(userId), ActivityAction.NOTE_RESTORED,
+                meta("title", note.getTitle(), "type", note.getType().name()));
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
-        return NoteResponse.Detail.of(note, tags, versionCount);
+        return NoteResponse.Detail.of(note, tags, versionCount).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -316,6 +332,8 @@ public class NoteService {
         if (!Boolean.TRUE.equals(note.getIsDeleted())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "휴지통의 노트만 영구 삭제할 수 있습니다");
         }
+        logNoteActivity(note, findUser(userId), ActivityAction.NOTE_PERMANENTLY_DELETED,
+                meta("title", note.getTitle(), "type", note.getType().name()));
         hardDeleteRecursive(note);
     }
 
@@ -325,6 +343,7 @@ public class NoteService {
 
         List<Note> trash = noteRepository.findAllTrashByBoardId(boardId);
         if (trash.isEmpty()) return 0;
+        User actor = findUser(userId);
 
         // 휴지통 내 부모가 휴지통에 없는 노트(=서브트리 루트)만 처리, 자식은 hardDeleteRecursive 가 cascade
         Set<String> trashIds = trash.stream().map(Note::getId).collect(Collectors.toSet());
@@ -332,6 +351,8 @@ public class NoteService {
                 .filter(n -> n.getParent() == null || !trashIds.contains(n.getParent().getId()))
                 .toList();
         for (Note root : roots) {
+            logNoteActivity(root, actor, ActivityAction.NOTE_PERMANENTLY_DELETED,
+                    meta("title", root.getTitle(), "type", root.getType().name(), "empty_trash", true));
             hardDeleteRecursive(root);
         }
         return trash.size();
@@ -384,7 +405,7 @@ public class NoteService {
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
-        return NoteResponse.Detail.of(note, tags, versionCount);
+        return NoteResponse.Detail.of(note, tags, versionCount).withContributors(noteContributorService.resolve(note));
     }
 
     // ===== Version =====
@@ -440,13 +461,16 @@ public class NoteService {
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
         if (snapshotDiffers) {
             versionCount = versionCount + 1;
-            NoteVersion currentSnapshot = NoteVersion.create(note, snapshotTitle, snapshotContent, user, versionCount);
+            NoteVersion currentSnapshot = NoteVersion.create(note, snapshotTitle, snapshotContent, user, versionCount,
+                    "v" + version.getVersionNumber() + " 복원 전 자동 저장");
             noteVersionRepository.save(currentSnapshot);
         }
 
         // Restore
         note.updateTitle(version.getTitle());
         note.updateContent(version.getContent(), user);
+        logNoteActivity(note, user, ActivityAction.NOTE_VERSION_RESTORED,
+                meta("title", note.getTitle(), "version_number", version.getVersionNumber()));
 
         // 복원본이 새 발행본이 되므로 stale Yjs draft를 폐기한다. 그렇지 않으면
         // 다음 편집 진입 시 복원 이전 시점의 draft로 hydration 된다.
@@ -456,7 +480,7 @@ public class NoteService {
         eventPublisher.publishEvent(new NoteSnapshotSavedEvent(noteId));
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
-        return NoteResponse.Detail.of(note, tags, versionCount, false);
+        return NoteResponse.Detail.of(note, tags, versionCount, false).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -571,10 +595,11 @@ public class NoteService {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "폴더는 공유할 수 없습니다");
         }
         note.enableShare();
+        logNoteActivity(note, findUser(userId), ActivityAction.NOTE_SHARED, meta("title", note.getTitle()));
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
-        return NoteResponse.Detail.of(note, tags, versionCount);
+        return NoteResponse.Detail.of(note, tags, versionCount).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -582,11 +607,15 @@ public class NoteService {
         boardService.checkMemberOrAbove(boardId, userId);
 
         Note note = getNoteOrThrow(boardId, noteId);
+        boolean wasShared = Boolean.TRUE.equals(note.getIsShared());
         note.disableShare();
+        if (wasShared) {
+            logNoteActivity(note, findUser(userId), ActivityAction.NOTE_UNSHARED, meta("title", note.getTitle()));
+        }
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
-        return NoteResponse.Detail.of(note, tags, versionCount);
+        return NoteResponse.Detail.of(note, tags, versionCount).withContributors(noteContributorService.resolve(note));
     }
 
     @Transactional
@@ -601,7 +630,7 @@ public class NoteService {
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
-        return NoteResponse.Detail.of(note, tags, versionCount);
+        return NoteResponse.Detail.of(note, tags, versionCount).withContributors(noteContributorService.resolve(note));
     }
 
     public NoteResponse.SharedNote getSharedNote(String shareToken) {
@@ -610,6 +639,86 @@ public class NoteService {
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(note.getId());
         return NoteResponse.SharedNote.of(note, tags);
+    }
+
+    // ===== Search =====
+
+    /** 제목 + 본문 평문(search_text) 검색. 뷰어 이상, 프리미엄 게이트는 트리 조회와 동일. 2자 미만 → 빈 목록. */
+    public List<NoteResponse.SearchResult> searchNotes(String boardId, String userId, String rawQuery) {
+        boardService.checkViewerOrAbove(boardId, userId);
+        validateNoteAccess(boardId);
+
+        String query = NoteSearchSupport.normalizeQuery(rawQuery);
+        if (query == null) return List.of();
+
+        return noteRepository.searchByBoardId(boardId, NoteSearchSupport.likePattern(query),
+                        PageRequest.of(0, NoteSearchSupport.MAX_RESULTS))
+                .stream()
+                .map(n -> NoteSearchSupport.toResult(n, query))
+                .toList();
+    }
+
+    // ===== Status =====
+
+    @Transactional
+    public NoteResponse.Detail updateStatus(String boardId, String noteId, String userId, String rawStatus) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Note note = getNoteOrThrow(boardId, noteId);
+        NoteStatus status = NoteStatusParser.parse(rawStatus);
+        if (note.isFolder()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "폴더에는 상태를 지정할 수 없습니다");
+        }
+        boolean changed = note.getStatus() != status;
+        note.updateStatus(status);
+        if (changed) {
+            logNoteActivity(note, findUser(userId), ActivityAction.NOTE_STATUS_CHANGED,
+                    meta("title", note.getTitle(), "status", status != null ? status.name() : null));
+        }
+
+        List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
+        int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
+        return NoteResponse.Detail.of(note, tags, versionCount).withContributors(noteContributorService.resolve(note));
+    }
+
+    // ===== Version memo =====
+
+    @Transactional
+    public NoteResponse.VersionInfo updateVersionNote(String boardId, String noteId, String versionId, String userId,
+                                                      String memo) {
+        boardService.checkMemberOrAbove(boardId, userId);
+        getNoteOrThrow(boardId, noteId);
+
+        NoteVersion version = noteVersionRepository.findByIdAndNoteId(versionId, noteId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_VERSION_NOT_FOUND));
+        version.updateMemo(memo);
+        return NoteResponse.VersionInfo.of(version);
+    }
+
+    // ===== Activity =====
+
+    private User findUser(String userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    /** 보드 활동 로그. 노트 기능이 보드 화면을 막아선 안 되므로 실패는 경고만 남긴다. */
+    private void logNoteActivity(Note note, User actor, ActivityAction action, Map<String, Object> metadata) {
+        if (note.getBoard() == null || actor == null) return;
+        try {
+            activityService.logActivity(note.getBoard(), actor, action, TargetType.NOTE, note.getId(), metadata);
+        } catch (Exception e) {
+            log.warn("Note activity log failed: action={}, noteId={}: {}", action, note.getId(), e.getMessage());
+        }
+    }
+
+    /** null 값을 건너뛰는 순서 보존 metadata 빌더 (key, value, key, value ...). */
+    private static Map<String, Object> meta(Object... kv) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        for (int i = 0; i + 1 < kv.length; i += 2) {
+            if (kv[i + 1] != null) m.put(String.valueOf(kv[i]), kv[i + 1]);
+        }
+        return m;
     }
 
     // ===== Helper Methods =====
@@ -690,19 +799,7 @@ public class NoteService {
     }
 
     private void hardDeleteRecursive(Note note) {
-        List<Note> children = noteRepository.findAllChildrenIncludingDeleted(note.getId());
-        for (Note child : children) {
-            hardDeleteRecursive(child);
-        }
-        // 종속 데이터 삭제 (reactions → comments → mappings → versions → collab → note)
-        noteLikeRepository.deleteByNoteId(note.getId());
-        noteCommentReactionRepository.deleteByNoteId(note.getId());
-        noteCommentRepository.deleteByNoteId(note.getId());
-        noteTagMappingRepository.deleteAllByNoteId(note.getId());
-        noteVersionRepository.deleteAllByNoteId(note.getId());
-        noteCollabStateRepository.deleteById(note.getId());
-        noteDraftArchiveRepository.deleteById(note.getId());
-        noteRepository.delete(note);
+        noteHardDeleteSupport.hardDeleteRecursive(note);
     }
 
     private boolean isDescendant(String ancestorId, String targetId) {

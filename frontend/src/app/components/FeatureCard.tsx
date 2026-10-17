@@ -14,7 +14,15 @@ interface FeatureCardProps {
   onToggleExpand?: () => void;
 }
 
-export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], milestone, isExpanded: externalIsExpanded, onToggleExpand }: FeatureCardProps) {
+export function FeatureCard({
+  feature,
+  onClick,
+  availableTags = [],
+  tasks = [],
+  milestone,
+  isExpanded: externalIsExpanded,
+  onToggleExpand,
+}: FeatureCardProps) {
   const { t } = useTranslation();
   const progressPercent = feature.progress_percentage;
   const isCompleted = progressPercent === 100 && feature.total_tasks > 0;
@@ -35,7 +43,10 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
       const clearTimer = setTimeout(() => {
         setJustCompleted(false);
       }, 950 + 1500);
-      return () => { clearTimeout(arriveTimer); clearTimeout(clearTimer); };
+      return () => {
+        clearTimeout(arriveTimer);
+        clearTimeout(clearTimer);
+      };
     }
   }, [progressPercent, feature.total_tasks]);
 
@@ -66,10 +77,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
       <div className="flex items-start justify-between mb-4 pl-2">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: featureColor }}
-            />
+            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: featureColor }} />
             <h3 className="font-bold text-foreground text-[15px] group-hover:text-indigo-400 transition-colors">
               {feature.title}
             </h3>
@@ -108,16 +116,27 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
       <div className={`mb-4 pl-2 relative ${justCompleted ? 'feature-complete-pulse' : ''}`}>
         <div className="flex justify-between text-xs mb-1.5">
           <span className="text-zinc-400 font-medium">
-            {t('feature.completedCount', { completed: feature.completed_tasks, total: feature.total_tasks })}
+            {t('feature.completedCount', {
+              completed: feature.completed_tasks,
+              total: feature.total_tasks,
+            })}
           </span>
-          <span className={`font-bold flex items-center gap-1 ${isCompleted ? 'text-green-400' : 'text-foreground'} ${justCompleted ? 'progress-text-bounce' : ''}`}>
+          <span
+            className={`font-bold flex items-center gap-1 ${isCompleted ? 'text-green-400' : 'text-foreground'} ${justCompleted ? 'progress-text-bounce' : ''}`}
+          >
             {Math.round(progressPercent)}%
             {isCompleted && (
-              <Check size={12} className={`text-green-400 ${justCompleted ? 'progress-check-pop' : ''}`} strokeWidth={3} />
+              <Check
+                size={12}
+                className={`text-green-400 ${justCompleted ? 'progress-check-pop' : ''}`}
+                strokeWidth={3}
+              />
             )}
           </span>
         </div>
-        <div className={`relative h-1.5 w-full bg-bridge-surface-hover rounded-full overflow-visible ${justCompleted ? 'progress-border-flash' : ''}`}>
+        <div
+          className={`relative h-1.5 w-full bg-bridge-surface-hover rounded-full overflow-visible ${justCompleted ? 'progress-border-flash' : ''}`}
+        >
           <div
             className={`h-full rounded-full transition-all duration-1000 ease-out ${justCompleted ? 'progress-bar-inner' : ''}`}
             style={{
@@ -142,17 +161,20 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
         </div>
 
         {tasks.length > 0 && (
-          <button
-            onClick={handleExpandClick}
-            className="flex items-center gap-1 group/sub"
-          >
+          <button onClick={handleExpandClick} className="flex items-center gap-1 group/sub">
             <span className="text-xs font-bold text-muted-foreground group-hover/sub:text-foreground transition-colors">
               {t('feature.subtasks')}
             </span>
             {isExpanded ? (
-              <ChevronDown size={14} className="text-zinc-400 group-hover/sub:text-foreground transition-all" />
+              <ChevronDown
+                size={14}
+                className="text-zinc-400 group-hover/sub:text-foreground transition-all"
+              />
             ) : (
-              <ChevronRight size={14} className="text-zinc-400 group-hover/sub:text-foreground transition-all" />
+              <ChevronRight
+                size={14}
+                className="text-zinc-400 group-hover/sub:text-foreground transition-all"
+              />
             )}
           </button>
         )}

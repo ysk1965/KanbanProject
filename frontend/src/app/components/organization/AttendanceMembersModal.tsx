@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { Clock, Users, UserX, Palmtree, Loader2 } from "lucide-react";
-import { motion } from "framer-motion";
-import { MotionModal } from "../ui/MotionModal";
-import { organizationService } from "../../utils/services";
-import type { AttendanceTodayMembers } from "../../types";
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Clock, Users, UserX, Palmtree, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { MotionModal } from '../ui/MotionModal';
+import { organizationService } from '../../utils/services';
+import type { AttendanceTodayMembers } from '../../types';
 
-type TabKey = "present" | "absent" | "leave";
+type TabKey = 'present' | 'absent' | 'leave';
 
 const TABS: {
   key: TabKey;
@@ -16,58 +16,59 @@ const TABS: {
   iconClass: string;
 }[] = [
   {
-    key: "present",
-    labelKey: "organization.attendance.present",
-    fallback: "Present",
+    key: 'present',
+    labelKey: 'organization.attendance.present',
+    fallback: 'Present',
     icon: Users,
-    iconClass: "text-emerald-500",
+    iconClass: 'text-emerald-500',
   },
   {
-    key: "absent",
-    labelKey: "organization.attendance.absent",
-    fallback: "Absent",
+    key: 'absent',
+    labelKey: 'organization.attendance.absent',
+    fallback: 'Absent',
     icon: UserX,
-    iconClass: "text-red-400",
+    iconClass: 'text-red-400',
   },
   {
-    key: "leave",
-    labelKey: "organization.attendance.leave",
-    fallback: "Leave",
+    key: 'leave',
+    labelKey: 'organization.attendance.leave',
+    fallback: 'Leave',
     icon: Palmtree,
-    iconClass: "text-blue-400",
+    iconClass: 'text-blue-400',
   },
 ];
 
-const LEAVE_TYPE_STYLE: Record<string, { labelKey: string; fallback: string; className: string }> = {
-  FULL_DAY: {
-    labelKey: "organization.attendance.fullDayLeave",
-    fallback: "Full Day",
-    className: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-  },
-  AM_HALF: {
-    labelKey: "organization.attendance.amHalfLeave",
-    fallback: "AM Half",
-    className: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-  },
-  PM_HALF: {
-    labelKey: "organization.attendance.pmHalfLeave",
-    fallback: "PM Half",
-    className: "bg-teal-500/15 text-teal-600 dark:text-teal-400",
-  },
-};
+const LEAVE_TYPE_STYLE: Record<string, { labelKey: string; fallback: string; className: string }> =
+  {
+    FULL_DAY: {
+      labelKey: 'organization.attendance.fullDayLeave',
+      fallback: 'Full Day',
+      className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+    },
+    AM_HALF: {
+      labelKey: 'organization.attendance.amHalfLeave',
+      fallback: 'AM Half',
+      className: 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
+    },
+    PM_HALF: {
+      labelKey: 'organization.attendance.pmHalfLeave',
+      fallback: 'PM Half',
+      className: 'bg-teal-500/15 text-teal-600 dark:text-teal-400',
+    },
+  };
 
 function extractTimeFromISO(isoStr: string | null): string {
-  if (!isoStr) return "-";
+  if (!isoStr) return '-';
   try {
     const d = new Date(isoStr);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   } catch {
     return isoStr;
   }
 }
 
 function formatElapsedShort(minutes: number | null | undefined): string {
-  if (minutes == null || isNaN(minutes) || minutes <= 0) return "0m";
+  if (minutes == null || isNaN(minutes) || minutes <= 0) return '0m';
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   if (h === 0) return `${m}m`;
@@ -82,11 +83,7 @@ interface MemberAvatarProps {
 
 function MemberAvatar({ name, profileImage }: MemberAvatarProps) {
   return profileImage ? (
-    <img
-      src={profileImage}
-      alt={name}
-      className="w-9 h-9 rounded-full object-cover shrink-0"
-    />
+    <img src={profileImage} alt={name} className="w-9 h-9 rounded-full object-cover shrink-0" />
   ) : (
     <div className="w-9 h-9 rounded-full bg-bridge-accent/15 flex items-center justify-center text-bridge-accent text-sm font-bold shrink-0">
       {name.charAt(0)}
@@ -105,7 +102,7 @@ export function AttendanceMembersModal({
   open,
   onClose,
   orgId,
-  initialTab = "present",
+  initialTab = 'present',
 }: AttendanceMembersModalProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
@@ -142,11 +139,11 @@ export function AttendanceMembersModal({
   const getTabCount = (key: TabKey): number => {
     if (!data) return 0;
     switch (key) {
-      case "present":
+      case 'present':
         return data.present_members.length;
-      case "absent":
+      case 'absent':
         return data.absent_members.length;
-      case "leave":
+      case 'leave':
         return data.leave_members.length;
     }
   };
@@ -163,7 +160,7 @@ export function AttendanceMembersModal({
             <Clock size={16} className="text-bridge-accent" />
           </div>
           <h3 className="text-base font-bold text-foreground">
-            {t("organization.attendance.memberList", "Attendance Details")}
+            {t('organization.attendance.memberList', 'Attendance Details')}
           </h3>
         </div>
 
@@ -175,17 +172,20 @@ export function AttendanceMembersModal({
               onClick={() => setActiveTab(tab.key)}
               className={`relative flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors ${
                 activeTab === tab.key
-                  ? "text-bridge-accent"
-                  : "text-slate-400 hover:text-foreground"
+                  ? 'text-bridge-accent'
+                  : 'text-slate-400 hover:text-foreground'
               }`}
             >
-              <tab.icon size={14} className={activeTab === tab.key ? "text-bridge-accent" : tab.iconClass} />
+              <tab.icon
+                size={14}
+                className={activeTab === tab.key ? 'text-bridge-accent' : tab.iconClass}
+              />
               <span>{t(tab.labelKey, tab.fallback)}</span>
               <span
                 className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                   activeTab === tab.key
-                    ? "bg-bridge-accent/15 text-bridge-accent"
-                    : "bg-foreground/[0.06] text-slate-400"
+                    ? 'bg-bridge-accent/15 text-bridge-accent'
+                    : 'bg-foreground/[0.06] text-slate-400'
                 }`}
               >
                 {getTabCount(tab.key)}
@@ -194,7 +194,7 @@ export function AttendanceMembersModal({
                 <motion.div
                   layoutId="attendance-member-tab"
                   className="absolute bottom-0 left-0 right-0 h-0.5 bg-bridge-accent"
-                  transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
                 />
               )}
             </button>
@@ -209,14 +209,14 @@ export function AttendanceMembersModal({
             </div>
           ) : !data ? (
             <div className="flex items-center justify-center py-16 text-sm text-slate-400">
-              {t("common.error", "Error")}
+              {t('common.error', 'Error')}
             </div>
           ) : (
             <div className="divide-y divide-foreground/[0.06]">
-              {activeTab === "present" &&
+              {activeTab === 'present' &&
                 (data.present_members.length === 0 ? (
                   <div className="text-sm text-slate-400 text-center py-12">
-                    {t("organization.attendance.noPresent", "No members present")}
+                    {t('organization.attendance.noPresent', 'No members present')}
                   </div>
                 ) : (
                   data.present_members.map((m, i) => (
@@ -229,13 +229,9 @@ export function AttendanceMembersModal({
                     >
                       <MemberAvatar name={m.name} profileImage={m.profile_image} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-foreground truncate">
-                          {m.name}
-                        </div>
+                        <div className="text-sm font-medium text-foreground truncate">{m.name}</div>
                         {m.department_name && (
-                          <div className="text-xs text-slate-400 truncate">
-                            {m.department_name}
-                          </div>
+                          <div className="text-xs text-slate-400 truncate">{m.department_name}</div>
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -244,7 +240,7 @@ export function AttendanceMembersModal({
                         </span>
                         {m.clock_out ? (
                           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-slate-500/10 text-slate-500">
-                            {t("organization.attendance.clockedOut", "Clocked Out")}
+                            {t('organization.attendance.clockedOut', 'Clocked Out')}
                           </span>
                         ) : m.elapsed_minutes != null ? (
                           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
@@ -253,7 +249,7 @@ export function AttendanceMembersModal({
                         ) : null}
                         {m.late && (
                           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                            {t("organization.attendance.late", "Late")}
+                            {t('organization.attendance.late', 'Late')}
                           </span>
                         )}
                       </div>
@@ -261,10 +257,10 @@ export function AttendanceMembersModal({
                   ))
                 ))}
 
-              {activeTab === "absent" &&
+              {activeTab === 'absent' &&
                 (data.absent_members.length === 0 ? (
                   <div className="text-sm text-slate-400 text-center py-12">
-                    {t("organization.attendance.noAbsent", "No members absent")}
+                    {t('organization.attendance.noAbsent', 'No members absent')}
                   </div>
                 ) : (
                   data.absent_members.map((m, i) => (
@@ -277,23 +273,19 @@ export function AttendanceMembersModal({
                     >
                       <MemberAvatar name={m.name} profileImage={m.profile_image} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-foreground truncate">
-                          {m.name}
-                        </div>
+                        <div className="text-sm font-medium text-foreground truncate">{m.name}</div>
                         {m.department_name && (
-                          <div className="text-xs text-slate-400 truncate">
-                            {m.department_name}
-                          </div>
+                          <div className="text-xs text-slate-400 truncate">{m.department_name}</div>
                         )}
                       </div>
                     </motion.div>
                   ))
                 ))}
 
-              {activeTab === "leave" &&
+              {activeTab === 'leave' &&
                 (data.leave_members.length === 0 ? (
                   <div className="text-sm text-slate-400 text-center py-12">
-                    {t("organization.attendance.noLeave", "No members on leave")}
+                    {t('organization.attendance.noLeave', 'No members on leave')}
                   </div>
                 ) : (
                   data.leave_members.map((m, i) => {
@@ -332,7 +324,7 @@ export function AttendanceMembersModal({
 
         {/* Footer */}
         <div className="flex items-center justify-end px-5 py-3 border-t border-foreground/[0.08] shrink-0">
-          <span className="text-xs text-slate-500">Esc {t("common.close", "Close")}</span>
+          <span className="text-xs text-slate-500">Esc {t('common.close', 'Close')}</span>
         </div>
       </div>
     </MotionModal>

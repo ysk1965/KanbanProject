@@ -3,11 +3,13 @@ import {
   useContext,
   useState,
   useEffect,
+  useCallback,
+  useMemo,
   ReactNode,
-} from "react";
-import { authService, getMonetizationStatus } from "../utils/services";
-import { setSentryUser } from "../../lib/sentry";
-import { isWhiteLabelDomain, isRestrictedEmail } from "../utils/domain";
+} from 'react';
+import { authService, getMonetizationStatus } from '../utils/services';
+import { setSentryUser } from '../../lib/sentry';
+import { isWhiteLabelDomain, isRestrictedEmail } from '../utils/domain';
 
 interface User {
   id: string;
@@ -15,9 +17,10 @@ interface User {
   name: string;
   profile_image?: string | null;
   email_verified?: boolean;
-  theme?: "dark" | "light";
-  provider?: "email" | "google";
-  system_role?: "USER" | "TESTER" | "ADMIN";
+  theme?: 'dark' | 'light';
+  provider?: 'email' | 'google';
+  system_role?: 'USER' | 'TESTER' | 'ADMIN';
+  personal_space_enabled?: boolean;
 }
 
 interface AuthContextType {
@@ -57,37 +60,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Firebase Analytics 사용자 설정 (동적 import로 광고 차단기 대응)
-    import("firebase/analytics")
+    import('firebase/analytics')
       .then(({ setUserId, setUserProperties }) => {
-        return import("../../lib/firebase").then(({ analytics }) => {
+        return import('../../lib/firebase').then(({ analytics }) => {
           if (!analytics) return;
           setUserId(analytics, user?.id || null);
           if (user) {
             setUserProperties(analytics, {
-              user_role: user.system_role?.toLowerCase() || "user",
-              theme: user.theme || "dark",
-              provider: user.provider || "email",
+              user_role: user.system_role?.toLowerCase() || 'user',
+              theme: user.theme || 'dark',
+              provider: user.provider || 'email',
             });
           }
         });
       })
       .catch(() => {
-        console.debug("[Analytics] Firebase Analytics unavailable");
+        console.debug('[Analytics] Firebase Analytics unavailable');
       });
   };
 
   // Initialize push notifications when user becomes authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      import("../utils/pushNotifications")
+      import('../utils/pushNotifications')
         .then(({ initPushNotifications }) => initPushNotifications())
-        .catch(() => console.debug("[Push] Push notifications unavailable"));
+        .catch(() => console.debug('[Push] Push notifications unavailable'));
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
     getMonetizationStatus()
-      .then(data => setMonetizationEnabled(data.monetization_enabled))
+      .then((data) => setMonetizationEnabled(data.monetization_enabled))
       .catch(() => setMonetizationEnabled(true)); // default ON on error
   }, []);
 
@@ -96,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuth = async () => {
       // 1. 토큰이 유효한 경우 - 바로 인증 상태로 설정
       if (authService.isAuthenticated()) {
-        console.log("✅ [Auth] 유효한 토큰 확인");
+        console.log('✅ [Auth] 유효한 토큰 확인');
         const user = authService.getCurrentUser();
         setIsAuthenticated(true);
         setCurrentUser(user);
@@ -107,17 +110,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // 2. 토큰이 존재하지만 만료된 경우 - 갱신 시도
       if (authService.isTokenExpiredButExists()) {
-        console.log("🔄 [Auth] 만료된 토큰 감지, 갱신 시도...");
+        console.log('🔄 [Auth] 만료된 토큰 감지, 갱신 시도...');
         const refreshed = await authService.tryRefreshToken();
 
         if (refreshed) {
-          console.log("✅ [Auth] 토큰 갱신 성공");
+          console.log('✅ [Auth] 토큰 갱신 성공');
           const user = authService.getCurrentUser();
           setIsAuthenticated(true);
           setCurrentUser(user);
           syncAnalyticsUser(user);
         } else {
-          console.log("❌ [Auth] 토큰 갱신 실패, 로그인 필요");
+          console.log('❌ [Auth] 토큰 갱신 실패, 로그인 필요');
           setIsAuthenticated(false);
           setCurrentUser(null);
           syncAnalyticsUser(null);
@@ -127,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // 3. 토큰이 없는 경우
-      console.log("🔒 [Auth] 토큰 없음, 미인증 상태");
+      console.log('🔒 [Auth] 토큰 없음, 미인증 상태');
       setIsAuthenticated(false);
       setCurrentUser(null);
       syncAnalyticsUser(null);
@@ -157,94 +160,110 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isAuthenticated]);
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     const response = await authService.login(email, password);
     setIsAuthenticated(true);
     setCurrentUser(response.user);
     syncAnalyticsUser(response.user);
-  };
+  }, []);
 
-  const signup = async (email: string, password: string, name: string) => {
+  const signup = useCallback(async (email: string, password: string, name: string) => {
     const response = await authService.signup(email, password, name);
     setIsAuthenticated(true);
     setCurrentUser(response.user);
     syncAnalyticsUser(response.user);
-  };
+  }, []);
 
-  const googleLogin = async (code: string) => {
+  const googleLogin = useCallback(async (code: string) => {
     const response = await authService.googleLogin(code);
     setIsAuthenticated(true);
     setCurrentUser(response.user);
     syncAnalyticsUser(response.user);
-  };
+  }, []);
 
-  const googleLoginWithIdToken = async (idToken: string) => {
+  const googleLoginWithIdToken = useCallback(async (idToken: string) => {
     const response = await authService.googleLoginWithIdToken(idToken);
     setIsAuthenticated(true);
     setCurrentUser(response.user);
     syncAnalyticsUser(response.user);
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await authService.logout();
     setIsAuthenticated(false);
     setCurrentUser(null);
     syncAnalyticsUser(null);
-  };
+  }, []);
 
-  const resendVerificationEmail = async () => {
+  const resendVerificationEmail = useCallback(async () => {
     if (!currentUser?.email) {
-      throw new Error("사용자 이메일을 찾을 수 없습니다");
+      throw new Error('사용자 이메일을 찾을 수 없습니다');
     }
     await authService.resendVerificationEmail(currentUser.email);
-  };
+  }, [currentUser?.email]);
 
-  const updateCurrentUser = (updates: Partial<User>) => {
+  const updateCurrentUser = useCallback((updates: Partial<User>) => {
     setCurrentUser((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, ...updates };
-      localStorage.setItem("user", JSON.stringify(updated));
+      localStorage.setItem('user', JSON.stringify(updated));
       return updated;
     });
-  };
+  }, []);
 
   const isEmailVerified = currentUser?.email_verified ?? false;
-  const isAdmin = currentUser?.system_role === "ADMIN";
-  const isRestricted =
-    isWhiteLabelDomain || isRestrictedEmail(currentUser?.email); // milkyway 도메인 OR @cookapps.com 이메일
-  const isTester = currentUser?.system_role === "TESTER" || isRestricted;
+  const isAdmin = currentUser?.system_role === 'ADMIN';
+  const isRestricted = isWhiteLabelDomain || isRestrictedEmail(currentUser?.email); // milkyway 도메인 OR @cookapps.com 이메일
+  const isTester = currentUser?.system_role === 'TESTER' || isRestricted;
   const hideBilling = !monetizationEnabled || isTester || isAdmin || isRestricted;
 
-  return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated,
-        isEmailVerified,
-        isAdmin,
-        isTester,
-        hideBilling,
-        isRestricted,
-        monetizationEnabled,
-        currentUser,
-        isLoading,
-        login,
-        signup,
-        googleLogin,
-        googleLoginWithIdToken,
-        logout,
-        resendVerificationEmail,
-        updateCurrentUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  // value 참조가 매 렌더 바뀌면 useAuth 소비자(거의 모든 화면)가 함께 다시 그려진다.
+  const value = useMemo<AuthContextType>(
+    () => ({
+      isAuthenticated,
+      isEmailVerified,
+      isAdmin,
+      isTester,
+      hideBilling,
+      isRestricted,
+      monetizationEnabled,
+      currentUser,
+      isLoading,
+      login,
+      signup,
+      googleLogin,
+      googleLoginWithIdToken,
+      logout,
+      resendVerificationEmail,
+      updateCurrentUser,
+    }),
+    [
+      isAuthenticated,
+      isEmailVerified,
+      isAdmin,
+      isTester,
+      hideBilling,
+      isRestricted,
+      monetizationEnabled,
+      currentUser,
+      isLoading,
+      login,
+      signup,
+      googleLogin,
+      googleLoginWithIdToken,
+      logout,
+      resendVerificationEmail,
+      updateCurrentUser,
+    ],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }

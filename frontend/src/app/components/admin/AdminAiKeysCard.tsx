@@ -12,12 +12,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { adminService } from '../../utils/services';
-import type {
-  AiKeyList,
-  AiKeyStatus,
-  AiKeyLogEntry,
-  AiKeyProvider,
-} from '../../utils/api';
+import type { AiKeyList, AiKeyStatus, AiKeyLogEntry, AiKeyProvider } from '../../utils/api';
 import { formatDateTime, formatRelativeTime } from '../../utils/dateUtils';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
@@ -172,9 +167,7 @@ export function AdminAiKeysCard({ onToast }: AdminAiKeysCardProps) {
         <div className="flex items-center gap-3">
           <KeyRound className="w-5 h-5 text-bridge-accent" />
           <div>
-            <h3 className="text-xs md:text-sm font-bold text-foreground">
-              AI API 키
-            </h3>
+            <h3 className="text-xs md:text-sm font-bold text-foreground">AI API 키</h3>
             <p className="text-xs text-slate-500 mt-0.5">
               키 원문은 저장 후 다시 볼 수 없습니다. 교체만 가능합니다.
             </p>
@@ -203,9 +196,9 @@ export function AdminAiKeysCard({ onToast }: AdminAiKeysCardProps) {
         <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
           <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">
-            <span className="font-bold">CONFIG_ENCRYPTION_KEY가 설정되지 않았습니다.</span>{' '}
-            키를 암호화해 저장할 수 없어 교체 기능이 비활성화됩니다. 배포 환경변수에
-            base64 32바이트 키를 추가한 뒤 다시 시도해주세요.
+            <span className="font-bold">CONFIG_ENCRYPTION_KEY가 설정되지 않았습니다.</span> 키를
+            암호화해 저장할 수 없어 교체 기능이 비활성화됩니다. 배포 환경변수에 base64 32바이트 키를
+            추가한 뒤 다시 시도해주세요.
           </p>
         </div>
       )}
@@ -248,9 +241,7 @@ export function AdminAiKeysCard({ onToast }: AdminAiKeysCardProps) {
                 <div className="flex items-center gap-2">
                   <dt className="text-xs text-slate-500 shrink-0">마지막 검증</dt>
                   <dd className="text-xs text-slate-400">
-                    {key.last_verified_at
-                      ? formatRelativeTime(key.last_verified_at)
-                      : '없음'}
+                    {key.last_verified_at ? formatRelativeTime(key.last_verified_at) : '없음'}
                   </dd>
                 </div>
                 <div className="flex items-center gap-2">
@@ -261,9 +252,7 @@ export function AdminAiKeysCard({ onToast }: AdminAiKeysCardProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <dt className="text-xs text-slate-500 shrink-0">변경자</dt>
-                  <dd className="text-xs text-slate-400 truncate">
-                    {key.updated_by ?? '—'}
-                  </dd>
+                  <dd className="text-xs text-slate-400 truncate">{key.updated_by ?? '—'}</dd>
                 </div>
               </dl>
 
@@ -309,8 +298,8 @@ export function AdminAiKeysCard({ onToast }: AdminAiKeysCardProps) {
               </div>
 
               <p className="text-xs text-slate-600 mt-2">
-                교체 전 실제 프로바이더에 호출해 유효성을 확인합니다. 검증에 실패하면
-                저장되지 않습니다.
+                교체 전 실제 프로바이더에 호출해 유효성을 확인합니다. 검증에 실패하면 저장되지
+                않습니다.
               </p>
             </motion.div>
           );

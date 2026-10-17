@@ -18,7 +18,13 @@ import {
 } from 'recharts';
 import { organizationService } from '../../../../utils/services';
 import type { OrgMemberContributionDetail } from '../../../../types';
-import { INSIGHT_CHART_COLORS, formatMinutesToHours, CHART_TOOLTIP_STYLE, CHART_GRID_STROKE, CHART_AXIS_FILL } from './insightsUtils';
+import {
+  INSIGHT_CHART_COLORS,
+  formatMinutesToHours,
+  CHART_TOOLTIP_STYLE,
+  CHART_GRID_STROKE,
+  CHART_AXIS_FILL,
+} from './insightsUtils';
 
 interface MemberContributionDetailDrawerProps {
   orgId: string;
@@ -75,16 +81,18 @@ export function MemberContributionDetailDrawer({
     fetchDetail();
   }, [orgId, memberId, startDate, endDate, isOpen]);
 
-  const boardPieData = data?.board_details.map((b) => ({
-    name: b.board_name,
-    value: b.work_minutes,
-  })) ?? [];
+  const boardPieData =
+    data?.board_details.map((b) => ({
+      name: b.board_name,
+      value: b.work_minutes,
+    })) ?? [];
 
-  const weeklyBarData = data?.weekly_trend.map((w) => ({
-    label: formatWeekLabel(w.week_start),
-    hours: Math.round(w.work_minutes / 60 * 10) / 10,
-    tasks: w.completed_tasks,
-  })) ?? [];
+  const weeklyBarData =
+    data?.weekly_trend.map((w) => ({
+      label: formatWeekLabel(w.week_start),
+      hours: Math.round((w.work_minutes / 60) * 10) / 10,
+      tasks: w.completed_tasks,
+    })) ?? [];
 
   return (
     <AnimatePresence>
@@ -113,11 +121,15 @@ export function MemberContributionDetailDrawer({
                 {data ? (
                   <>
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                      {t('organization.insights.members.detail.title', "{{name}}'s Contribution", { name: data.member.name })}
+                      {t('organization.insights.members.detail.title', "{{name}}'s Contribution", {
+                        name: data.member.name,
+                      })}
                     </h2>
                     {(data.member.department || data.member.job_title) && (
                       <p className="text-xs text-slate-400 mt-0.5">
-                        {[data.member.department, data.member.job_title].filter(Boolean).join(' / ')}
+                        {[data.member.department, data.member.job_title]
+                          .filter(Boolean)
+                          .join(' / ')}
                       </p>
                     )}
                   </>
@@ -133,7 +145,10 @@ export function MemberContributionDetailDrawer({
             {loading ? (
               <div className="p-5 space-y-4">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-48 bg-bridge-obsidian rounded-2xl border border-black/5 dark:border-white/5 animate-pulse" />
+                  <div
+                    key={i}
+                    className="h-48 bg-bridge-obsidian rounded-2xl border border-black/5 dark:border-white/5 animate-pulse"
+                  />
                 ))}
               </div>
             ) : data ? (
@@ -142,18 +157,30 @@ export function MemberContributionDetailDrawer({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="bg-bridge-obsidian rounded-xl border border-black/5 dark:border-white/5 p-3 text-center">
                     <Clock size={14} className="text-bridge-accent mx-auto mb-1" />
-                    <span className="text-lg font-bold text-slate-900 dark:text-white block">{formatMinutesToHours(data.total_work_minutes)}</span>
-                    <span className="text-xs text-slate-400">{t('organization.insights.members.detail.hours', 'hours')}</span>
+                    <span className="text-lg font-bold text-slate-900 dark:text-white block">
+                      {formatMinutesToHours(data.total_work_minutes)}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {t('organization.insights.members.detail.hours', 'hours')}
+                    </span>
                   </div>
                   <div className="bg-bridge-obsidian rounded-xl border border-black/5 dark:border-white/5 p-3 text-center">
                     <CheckSquare size={14} className="text-emerald-500 mx-auto mb-1" />
-                    <span className="text-lg font-bold text-slate-900 dark:text-white block">{data.completed_tasks}</span>
-                    <span className="text-xs text-slate-400">{t('organization.insights.members.detail.tasks', 'tasks')}</span>
+                    <span className="text-lg font-bold text-slate-900 dark:text-white block">
+                      {data.completed_tasks}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {t('organization.insights.members.detail.tasks', 'tasks')}
+                    </span>
                   </div>
                   <div className="bg-bridge-obsidian rounded-xl border border-black/5 dark:border-white/5 p-3 text-center">
                     <Clock size={14} className="text-amber-500 mx-auto mb-1" />
-                    <span className="text-lg font-bold text-slate-900 dark:text-white block">{data.activity_count}</span>
-                    <span className="text-xs text-slate-400">{t('organization.insights.members.activityCount', 'Activities')}</span>
+                    <span className="text-lg font-bold text-slate-900 dark:text-white block">
+                      {data.activity_count}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {t('organization.insights.members.activityCount', 'Activities')}
+                    </span>
                   </div>
                 </div>
 
@@ -161,7 +188,10 @@ export function MemberContributionDetailDrawer({
                 {boardPieData.length > 0 && (
                   <div className="bg-bridge-obsidian rounded-2xl border border-black/5 dark:border-white/5 p-4">
                     <h3 className="text-[13px] font-bold text-slate-900 dark:text-white mb-3">
-                      {t('organization.insights.members.detail.boardBreakdown', 'Board Time Breakdown')}
+                      {t(
+                        'organization.insights.members.detail.boardBreakdown',
+                        'Board Time Breakdown',
+                      )}
                     </h3>
                     <ResponsiveContainer width="100%" height={200}>
                       <RechartsPieChart>
@@ -176,7 +206,10 @@ export function MemberContributionDetailDrawer({
                           paddingAngle={2}
                         >
                           {boardPieData.map((_, i) => (
-                            <Cell key={i} fill={INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length]} />
+                            <Cell
+                              key={i}
+                              fill={INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length]}
+                            />
                           ))}
                         </Pie>
                         <Tooltip
@@ -189,7 +222,13 @@ export function MemberContributionDetailDrawer({
                     <div className="flex flex-wrap gap-3 mt-2">
                       {boardPieData.map((b, i) => (
                         <div key={i} className="flex items-center gap-1.5">
-                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length] }} />
+                          <div
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{
+                              backgroundColor:
+                                INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length],
+                            }}
+                          />
                           <span className="text-xs text-slate-400">{b.name}</span>
                         </div>
                       ))}
@@ -206,10 +245,24 @@ export function MemberContributionDetailDrawer({
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={weeklyBarData}>
                         <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
-                        <XAxis dataKey="label" tick={{ fill: CHART_AXIS_FILL, fontSize: 11 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fill: CHART_AXIS_FILL, fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fill: CHART_AXIS_FILL, fontSize: 11 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fill: CHART_AXIS_FILL, fontSize: 11 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
                         <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                        <Bar dataKey="hours" fill="#6366F1" radius={[4, 4, 0, 0]} name={t('organization.insights.members.detail.hours', 'hours')} />
+                        <Bar
+                          dataKey="hours"
+                          fill="#6366F1"
+                          radius={[4, 4, 0, 0]}
+                          name={t('organization.insights.members.detail.hours', 'hours')}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -230,18 +283,29 @@ export function MemberContributionDetailDrawer({
                           <div className="flex items-center gap-2 mb-2">
                             <div
                               className="w-2.5 h-2.5 rounded-full"
-                              style={{ backgroundColor: INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length] }}
+                              style={{
+                                backgroundColor:
+                                  INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length],
+                              }}
                             />
-                            <span className="text-sm font-medium text-slate-900 dark:text-white">{board.board_name}</span>
+                            <span className="text-sm font-medium text-slate-900 dark:text-white">
+                              {board.board_name}
+                            </span>
                           </div>
                           <div className="flex items-center gap-4 text-xs text-slate-400 mb-3">
                             <span>{formatMinutesToHours(board.work_minutes)}</span>
-                            <span>{board.completed_tasks} {t('organization.insights.members.detail.tasks', 'tasks')}</span>
+                            <span>
+                              {board.completed_tasks}{' '}
+                              {t('organization.insights.members.detail.tasks', 'tasks')}
+                            </span>
                           </div>
                           {board.top_features.length > 0 && (
                             <div>
                               <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">
-                                {t('organization.insights.members.detail.topFeatures', 'Top Features')}
+                                {t(
+                                  'organization.insights.members.detail.topFeatures',
+                                  'Top Features',
+                                )}
                               </span>
                               <div className="space-y-1">
                                 {board.top_features.map((f) => (

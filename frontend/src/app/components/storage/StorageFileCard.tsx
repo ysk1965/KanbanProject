@@ -1,6 +1,6 @@
-import { Download, Link2, Trash2, Play } from "lucide-react";
-import type { StorageFileItem } from "../../utils/api";
-import { formatBytes, fileIconFor } from "./storageUtils";
+import { Download, Link2, Trash2, Play } from 'lucide-react';
+import type { StorageFileItem } from '../../utils/api';
+import { formatBytes, fileIconFor } from './storageUtils';
 
 interface StorageFileCardProps {
   file: StorageFileItem;
@@ -24,9 +24,7 @@ export function StorageFileCard({
   return (
     <div
       draggable
-      onDragStart={(e) =>
-        e.dataTransfer.setData("text/storage-file-id", file.id)
-      }
+      onDragStart={(e) => e.dataTransfer.setData('text/storage-file-id', file.id)}
       className="group relative flex flex-col rounded-xl border border-foreground/[0.08] hover:border-foreground/[0.12] bg-bridge-obsidian overflow-hidden transition-colors"
     >
       <button
@@ -60,15 +58,10 @@ export function StorageFileCard({
       </button>
 
       <div className="px-2.5 py-2 border-t border-foreground/[0.06]">
-        <p
-          className="text-xs font-medium text-foreground truncate"
-          title={file.original_filename}
-        >
+        <p className="text-xs font-medium text-foreground truncate" title={file.original_filename}>
           {file.original_filename}
         </p>
-        <p className="text-xs text-slate-500 mt-0.5">
-          {formatBytes(file.file_size)}
-        </p>
+        <p className="text-xs text-slate-500 mt-0.5">{formatBytes(file.file_size)}</p>
       </div>
 
       {/* Hover actions */}
@@ -83,12 +76,12 @@ export function StorageFileCard({
         </button>
         <button
           type="button"
-          aria-label={file.is_shared ? "공유 해제" : "공유 링크 생성"}
+          aria-label={file.is_shared ? '공유 해제' : '공유 링크 생성'}
           onClick={() => onToggleShare(file)}
           className={`w-7 h-7 rounded-lg flex items-center justify-center ${
             file.is_shared
-              ? "bg-bridge-accent text-white"
-              : "bg-black/50 text-white hover:bg-black/70"
+              ? 'bg-bridge-accent text-white'
+              : 'bg-black/50 text-white hover:bg-black/70'
           }`}
         >
           <Link2 className="w-3.5 h-3.5" />

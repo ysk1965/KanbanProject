@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { useEscClose } from "../../hooks/useEscClose";
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useEscClose } from '../../hooks/useEscClose';
 import {
   Search,
   Plus,
@@ -22,39 +22,34 @@ import {
   ListTodo,
   Flame,
   Clock,
-  BookOpen,
-} from "lucide-react";
+} from 'lucide-react';
 import { IconButton } from '../ui/IconButton';
-import { motion, AnimatePresence } from "framer-motion";
-import { useReducedMotion } from "../../hooks/useReducedMotion";
-import { useAuth } from "../../contexts/AuthContext";
-import { Board, PersonalDashboardToday, OrganizationSimple } from "../../types";
+import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useAuth } from '../../contexts/AuthContext';
+import { Board, PersonalDashboardToday, OrganizationSimple } from '../../types';
 import {
   testDataAPI,
   personalDashboardAPI,
   personalSpaceAPI,
   resolveFileUrl,
-} from "../../utils/api";
-import { getTodayDateString } from "../../utils/dateUtils";
-import { boardService, organizationService } from "../../utils/services";
-import { getInitials } from "../../utils/assigneeColor";
-import { Sidebar } from "./Sidebar";
-import { BoardCard, CreateBoardCard, getGradient } from "./BoardCard";
-import { CreateBoardModal } from "./CreateBoardModal";
-import { EditBoardModal } from "./EditBoardModal";
-import { OnboardingModal } from "../OnboardingModal";
-import MySpaceSummaryStrip from "./MySpaceSummaryStrip";
-import OrgSummaryStrip from "./OrgSummaryStrip";
-import { MotionModal } from "../ui/MotionModal";
+} from '../../utils/api';
+import { getTodayDateString } from '../../utils/dateUtils';
+import { boardService, organizationService } from '../../utils/services';
+import { getInitials } from '../../utils/assigneeColor';
+import { Sidebar } from './Sidebar';
+import { BoardCard, CreateBoardCard, getGradient } from './BoardCard';
+import { CreateBoardModal } from './CreateBoardModal';
+import { EditBoardModal } from './EditBoardModal';
+import { OnboardingModal } from '../OnboardingModal';
+import MySpaceSummaryStrip from './MySpaceSummaryStrip';
+import OrgSummaryStrip from './OrgSummaryStrip';
+import { MotionModal } from '../ui/MotionModal';
 
 interface DashboardProps {
   boards: Board[];
   onSelectBoard: (boardId: string) => void;
-  onCreateBoard: (
-    name: string,
-    description?: string,
-    backgroundGradient?: string,
-  ) => void;
+  onCreateBoard: (name: string, description?: string, backgroundGradient?: string) => void;
   onToggleStar: (boardId: string) => void;
   onDeleteBoard?: (boardId: string) => void;
   onUpdateBoard?: (
@@ -95,17 +90,13 @@ function DeleteConfirmModal({
             <div className="p-2 bg-rose-500/20 rounded-full">
               <AlertTriangle size={24} className="text-rose-500" />
             </div>
-            <h2 className="text-lg font-bold text-foreground">
-              {t("board.deleteBoard")}
-            </h2>
+            <h2 className="text-lg font-bold text-foreground">{t('board.deleteBoard')}</h2>
           </div>
 
           <p className="text-slate-400 mb-6">
-            {t("board.deleteConfirm", { name: boardName })}
+            {t('board.deleteConfirm', { name: boardName })}
             <br />
-            <span className="text-rose-400 text-sm">
-              {t("board.deleteIrreversible")}
-            </span>
+            <span className="text-rose-400 text-sm">{t('board.deleteIrreversible')}</span>
           </p>
 
           <div className="flex gap-3">
@@ -113,13 +104,13 @@ function DeleteConfirmModal({
               onClick={onClose}
               className="flex-1 py-3 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors border border-bridge-border rounded-xl hover:bg-foreground/5"
             >
-              {t("common.cancel")}
+              {t('common.cancel')}
             </button>
             <button
               onClick={onConfirm}
               className="flex-1 py-3 bg-rose-500 text-sm font-bold rounded-xl hover:bg-rose-600 transition-colors"
             >
-              {t("common.delete")}
+              {t('common.delete')}
             </button>
           </div>
         </motion.div>
@@ -128,8 +119,8 @@ function DeleteConfirmModal({
   );
 }
 
-type ViewMode = "grid" | "list";
-type BoardFilter = "all" | "owned" | "joined";
+type ViewMode = 'grid' | 'list';
+type BoardFilter = 'all' | 'owned' | 'joined';
 
 export function Dashboard({
   boards,
@@ -143,12 +134,11 @@ export function Dashboard({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const reduced = useReducedMotion();
-  const { currentUser, logout, isAdmin, isRestricted, updateCurrentUser } =
-    useAuth();
+  const { currentUser, logout, isAdmin, isRestricted, updateCurrentUser } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
@@ -157,20 +147,16 @@ export function Dashboard({
   const [editTarget, setEditTarget] = useState<Board | null>(null);
   const [isCreatingTestBoard, setIsCreatingTestBoard] = useState(false);
   const [isCreatingTestOrg, setIsCreatingTestOrg] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [boardFilter, setBoardFilter] = useState<BoardFilter>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [boardFilter, setBoardFilter] = useState<BoardFilter>('all');
   const [showOnboarding, setShowOnboarding] = useState(
-    () => localStorage.getItem("bridge_show_onboarding") === "true",
+    () => localStorage.getItem('bridge_show_onboarding') === 'true',
   );
 
   // Personal Board Today 데이터
-  const [todayData, setTodayData] = useState<PersonalDashboardToday | null>(
-    null,
-  );
+  const [todayData, setTodayData] = useState<PersonalDashboardToday | null>(null);
   // 내 조직 목록
-  const [myOrganizations, setMyOrganizations] = useState<OrganizationSimple[]>(
-    [],
-  );
+  const [myOrganizations, setMyOrganizations] = useState<OrganizationSimple[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -200,7 +186,7 @@ export function Dashboard({
       onRefreshBoards();
       onSelectBoard(response.board_id);
     } catch (error) {
-      console.error("Failed to create/join test board:", error);
+      console.error('Failed to create/join test board:', error);
     } finally {
       setIsCreatingTestBoard(false);
     }
@@ -214,17 +200,14 @@ export function Dashboard({
       const response = await testDataAPI.createTestOrganization();
       navigate(`/organizations/${response.organization_id}`);
     } catch (error) {
-      console.error("Failed to create/join test organization:", error);
+      console.error('Failed to create/join test organization:', error);
     } finally {
       setIsCreatingTestOrg(false);
     }
   };
 
   // 즐겨찾기 보드 필터링
-  const starredBoards = useMemo(
-    () => boards.filter((b) => b.is_starred),
-    [boards],
-  );
+  const starredBoards = useMemo(() => boards.filter((b) => b.is_starred), [boards]);
 
   // 검색 + 필터링
   const filteredBoards = useMemo(() => {
@@ -234,17 +217,15 @@ export function Dashboard({
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
-        (b) =>
-          b.name.toLowerCase().includes(q) ||
-          b.description?.toLowerCase().includes(q),
+        (b) => b.name.toLowerCase().includes(q) || b.description?.toLowerCase().includes(q),
       );
     }
 
     // Board filter
-    if (boardFilter === "owned") {
-      result = result.filter((b) => b.role === "OWNER");
-    } else if (boardFilter === "joined") {
-      result = result.filter((b) => b.role !== "OWNER");
+    if (boardFilter === 'owned') {
+      result = result.filter((b) => b.role === 'OWNER');
+    } else if (boardFilter === 'joined') {
+      result = result.filter((b) => b.role !== 'OWNER');
     }
 
     return result;
@@ -252,10 +233,7 @@ export function Dashboard({
 
   // 조직 보드 vs 워크스페이스 보드 분리
   const { orgBoardsMap, workspaceBoards } = useMemo(() => {
-    const orgMap = new Map<
-      string,
-      { org: OrganizationSimple; boards: Board[] }
-    >();
+    const orgMap = new Map<string, { org: OrganizationSimple; boards: Board[] }>();
     const workspace: Board[] = [];
 
     for (const board of filteredBoards) {
@@ -264,15 +242,13 @@ export function Dashboard({
         if (existing) {
           existing.boards.push(board);
         } else {
-          const org = myOrganizations.find(
-            (o) => o.id === board.organization_id,
-          );
+          const org = myOrganizations.find((o) => o.id === board.organization_id);
           orgMap.set(board.organization_id, {
             org:
               org ||
               ({
                 id: board.organization_id,
-                name: board.organization_name || "Organization",
+                name: board.organization_name || 'Organization',
               } as OrganizationSimple),
             boards: [board],
           });
@@ -286,7 +262,7 @@ export function Dashboard({
 
   // 즐겨찾기 제외한 워크스페이스 보드 (내 프로젝트 그리드용)
   const nonStarredBoards = useMemo(() => {
-    if (starredBoards.length > 0 && !searchQuery && boardFilter === "all") {
+    if (starredBoards.length > 0 && !searchQuery && boardFilter === 'all') {
       return workspaceBoards.filter((b) => !b.is_starred);
     }
     return workspaceBoards;
@@ -327,8 +303,7 @@ export function Dashboard({
   };
 
   const todayTaskCount = todayData
-    ? (todayData.due_today_tasks?.length || 0) +
-      (todayData.in_progress_tasks?.length || 0)
+    ? (todayData.due_today_tasks?.length || 0) + (todayData.in_progress_tasks?.length || 0)
     : 0;
 
   const hasPersonalSpace = currentUser?.personal_space_enabled ?? false;
@@ -342,7 +317,7 @@ export function Dashboard({
       await personalSpaceAPI.activate();
       updateCurrentUser({ personal_space_enabled: true });
       setShowMySpaceIntro(false);
-      navigate("/my-board");
+      navigate('/my-board');
     } catch {
       // silently fail
     } finally {
@@ -355,7 +330,7 @@ export function Dashboard({
       className="fixed inset-0 flex text-foreground overflow-hidden selection:bg-bridge-secondary/30 bg-bridge-dark"
       style={{
         background:
-          "radial-gradient(ellipse at 20% 0%, var(--bridge-dark) 0%, var(--bridge-dark) 50%, var(--bridge-dark) 100%)",
+          'radial-gradient(ellipse at 20% 0%, var(--bridge-dark) 0%, var(--bridge-dark) 50%, var(--bridge-dark) 100%)',
       }}
     >
       {/* Cosmic Background — dark mode only */}
@@ -363,30 +338,24 @@ export function Dashboard({
         <div
           className="absolute w-[600px] h-[600px] rounded-full blur-[200px]"
           style={{
-            top: "-10%",
-            right: "-5%",
-            background:
-              "radial-gradient(circle, rgba(45,212,191,0.06) 0%, transparent 70%)",
+            top: '-10%',
+            right: '-5%',
+            background: 'radial-gradient(circle, rgba(45,212,191,0.06) 0%, transparent 70%)',
           }}
         />
         <div
           className="absolute w-[500px] h-[500px] rounded-full blur-[180px]"
           style={{
-            bottom: "-5%",
-            left: "-5%",
-            background:
-              "radial-gradient(circle, rgba(99,102,241,0.05) 0%, transparent 70%)",
+            bottom: '-5%',
+            left: '-5%',
+            background: 'radial-gradient(circle, rgba(99,102,241,0.05) 0%, transparent 70%)',
           }}
         />
-        <div
-          className="star-bg opacity-30"
-          style={{ position: "absolute", inset: 0 }}
-        />
+        <div className="star-bg opacity-30" style={{ position: 'absolute', inset: 0 }} />
         <div
           className="absolute inset-0"
           style={{
-            background:
-              "radial-gradient(ellipse at center, transparent 50%, rgba(3,5,8,0.5) 100%)",
+            background: 'radial-gradient(ellipse at center, transparent 50%, rgba(3,5,8,0.5) 100%)',
           }}
         />
       </div>
@@ -423,14 +392,14 @@ export function Dashboard({
                 />
                 <input
                   type="text"
-                  placeholder={t("dashboard.searchPlaceholder")}
+                  placeholder={t('dashboard.searchPlaceholder')}
                   className="w-full bg-foreground/[0.04] border border-bridge-border rounded-xl py-1.5 pl-9 pr-4 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-bridge-secondary/30 focus:bg-foreground/[0.06] transition-all"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 {searchQuery && (
                   <button
-                    onClick={() => setSearchQuery("")}
+                    onClick={() => setSearchQuery('')}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     <X size={14} />
@@ -455,13 +424,13 @@ export function Dashboard({
               >
                 <LogOut size={15} />
                 <span className="hidden sm:inline text-xs font-medium">
-                  {t("dashboard.logout")}
+                  {t('dashboard.logout')}
                 </span>
               </button>
 
               {/* Profile Avatar + Name */}
               <button
-                onClick={() => navigate("/settings")}
+                onClick={() => navigate('/settings')}
                 className="flex items-center gap-2 hover:bg-foreground/5 rounded-xl px-2 py-1.5 transition-colors"
               >
                 <div className="w-9 h-9 rounded-xl overflow-hidden border border-bridge-border bg-slate-700 shrink-0">
@@ -473,7 +442,7 @@ export function Dashboard({
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-xs font-bold bg-gradient-to-br from-bridge-secondary to-bridge-accent">
-                      {getInitials(currentUser?.name || "U")}
+                      {getInitials(currentUser?.name || 'U')}
                     </div>
                   )}
                 </div>
@@ -490,7 +459,7 @@ export function Dashboard({
           {mobileSearchOpen && (
             <motion.div
               initial={reduced ? false : { height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
+              animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={reduced ? { duration: 0 } : undefined}
               className="md:hidden border-b border-bridge-border bg-bridge-dark/60 backdrop-blur-sm overflow-hidden"
@@ -504,7 +473,7 @@ export function Dashboard({
                   <input
                     autoFocus
                     type="text"
-                    placeholder={t("dashboard.searchPlaceholder")}
+                    placeholder={t('dashboard.searchPlaceholder')}
                     className="w-full bg-foreground/[0.04] border border-bridge-border rounded-xl py-2 pl-9 pr-10 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-bridge-secondary/30 transition-all"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -512,7 +481,7 @@ export function Dashboard({
                   <button
                     onClick={() => {
                       setMobileSearchOpen(false);
-                      setSearchQuery("");
+                      setSearchQuery('');
                     }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-foreground"
                   >
@@ -526,22 +495,19 @@ export function Dashboard({
 
         {/* Main Content Area */}
         <main
-          className={`flex-1 min-h-0 overflow-y-auto px-6 md:px-8 py-6 custom-scrollbar ${hasPersonalSpace ? "pb-20 lg:pb-6" : ""}`}
+          className={`flex-1 min-h-0 overflow-y-auto px-6 md:px-8 py-6 custom-scrollbar ${hasPersonalSpace ? 'pb-20 lg:pb-6' : ''}`}
         >
           <div className="max-w-7xl mx-auto space-y-6">
             {/* My Space Summary Strip (Desktop only, 모바일은 하단 바) */}
             {!searchQuery &&
               !isRestricted &&
               (hasPersonalSpace ? (
-                <MySpaceSummaryStrip
-                  todayData={todayData}
-                  onClick={() => navigate("/my-board")}
-                />
+                <MySpaceSummaryStrip todayData={todayData} onClick={() => navigate('/my-board')} />
               ) : (
                 <motion.button
                   initial={reduced ? false : { opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={reduced ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
+                  transition={reduced ? { duration: 0 } : { duration: 0.5, ease: 'easeOut' }}
                   onClick={() => setShowMySpaceIntro(true)}
                   disabled={activatingSpace}
                   className="hidden lg:flex group w-full items-center gap-4 px-4 py-2.5
@@ -550,13 +516,10 @@ export function Dashboard({
                 >
                   <div className="flex items-center gap-2.5 shrink-0">
                     <div className="w-9 h-9 rounded-lg bg-bridge-secondary/10 flex items-center justify-center">
-                      <Sparkles
-                        size={17}
-                        className="text-bridge-secondary/70"
-                      />
+                      <Sparkles size={17} className="text-bridge-secondary/70" />
                     </div>
                     <span className="text-sm font-bold text-foreground font-jakarta tracking-tight">
-                      {t("dashboard.mySpace")}
+                      {t('dashboard.mySpace')}
                     </span>
                   </div>
 
@@ -574,14 +537,8 @@ export function Dashboard({
                         <Clock size={13} />
                         <span className="text-xs">Events</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <BookOpen size={13} />
-                        <span className="text-xs">Diary</span>
-                      </div>
                     </div>
-                    <span className="text-xs text-slate-500">
-                      {t("dashboard.mySpaceSetup")}
-                    </span>
+                    <span className="text-xs text-slate-500">{t('dashboard.mySpaceSetup')}</span>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 ml-auto">
@@ -589,7 +546,7 @@ export function Dashboard({
                       className="px-3 py-1 rounded-lg text-xs font-bold text-bridge-secondary bg-bridge-secondary/10
                       group-hover:bg-bridge-secondary/20 transition-colors"
                     >
-                      {activatingSpace ? "..." : t("dashboard.mySpaceCreate")}
+                      {activatingSpace ? '...' : t('dashboard.mySpaceCreate')}
                     </span>
                   </div>
                 </motion.button>
@@ -601,7 +558,7 @@ export function Dashboard({
                 organizations={myOrganizations}
                 orgBoardsMap={orgBoardsMap}
                 onOrgClick={(orgId) => navigate(`/organizations/${orgId}`)}
-                onViewAll={() => navigate("/organizations")}
+                onViewAll={() => navigate('/organizations')}
                 onSelectBoard={handleBoardClick}
                 onToggleStar={onToggleStar}
                 onDeleteBoard={onDeleteBoard ? handleDeleteClick : undefined}
@@ -614,8 +571,10 @@ export function Dashboard({
                 <motion.button
                   initial={reduced ? false : { opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={reduced ? { duration: 0 } : { duration: 0.5, ease: "easeOut", delay: 0.05 }}
-                  onClick={() => navigate("/organizations")}
+                  transition={
+                    reduced ? { duration: 0 } : { duration: 0.5, ease: 'easeOut', delay: 0.05 }
+                  }
+                  onClick={() => navigate('/organizations')}
                   className="hidden lg:flex group w-full items-center gap-4 px-4 py-2.5
                   bg-bridge-obsidian rounded-2xl border border-dashed border-bridge-accent/30
                   hover:border-bridge-accent/50 transition-all cursor-pointer text-left"
@@ -625,7 +584,7 @@ export function Dashboard({
                       <Building2 size={17} className="text-bridge-accent/70" />
                     </div>
                     <span className="text-sm font-bold text-foreground font-jakarta tracking-tight">
-                      {t("dashboard.myOrganizations")}
+                      {t('dashboard.myOrganizations')}
                     </span>
                   </div>
 
@@ -633,20 +592,14 @@ export function Dashboard({
                     <div className="flex items-center gap-4 text-slate-500">
                       <div className="flex items-center gap-1.5">
                         <Users size={13} />
-                        <span className="text-xs">
-                          {t("organization.tabs.members")}
-                        </span>
+                        <span className="text-xs">{t('organization.tabs.members')}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <LayoutGrid size={13} />
-                        <span className="text-xs">
-                          {t("organization.tabs.boards")}
-                        </span>
+                        <span className="text-xs">{t('organization.tabs.boards')}</span>
                       </div>
                     </div>
-                    <span className="text-xs text-slate-500">
-                      {t("dashboard.orgSetup")}
-                    </span>
+                    <span className="text-xs text-slate-500">{t('dashboard.orgSetup')}</span>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 ml-auto">
@@ -654,7 +607,7 @@ export function Dashboard({
                       className="px-3 py-1 rounded-lg text-xs font-bold text-bridge-accent bg-bridge-accent/10
                     group-hover:bg-bridge-accent/20 transition-colors"
                     >
-                      {t("dashboard.orgCreate")}
+                      {t('dashboard.orgCreate')}
                     </span>
                   </div>
                 </motion.button>
@@ -665,10 +618,10 @@ export function Dashboard({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
               <div>
                 <h1 className="text-2xl font-bold font-jakarta mb-0.5">
-                  {t("dashboard.yourProjects")}
+                  {t('dashboard.yourProjects')}
                 </h1>
                 <p className="text-slate-500 text-xs">
-                  {t("dashboard.managingWorkspaces", {
+                  {t('dashboard.managingWorkspaces', {
                     count: workspaceBoards.length,
                   })}
                 </p>
@@ -677,19 +630,19 @@ export function Dashboard({
               <div className="flex items-center gap-2">
                 {/* Board Filter */}
                 <div className="flex items-center gap-0.5 bg-foreground/[0.04] rounded-lg p-0.5">
-                  {(["all", "owned", "joined"] as BoardFilter[]).map((f) => (
+                  {(['all', 'owned', 'joined'] as BoardFilter[]).map((f) => (
                     <button
                       key={f}
                       onClick={() => setBoardFilter(f)}
                       className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${
                         boardFilter === f
-                          ? "text-foreground bg-foreground/10"
-                          : "text-muted-foreground hover:text-foreground"
+                          ? 'text-foreground bg-foreground/10'
+                          : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      {f === "all" && t("dashboard.filterAll", "All")}
-                      {f === "owned" && t("dashboard.filterOwned", "Mine")}
-                      {f === "joined" && t("dashboard.filterJoined", "Joined")}
+                      {f === 'all' && t('dashboard.filterAll', 'All')}
+                      {f === 'owned' && t('dashboard.filterOwned', 'Mine')}
+                      {f === 'joined' && t('dashboard.filterJoined', 'Joined')}
                     </button>
                   ))}
                 </div>
@@ -697,14 +650,14 @@ export function Dashboard({
                 {/* View Toggle */}
                 <div className="flex items-center gap-0.5 bg-foreground/[0.04] rounded-lg p-0.5">
                   <button
-                    onClick={() => setViewMode("grid")}
-                    className={`p-1.5 rounded-md transition-all ${viewMode === "grid" ? "text-foreground bg-foreground/10" : "text-muted-foreground hover:text-foreground"}`}
+                    onClick={() => setViewMode('grid')}
+                    className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'text-foreground bg-foreground/10' : 'text-muted-foreground hover:text-foreground'}`}
                   >
                     <Grid3X3 size={14} />
                   </button>
                   <button
-                    onClick={() => setViewMode("list")}
-                    className={`p-1.5 rounded-md transition-all ${viewMode === "list" ? "text-foreground bg-foreground/10" : "text-muted-foreground hover:text-foreground"}`}
+                    onClick={() => setViewMode('list')}
+                    className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'text-foreground bg-foreground/10' : 'text-muted-foreground hover:text-foreground'}`}
                   >
                     <List size={14} />
                   </button>
@@ -717,13 +670,13 @@ export function Dashboard({
               <div className="h-48 flex flex-col items-center justify-center bg-foreground/[0.02] border border-dashed rounded-2xl border-bridge-border">
                 <Package2 size={36} className="text-slate-600 mb-3" />
                 <p className="text-slate-500 font-medium text-sm">
-                  {t("dashboard.noSearchResult", { query: searchQuery })}
+                  {t('dashboard.noSearchResult', { query: searchQuery })}
                 </p>
                 <button
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => setSearchQuery('')}
                   className="mt-2 text-bridge-secondary text-xs font-bold hover:underline"
                 >
-                  {t("dashboard.clearSearch")}
+                  {t('dashboard.clearSearch')}
                 </button>
               </div>
             )}
@@ -731,62 +684,54 @@ export function Dashboard({
             {boards.length === 0 && !searchQuery && (
               <div className="h-48 flex flex-col items-center justify-center bg-foreground/[0.02] border border-dashed rounded-2xl border-bridge-border">
                 <Package2 size={36} className="text-slate-600 mb-3" />
-                <p className="text-slate-500 font-medium text-sm">
-                  {t("board.noBoards")}
-                </p>
+                <p className="text-slate-500 font-medium text-sm">{t('board.noBoards')}</p>
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
                   className="mt-3 px-5 py-2 bg-bridge-secondary text-bridge-dark text-xs font-bold rounded-xl hover:bg-bridge-secondary/90 transition-colors"
                 >
-                  {t("board.createFirst")}
+                  {t('board.createFirst')}
                 </button>
               </div>
             )}
 
             {/* Starred Section */}
-            {starredBoards.length > 0 &&
-              !searchQuery &&
-              boardFilter === "all" && (
-                <section>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Star size={14} className="text-amber-500" fill="#F59E0B" />
-                    <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">
-                      {t("dashboard.starredBoards")}
-                    </h2>
-                    <span className="text-xs text-slate-600">
-                      {starredBoards.length}
-                    </span>
+            {starredBoards.length > 0 && !searchQuery && boardFilter === 'all' && (
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <Star size={14} className="text-amber-500" fill="#F59E0B" />
+                  <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">
+                    {t('dashboard.starredBoards')}
+                  </h2>
+                  <span className="text-xs text-slate-600">{starredBoards.length}</span>
+                </div>
+                {viewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {starredBoards.map((board) => (
+                      <BoardCard
+                        key={board.id}
+                        board={board}
+                        onToggleStar={onToggleStar}
+                        onClick={handleBoardClick}
+                        onDelete={onDeleteBoard ? handleDeleteClick : undefined}
+                        onEdit={handleEditClick}
+                      />
+                    ))}
                   </div>
-                  {viewMode === "grid" ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {starredBoards.map((board) => (
-                        <BoardCard
-                          key={board.id}
-                          board={board}
-                          onToggleStar={onToggleStar}
-                          onClick={handleBoardClick}
-                          onDelete={
-                            onDeleteBoard ? handleDeleteClick : undefined
-                          }
-                          onEdit={handleEditClick}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {starredBoards.map((board) => (
-                        <BoardListItem
-                          key={board.id}
-                          board={board}
-                          onToggleStar={onToggleStar}
-                          onClick={handleBoardClick}
-                          onEdit={handleEditClick}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </section>
-              )}
+                ) : (
+                  <div className="space-y-2">
+                    {starredBoards.map((board) => (
+                      <BoardListItem
+                        key={board.id}
+                        board={board}
+                        onToggleStar={onToggleStar}
+                        onClick={handleBoardClick}
+                        onEdit={handleEditClick}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* Workspace Board Grid (조직 미소속 보드만) */}
             {nonStarredBoards.length > 0 && (
@@ -794,14 +739,12 @@ export function Dashboard({
                 <div className="flex items-center gap-2 mb-4">
                   <LayoutGrid size={14} className="text-bridge-secondary" />
                   <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">
-                    {t("dashboard.allBoards", "All Boards")}
+                    {t('dashboard.allBoards', 'All Boards')}
                   </h2>
-                  <span className="text-xs text-slate-600">
-                    {nonStarredBoards.length}
-                  </span>
+                  <span className="text-xs text-slate-600">{nonStarredBoards.length}</span>
                 </div>
 
-                {viewMode === "grid" ? (
+                {viewMode === 'grid' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {nonStarredBoards.map((board) => (
                       <BoardCard
@@ -813,9 +756,7 @@ export function Dashboard({
                         onEdit={handleEditClick}
                       />
                     ))}
-                    <CreateBoardCard
-                      onClick={() => setIsCreateModalOpen(true)}
-                    />
+                    <CreateBoardCard onClick={() => setIsCreateModalOpen(true)} />
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -840,7 +781,7 @@ export function Dashboard({
                         />
                       </div>
                       <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider transition-colors">
-                        {t("dashboard.newBoard")}
+                        {t('dashboard.newBoard')}
                       </span>
                     </button>
                   </div>
@@ -849,40 +790,36 @@ export function Dashboard({
             )}
 
             {/* Show Create card when no non-starred workspace boards (but org boards or starred exist) */}
-            {nonStarredBoards.length === 0 &&
-              boards.length > 0 &&
-              !searchQuery && (
-                <section>
-                  <div className="flex items-center gap-2 mb-4">
-                    <LayoutGrid size={14} className="text-bridge-secondary" />
-                    <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">
-                      {t("dashboard.allBoards", "All Boards")}
-                    </h2>
+            {nonStarredBoards.length === 0 && boards.length > 0 && !searchQuery && (
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <LayoutGrid size={14} className="text-bridge-secondary" />
+                  <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">
+                    {t('dashboard.allBoards', 'All Boards')}
+                  </h2>
+                </div>
+                {viewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <CreateBoardCard onClick={() => setIsCreateModalOpen(true)} />
                   </div>
-                  {viewMode === "grid" ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      <CreateBoardCard
-                        onClick={() => setIsCreateModalOpen(true)}
+                ) : (
+                  <button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-bridge-border hover:border-bridge-secondary/30 hover:bg-foreground/[0.02] transition-all group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-foreground/5 group-hover:bg-bridge-secondary/15 flex items-center justify-center transition-colors">
+                      <Plus
+                        size={16}
+                        className="text-muted-foreground group-hover:text-bridge-secondary transition-colors"
                       />
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => setIsCreateModalOpen(true)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-bridge-border hover:border-bridge-secondary/30 hover:bg-foreground/[0.02] transition-all group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-foreground/5 group-hover:bg-bridge-secondary/15 flex items-center justify-center transition-colors">
-                        <Plus
-                          size={16}
-                          className="text-muted-foreground group-hover:text-bridge-secondary transition-colors"
-                        />
-                      </div>
-                      <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider transition-colors">
-                        {t("dashboard.newBoard")}
-                      </span>
-                    </button>
-                  )}
-                </section>
-              )}
+                    <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider transition-colors">
+                      {t('dashboard.newBoard')}
+                    </span>
+                  </button>
+                )}
+              </section>
+            )}
           </div>
         </main>
       </div>
@@ -906,7 +843,7 @@ export function Dashboard({
       {/* Delete Confirm Modal */}
       <DeleteConfirmModal
         isOpen={!!deleteTarget}
-        boardName={deleteTarget?.name || ""}
+        boardName={deleteTarget?.name || ''}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDeleteConfirm}
       />
@@ -917,7 +854,7 @@ export function Dashboard({
           <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden safe-bottom bg-bridge-obsidian/95 backdrop-blur-xl">
             <div className="border-t border-bridge-border">
               <button
-                onClick={() => navigate("/my-board")}
+                onClick={() => navigate('/my-board')}
                 className="w-full flex items-center justify-between px-4 py-2.5 active:bg-foreground/5 transition-colors"
               >
                 <div className="flex items-center gap-3">
@@ -928,7 +865,7 @@ export function Dashboard({
                         width={36}
                         height={36}
                         className="absolute inset-0"
-                        style={{ transform: "rotate(-90deg)" }}
+                        style={{ transform: 'rotate(-90deg)' }}
                       >
                         <circle
                           cx={18}
@@ -944,12 +881,10 @@ export function Dashboard({
                           r={15}
                           fill="none"
                           stroke={
-                            (todayData.habits_today?.filter(
-                              (h) => h.is_completed,
-                            ).length || 0) >=
+                            (todayData.habits_today?.filter((h) => h.is_completed).length || 0) >=
                             (todayData.habits_today?.length || 1)
-                              ? "#2DD4BF"
-                              : "#8B5CF6"
+                              ? '#2DD4BF'
+                              : '#8B5CF6'
                           }
                           strokeWidth={2.5}
                           strokeLinecap="round"
@@ -959,16 +894,11 @@ export function Dashboard({
                             Math.PI *
                             15 *
                             (1 -
-                              (todayData.habits_today?.filter(
-                                (h) => h.is_completed,
-                              ).length || 0) /
-                                Math.max(
-                                  todayData.habits_today?.length || 1,
-                                  1,
-                                ))
+                              (todayData.habits_today?.filter((h) => h.is_completed).length || 0) /
+                                Math.max(todayData.habits_today?.length || 1, 1))
                           }
                           style={{
-                            transition: "stroke-dashoffset 0.6s ease-out",
+                            transition: 'stroke-dashoffset 0.6s ease-out',
                           }}
                         />
                       </svg>
@@ -981,31 +911,21 @@ export function Dashboard({
                   )}
                   <div className="flex flex-col items-start">
                     <span className="text-sm font-bold text-foreground">
-                      {t("dashboard.mySpace")}
+                      {t('dashboard.mySpace')}
                     </span>
                     {todayData &&
                       (() => {
                         const nextEvent = todayData.personal_events
                           ?.filter((e) => e.start_time && !e.all_day)
-                          .sort((a, b) =>
-                            (a.start_time || "").localeCompare(
-                              b.start_time || "",
-                            ),
-                          )
+                          .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
                           .find((e) => {
                             const now = new Date();
-                            const [h, m] = (e.start_time || "00:00")
-                              .split(":")
-                              .map(Number);
-                            return (
-                              h * 60 + m >
-                              now.getHours() * 60 + now.getMinutes()
-                            );
+                            const [h, m] = (e.start_time || '00:00').split(':').map(Number);
+                            return h * 60 + m > now.getHours() * 60 + now.getMinutes();
                           });
                         return nextEvent ? (
                           <span className="text-xs text-slate-500 truncate max-w-[160px]">
-                            {nextEvent.start_time?.slice(0, 5)}{" "}
-                            {nextEvent.title}
+                            {nextEvent.start_time?.slice(0, 5)} {nextEvent.title}
                           </span>
                         ) : null;
                       })()}
@@ -1021,9 +941,8 @@ export function Dashboard({
                       )}
                       {(todayData.habits_today?.length || 0) > 0 && (
                         <span className="text-xs font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded">
-                          {todayData.habits_today?.filter((h) => h.is_completed)
-                            .length || 0}
-                          /{todayData.habits_today?.length || 0}
+                          {todayData.habits_today?.filter((h) => h.is_completed).length || 0}/
+                          {todayData.habits_today?.length || 0}
                         </span>
                       )}
                     </div>
@@ -1047,15 +966,13 @@ export function Dashboard({
                   </div>
                   <div className="flex flex-col items-start">
                     <span className="text-sm font-bold text-foreground">
-                      {t("dashboard.mySpace")}
+                      {t('dashboard.mySpace')}
                     </span>
-                    <span className="text-xs text-slate-500">
-                      {t("dashboard.mySpaceSetup")}
-                    </span>
+                    <span className="text-xs text-slate-500">{t('dashboard.mySpaceSetup')}</span>
                   </div>
                 </div>
                 <span className="px-3 py-1 rounded-lg text-xs font-bold text-bridge-secondary bg-bridge-secondary/10">
-                  {activatingSpace ? "..." : t("dashboard.mySpaceCreate")}
+                  {activatingSpace ? '...' : t('dashboard.mySpaceCreate')}
                 </span>
               </button>
             </div>
@@ -1069,42 +986,29 @@ export function Dashboard({
             onClick={handleCreateTestBoard}
             disabled={isCreatingTestBoard}
             className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/90 hover:bg-amber-500 text-black font-bold text-xs rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            title={t("board.testBoardTitle")}
+            title={t('board.testBoardTitle')}
           >
-            <FlaskConical
-              size={16}
-              className={isCreatingTestBoard ? "animate-pulse" : ""}
-            />
+            <FlaskConical size={16} className={isCreatingTestBoard ? 'animate-pulse' : ''} />
             <span className="hidden sm:inline">
-              {isCreatingTestBoard
-                ? t("board.creating")
-                : t("dashboard.testBoard")}
+              {isCreatingTestBoard ? t('board.creating') : t('dashboard.testBoard')}
             </span>
           </button>
           <button
             onClick={handleCreateTestOrg}
             disabled={isCreatingTestOrg}
             className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/90 hover:bg-amber-500 text-black font-bold text-xs rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            title={t("dashboard.testOrgTitle", "Create Test Organization")}
+            title={t('dashboard.testOrgTitle', 'Create Test Organization')}
           >
-            <Building2
-              size={16}
-              className={isCreatingTestOrg ? "animate-pulse" : ""}
-            />
+            <Building2 size={16} className={isCreatingTestOrg ? 'animate-pulse' : ''} />
             <span className="hidden sm:inline">
-              {isCreatingTestOrg
-                ? t("board.creating")
-                : t("dashboard.testOrg", "Test Org")}
+              {isCreatingTestOrg ? t('board.creating') : t('dashboard.testOrg', 'Test Org')}
             </span>
           </button>
         </div>
       )}
 
       {/* Onboarding Modal */}
-      <OnboardingModal
-        isOpen={showOnboarding}
-        onClose={() => setShowOnboarding(false)}
-      />
+      <OnboardingModal isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} />
 
       {/* My Space Intro Modal */}
       <MotionModal
@@ -1120,11 +1024,9 @@ export function Dashboard({
             </div>
             <div>
               <h2 className="text-base font-bold text-foreground tracking-tight">
-                {t("dashboard.mySpaceIntroTitle")}
+                {t('dashboard.mySpaceIntroTitle')}
               </h2>
-              <p className="text-xs text-slate-500">
-                {t("dashboard.mySpaceIntroDesc")}
-              </p>
+              <p className="text-xs text-slate-500">{t('dashboard.mySpaceIntroDesc')}</p>
             </div>
           </div>
 
@@ -1132,27 +1034,21 @@ export function Dashboard({
             {[
               {
                 icon: ListTodo,
-                titleKey: "mySpaceIntroTaskTitle",
-                descKey: "mySpaceIntroTaskDesc",
-                color: "text-bridge-accent",
+                titleKey: 'mySpaceIntroTaskTitle',
+                descKey: 'mySpaceIntroTaskDesc',
+                color: 'text-bridge-accent',
               },
               {
                 icon: Flame,
-                titleKey: "mySpaceIntroHabitTitle",
-                descKey: "mySpaceIntroHabitDesc",
-                color: "text-purple-400",
+                titleKey: 'mySpaceIntroHabitTitle',
+                descKey: 'mySpaceIntroHabitDesc',
+                color: 'text-purple-400',
               },
               {
                 icon: Clock,
-                titleKey: "mySpaceIntroEventTitle",
-                descKey: "mySpaceIntroEventDesc",
-                color: "text-bridge-secondary",
-              },
-              {
-                icon: BookOpen,
-                titleKey: "mySpaceIntroDiaryTitle",
-                descKey: "mySpaceIntroDiaryDesc",
-                color: "text-rose-400",
+                titleKey: 'mySpaceIntroEventTitle',
+                descKey: 'mySpaceIntroEventDesc',
+                color: 'text-bridge-secondary',
               },
             ].map((item, index) => (
               <motion.div
@@ -1162,10 +1058,7 @@ export function Dashboard({
                 transition={reduced ? { duration: 0 } : { delay: index * 0.06 }}
                 className="flex items-start gap-2.5 p-3 bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl"
               >
-                <item.icon
-                  size={16}
-                  className={`${item.color} shrink-0 mt-0.5`}
-                />
+                <item.icon size={16} className={`${item.color} shrink-0 mt-0.5`} />
                 <div>
                   <p className="text-[12px] font-bold text-foreground">
                     {t(`dashboard.${item.titleKey}`)}
@@ -1184,14 +1077,14 @@ export function Dashboard({
             className="text-xs text-slate-600 cursor-pointer hover:text-slate-400 transition-colors"
             onClick={() => setShowMySpaceIntro(false)}
           >
-            Esc {t("dashboard.mySpaceIntroClose")}
+            Esc {t('dashboard.mySpaceIntroClose')}
           </span>
           <button
             onClick={handleActivatePersonalSpace}
             disabled={activatingSpace}
             className="px-5 py-1.5 rounded-xl text-xs font-bold text-white bg-bridge-secondary hover:bg-bridge-secondary/90 transition-all disabled:opacity-50"
           >
-            {activatingSpace ? "..." : t("dashboard.mySpaceIntroStart")}
+            {activatingSpace ? '...' : t('dashboard.mySpaceIntroStart')}
           </button>
         </div>
       </MotionModal>
@@ -1229,20 +1122,18 @@ function BoardListItem({
 }) {
   const { t } = useTranslation();
   const reduced = useReducedMotion();
-  const isTrial =
-    board.subscription?.status === "TRIAL" && board.tier !== "PREMIUM";
+  const isTrial = board.subscription?.status === 'TRIAL' && board.tier !== 'PREMIUM';
   const isOrgBoard = !!board.organization_id;
   const taskCount = board.task_count ?? 0;
   const completedTasks = board.completed_tasks ?? 0;
-  const progress =
-    taskCount > 0 ? Math.round((completedTasks / taskCount) * 100) : 0;
+  const progress = taskCount > 0 ? Math.round((completedTasks / taskCount) * 100) : 0;
   const members = board.members ?? [];
 
   return (
     <motion.div
       whileHover={reduced ? undefined : { x: 2 }}
       onClick={() => onClick(board)}
-      className={`flex items-center gap-4 px-4 py-3 rounded-xl bg-foreground/[0.02] border hover:bg-foreground/[0.03] cursor-pointer transition-all group ${isOrgBoard ? "border-bridge-accent/20 hover:border-bridge-accent/40" : "border-bridge-border hover:border-foreground/[0.12]"}`}
+      className={`flex items-center gap-4 px-4 py-3 rounded-xl bg-foreground/[0.02] border hover:bg-foreground/[0.03] cursor-pointer transition-all group ${isOrgBoard ? 'border-bridge-accent/20 hover:border-bridge-accent/40' : 'border-bridge-border hover:border-foreground/[0.12]'}`}
     >
       {/* Color indicator */}
       <div
@@ -1264,12 +1155,12 @@ function BoardListItem({
           )}
           {isTrial && (
             <span className="px-1.5 py-0.5 bg-bridge-secondary/10 text-bridge-secondary text-xs font-bold uppercase tracking-wider rounded shrink-0">
-              {t("dashboard.trialPlan")}
+              {t('dashboard.trialPlan')}
             </span>
           )}
         </div>
         <p className="text-xs text-slate-500 truncate">
-          {board.description || t("dashboard.noDescription")}
+          {board.description || t('dashboard.noDescription')}
         </p>
       </div>
 
@@ -1281,9 +1172,7 @@ function BoardListItem({
             style={{ width: `${progress}%` }}
           />
         </div>
-        <span className="text-xs font-bold text-muted-foreground w-8 text-right">
-          {progress}%
-        </span>
+        <span className="text-xs font-bold text-muted-foreground w-8 text-right">{progress}%</span>
       </div>
 
       {/* Members */}
@@ -1301,8 +1190,8 @@ function BoardListItem({
         }}
       >
         <Star
-          fill={board.is_starred ? "#F59E0B" : "transparent"}
-          stroke={board.is_starred ? "#F59E0B" : "rgba(255,255,255,0.3)"}
+          fill={board.is_starred ? '#F59E0B' : 'transparent'}
+          stroke={board.is_starred ? '#F59E0B' : 'rgba(255,255,255,0.3)'}
         />
       </IconButton>
     </motion.div>

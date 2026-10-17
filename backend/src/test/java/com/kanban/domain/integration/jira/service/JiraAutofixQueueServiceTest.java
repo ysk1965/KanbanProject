@@ -78,6 +78,7 @@ class JiraAutofixQueueServiceTest {
     private JiraAutofixQueueService service;
 
     private Board board;
+    private User actor;
 
     @BeforeEach
     void setUp() {
@@ -99,13 +100,31 @@ class JiraAutofixQueueServiceTest {
         commentAttachmentRepository = mock(CommentAttachmentRepository.class);
         slackPublisher = mock(JiraAutofixSlackPublisher.class);
 
+        /*
+         * 통지는 커밋 뒤에 도는 별도 경로다(JiraAutofixResultListener). 단위 테스트에는 트랜잭션이
+         * 없으므로 리스너를 그대로 흉내 낸다 — 신호를 받아 publishResult를 부르고, 거기서 난
+         * 예외는 여기서 끊는다. 통지 실패가 결과 확정으로 되돌아가지 않는 것이 이 구조의 요점이다.
+         */
         service = new JiraAutofixQueueService(
                 properties, new ObjectMapper(), boardRepository, boardService,
                 triageRepository, jobRepository, jobMaterialRepository, fileUploadService,
                 configRepository, taskRepository,
                 checklistItemRepository, commentRepository, commentAttachmentRepository,
                 userRepository,
-                boardGithubRepoRepository, jiraApiClient, oauthService, slackPublisher);
+                boardGithubRepoRepository, jiraApiClient, oauthService, slackPublisher,
+                event -> {
+                    if (event instanceof JiraAutofixResultSettledEvent e) {
+                        try {
+                            service.publishResult(e.boardId(), e.jobId(), e.result(), e.corrected());
+                        } catch (Exception ignored) {
+                            // 리스너가 삼키는 자리
+                        }
+                    }
+                });
+
+        actor = mock(User.class);
+        lenient().when(actor.getId()).thenReturn(USER_ID);
+        lenient().when(userRepository.findById(USER_ID)).thenReturn(Optional.of(actor));
 
         board = mock(Board.class);
         lenient().when(board.getId()).thenReturn(BOARD_ID);
@@ -146,9 +165,15 @@ class JiraAutofixQueueServiceTest {
     }
 
     private JiraAutofixJob queuedJob(String key) {
-        JiraAutofixJob job = JiraAutofixJob.forJiraIssue(board, key, "task-" + key, 0.9);
+        JiraAutofixJob job = JiraAutofixJob.forJiraIssue(board, key, "task-" + key, 0.9, USER_ID);
         job.assignTarget("inst-1", REPO, "develop");
+        publishable(job);
         return job;
+    }
+
+    /** 통지 경로는 커밋 뒤에 작업을 <b>다시 읽는다</b>. 그 조회를 열어 둬야 통지가 재현된다. */
+    private void publishable(JiraAutofixJob job) {
+        lenient().when(jobRepository.findById(job.getId())).thenReturn(Optional.of(job));
     }
 
     private void givenNextQueued(JiraAutofixJob job) {
@@ -471,7 +496,7 @@ class JiraAutofixQueueServiceTest {
     void failsJobWithoutTarget() {
         properties.setDispatchEnabled(true);
         // 대상을 지정하지 않은(assignTarget 미호출) 작업
-        JiraAutofixJob job = JiraAutofixJob.forJiraIssue(board, "QASA-1", null, 0.9);
+        JiraAutofixJob job = JiraAutofixJob.forJiraIssue(board, "QASA-1", null, 0.9, USER_ID);
         givenNextQueued(job);
 
         JiraAutofixResponse.ClaimResult result = service.claim(BOARD_ID, "mac-01", AutofixRunnerContract.VERSION, null);
@@ -687,7 +712,7 @@ class JiraAutofixQueueServiceTest {
     void callbackRejectsOtherBoardsJob() throws Exception {
         Board other = mock(Board.class);
         when(other.getId()).thenReturn("board-2");
-        JiraAutofixJob job = JiraAutofixJob.forJiraIssue(other, "QASA-92", null, 0.9);
+        JiraAutofixJob job = JiraAutofixJob.forJiraIssue(other, "QASA-92", null, 0.9, USER_ID);
         job.markClaimed("mac-01");
         when(jobRepository.findById("job-9")).thenReturn(Optional.of(job));
 
@@ -913,6 +938,7 @@ class JiraAutofixQueueServiceTest {
         job.assignTarget("inst-1", REPO, "develop");
         job.markClaimed("mac-01");
         when(jobRepository.findById("job-m")).thenReturn(Optional.of(job));
+        publishable(job);
 
         service.handleCallback(BOARD_ID, payload("""
                 {"job_id":"job-m","result":"pr","pr_url":"https://github.com/o/r/pull/9"}
@@ -925,6 +951,48 @@ class JiraAutofixQueueServiceTest {
                 .contains("https://github.com/o/r/pull/9")
                 .contains("항목 체크는 켜지 않았습니다");   // PR은 머지가 아니다
         verifyNoInteractions(jiraApiClient);
+    }
+
+    /** 결과 댓글 하나를 남기기 직전 상태의 수동 작업. */
+    private JiraAutofixJob dispatchedManualJob(String createdBy) {
+        JiraAutofixJob job = JiraAutofixJob.forManualTask(board, TASK_ID, "공백 이름을 막아라", createdBy);
+        job.assignTarget("inst-1", REPO, "develop");
+        job.markClaimed("mac-01");
+        when(jobRepository.findById("job-m")).thenReturn(Optional.of(job));
+        publishable(job);
+        return job;
+    }
+
+    @Test
+    @DisplayName("작성자를 못 찾으면 카드 댓글을 접는다 — 작성자 없는 댓글은 화면이 그리지 못한다")
+    void skipsTaskCommentWhenAuthorIsUnknown() throws Exception {
+        givenDelegatableTask();
+        JiraAutofixJob job = dispatchedManualJob("ghost-user");   // users에 없는 id
+
+        service.handleCallback(BOARD_ID, payload("""
+                {"job_id":"job-m","result":"pr","pr_url":"https://github.com/o/r/pull/9"}
+                """));
+
+        verify(commentRepository, never()).save(any());
+        // 댓글을 접은 것이지 결과를 버린 것이 아니다 — PR은 실제로 열려 있다
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.SUCCEEDED);
+        assertThat(job.getPrUrl()).isEqualTo("https://github.com/o/r/pull/9");
+    }
+
+    @Test
+    @DisplayName("통지가 터져도 결과는 확정된 채 남는다 — 댓글 하나가 PR을 미완으로 되돌리면 안 된다")
+    void notificationFailureDoesNotUndoSettledResult() throws Exception {
+        givenDelegatableTask();
+        JiraAutofixJob job = dispatchedManualJob(USER_ID);
+        when(commentRepository.save(any()))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("author_id"));
+
+        service.handleCallback(BOARD_ID, payload("""
+                {"job_id":"job-m","result":"pr","pr_url":"https://github.com/o/r/pull/9"}
+                """));
+
+        assertThat(job.getStatus()).isEqualTo(AutofixJobStatus.SUCCEEDED);
+        assertThat(job.getPrUrl()).isEqualTo("https://github.com/o/r/pull/9");
     }
 
     // ── 토큰 검증 ─────────────────────────────────
@@ -1276,7 +1344,7 @@ class JiraAutofixQueueServiceTest {
     void cannotCancelOtherBoardsJob() {
         Board other = mock(Board.class);
         when(other.getId()).thenReturn("board-2");
-        JiraAutofixJob job = JiraAutofixJob.forJiraIssue(other, "X-1", null, 0.9);
+        JiraAutofixJob job = JiraAutofixJob.forJiraIssue(other, "X-1", null, 0.9, USER_ID);
         when(jobRepository.findById("job-1")).thenReturn(Optional.of(job));
 
         assertThatThrownBy(() -> service.cancelJob(BOARD_ID, USER_ID, "job-1", false))

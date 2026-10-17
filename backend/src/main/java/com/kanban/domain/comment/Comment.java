@@ -54,6 +54,18 @@ public class Comment extends BaseTimeEntity {
     @JoinColumn(name = "parent_id")
     private Comment parent;
 
+    /**
+     * 이 댓글이 달린 체크리스트 항목. null이면 태스크에 직접 달린 댓글이다.
+     *
+     * <p>연관({@code @ManyToOne})이 아니라 문자열로 드는 이유 —
+     * {@link com.kanban.domain.checklist.ChecklistItem}에는
+     * {@code @SQLRestriction("deleted_at IS NULL")}이 걸려 있다. 연관으로 매핑하면 항목을
+     * 휴지통에 넣는 순간 그 항목에 달린 기존 댓글을 읽을 때 프록시 해석이 깨진다.
+     * 항목 제목은 조회 시점에 별도로 붙인다.</p>
+     */
+    @Column(name = "checklist_item_id", length = 36)
+    private String checklistItemId;
+
     @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private Set<CommentAttachment> attachments = new LinkedHashSet<>();

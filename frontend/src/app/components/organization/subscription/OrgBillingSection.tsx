@@ -39,11 +39,7 @@ interface PaymentRecord {
   description: string | null;
 }
 
-export function OrgBillingSection({
-  orgId,
-  subscription,
-  onUpdate,
-}: OrgBillingSectionProps) {
+export function OrgBillingSection({ orgId, subscription, onUpdate }: OrgBillingSectionProps) {
   const { t } = useTranslation();
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
@@ -203,7 +199,8 @@ export function OrgBillingSection({
               <span className="text-sm font-bold text-foreground">
                 {formatCurrency(subscription.total_price)}
                 <span className="text-xs text-slate-400 ml-0.5">
-                  /{subscription.billing_cycle === 'YEARLY'
+                  /
+                  {subscription.billing_cycle === 'YEARLY'
                     ? t('orgSubscription.billing.yr', 'yr')
                     : t('orgSubscription.billing.mo', 'mo')}
                 </span>
@@ -250,9 +247,15 @@ export function OrgBillingSection({
                 </h3>
               </div>
               <p className="text-xs text-slate-400">
-                {t('orgSubscription.billing.cancelPendingDesc', 'Your subscription will end on {{date}}. Premium features remain active until then.', {
-                  date: subscription.current_period_end ? formatDate(subscription.current_period_end) : '-',
-                })}
+                {t(
+                  'orgSubscription.billing.cancelPendingDesc',
+                  'Your subscription will end on {{date}}. Premium features remain active until then.',
+                  {
+                    date: subscription.current_period_end
+                      ? formatDate(subscription.current_period_end)
+                      : '-',
+                  },
+                )}
               </p>
             </div>
             <button
@@ -261,7 +264,11 @@ export function OrgBillingSection({
               className="flex items-center gap-1.5 px-4 py-2 bg-bridge-accent text-white rounded-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all disabled:opacity-50 shrink-0 ml-4"
             >
               <Undo2 size={14} />
-              {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t('orgSubscription.billing.undoCancellation', 'Undo Cancellation')}
+              {actionLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                t('orgSubscription.billing.undoCancellation', 'Undo Cancellation')
+              )}
             </button>
           </div>
         </motion.div>
@@ -297,7 +304,11 @@ export function OrgBillingSection({
               <span className="text-sm font-bold text-foreground">
                 {subscription.active_member_count}
                 <span className="text-slate-400 font-normal">
-                  {' '}/ {subscription.member_limit === -1 ? t('orgSubscription.billing.unlimited', 'unlimited') : subscription.member_limit}
+                  {' '}
+                  /{' '}
+                  {subscription.member_limit === -1
+                    ? t('orgSubscription.billing.unlimited', 'unlimited')
+                    : subscription.member_limit}
                 </span>
               </span>
             </div>
@@ -359,7 +370,11 @@ export function OrgBillingSection({
           <span className="text-sm font-bold text-foreground">
             {subscription.board_count}
             <span className="text-slate-400 font-normal">
-              {' '}/ {subscription.board_limit === -1 ? t('orgSubscription.billing.unlimited', 'unlimited') : subscription.board_limit}
+              {' '}
+              /{' '}
+              {subscription.board_limit === -1
+                ? t('orgSubscription.billing.unlimited', 'unlimited')
+                : subscription.board_limit}
             </span>
           </span>
         </div>
@@ -382,7 +397,10 @@ export function OrgBillingSection({
                 {t('orgSubscription.billing.aiCredits', 'AI Credits')}
               </h3>
               <p className="text-xs text-slate-500">
-                {t('orgSubscription.billing.aiCreditsDesc', 'Shared across all organization boards')}
+                {t(
+                  'orgSubscription.billing.aiCreditsDesc',
+                  'Shared across all organization boards',
+                )}
               </p>
             </div>
           </div>
@@ -390,15 +408,16 @@ export function OrgBillingSection({
           {(() => {
             const monthly = subscription.monthly_ai_credits ?? 0;
             const used = subscription.monthly_credits_used ?? 0;
-            const available = subscription.total_available_credits ?? (monthly - used);
+            const available = subscription.total_available_credits ?? monthly - used;
             const usagePercent = monthly > 0 ? Math.min((used / monthly) * 100, 100) : 0;
             const warning = subscription.credit_warning_level;
 
-            const barColor = warning === 'EXHAUSTED' || warning === 'CRITICAL'
-              ? 'bg-red-500'
-              : warning === 'LOW'
-                ? 'bg-yellow-500'
-                : 'bg-bridge-secondary';
+            const barColor =
+              warning === 'EXHAUSTED' || warning === 'CRITICAL'
+                ? 'bg-red-500'
+                : warning === 'LOW'
+                  ? 'bg-yellow-500'
+                  : 'bg-bridge-secondary';
 
             return (
               <>
@@ -421,13 +440,15 @@ export function OrgBillingSection({
                   <span className="text-xs text-slate-500">
                     {t('orgSubscription.billing.aiCreditsAvailable', 'Available')}
                   </span>
-                  <span className={`text-sm font-bold ${
-                    warning === 'EXHAUSTED' || warning === 'CRITICAL'
-                      ? 'text-red-400'
-                      : warning === 'LOW'
-                        ? 'text-yellow-400'
-                        : 'text-bridge-secondary'
-                  }`}>
+                  <span
+                    className={`text-sm font-bold ${
+                      warning === 'EXHAUSTED' || warning === 'CRITICAL'
+                        ? 'text-red-400'
+                        : warning === 'LOW'
+                          ? 'text-yellow-400'
+                          : 'text-bridge-secondary'
+                    }`}
+                  >
                     {available}
                   </span>
                 </div>
@@ -495,9 +516,7 @@ export function OrgBillingSection({
                         {formatCurrency(payment.amount)}
                       </span>
                       {payment.description && (
-                        <span className="text-xs text-slate-500">
-                          {payment.description}
-                        </span>
+                        <span className="text-xs text-slate-500">{payment.description}</span>
                       )}
                     </div>
                     <div className="text-right">
@@ -555,7 +574,11 @@ export function OrgBillingSection({
       )}
 
       {/* Plan Selection Modal */}
-      <MotionModal open={showPlanModal} onClose={() => setShowPlanModal(false)} className="sm:max-w-2xl">
+      <MotionModal
+        open={showPlanModal}
+        onClose={() => setShowPlanModal(false)}
+        className="sm:max-w-2xl"
+      >
         <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <Crown size={18} className="text-bridge-accent" />
@@ -676,17 +699,25 @@ export function OrgBillingSection({
             <div className="flex items-center gap-2 text-sm">
               <CreditCard size={14} className="text-slate-400 shrink-0" />
               <span className="text-slate-400">
-                {t('orgSubscription.billing.cancelBoardsAffected', '{{count}} boards will lose Premium features', {
-                  count: subscription.board_count,
-                })}
+                {t(
+                  'orgSubscription.billing.cancelBoardsAffected',
+                  '{{count}} boards will lose Premium features',
+                  {
+                    count: subscription.board_count,
+                  },
+                )}
               </span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Users size={14} className="text-slate-400 shrink-0" />
               <span className="text-slate-400">
-                {t('orgSubscription.billing.cancelMembersAffected', '{{count}} members will be affected', {
-                  count: subscription.active_member_count,
-                })}
+                {t(
+                  'orgSubscription.billing.cancelMembersAffected',
+                  '{{count}} members will be affected',
+                  {
+                    count: subscription.active_member_count,
+                  },
+                )}
               </span>
             </div>
             <div className="flex items-center gap-2 text-sm">

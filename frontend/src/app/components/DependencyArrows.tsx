@@ -3,10 +3,10 @@ import { TaskDependency } from '../types';
 
 export interface TaskPosition {
   taskId: string;
-  left: number;    // px from timeline start
-  width: number;   // px width of task bar
-  top: number;     // px from timeline top (row position)
-  height: number;  // px height of task bar (usually 24px = h-6)
+  left: number; // px from timeline start
+  width: number; // px width of task bar
+  top: number; // px from timeline top (row position)
+  height: number; // px height of task bar (usually 24px = h-6)
 }
 
 interface DependencyArrowsProps {
@@ -26,10 +26,7 @@ interface DependencyArrowsProps {
  * FS(Finish-to-Start) 화살표 경로를 계산합니다.
  * predecessor의 오른쪽 끝 → successor의 왼쪽 끝
  */
-const calculateArrowPath = (
-  from: TaskPosition,
-  to: TaskPosition
-): string => {
+const calculateArrowPath = (from: TaskPosition, to: TaskPosition): string => {
   // 시작점: predecessor 오른쪽 끝 중간
   const startX = from.left + from.width;
   const startY = from.top + from.height / 2;
@@ -75,14 +72,14 @@ const calculateArrowPath = (
     }
 
     // 코너 반경: 사용 가능한 공간에 맞게 제한
-    const r = Math.max(4, Math.min(14,
-      Math.abs(routeY - startY) * 0.45,
-      Math.abs(endY - routeY) * 0.45
-    ));
+    const r = Math.max(
+      4,
+      Math.min(14, Math.abs(routeY - startY) * 0.45, Math.abs(endY - routeY) * 0.45),
+    );
 
     // 수직 방향 부호
     const dy1 = routeY > startY ? 1 : -1; // start → route
-    const dy2 = endY > routeY ? 1 : -1;   // route → end
+    const dy2 = endY > routeY ? 1 : -1; // route → end
 
     return [
       `M ${startX} ${startY}`,
@@ -102,10 +99,7 @@ const calculateArrowPath = (
 /**
  * 화살표 경로의 중간점을 계산합니다 (삭제 버튼 위치용).
  */
-const calculateMidPoint = (
-  from: TaskPosition,
-  to: TaskPosition
-): { x: number; y: number } => {
+const calculateMidPoint = (from: TaskPosition, to: TaskPosition): { x: number; y: number } => {
   const startX = from.left + from.width;
   const startY = from.top + from.height / 2;
   const endX = to.left;
@@ -156,7 +150,7 @@ export function DependencyArrows({
   // 유효한 의존성만 필터링 (양쪽 태스크 위치가 모두 존재하는 것)
   const validDependencies = useMemo(() => {
     return dependencies.filter(
-      (dep) => taskPositions.has(dep.predecessor_id) && taskPositions.has(dep.successor_id)
+      (dep) => taskPositions.has(dep.predecessor_id) && taskPositions.has(dep.successor_id),
     );
   }, [dependencies, taskPositions]);
 
@@ -177,10 +171,7 @@ export function DependencyArrows({
           refY="3"
           orient="auto"
         >
-          <polygon
-            points="0 0, 8 3, 0 6"
-            fill="rgba(99, 102, 241, 0.7)"
-          />
+          <polygon points="0 0, 8 3, 0 6" fill="rgba(99, 102, 241, 0.7)" />
         </marker>
         <marker
           id="dependency-arrowhead-hover"
@@ -190,35 +181,34 @@ export function DependencyArrows({
           refY="3"
           orient="auto"
         >
-          <polygon
-            points="0 0, 8 3, 0 6"
-            fill="rgba(99, 102, 241, 1.0)"
-          />
+          <polygon points="0 0, 8 3, 0 6" fill="rgba(99, 102, 241, 1.0)" />
         </marker>
       </defs>
 
       {/* 드래그 프리뷰 라인 */}
-      {previewLine && taskPositions.has(previewLine.fromTaskId) && (() => {
-        const from = taskPositions.get(previewLine.fromTaskId)!;
-        const startX = from.left + from.width;
-        const startY = from.top + from.height / 2;
-        const endX = previewLine.cursorX;
-        const endY = previewLine.cursorY;
-        const dx = endX - startX;
-        const midX = startX + dx / 2;
-        const path = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
+      {previewLine &&
+        taskPositions.has(previewLine.fromTaskId) &&
+        (() => {
+          const from = taskPositions.get(previewLine.fromTaskId)!;
+          const startX = from.left + from.width;
+          const startY = from.top + from.height / 2;
+          const endX = previewLine.cursorX;
+          const endY = previewLine.cursorY;
+          const dx = endX - startX;
+          const midX = startX + dx / 2;
+          const path = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
 
-        return (
-          <path
-            d={path}
-            fill="none"
-            stroke="rgba(99, 102, 241, 0.5)"
-            strokeWidth={2}
-            strokeDasharray="6 4"
-            className="pointer-events-none"
-          />
-        );
-      })()}
+          return (
+            <path
+              d={path}
+              fill="none"
+              stroke="rgba(99, 102, 241, 0.5)"
+              strokeWidth={2}
+              strokeDasharray="6 4"
+              className="pointer-events-none"
+            />
+          );
+        })()}
 
       {/* 각 의존성 화살표 */}
       {validDependencies.map((dep) => {
@@ -247,7 +237,9 @@ export function DependencyArrows({
               fill="none"
               stroke={isHovered ? 'rgba(99, 102, 241, 1.0)' : 'rgba(99, 102, 241, 0.6)'}
               strokeWidth={isHovered ? 2.5 : 2}
-              markerEnd={isHovered ? 'url(#dependency-arrowhead-hover)' : 'url(#dependency-arrowhead)'}
+              markerEnd={
+                isHovered ? 'url(#dependency-arrowhead-hover)' : 'url(#dependency-arrowhead)'
+              }
               className="pointer-events-none transition-colors"
             />
             {/* 호버 시 삭제 버튼 */}

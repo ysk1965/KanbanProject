@@ -1,7 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, LayoutGrid, X, AlertTriangle, Check, ChevronRight, Link, Clock, Shield, Crown, Users, Zap, Trash2 } from 'lucide-react';
+import {
+  Plus,
+  LayoutGrid,
+  X,
+  AlertTriangle,
+  Check,
+  ChevronRight,
+  Link,
+  Clock,
+  Shield,
+  Crown,
+  Users,
+  Zap,
+  Trash2,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { organizationService, boardService } from '../../../utils/services';
@@ -38,7 +52,7 @@ function WeeklyChart({ weeks }: { weeks: Array<{ week_start: string; minutes: nu
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   if (!weeks || weeks.length === 0) return null;
 
-  const maxMin = Math.max(...weeks.map(w => w.minutes), 1);
+  const maxMin = Math.max(...weeks.map((w) => w.minutes), 1);
 
   // 라벨 표시 기준: 첫 주, 월 경계, 이번 주, hover된 주
   const labels = weeks.map((w, i) => formatWeekLabel(w.week_start));
@@ -67,9 +81,7 @@ function WeeklyChart({ weeks }: { weeks: Array<{ week_start: string; minutes: nu
             <span className="text-xs font-bold text-foreground">
               {formatMinutes(weeks[hoveredIndex].minutes)}
             </span>
-            <span className="text-xs text-slate-500 ml-1.5">
-              {labels[hoveredIndex]}
-            </span>
+            <span className="text-xs text-slate-500 ml-1.5">{labels[hoveredIndex]}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -92,25 +104,21 @@ function WeeklyChart({ weeks }: { weeks: Array<{ week_start: string; minutes: nu
                 className="w-full rounded-t-[3px] transition-all duration-200"
                 style={{
                   height: w.minutes > 0 ? `${pct}%` : '2px',
-                  background: w.minutes === 0
-                    ? 'var(--foreground)'
-                    : isCurrentWeek
-                    ? 'linear-gradient(to top, rgb(79, 82, 221), rgb(129, 131, 245))'
-                    : isHovered
-                    ? 'linear-gradient(to top, rgb(30, 190, 171), rgb(55, 225, 200))'
-                    : 'rgb(45, 212, 191)',
-                  opacity: w.minutes === 0
-                    ? 0.06
-                    : isHovered
-                    ? 1
-                    : isCurrentWeek
-                    ? 1
-                    : 0.45,
-                  boxShadow: isHovered && w.minutes > 0
-                    ? isCurrentWeek
-                      ? '0 0 8px rgba(99,102,241,0.4)'
-                      : '0 0 8px rgba(45,212,191,0.4)'
-                    : 'none',
+                  background:
+                    w.minutes === 0
+                      ? 'var(--foreground)'
+                      : isCurrentWeek
+                        ? 'linear-gradient(to top, rgb(79, 82, 221), rgb(129, 131, 245))'
+                        : isHovered
+                          ? 'linear-gradient(to top, rgb(30, 190, 171), rgb(55, 225, 200))'
+                          : 'rgb(45, 212, 191)',
+                  opacity: w.minutes === 0 ? 0.06 : isHovered ? 1 : isCurrentWeek ? 1 : 0.45,
+                  boxShadow:
+                    isHovered && w.minutes > 0
+                      ? isCurrentWeek
+                        ? '0 0 8px rgba(99,102,241,0.4)'
+                        : '0 0 8px rgba(45,212,191,0.4)'
+                      : 'none',
                 }}
               />
             </div>
@@ -125,19 +133,23 @@ function WeeklyChart({ weeks }: { weeks: Array<{ week_start: string; minutes: nu
           return (
             <div key={`label-${w.week_start}`} className="flex-1 flex justify-center">
               {showLabel(i) ? (
-                <span className={`text-xs leading-none ${
-                  isCurrentWeek
-                    ? 'text-bridge-accent font-bold'
-                    : hoveredIndex === i
-                    ? 'text-bridge-secondary font-medium'
-                    : 'text-slate-500'
-                }`}>
+                <span
+                  className={`text-xs leading-none ${
+                    isCurrentWeek
+                      ? 'text-bridge-accent font-bold'
+                      : hoveredIndex === i
+                        ? 'text-bridge-secondary font-medium'
+                        : 'text-slate-500'
+                  }`}
+                >
                   {labels[i]}
                 </span>
               ) : (
-                <div className={`w-[3px] h-[3px] rounded-full mt-0.5 ${
-                  hoveredIndex === i ? 'bg-bridge-secondary' : 'bg-foreground/10'
-                }`} />
+                <div
+                  className={`w-[3px] h-[3px] rounded-full mt-0.5 ${
+                    hoveredIndex === i ? 'bg-bridge-secondary' : 'bg-foreground/10'
+                  }`}
+                />
               )}
             </div>
           );
@@ -187,13 +199,16 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
   }, [fetchBoards]);
 
   useEffect(() => {
-    organizationService.getMembers(orgId, { size: 200 }).then((res) => {
-      const admins = res.content
-        .filter((m) => m.role === 'OWNER' || m.role === 'ADMIN')
-        .sort((a, b) => (a.role === 'OWNER' ? -1 : b.role === 'OWNER' ? 1 : 0))
-        .map((m) => m.user.name);
-      setAdminNames(admins);
-    }).catch(() => {});
+    organizationService
+      .getMembers(orgId, { size: 200 })
+      .then((res) => {
+        const admins = res.content
+          .filter((m) => m.role === 'OWNER' || m.role === 'ADMIN')
+          .sort((a, b) => (a.role === 'OWNER' ? -1 : b.role === 'OWNER' ? 1 : 0))
+          .map((m) => m.user.name);
+        setAdminNames(admins);
+      })
+      .catch(() => {});
   }, [orgId]);
 
   const handleOpenAddModal = () => {
@@ -220,7 +235,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
           } catch {
             // skip
           }
-        })
+        }),
       );
       setEligibility(checks);
     } catch (error) {
@@ -284,7 +299,9 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
       await organizationService.deleteBoard(orgId, boardId);
       setShowDeleteConfirm(null);
       fetchBoards();
-      toast.success(t('organization.boards.deleteSuccess', 'Board deleted. It can be recovered within 7 days.'));
+      toast.success(
+        t('organization.boards.deleteSuccess', 'Board deleted. It can be recovered within 7 days.'),
+      );
     } catch (error) {
       console.warn('Failed to delete board:', error);
       toast.error(t('organization.boards.deleteError', 'Failed to delete board'));
@@ -321,7 +338,10 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
       {loading ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-16 bg-bridge-obsidian rounded-xl border border-foreground/[0.08] animate-pulse" />
+            <div
+              key={i}
+              className="h-16 bg-bridge-obsidian rounded-xl border border-foreground/[0.08] animate-pulse"
+            />
           ))}
         </div>
       ) : boards.length === 0 ? (
@@ -337,7 +357,10 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
             {t('organization.boards.emptyTitle', 'No boards linked')}
           </h3>
           <p className="text-sm text-muted-foreground mb-5 max-w-xs">
-            {t('organization.boards.emptyDesc', 'Link your existing boards to manage them under this organization.')}
+            {t(
+              'organization.boards.emptyDesc',
+              'Link your existing boards to manage them under this organization.',
+            )}
           </p>
           {isAdmin && (
             <button
@@ -375,7 +398,9 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-foreground font-medium text-sm group-hover:text-bridge-accent transition-colors truncate">{board.name}</span>
+                        <span className="text-foreground font-medium text-sm group-hover:text-bridge-accent transition-colors truncate">
+                          {board.name}
+                        </span>
                         {board.tier === 'ORG_MANAGED' && (
                           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent inline-flex items-center gap-0.5 shrink-0">
                             <Shield size={9} />
@@ -383,7 +408,9 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-muted-foreground truncate">{adminNames.length > 0 ? adminNames.join(', ') : board.owner.name}</span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {adminNames.length > 0 ? adminNames.join(', ') : board.owner.name}
+                      </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0">
@@ -405,7 +432,10 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                         </button>
                       </>
                     )}
-                    <ChevronRight size={16} className="text-muted-foreground group-hover:text-bridge-accent group-hover:translate-x-0.5 transition-all" />
+                    <ChevronRight
+                      size={16}
+                      className="text-muted-foreground group-hover:text-bridge-accent group-hover:translate-x-0.5 transition-all"
+                    />
                   </div>
                 </div>
 
@@ -415,12 +445,16 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                     <div className="flex items-center gap-1">
                       <Clock size={11} className="text-slate-400" />
                       <span>{t('organization.boards.totalTime', 'Total')}</span>
-                      <span className="font-bold text-foreground">{formatMinutes(board.total_minutes)}</span>
+                      <span className="font-bold text-foreground">
+                        {formatMinutes(board.total_minutes)}
+                      </span>
                     </div>
                     <div className="w-px h-3 bg-foreground/10" />
                     <div className="flex items-center gap-1">
                       <span>{t('organization.boards.thisMonth', 'This month')}</span>
-                      <span className="font-bold text-bridge-accent">{formatMinutes(board.monthly_minutes)}</span>
+                      <span className="font-bold text-bridge-accent">
+                        {formatMinutes(board.monthly_minutes)}
+                      </span>
                     </div>
                   </div>
                   <WeeklyChart weeks={board.weekly_times} />
@@ -436,7 +470,11 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                         title={member.name}
                       >
                         {member.profile_image ? (
-                          <img src={member.profile_image} alt={member.name} className="w-full h-full object-cover" />
+                          <img
+                            src={member.profile_image}
+                            alt={member.name}
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
                           <div className="w-full h-full bg-bridge-accent/20 text-bridge-accent flex items-center justify-center">
                             {member.name.charAt(0).toUpperCase()}
@@ -451,7 +489,9 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {t('organization.boards.memberCount', '{{count}} members', { count: board.member_count })}
+                    {t('organization.boards.memberCount', '{{count}} members', {
+                      count: board.member_count,
+                    })}
                   </span>
                 </div>
               </motion.div>
@@ -461,17 +501,26 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
       )}
 
       {/* Release Confirmation Modal */}
-      <MotionModal open={!!showReleaseConfirm} onClose={() => setShowReleaseConfirm(null)} className="sm:max-w-sm">
+      <MotionModal
+        open={!!showReleaseConfirm}
+        onClose={() => setShowReleaseConfirm(null)}
+        className="sm:max-w-sm"
+      >
         <div className="h-1 bg-gradient-to-r from-amber-500 to-red-500 rounded-t-2xl" />
         <div className="px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <div className="flex items-center gap-3">
             <AlertTriangle size={20} className="text-amber-600 dark:text-amber-400" />
-            <h2 className="text-lg font-bold text-foreground">{t('organization.boards.releaseConfirm', 'Release Board?')}</h2>
+            <h2 className="text-lg font-bold text-foreground">
+              {t('organization.boards.releaseConfirm', 'Release Board?')}
+            </h2>
           </div>
         </div>
         <div className="px-5 pb-5 pt-4">
           <p className="text-sm text-muted-foreground">
-            {t('organization.boards.releaseWarning', 'After release, non-members can join this board. To re-link, all members must be org members.')}
+            {t(
+              'organization.boards.releaseWarning',
+              'After release, non-members can join this board. To re-link, all members must be org members.',
+            )}
           </p>
         </div>
         <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
@@ -494,7 +543,11 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
       </MotionModal>
 
       {/* Delete Confirmation Modal */}
-      <MotionModal open={!!showDeleteConfirm} onClose={() => !deleting && setShowDeleteConfirm(null)} className="sm:max-w-sm">
+      <MotionModal
+        open={!!showDeleteConfirm}
+        onClose={() => !deleting && setShowDeleteConfirm(null)}
+        className="sm:max-w-sm"
+      >
         <div className="h-[2px] bg-gradient-to-r from-red-500 to-red-700 rounded-t-2xl" />
         <div className="px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <div className="flex items-center gap-3">
@@ -506,19 +559,25 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                 {t('organization.boards.deleteConfirm', 'Delete Board?')}
               </h2>
               <p className="text-xs text-slate-500">
-                {boards.find(b => b.id === showDeleteConfirm)?.name}
+                {boards.find((b) => b.id === showDeleteConfirm)?.name}
               </p>
             </div>
           </div>
         </div>
         <div className="px-5 pb-5 pt-4 space-y-3">
           <p className="text-sm text-muted-foreground">
-            {t('organization.boards.deleteWarning', 'This board and all its data will be deleted. It can be recovered within 7 days.')}
+            {t(
+              'organization.boards.deleteWarning',
+              'This board and all its data will be deleted. It can be recovered within 7 days.',
+            )}
           </p>
           <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
             <AlertTriangle size={14} className="text-red-600 dark:text-red-400 shrink-0" />
             <span className="text-xs text-red-600 dark:text-red-400 leading-relaxed">
-              {t('organization.boards.deleteIrreversible', 'All features, tasks, comments, and files will be affected. The board will also be unlinked from the organization.')}
+              {t(
+                'organization.boards.deleteIrreversible',
+                'All features, tasks, comments, and files will be affected. The board will also be unlinked from the organization.',
+              )}
             </span>
           </div>
         </div>
@@ -580,8 +639,8 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
         </div>
 
         {/* Create New Board Tab */}
-        {addModalTab === 'create' && (
-          subscription && !subscription.can_create_org_board ? (
+        {addModalTab === 'create' &&
+          (subscription && !subscription.can_create_org_board ? (
             <>
               <div className="px-5 pb-5 pt-4">
                 <div className="flex flex-col items-center text-center py-4">
@@ -592,7 +651,10 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                     {t('organization.boards.upgradeTitle', 'PRO plan required')}
                   </h3>
                   <p className="text-sm text-slate-400 mb-5 max-w-xs leading-relaxed">
-                    {t('organization.boards.upgradeDesc', 'Upgrade your organization to the PRO plan to create and manage boards within the organization.')}
+                    {t(
+                      'organization.boards.upgradeDesc',
+                      'Upgrade your organization to the PRO plan to create and manage boards within the organization.',
+                    )}
                   </p>
                   <div className="w-full space-y-2.5 mb-5">
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08]">
@@ -604,7 +666,10 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                           {t('organization.boards.upgradeBenefit1', 'Unlimited board creation')}
                         </span>
                         <p className="text-xs text-slate-500">
-                          {t('organization.boards.upgradeBenefit1Desc', 'Create as many boards as your team needs')}
+                          {t(
+                            'organization.boards.upgradeBenefit1Desc',
+                            'Create as many boards as your team needs',
+                          )}
                         </p>
                       </div>
                     </div>
@@ -617,7 +682,10 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                           {t('organization.boards.upgradeBenefit2', 'Team collaboration')}
                         </span>
                         <p className="text-xs text-slate-500">
-                          {t('organization.boards.upgradeBenefit2Desc', 'All organization members can access and collaborate')}
+                          {t(
+                            'organization.boards.upgradeBenefit2Desc',
+                            'All organization members can access and collaborate',
+                          )}
                         </p>
                       </div>
                     </div>
@@ -630,7 +698,10 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                           {t('organization.boards.upgradeBenefit3', 'Premium features included')}
                         </span>
                         <p className="text-xs text-slate-500">
-                          {t('organization.boards.upgradeBenefit3Desc', 'AI, analytics, and all premium features')}
+                          {t(
+                            'organization.boards.upgradeBenefit3Desc',
+                            'AI, analytics, and all premium features',
+                          )}
                         </p>
                       </div>
                     </div>
@@ -638,7 +709,10 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06]">
                     <AlertTriangle size={13} className="text-slate-400 shrink-0" />
                     <span className="text-xs text-slate-500 leading-relaxed">
-                      {t('organization.boards.trialBoardHint', 'You can create regular boards from the board list. Organization-managed boards require a PRO plan.')}
+                      {t(
+                        'organization.boards.trialBoardHint',
+                        'You can create regular boards from the board list. Organization-managed boards require a PRO plan.',
+                      )}
                     </span>
                   </div>
                 </div>
@@ -671,7 +745,9 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                   type="text"
                   value={newBoardName}
                   onChange={(e) => setNewBoardName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !creating && newBoardName.trim() && handleCreateBoard()}
+                  onKeyDown={(e) =>
+                    e.key === 'Enter' && !creating && newBoardName.trim() && handleCreateBoard()
+                  }
                   placeholder={t('organization.boards.boardNamePlaceholder', 'Board name')}
                   maxLength={100}
                   autoFocus
@@ -680,7 +756,10 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                 <textarea
                   value={newBoardDescription}
                   onChange={(e) => setNewBoardDescription(e.target.value)}
-                  placeholder={t('organization.boards.boardDescPlaceholder', 'Description (optional)')}
+                  placeholder={t(
+                    'organization.boards.boardDescPlaceholder',
+                    'Description (optional)',
+                  )}
                   rows={2}
                   maxLength={500}
                   className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
@@ -707,12 +786,11 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                 </div>
               </div>
             </>
-          )
-        )}
+          ))}
 
         {/* Link Existing Board Tab */}
-        {addModalTab === 'link' && (
-          subscription && !subscription.can_create_org_board ? (
+        {addModalTab === 'link' &&
+          (subscription && !subscription.can_create_org_board ? (
             <>
               <div className="px-5 pb-5 pt-4">
                 <div className="flex flex-col items-center text-center py-4">
@@ -723,12 +801,18 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                     {t('organization.boards.upgradeTitle', 'PRO plan required')}
                   </h3>
                   <p className="text-sm text-slate-400 mb-5 max-w-xs leading-relaxed">
-                    {t('organization.boards.upgradeLinkDesc', 'Upgrade to the PRO plan to link existing boards to your organization and manage them centrally.')}
+                    {t(
+                      'organization.boards.upgradeLinkDesc',
+                      'Upgrade to the PRO plan to link existing boards to your organization and manage them centrally.',
+                    )}
                   </p>
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06] w-full">
                     <AlertTriangle size={13} className="text-slate-400 shrink-0" />
                     <span className="text-xs text-slate-500 leading-relaxed text-left">
-                      {t('organization.boards.trialBoardHint', 'You can create regular boards from the board list. Organization-managed boards require a PRO plan.')}
+                      {t(
+                        'organization.boards.trialBoardHint',
+                        'You can create regular boards from the board list. Organization-managed boards require a PRO plan.',
+                      )}
                     </span>
                   </div>
                 </div>
@@ -773,8 +857,8 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                           selectedBoardId === board.id
                             ? 'border-bridge-accent bg-bridge-accent/10'
                             : isEligible
-                            ? 'border-foreground/[0.08] hover:border-foreground/[0.12] cursor-pointer'
-                            : 'border-foreground/[0.08] opacity-60'
+                              ? 'border-foreground/[0.08] hover:border-foreground/[0.12] cursor-pointer'
+                              : 'border-foreground/[0.08] opacity-60'
                         }`}
                       >
                         <div className="flex items-center justify-between">
@@ -782,12 +866,16 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                           {isEligible ? (
                             <Check size={14} className="text-emerald-600 dark:text-emerald-400" />
                           ) : check ? (
-                            <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
+                            <AlertTriangle
+                              size={14}
+                              className="text-amber-600 dark:text-amber-400"
+                            />
                           ) : null}
                         </div>
                         {check && !isEligible && check.non_org_members.length > 0 && (
                           <div className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                            {t('organization.boards.nonOrgMembers', 'Non-org members')}: {check.non_org_members.map((m) => m.name).join(', ')}
+                            {t('organization.boards.nonOrgMembers', 'Non-org members')}:{' '}
+                            {check.non_org_members.map((m) => m.name).join(', ')}
                           </div>
                         )}
                       </div>
@@ -809,13 +897,14 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                     disabled={!selectedBoardId || adding}
                     className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
                   >
-                    {adding ? t('common.adding', 'Adding...') : t('organization.boards.addButton', 'Add Board')}
+                    {adding
+                      ? t('common.adding', 'Adding...')
+                      : t('organization.boards.addButton', 'Add Board')}
                   </button>
                 </div>
               </div>
             </>
-          )
-        )}
+          ))}
       </MotionModal>
     </div>
   );

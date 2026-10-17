@@ -2,10 +2,10 @@ package com.kanban.domain.subscription.controller;
 
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.subscription.BillingCycle;
-import com.kanban.domain.subscription.OrgPaymentHistory;
 import com.kanban.domain.subscription.OrgSubscription;
 import com.kanban.domain.subscription.dto.CheckoutResponse;
 import com.kanban.domain.subscription.dto.MigrationPreviewResponse;
+import com.kanban.domain.subscription.dto.OrgPaymentHistoryResponse;
 import com.kanban.domain.subscription.dto.OrgSubscriptionResponse;
 import com.kanban.domain.subscription.dto.PolarCheckoutRequest;
 import com.kanban.domain.subscription.service.OrgSubscriptionService;
@@ -123,11 +123,11 @@ public class OrgSubscriptionController {
     }
 
     @GetMapping("/api/v1/organizations/{orgId}/subscription/payments")
-    public ResponseEntity<List<OrgPaymentHistory>> getPaymentHistory(
+    public ResponseEntity<List<OrgPaymentHistoryResponse>> getPaymentHistory(
             @PathVariable String orgId,
             @AuthenticationPrincipal UserPrincipal principal) {
         organizationService.getOrgMemberOrThrow(orgId, principal.getUserId());
-        List<OrgPaymentHistory> history = orgSubscriptionService.getPaymentHistory(orgId);
+        List<OrgPaymentHistoryResponse> history = orgSubscriptionService.getPaymentHistory(orgId);
         return ResponseEntity.ok(history);
     }
 

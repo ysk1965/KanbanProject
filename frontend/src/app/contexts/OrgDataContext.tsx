@@ -1,4 +1,12 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  ReactNode,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { organizationService, leaveService, orgSubscriptionService } from '../utils/services';
@@ -72,7 +80,9 @@ export function OrgDataProvider({ orgId, children }: { orgId: string; children: 
   const [positions, setPositions] = useState<OrgPosition[]>([]);
   const [titles, setTitles] = useState<OrgTitle[]>([]);
   const [grades, setGrades] = useState<OrgGrade[]>([]);
-  const [structureSettings, setStructureSettings] = useState<OrgStructureSettings>(DEFAULT_STRUCTURE_SETTINGS);
+  const [structureSettings, setStructureSettings] = useState<OrgStructureSettings>(
+    DEFAULT_STRUCTURE_SETTINGS,
+  );
 
   // Subscription (lazy loaded)
   const [subscription, setSubscription] = useState<OrgSubscription | null>(null);
@@ -166,41 +176,57 @@ export function OrgDataProvider({ orgId, children }: { orgId: string; children: 
     try {
       const balances = await leaveService.getMyBalance(orgId);
       setMyLeaveBalances(balances);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [orgId]);
 
-  const value = useMemo<OrgDataContextType>(() => ({
-    orgId,
-    org,
-    myRole,
-    myMemberId,
-    isAdmin,
-    departments,
-    jobGroups,
-    positions,
-    titles,
-    grades,
-    structureSettings,
-    subscription,
-    loadSubscription,
-    myLeaveBalances,
-    loading,
-    refreshOrg,
-    refreshStructureData,
-    refreshSubscription,
-    refreshLeaveBalances,
-  }), [
-    orgId, org, myRole, myMemberId, isAdmin,
-    departments, jobGroups, positions, titles, grades, structureSettings,
-    subscription, loadSubscription, myLeaveBalances, loading,
-    refreshOrg, refreshStructureData, refreshSubscription, refreshLeaveBalances,
-  ]);
-
-  return (
-    <OrgDataContext.Provider value={value}>
-      {children}
-    </OrgDataContext.Provider>
+  const value = useMemo<OrgDataContextType>(
+    () => ({
+      orgId,
+      org,
+      myRole,
+      myMemberId,
+      isAdmin,
+      departments,
+      jobGroups,
+      positions,
+      titles,
+      grades,
+      structureSettings,
+      subscription,
+      loadSubscription,
+      myLeaveBalances,
+      loading,
+      refreshOrg,
+      refreshStructureData,
+      refreshSubscription,
+      refreshLeaveBalances,
+    }),
+    [
+      orgId,
+      org,
+      myRole,
+      myMemberId,
+      isAdmin,
+      departments,
+      jobGroups,
+      positions,
+      titles,
+      grades,
+      structureSettings,
+      subscription,
+      loadSubscription,
+      myLeaveBalances,
+      loading,
+      refreshOrg,
+      refreshStructureData,
+      refreshSubscription,
+      refreshLeaveBalances,
+    ],
   );
+
+  return <OrgDataContext.Provider value={value}>{children}</OrgDataContext.Provider>;
 }
 
 export function useOrgData(): OrgDataContextType {

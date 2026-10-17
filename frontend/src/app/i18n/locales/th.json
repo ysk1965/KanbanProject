@@ -11,6 +11,9 @@
     "addImage": "รูปภาพ",
     "addVideo": "วิดีโอ",
     "empty": "เพิ่มโหนดจากแถบเครื่องมือด้านบนเพื่อเริ่มต้น",
+    "selectedCount": "เลือก {{count}} รายการ",
+    "scaleDown": "ย่อส่วนที่เลือก",
+    "scaleUp": "ขยายส่วนที่เลือก",
     "emptyReadOnly": "โฟลว์นี้ว่างเปล่า",
     "dropHere": "วางรูปภาพหรือวิดีโอที่นี่",
     "mediaUploadFailed": "อัปโหลดสื่อไม่สำเร็จ โปรดตรวจสอบขนาดหรือรูปแบบไฟล์",
@@ -105,7 +108,7 @@
       },
       "personal": {
         "title": "Personal Productivity Hub",
-        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+        "desc": "Eisenhower Matrix task board and habit tracker with streaks — your personal growth toolkit lives right next to your team workspace."
       }
     },
     "myspace": {
@@ -116,8 +119,7 @@
       "tabs": {
         "overview": "Overview",
         "matrix": "Matrix",
-        "habits": "Habits",
-        "diary": "AI Diary"
+        "habits": "Habits"
       },
       "matrix": {
         "title": "Eisenhower Matrix",
@@ -126,10 +128,6 @@
       "habits": {
         "title": "Habit Tracker",
         "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
-      },
-      "diary": {
-        "title": "AI Diary",
-        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
       },
       "calendar": {
         "title": "Personal Calendar",
@@ -210,11 +208,7 @@
       },
       "subtitle": "เหนือกว่าแดชบอร์ดและกราฟ AI วิเคราะห์งาน, ไทม์บล็อก, เช็คลิสต์ และคอมเมนต์เพื่อสร้างข้อมูลเชิงลึกที่มนุษย์อาจมองข้าม",
       "titleLine1": "AI อ่าน",
-      "titleLine2": "full context",
-      "diary": {
-        "title": "AI Conversational Diary",
-        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
-      }
+      "titleLine2": "full context"
     },
     "pricing": {
       "badge": "PREMIUM ทดลองใช้ฟรี 3 วัน",
@@ -369,7 +363,7 @@
     "searchPlaceholder": "ค้นหาโปรเจกต์...",
     "logout": "ออกจากระบบ",
     "mySpace": "พื้นที่ของฉัน",
-    "mySpaceDesc": "ตารางส่วนตัว & ไดอารี่ AI",
+    "mySpaceDesc": "ตารางส่วนตัว & นิสัย",
     "mySpaceSetup": "สร้างพื้นที่ส่วนตัวของคุณ",
     "mySpaceCreate": "สร้าง",
     "mySpaceIntroTitle": "พื้นที่ของฉัน",
@@ -380,8 +374,6 @@
     "mySpaceIntroHabitDesc": "ติดตามนิสัยประจำวันและเติบโตอย่างสม่ำเสมอ",
     "mySpaceIntroEventTitle": "Events",
     "mySpaceIntroEventDesc": "จัดการตารางและกิจกรรมได้ในที่เดียว",
-    "mySpaceIntroDiaryTitle": "AI Diary",
-    "mySpaceIntroDiaryDesc": "เขียนไดอารี่ด้วยความช่วยเหลือจาก AI",
     "mySpaceIntroStart": "เริ่มต้น",
     "mySpaceIntroClose": "ปิด",
     "yourProjects": "โปรเจกต์ของคุณ",
@@ -874,7 +866,9 @@
     "breakTime": "เวลาพัก",
     "breakTimeDesc": "เวลาพักจะไม่นับรวมในชั่วโมงทำงาน",
     "effectiveHours": "ทำงานจริง:",
-    "excludingBreak": "(ไม่รวมพัก {{hours}} ชม.)"
+    "excludingBreak": "(ไม่รวมพัก {{hours}} ชม.)",
+    "unplaceNotChecklist": "เฉพาะบล็อกที่เชื่อมกับรายการเช็กลิสต์เท่านั้นที่ย้ายกลับได้",
+    "unplaceFailed": "ย้ายไปยังที่ยังไม่จัดไม่สำเร็จ"
   },
   "dailySummary": {
     "summaryButton": "สรุป",
@@ -1172,6 +1166,20 @@
     "progress": "ความคืบหน้าการบำรุงรักษา {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
   },
+  "serverDown": {
+    "title": "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์",
+    "subtitle": "เซิร์ฟเวอร์กำลังอัปเดตหรือไม่ตอบสนองชั่วคราว ระบบจะเชื่อมต่อใหม่โดยอัตโนมัติ",
+    "offlineTitle": "คุณออฟไลน์อยู่",
+    "offlineSubtitle": "โปรดตรวจสอบการเชื่อมต่อเครือข่าย ระบบจะลองใหม่อัตโนมัติเมื่อกลับมาออนไลน์",
+    "elapsed": "ขาดการเชื่อมต่อ",
+    "statusLabel": "สถานะเซิร์ฟเวอร์",
+    "statusUnreachable": "ไม่มีการตอบสนอง",
+    "statusOffline": "เครือข่ายขาด",
+    "checking": "กำลังตรวจสอบ...",
+    "checkNow": "ลองใหม่ทันที",
+    "autoRefresh": "เชื่อมต่อใหม่อัตโนมัติทุก 5 วินาที",
+    "hint": "การเปลี่ยนแปลงที่ยังไม่บันทึกอาจสูญหาย หน้านี้จะปิดเองเมื่อเซิร์ฟเวอร์กลับมา"
+  },
   "nightShutdown": {
     "title": "นอกเวลาทำการ",
     "subtitle": "มีการบำรุงรักษาเซิร์ฟเวอร์ทุกวันเวลา 03:30 - 08:30 (KST)",
@@ -1379,6 +1387,7 @@
     "changeStatus": "เปลี่ยนสถานะ",
     "description": "คำอธิบาย",
     "noDescription": "ไม่มีคำอธิบาย",
+    "jiraDescriptionLocked": "คำอธิบายนี้จัดการโดย JIRA แก้ไขได้ที่ issue ใน JIRA",
     "period": "ระยะเวลา",
     "startDateTbd": "วันเริ่มต้นยังไม่กำหนด",
     "endDateTbd": "วันสิ้นสุดยังไม่กำหนด",
@@ -1464,7 +1473,7 @@
     },
     "moveChecklistToTaskTitle": "ย้ายรายการเช็คลิสต์",
     "moveCompletedSection": "เสร็จสิ้น",
-    "moveChecklistToTaskDesc": "เลือก Task ที่ต้องการย้ายไป",
+    "moveChecklistToTaskDesc": "เลือก Task ที่ต้องการย้ายไป หรือสร้าง Task ใหม่",
     "deleteChecklistTitle": "ลบรายการเช็คลิสต์?",
     "deleteChecklistDesc": "รายการที่ลบแล้วไม่สามารถกู้คืนได้",
     "date": "วันที่",
@@ -1522,7 +1531,8 @@
     "aiDecisions": "การตัดสินใจ",
     "aiOpenQuestions": "คำถามที่ยังไม่ได้ตอบ",
     "aiActionItems": "รายการดำเนินการ",
-    "checklist": "เช็คลิสต์"
+    "checklist": "เช็คลิสต์",
+    "download": "ดาวน์โหลด"
   },
   "mentionGroup": {
     "create": "สร้างกลุ่มการกล่าวถึง",
@@ -1685,7 +1695,6 @@
       "personalBoards": "บอร์ดส่วนตัว",
       "adoptionRate": "อัตราการใช้งาน",
       "activePersonalBoards": "ใช้งานอยู่ (30 วัน)",
-      "totalDiaryEntries": "จำนวนไดอารี่",
       "boardTypeDistribution": "การกระจายประเภทบอร์ด"
     },
     "analytics": {
@@ -1721,11 +1730,6 @@
       "totalPersonalBoards": "Personal Board ทั้งหมด",
       "adoptionRateLabel": "อัตราการใช้งาน",
       "pbCreated": "PB สร้าง",
-      "diaryEngagement": "การมีส่วนร่วม Diary",
-      "totalDiaryEntries": "รายการทั้งหมด",
-      "diaryCompletionRate": "อัตราเสร็จสิ้น",
-      "diaryActiveUsers": "ผู้ใช้ที่ใช้งาน",
-      "diaryEntries": "Diary เขียน",
       "pbConversion": "การแปลง Personal Board",
       "personalOnly": "Personal เท่านั้น",
       "personalAndTeam": "Personal + Team",
@@ -1992,8 +1996,6 @@
       "seatCountUpdateSuccess": "จำนวนที่นั่งถูกเปลี่ยนเป็น {{count}} แล้ว",
       "updateSeatCount": "อัปเดตจำนวนที่นั่ง",
       "personalActivity": "กิจกรรมส่วนตัว",
-      "diaryEntries": "ไดอารี่",
-      "completionRate": "{{rate}}% เสร็จสิ้น",
       "events": "กิจกรรม",
       "lastActivity": "กิจกรรมล่าสุด"
     },
@@ -2350,7 +2352,8 @@
     "nextDay": "วันถัดไป",
     "custom": "บล็อกกำหนดเอง",
     "orgScheduleLabel": "{{boardName}}",
-    "orgScheduleReadOnly": "อ่านอย่างเดียว (บอร์ดอื่น)"
+    "orgScheduleReadOnly": "อ่านอย่างเดียว (บอร์ดอื่น)",
+    "willUnplace": "ย้ายไปยังที่ยังไม่จัด"
   },
   "scheduleDetail": {
     "title": "รายละเอียด Time Block",
@@ -2376,7 +2379,9 @@
     "editCustom": "แก้ไขบล็อก",
     "titlePlaceholder": "ป้อนชื่อตารางเวลา",
     "viewMeeting": "ดูรายละเอียดการประชุม",
-    "escClose": "Esc ปิด"
+    "escClose": "Esc ปิด",
+    "unplace": "ย้ายไปยังที่ยังไม่จัด",
+    "unplaceHint": "ลบไทม์บล็อกของวันนี้และล้างวันที่"
   },
   "emptyBoard": {
     "heading": "เริ่มต้นกับบอร์ดของคุณ",
@@ -3164,7 +3169,76 @@
       "schedule": "กำหนดการ",
       "calendar": "ปฏิทิน",
       "notes": "บันทึก",
-      "diary": "ไดอารี่ AI"
+      "features": "ฟีเจอร์"
+    },
+    "features": {
+      "timetable": "ตารางเวลา",
+      "timetable_new": "ตารางเวลาใหม่",
+      "timetable_default_title": "ตารางเวลาใหม่",
+      "songlist": "รายชื่อเพลง",
+      "attendance": "ใบเช็คชื่อ",
+      "soon": "เร็วๆ นี้",
+      "soon_toast": "เร็วๆ นี้",
+      "empty_title": "สร้างตารางเวลาแรกของคุณ",
+      "empty_desc": "จัดลำดับการซ้อมและพิธีนมัสการเป็นตารางแล้วส่งออกเป็น PDF",
+      "saved_ago": "บันทึกแล้ว",
+      "saving": "กำลังบันทึก…",
+      "duplicate": "ทำสำเนา",
+      "export_pdf": "ส่งออก PDF",
+      "delete": "ลบ",
+      "delete_confirm_title": "ลบตารางเวลานี้หรือไม่?",
+      "delete_confirm_desc": "ลบแล้วไม่สามารถกู้คืนได้",
+      "untitled": "ไม่มีชื่อ",
+      "timetable_editor": {
+        "add_column": "เพิ่มคอลัมน์",
+        "add_day": "เพิ่มวันที่",
+        "add_row": "เพิ่มแถว",
+        "auto_merge": "รวมค่าซ้ำอัตโนมัติ",
+        "auto_merge_none": "ไม่มีเซลล์ติดกันที่มีค่าเหมือนกัน",
+        "auto_merge_title": "รวมเซลล์ที่ติดกันในคอลัมน์เดียวกันซึ่งมีค่า (และสี) เหมือนกันในครั้งเดียว",
+        "auto_merged": "รวมแล้ว {{count}} จุด แต่ละจุดย้อนกลับได้ด้วย “ยกเลิกการรวม”",
+        "cell_color": "สีเซลล์",
+        "color_default": "ค่าเริ่มต้น",
+        "column_deleted": "ลบคอลัมน์แล้ว",
+        "date": "วันที่",
+        "delete_column": "ลบคอลัมน์",
+        "delete_day": "ลบวันที่",
+        "delete_day_title": "ลบบล็อกวันที่",
+        "delete_row": "ลบแถว",
+        "hint_idle": "เลือกเซลล์แล้วกดสี · ลากหรือ Shift+คลิกเพื่อเลือกช่วงรวม",
+        "hint_selected": "เปลี่ยนสี หรือลาก / Shift+คลิกเลือกช่วงเพื่อรวม",
+        "merge": "รวมเซลล์",
+        "merge_same_column_only": "รวมได้เฉพาะภายในคอลัมน์เดียวกัน",
+        "merged_rows": "รวมแล้ว {{count}} แถว “ยกเลิกการรวม” จะคืนค่าเดิม",
+        "move_left": "ย้ายคอลัมน์ไปซ้าย",
+        "move_right": "ย้ายคอลัมน์ไปขวา",
+        "new_column": "คอลัมน์ใหม่",
+        "no_date": "ไม่มีวันที่",
+        "pick_cell_first": "เลือกเซลล์ที่จะใส่สีก่อน",
+        "stat": "{{days}} วัน · {{rows}} แถว · {{cols}} คอลัมน์ · รวม {{merged}} จุด",
+        "term_forgotten": "ลบ “{{value}}” ออกจากความจำแล้ว",
+        "time_hint_filled": "เติมต่อจากเวลาสิ้นสุดของแถวก่อนหน้า",
+        "time_inverted": "เวลาสิ้นสุดอยู่ก่อนเวลาเริ่ม",
+        "unmerge": "ยกเลิกการรวม",
+        "unmerged": "ยกเลิกการรวมแล้ว ค่าที่ซ่อนไว้กลับมาเหมือนเดิม",
+        "weekdays": "อา,จ,อ,พ,พฤ,ศ,ส",
+        "time_cascaded": "เลื่อนเวลาของ {{count}} แถวด้านล่างตามแล้ว",
+        "insert_row_below": "แทรกแถวด้านล่าง",
+        "drag_row": "ลากเพื่อจัดลำดับแถว",
+        "move_row_merged": "กรุณายกเลิกการผสานแถวก่อน",
+        "pasted_grid": "วางแล้ว {{rows}}×{{cols}} เซลล์",
+        "time_overlap": "เวลาซ้อนกับแถวด้านบน",
+        "sum_hours": "{{h}} ชม.",
+        "sum_minutes": "{{m}} นาที",
+        "sum_hours_minutes": "{{h}} ชม. {{m}} นาที",
+        "sum_breaks": "พัก {{d}}",
+        "undo": "เลิกทำ",
+        "redo": "ทำซ้ำ",
+        "copy_image": "คัดลอกเป็นรูปภาพ",
+        "copy_image_done": "คัดลอกรูปภาพไปยังคลิปบอร์ดแล้ว",
+        "copy_image_saved": "ใช้คลิปบอร์ดไม่ได้ จึงบันทึกเป็นไฟล์แทน",
+        "copy_image_failed": "สร้างรูปภาพไม่สำเร็จ"
+      }
     },
     "overview": {
       "noEvents": "ไม่มีกิจกรรมวันนี้",
@@ -3254,11 +3328,6 @@
       "checkInConfirm": "ทำ \"{{name}}\" สำเร็จวันนี้?",
       "checkInStreak": "จะครบ {{count}} วันติดต่อกัน!",
       "checkInComplete": "สำเร็จ"
-    },
-    "diary": {
-      "completionSuggestion": "ดูเหมือนเราคุยกันเยอะแล้ววันนี้ เขียนเป็นไดอารี่กันไหม? ✨",
-      "continueChat": "คุยต่อ",
-      "dayCutoffHint": "ก่อนตี 5 จะนับเป็นไดอารี่ของวันก่อนหน้า"
     },
     "schedule": {
       "overlapWarning": "ซ้อนทับกับ {{count}} กิจกรรม",
@@ -4571,6 +4640,11 @@
     "deleteAlbumConfirm": "ลบอัลบั้ม?",
     "deleteAlbumWarning": "การลบอัลบั้มนี้จะลบรูปถ่ายทั้งหมดที่อยู่ในนั้นด้วย",
     "deleteAlbumButton": "ลบ",
+    "deletingAlbum": "กำลังลบ...",
+    "uploadedPhotos": "รูปภาพในอัลบั้มนี้",
+    "confirmDeletePhoto": "แตะอีกครั้งเพื่อลบ",
+    "confirmDeleteShort": "ลบ?",
+    "deletePhoto": "ลบรูปภาพ",
     "deletePhotosConfirm": "ลบรูปถ่าย?",
     "deletePhotosWarning": "รูปถ่ายที่เลือก {{count}} รูปจะถูกลบ",
     "photoDeleted": "ลบรูปถ่ายเรียบร้อย",
@@ -4653,7 +4727,24 @@
       "7d": "7 วัน",
       "30d": "30 วัน",
       "never": "ตลอดไป"
-    }
+    },
+    "removeSelected": "นำออก",
+    "moreSelected": "+อีก {{count}} รูป",
+    "failUnsupported": "รูปแบบไม่รองรับ",
+    "failTooLarge": "เกิน 30MB",
+    "failNetwork": "เครือข่ายขัดข้อง",
+    "failGeneric": "อัปโหลดไม่สำเร็จ",
+    "queueUploading": "อัปโหลดแล้ว {{done}}/{{total}}",
+    "queueDone": "อัปโหลดแล้ว {{count}} รูป",
+    "queueKeepsRunning": "การอัปโหลดจะดำเนินต่อแม้ปิดหน้าต่างนี้",
+    "queueFailedCount": "ไม่สำเร็จ {{count}} รูป",
+    "queueAllDone": "รูปทั้งหมดอยู่ในอัลบั้มแล้ว",
+    "retryFailed": "ลองใหม่ {{count}} รูปที่ไม่สำเร็จ",
+    "showFailures": "รายละเอียด",
+    "filesSkipped": "ข้าม {{count}} ไฟล์ (รูปแบบไม่รองรับหรือเกิน 30MB)",
+    "uploadStarted": "เริ่มอัปโหลด {{count}} รูปแล้ว ปิดหน้าต่างนี้ได้",
+    "clearAll": "ล้างทั้งหมด",
+    "addToQueue": "เพิ่ม {{count}} รูปเพื่ออัปโหลด"
   },
   "listViewGroupBy": "จัดกลุ่ม",
   "listViewSortBy": "เรียงลำดับ",
@@ -4676,11 +4767,13 @@
     "filterMyTasks": "แสดงเฉพาะงานของฉัน",
     "toggleExpand": "ขยาย/ยุบ",
     "focusSearch": "โฟกัสค้นหา",
+    "viewDashboard": "มุมมองแดชบอร์ด",
     "viewKanban": "มุมมองคัมบัง",
     "viewList": "มุมมองรายการ",
     "viewGantt": "มุมมองแกนท์",
     "viewCalendar": "มุมมองปฏิทิน",
     "viewMilestone": "มุมมองเป้าหมาย",
+    "viewMindmap": "มุมมองแผนผังความคิด",
     "addFeature": "เพิ่ม Feature",
     "addBlock": "เพิ่มบล็อก",
     "resetFilters": "รีเซ็ตตัวกรอง",
@@ -4755,5 +4848,53 @@
     "noSearchResults": "ไม่พบผลการค้นหา",
     "clearSearch": "ล้างการค้นหา",
     "excludeFeature": "นำออกจากมายด์แมป"
+  },
+  "checklistDetail": {
+    "open": "เปิดรายละเอียด",
+    "title": "รายละเอียดรายการ",
+    "info": "ข้อมูลรายการ",
+    "gallery": "รูปภาพ {{count}}",
+    "galleryHint": "จากความคิดเห็น",
+    "noImages": "รูปที่โพสต์ในความคิดเห็นจะมารวมที่นี่",
+    "comments": "ความคิดเห็น {{count}}",
+    "placeholder": "แสดงความคิดเห็นในรายการนี้…",
+    "empty": "ยังไม่มีการสนทนา",
+    "emptyHint": "เริ่มความคิดเห็นแรก",
+    "backToTask": "ดูความคิดเห็นทั้งหมดของงาน",
+    "deletedBanner": "รายการนี้ถูกลบแล้ว · อ่านได้อย่างเดียว",
+    "chip": "เช็คลิสต์ · {{title}}",
+    "unknownItem": "รายการที่ถูกลบ"
+  },
+  "inAppBrowser": {
+    "bannerText": "ไม่สามารถบันทึกรูปภาพใน {{app}} ได้ กรุณาเปิดใน Safari หรือ Chrome",
+    "openButton": "เปิดในเบราว์เซอร์",
+    "howButton": "วิธีเปิด",
+    "guideTitle": "กรุณาเปิดในเบราว์เซอร์ภายนอก",
+    "guideBody": "ไม่สามารถบันทึกรูปภาพใน {{app}} ได้ เปิดหน้านี้ใน Safari หรือ Chrome เพื่อบันทึก",
+    "manualSteps": "แตะเมนู ··· หรือเมนูแชร์ที่ด้านบนหรือด้านล่างของหน้าจอ แล้วเลือก 'เปิดใน Safari' (เปิดในเบราว์เซอร์ภายนอก)",
+    "copyHint": "หากไม่มีเมนูดังกล่าว ให้คัดลอกลิงก์แล้ววางในแถบที่อยู่ของ Safari",
+    "copyHintAuto": "หากเบราว์เซอร์ไม่เปิด ให้คัดลอกลิงก์แล้ววางใน Safari หรือ Chrome",
+    "copyLink": "คัดลอกลิงก์",
+    "copied": "คัดลอกแล้ว",
+    "apps": {
+      "kakaotalk": "KakaoTalk",
+      "line": "LINE",
+      "naver": "แอป NAVER",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "band": "BAND",
+      "daum": "แอป Daum",
+      "webview": "แอปนี้"
+    }
+  },
+  "photoSave": {
+    "preparing": "กำลังเตรียมรูปภาพ {{current}}/{{total}}",
+    "ready": "พร้อมบันทึก {{count}} รูป",
+    "saveButton": "บันทึกลงรูปภาพ",
+    "hint": "แตะ 'บันทึกภาพ' ในหน้าแชร์เพื่อบันทึกลงแอปรูปภาพ",
+    "done": "บันทึกแล้ว {{count}} รูป",
+    "cancelled": "ยกเลิกการบันทึกแล้ว",
+    "chunk": "ชุด {{current}}/{{total}}",
+    "failed": "โหลดไม่ได้ {{count}} รูป"
   }
 }

@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>스프린트 보드 — In Review·Done 도킹 레일 개선안</title>
+<style>
+  :root {
+    --bridge-dark: #191f2d;
+    --bridge-obsidian: #151B28;
+    --bridge-accent: #6366F1;
+    --bridge-secondary: #2DD4BF;
+    --bridge-surface: #1e2a42;
+    --bridge-border: #384d6e;
+    --fg: rgba(248, 250, 252, 1);
+    --review: #f59e0b;
+    --done: #34d399;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bridge-dark);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Noto Sans KR", sans-serif;
+    padding: 32px 24px 80px;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .sub { font-size: 13px; color: #94a3b8; margin-top: 6px; line-height: 1.6; }
+  .section-label {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+    color: #64748b; margin: 40px 0 12px;
+  }
+  .pill {
+    display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px;
+    border-radius: 999px; background: rgba(99,102,241,0.15); color: #a5b4fc; vertical-align: 2px; margin-left: 8px;
+  }
+
+  /* ───────── 보드 목업 프레임 ───────── */
+  .board-frame {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    background: var(--bridge-obsidian);
+    overflow: hidden;
+  }
+  .board-topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 12px; color: #94a3b8;
+  }
+  .board-topbar b { color: var(--fg); font-weight: 700; }
+  .progress {
+    flex: 1; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden;
+  }
+  .progress > div { height: 100%; width: 90%; background: linear-gradient(90deg, var(--bridge-accent), var(--bridge-secondary)); }
+
+  /* 핵심 레이아웃: 스크롤 영역(피처 컬럼) + 고정 도크가 flex 형제 */
+  .board-body { display: flex; height: 520px; }
+  .scroll-area {
+    flex: 1; min-width: 0;
+    overflow-x: auto; overflow-y: hidden;
+    display: flex; gap: 12px; padding: 12px;
+  }
+  .scroll-area::-webkit-scrollbar { height: 8px; }
+  .scroll-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
+
+  .col {
+    width: 240px; flex-shrink: 0;
+    background: var(--bridge-dark);
+    border: 1px solid rgba(56,77,110,0.6);
+    border-radius: 14px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .col-rail { height: 3px; flex-shrink: 0; }
+  .col-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+  .col-head .name { font-size: 12px; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .col-head .cnt {
+    font-size: 10px; font-weight: 700; color: #64748b;
+    background: rgba(0,0,0,0.35); border-radius: 999px; padding: 1px 7px;
+  }
+  .col-cards { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+  .col-cards::-webkit-scrollbar { width: 6px; }
+  .col-cards::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 999px; }
+
+  .card {
+    background: var(--bridge-obsidian);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 10px;
+  }
+  .card .feat-tag {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    padding: 1px 7px; border-radius: 999px; margin-bottom: 6px;
+  }
+  .card .title { font-size: 12px; font-weight: 500; line-height: 1.45; }
+  .card .meta { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .card .bar { flex: 1; height: 4px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .card .bar > div { height: 100%; background: var(--bridge-secondary); }
+  .card .frac { font-size: 10px; font-weight: 700; color: #64748b; }
+  .avatar {
+    width: 18px; height: 18px; border-radius: 999px; flex-shrink: 0;
+    font-size: 9px; font-weight: 700; color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+
+  /* ───────── 도킹 레일 (개선안 핵심) ───────── */
+  .dock {
+    flex-shrink: 0;
+    display: flex; gap: 8px;
+    padding: 12px 12px 12px 0;
+  }
+  .dock-col {
+    display: flex; flex-direction: column;
+    border-radius: 14px; overflow: hidden;
+    background: var(--bridge-dark);
+    border: 1px solid rgba(56,77,110,0.6);
+    transition: width 0.28s cubic-bezier(0.32, 0.72, 0.24, 1);
+    width: 52px;
+    cursor: pointer;
+  }
+  .dock-col.expanded { width: 232px; cursor: default; }
+  .dock-col:not(.expanded):hover { border-color: rgba(255,255,255,0.22); }
+
+  /* 접힌 상태 */
+  .rail-collapsed {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    padding: 10px 0 12px; gap: 10px;
+  }
+  .dock-col.expanded .rail-collapsed { display: none; }
+  .rail-cnt {
+    font-size: 12px; font-weight: 700;
+    border-radius: 999px; padding: 2px 8px;
+  }
+  .rail-label {
+    writing-mode: vertical-rl; text-orientation: mixed;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+    color: #94a3b8; flex-shrink: 0;
+  }
+  .rail-minis {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    gap: 4px; padding-top: 4px; overflow: hidden; width: 100%;
+  }
+  .mini-bar {
+    width: 26px; height: 7px; border-radius: 3px;
+    background: rgba(255,255,255,0.12);
+    border-left: 3px solid transparent;
+  }
+  .rail-today {
+    font-size: 9px; font-weight: 700; color: var(--done);
+    background: rgba(52,211,153,0.12); border-radius: 999px; padding: 2px 6px;
+  }
+
+  /* 펼친 상태 — 밀도 높은 1줄 카드 */
+  .rail-expanded { flex: 1; display: none; flex-direction: column; min-height: 0; }
+  .dock-col.expanded .rail-expanded { display: flex; }
+  .rail-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .rail-head .name { font-size: 12px; font-weight: 700; flex: 1; }
+  .rail-head .collapse-btn {
+    background: none; border: none; color: #64748b; cursor: pointer;
+    font-size: 14px; line-height: 1; padding: 2px 4px; border-radius: 6px;
+  }
+  .rail-head .collapse-btn:hover { color: var(--fg); background: rgba(255,255,255,0.06); }
+  .rail-rows { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 3px; }
+  .rail-rows::-webkit-scrollbar { width: 6px; }
+  .rail-rows::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 999px; }
+  .row {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 8px; border-radius: 8px;
+    background: var(--bridge-obsidian);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .row .r-dot { width: 6px; height: 6px; border-radius: 999px; flex-shrink: 0; }
+  .row .r-title {
+    flex: 1; font-size: 11px; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .row .r-frac { font-size: 10px; font-weight: 700; color: #64748b; flex-shrink: 0; }
+  .row .avatar { width: 16px; height: 16px; font-size: 8px; }
+  .row.done-row .r-title { color: #94a3b8; text-decoration: line-through; text-decoration-color: rgba(148,163,184,0.4); }
+  .rail-more {
+    text-align: center; font-size: 10px; font-weight: 700; color: #64748b;
+    padding: 6px 0 4px; cursor: pointer;
+  }
+  .rail-more:hover { color: #94a3b8; }
+
+  /* 드롭 하이라이트 데모 */
+  .dock-col.drop-hint { border-color: rgba(245,158,11,0.7); box-shadow: 0 0 0 1px rgba(245,158,11,0.4), 0 0 24px rgba(245,158,11,0.15); }
+
+  /* ───────── 스펙/비교 ───────── */
+  .spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .spec-card {
+    background: var(--bridge-obsidian); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 16px 18px;
+  }
+  .spec-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .spec-card ul { list-style: none; }
+  .spec-card li { font-size: 12px; color: #94a3b8; line-height: 1.7; padding-left: 14px; position: relative; }
+  .spec-card li::before { content: "·"; position: absolute; left: 2px; color: var(--bridge-accent); font-weight: 700; }
+  .spec-card li b { color: var(--fg); font-weight: 700; }
+
+  .alt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; }
+  .alt-card {
+    background: var(--bridge-obsidian); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 16px 18px;
+  }
+  .alt-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .alt-card .verdict { font-size: 11px; font-weight: 700; margin-bottom: 10px; }
+  .alt-card p { font-size: 12px; color: #94a3b8; line-height: 1.7; }
+  .alt-mock {
+    margin: 10px 0; border-radius: 10px; background: var(--bridge-dark);
+    border: 1px solid rgba(255,255,255,0.06); padding: 10px; display: flex; gap: 6px; height: 110px;
+  }
+  .alt-mock .m-col { flex: 1; border-radius: 6px; background: rgba(255,255,255,0.05); border-top: 3px solid var(--bridge-accent); }
+  .alt-mock.bottom { flex-direction: column; }
+  .alt-mock.bottom .m-row-cols { flex: 1; display: flex; gap: 6px; }
+  .alt-mock.bottom .m-strip { height: 28px; border-radius: 6px; display: flex; gap: 6px; }
+  .alt-mock.bottom .m-strip > div { flex: 1; border-radius: 6px; }
+  .m-review { background: rgba(245,158,11,0.15); border-top: 3px solid var(--review) !important; }
+  .m-done { background: rgba(52,211,153,0.15); border-top: 3px solid var(--done) !important; }
+  .m-rail { flex: 0 0 14px !important; }
+
+  .hint-bar {
+    margin-top: 10px; font-size: 12px; color: #64748b;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .kbd {
+    font-size: 10px; font-weight: 700; color: #94a3b8;
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 5px; padding: 1px 6px;
+    background: rgba(255,255,255,0.04);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>In Review · Done 도킹 레일 <span class="pill">개선안</span></h1>
+  <p class="sub">
+    현재 Feature 뷰는 In Review·Done 컬럼이 가로 스크롤 맨 끝에 있어 Feature가 많으면 화면 밖으로 밀려납니다.<br/>
+    개선안: 두 컬럼을 <b style="color:#e2e8f0">스크롤 컨테이너 밖 우측 도크</b>로 빼서 항상 화면에 고정하고, 평소엔 <b style="color:#e2e8f0">52px 레일</b>로 접어둡니다.
+  </p>
+
+  <div class="section-label">인터랙티브 목업 — 레일을 클릭해 보세요</div>
+
+  <div class="board-frame">
+    <div class="board-topbar">
+      <b>Sprint 3</b> <span style="color:#818cf8;font-weight:700">진행중</span>
+      <span>체크리스트 323 / 360</span>
+      <div class="progress"><div></div></div>
+      <span style="font-weight:700;color:#e2e8f0">90%</span>
+    </div>
+
+    <div class="board-body">
+      <!-- 좌: 기존 그대로 가로 스크롤되는 Feature 컬럼들 -->
+      <div class="scroll-area" id="scrollArea"></div>
+
+      <!-- 우: 고정 도크 (스크롤과 무관하게 항상 보임) -->
+      <div class="dock">
+        <div class="dock-col" id="reviewCol">
+          <div class="col-rail" style="background: var(--review)"></div>
+          <div class="rail-collapsed">
+            <span class="rail-cnt" style="background: rgba(245,158,11,0.15); color: var(--review)">5</span>
+            <span class="rail-label">IN REVIEW</span>
+            <div class="rail-minis" id="reviewMinis"></div>
+          </div>
+          <div class="rail-expanded">
+            <div class="rail-head">
+              <span class="dot" style="background: var(--review)"></span>
+              <span class="name">In Review</span>
+              <span class="cnt" style="font-size:10px;font-weight:700;color:#64748b;background:rgba(0,0,0,0.35);border-radius:999px;padding:1px 7px;">5</span>
+              <button class="collapse-btn" data-collapse title="접기">»</button>
+            </div>
+            <div class="rail-rows" id="reviewRows"></div>
+          </div>
+        </div>
+
+        <div class="dock-col" id="doneCol">
+          <div class="col-rail" style="background: var(--done)"></div>
+          <div class="rail-collapsed">
+            <span class="rail-cnt" style="background: rgba(52,211,153,0.15); color: var(--done)">12</span>
+            <span class="rail-label">DONE</span>
+            <div class="rail-minis" id="doneMinis"></div>
+            <span class="rail-today">오늘 +3</span>
+          </div>
+          <div class="rail-expanded">
+            <div class="rail-head">
+              <span class="dot" style="background: var(--done)"></span>
+              <span class="name">Done</span>
+              <span class="cnt" style="font-size:10px;font-weight:700;color:#64748b;background:rgba(0,0,0,0.35);border-radius:999px;padding:1px 7px;">12</span>
+              <button class="collapse-btn" data-collapse title="접기">»</button>
+            </div>
+            <div class="rail-rows" id="doneRows"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint-bar">
+    <span class="kbd">클릭</span> 레일 펼치기/접기
+    <span style="opacity:0.4">|</span>
+    <span class="kbd">드래그 호버</span> 카드를 끌고 레일 위에 0.3초 머물면 자동 펼침 → 드롭
+    <span style="opacity:0.4">|</span>
+    펼침 상태는 localStorage에 저장
+  </div>
+
+  <div class="section-label">동작 스펙</div>
+  <div class="spec-grid">
+    <div class="spec-card">
+      <h3><span class="dot" style="background:var(--bridge-accent)"></span>레이아웃</h3>
+      <ul>
+        <li>In Review·Done을 <b>overflow-x 스크롤 컨테이너 밖</b>으로 빼서 flex 형제로 배치 — Feature 컬럼 수와 무관하게 항상 보임</li>
+        <li>접힘: <b>52px</b> (컬럼 1개 260px 대비 80% 절약, 둘 합쳐 112px)</li>
+        <li>펼침: 232px — 기존 컬럼과 동일한 카드 UI 또는 밀도형 1줄 카드</li>
+        <li>둘 다 펼쳐도 476px — 화면이 좁으면 <b>하나 펼치면 다른 하나 자동 접힘</b> (아코디언, md 이하)</li>
+      </ul>
+    </div>
+    <div class="spec-card">
+      <h3><span class="dot" style="background:var(--review)"></span>접힌 레일에 담는 정보</h3>
+      <ul>
+        <li>상단 <b>카운트 뱃지</b> — 컬럼 톤 컬러(amber/emerald)</li>
+        <li>세로 라벨 (writing-mode: vertical-rl)</li>
+        <li>카드마다 <b>미니 바</b> 1개 — 좌측 보더는 담당자 컬러 → 누가 리뷰 대기 중인지 한눈에</li>
+        <li>Done 레일 하단 <b>"오늘 +N"</b> — 오늘 완료 흐름이 보여 팀 사기·회고에 유용</li>
+      </ul>
+    </div>
+    <div class="spec-card">
+      <h3><span class="dot" style="background:var(--done)"></span>드래그 & 드롭</h3>
+      <ul>
+        <li>접힌 레일도 <b>그대로 드롭 타겟</b> — 카드를 끌어다 놓으면 이동 (기존 onDropColumn 재사용)</li>
+        <li>드래그 중 레일 위 <b>0.3초 호버 시 자동 펼침</b> — 특정 위치에 놓고 싶을 때</li>
+        <li>드래그 진입 시 톤 컬러 글로우로 드롭 가능 표시</li>
+        <li>기존 카드 호버 액션(리뷰·완료 원클릭 이동)은 그대로 유지 — 레일은 보조 경로</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section-label">검토한 대안</div>
+  <div class="alt-grid">
+    <div class="alt-card">
+      <h3>A. 우측 도킹 레일 (추천)</h3>
+      <div class="verdict" style="color:var(--done)">✓ 채택 제안</div>
+      <div class="alt-mock">
+        <div class="m-col"></div><div class="m-col"></div><div class="m-col"></div>
+        <div class="m-col m-review m-rail"></div><div class="m-col m-done m-rail"></div>
+      </div>
+      <p>칸반의 좌→우 진행 멘탈모델 유지. 드롭 타겟이 항상 같은 자리에 있어 드래그 동선이 짧고 예측 가능. 구현도 컬럼 렌더 위치만 옮기면 되어 변경 범위가 작음.</p>
+    </div>
+    <div class="alt-card">
+      <h3>B. 하단 도크 바</h3>
+      <div class="verdict" style="color:#f87171">✗ 보류</div>
+      <div class="alt-mock bottom">
+        <div class="m-row-cols"><div class="m-col"></div><div class="m-col"></div><div class="m-col"></div></div>
+        <div class="m-strip"><div class="m-review"></div><div class="m-done"></div></div>
+      </div>
+      <p>가로 공간은 전혀 안 쓰지만 세로 공간(카드 리스트 높이)을 깎고, "아래로 드롭"이 칸반 진행 방향과 어긋남. 모바일에선 하단 내비와 충돌.</p>
+    </div>
+    <div class="alt-card">
+      <h3>C. 통합 슬림 컬럼 (리뷰+완료 합침)</h3>
+      <div class="verdict" style="color:#f87171">✗ 보류</div>
+      <div class="alt-mock">
+        <div class="m-col"></div><div class="m-col"></div><div class="m-col"></div>
+        <div class="m-col" style="flex:0 0 60px; background:linear-gradient(180deg, rgba(245,158,11,0.15) 40%, rgba(52,211,153,0.15) 40%); border-top:3px solid var(--review)"></div>
+      </div>
+      <p>한 컬럼이라 가장 좁지만 두 상태를 한 컬럼에 섞으면 드롭 타겟이 모호해지고(위쪽=리뷰, 아래쪽=완료?), 컬럼=상태라는 기존 구조·백엔드 모델과 어긋남.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const FEATURES = [
+    { name: "가챠 개편", color: "#a3e635", frac: "4/4", cards: [
+      { tag: "가챠 개편", title: "가챠 UI 개편", who: "준태", wc: "#6366F1", p: 100, f: "4/4" },
+    ]},
+    { name: "텍틱스 모드", color: "#818cf8", frac: "32/40", cards: [
+      { tag: "텍틱스 모드", title: "[UI] 텍틱스 모드 전투 결과 UI 시안 작업", who: "준태", wc: "#6366F1", p: 100, f: "2/2" },
+      { tag: "텍틱스 모드", title: "오브젝트 리뉴얼", who: "진용", wc: "#a855f7", p: 60, f: "4/5" },
+      { tag: "텍틱스 모드", title: "텍틱스 개선 (Sprint3)", who: "규현", wc: "#14b8a6", p: 74, f: "20/27" },
+    ]},
+    { name: "스토리 모드", color: "#fb923c", frac: "60/61", cards: [
+      { tag: "스토리 모드", title: "스토리 모드 (Sprint3)", who: "진용", wc: "#a855f7", p: 88, f: "7/8" },
+    ]},
+    { name: "게임 플로우 작업", color: "#818cf8", frac: "23/26", cards: [
+      { tag: "게임 플로우", title: "프롤로그 작업", who: "다혜", wc: "#f59e0b", p: 66, f: "4/6" },
+      { tag: "게임 플로우", title: "튜토리얼 작업 (Sprint3)", who: "준태", wc: "#6366F1", p: 92, f: "12/13" },
+    ]},
+    { name: "기타 작업", color: "#2dd4bf", frac: "132/149", cards: [
+      { tag: "기타 작업", title: "공용 UI/연출 작업", who: "준태", wc: "#6366F1", p: 96, f: "25/26" },
+      { tag: "기타 작업", title: "미분류", who: "상건", wc: "#10b981", p: 84, f: "42/50" },
+      { tag: "기타 작업", title: "테스트 빌드 이슈 정리", who: "상건", wc: "#10b981", p: 85, f: "39/46" },
+    ]},
+    { name: "로비 작업", color: "#818cf8", frac: "18/22", cards: [
+      { tag: "로비 작업", title: "도움말", who: "다혜", wc: "#f59e0b", p: 80, f: "8/10" },
+    ]},
+  ];
+
+  const REVIEW_ITEMS = [
+    { title: "[UI] 상점 배너 리뉴얼", who: "준태", wc: "#6366F1", f: "6/6" },
+    { title: "배치 룰 개편 검수", who: "진용", wc: "#a855f7", f: "9/9" },
+    { title: "튜토리얼 스킵 플로우", who: "규현", wc: "#14b8a6", f: "4/4" },
+    { title: "가챠 연출 사운드 싱크", who: "다혜", wc: "#f59e0b", f: "3/3" },
+    { title: "로비 진입 로딩 개선", who: "상건", wc: "#10b981", f: "5/5" },
+  ];
+
+  const DONE_ITEMS = [
+    { title: "스토리 모드 밸런스 1차", who: "진용", wc: "#a855f7", f: "7/7" },
+    { title: "[UI] 가챠 메인 화면 시안", who: "준태", wc: "#6366F1", f: "4/4" },
+    { title: "프롤로그 배경 작업", who: "다혜", wc: "#f59e0b", f: "6/6" },
+    { title: "아웃게임 프리팹 정리", who: "규현", wc: "#14b8a6", f: "8/8" },
+    { title: "보상 획득 화면 연출", who: "상건", wc: "#10b981", f: "5/5" },
+    { title: "도움말 UI 시안", who: "다혜", wc: "#f59e0b", f: "3/3" },
+  ];
+
+  // Feature 컬럼 렌더
+  const area = document.getElementById("scrollArea");
+  area.innerHTML = FEATURES.map(f => `
+    <div class="col">
+      <div class="col-rail" style="background:${f.color}"></div>
+      <div class="col-head">
+        <span class="dot" style="background:${f.color}"></span>
+        <span class="name">${f.name}</span>
+        <span class="cnt">${f.frac}</span>
+      </div>
+      <div class="col-cards">
+        ${f.cards.map(c => `
+          <div class="card">
+            <span class="feat-tag" style="background:${c.wc}22;color:${f.color}">${c.tag}</span>
+            <div class="title">${c.title}</div>
+            <div class="meta">
+              <span class="avatar" style="background:${c.wc}">${c.who[0]}</span>
+              <div class="bar"><div style="width:${c.p}%"></div></div>
+              <span class="frac">${c.f}</span>
+            </div>
+          </div>`).join("")}
+      </div>
+    </div>`).join("");
+
+  // 접힌 레일 미니 바
+  const minis = (items, el, max) => {
+    document.getElementById(el).innerHTML =
+      items.slice(0, max).map(i => `<div class="mini-bar" style="border-left-color:${i.wc}" title="${i.title} · ${i.who}"></div>`).join("") +
+      (items.length > max ? `<div style="font-size:9px;font-weight:700;color:#64748b;margin-top:2px">+${items.length - max}</div>` : "");
+  };
+  minis(REVIEW_ITEMS, "reviewMinis", 8);
+  minis(DONE_ITEMS.concat(DONE_ITEMS.slice(0, 6)), "doneMinis", 8);
+
+  // 펼친 레일 1줄 카드
+  const rows = (items, el, done, extra) => {
+    document.getElementById(el).innerHTML =
+      items.map(i => `
+        <div class="row ${done ? "done-row" : ""}">
+          <span class="r-dot" style="background:${done ? "var(--done)" : "var(--review)"}"></span>
+          <span class="r-title" title="${i.title}">${i.title}</span>
+          <span class="r-frac">${i.f}</span>
+          <span class="avatar" style="background:${i.wc}">${i.who[0]}</span>
+        </div>`).join("") +
+      (extra ? `<div class="rail-more">+${extra}개 더 보기</div>` : "");
+  };
+  rows(REVIEW_ITEMS, "reviewRows", false, 0);
+  rows(DONE_ITEMS, "doneRows", true, 6);
+
+  // 펼침/접힘 토글
+  document.querySelectorAll(".dock-col").forEach(col => {
+    col.addEventListener("click", (e) => {
+      if (e.target.closest("[data-collapse]")) { col.classList.remove("expanded"); return; }
+      if (!col.classList.contains("expanded")) col.classList.add("expanded");
+    });
+  });
+</script>
+</body>
+</html>

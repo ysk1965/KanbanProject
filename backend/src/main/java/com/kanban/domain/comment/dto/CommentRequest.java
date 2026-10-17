@@ -22,6 +22,9 @@ public class CommentRequest {
 
         /** 답글 대상 댓글 ID (null이면 루트 댓글) */
         private String parentId;
+
+        /** 이 댓글이 달릴 체크리스트 항목 ID (null이면 태스크에 직접 다는 댓글) */
+        private String checklistItemId;
     }
 
     @Getter

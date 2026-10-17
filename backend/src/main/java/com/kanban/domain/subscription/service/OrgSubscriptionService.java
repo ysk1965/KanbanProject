@@ -8,6 +8,7 @@ import com.kanban.domain.subscription.*;
 import com.kanban.domain.subscription.config.PolarConfig;
 import com.kanban.domain.subscription.dto.CheckoutResponse;
 import com.kanban.domain.subscription.dto.MigrationPreviewResponse;
+import com.kanban.domain.subscription.dto.OrgPaymentHistoryResponse;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -239,9 +240,12 @@ public class OrgSubscriptionService {
     // === Payment History ===
 
     @Transactional(readOnly = true)
-    public List<OrgPaymentHistory> getPaymentHistory(String orgId) {
+    public List<OrgPaymentHistoryResponse> getPaymentHistory(String orgId) {
         OrgSubscription sub = getSubscription(orgId);
-        return orgPaymentHistoryRepository.findByOrgSubscriptionIdOrderByCreatedAtDesc(sub.getId());
+        return orgPaymentHistoryRepository.findByOrgSubscriptionIdOrderByCreatedAtDesc(sub.getId())
+                .stream()
+                .map(OrgPaymentHistoryResponse::from)
+                .toList();
     }
 
     // === Private Helpers ===

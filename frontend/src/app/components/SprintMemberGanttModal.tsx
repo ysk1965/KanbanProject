@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, LayoutGrid, Rows3, CornerUpLeft, X } from "lucide-react";
-import { MotionModal } from "./ui/MotionModal";
-import { taskAPI } from "../utils/api";
-import type { SprintItemCard } from "../types";
-import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
-import { getTodayDateString } from "../utils/dateUtils";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, LayoutGrid, Rows3, CornerUpLeft, X } from 'lucide-react';
+import { MotionModal } from './ui/MotionModal';
+import { taskAPI } from '../utils/api';
+import type { SprintItemCard } from '../types';
+import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
+import { getTodayDateString } from '../utils/dateUtils';
 
 /**
  * 스프린트 구성원 개인 간트 · 업무 배치 모달
@@ -22,29 +22,29 @@ import { getTodayDateString } from "../utils/dateUtils";
 const DAY_W = 92; // 하루 컬럼 폭(px) — 넓게 잡아 바 안에 제목이 온전히 들어가게
 const LABEL_W = 180; // 좌측 라벨 컬럼 폭(px)
 const MS = 86400000;
-const GANTT_MODE_KEY = "bridge:sprint-gantt-mode";
-const DEFAULT_FEATURE_COLOR = "#6366F1";
+const GANTT_MODE_KEY = 'bridge:sprint-gantt-mode';
+const DEFAULT_FEATURE_COLOR = '#6366F1';
 
 /** 'YYYY-MM-DD' → epoch day 번호(UTC, 시분 없음) */
 const toNum = (iso: string): number => {
-  const [y, m, d] = iso.split("-").map(Number);
+  const [y, m, d] = iso.split('-').map(Number);
   return Math.floor(Date.UTC(y, m - 1, d) / MS);
 };
 /** epoch day 번호 → 'YYYY-MM-DD' */
 const fromNum = (n: number): string => {
   const dt = new Date(n * MS);
   const y = dt.getUTCFullYear();
-  const m = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(dt.getUTCDate()).padStart(2, "0");
+  const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(dt.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
-const DOW = ["일", "월", "화", "수", "목", "금", "토"];
+const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 const mdLabel = (iso: string) => {
-  const [, m, d] = iso.split("-").map(Number);
+  const [, m, d] = iso.split('-').map(Number);
   return `${m}/${d}`;
 };
 
-type GanttMode = "flex" | "task";
+type GanttMode = 'flex' | 'task';
 
 interface Props {
   open: boolean;
@@ -86,8 +86,8 @@ export function SprintMemberGanttModal({
   onSaved,
 }: Props) {
   const [mode, setMode] = useState<GanttMode>(() => {
-    if (typeof window === "undefined") return "flex";
-    return (localStorage.getItem(GANTT_MODE_KEY) as GanttMode) || "flex";
+    if (typeof window === 'undefined') return 'flex';
+    return (localStorage.getItem(GANTT_MODE_KEY) as GanttMode) || 'flex';
   });
   // 항목별 날짜 오버레이(낙관적). member 전환/오픈 시 props에서 시드.
   const [overlay, setOverlay] = useState<Record<string, Overlay>>({});
@@ -99,7 +99,7 @@ export function SprintMemberGanttModal({
   const scrollRef = useRef<HTMLDivElement>(null);
   const rowsRef = useRef<HTMLDivElement>(null);
   const dragItemRef = useRef<string | null>(null);
-  const seededKey = useRef<string>("");
+  const seededKey = useRef<string>('');
   const errTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── 타임라인 범위(스프린트 기간, 폴백=오늘+27일) ──
@@ -126,22 +126,18 @@ export function SprintMemberGanttModal({
     (i: number) => fromNum(range.startNum + clampIdx(i)),
     [range.startNum, clampIdx],
   );
-  const dateToIdx = useCallback(
-    (iso: string) => toNum(iso) - range.startNum,
-    [range.startNum],
-  );
+  const dateToIdx = useCallback((iso: string) => toNum(iso) - range.startNum, [range.startNum]);
 
   // member 전환/오픈 시 오버레이 시드(1회). 이후 편집 중엔 재시드하지 않음.
   useEffect(() => {
     if (!open || !member) {
-      seededKey.current = "";
+      seededKey.current = '';
       return;
     }
     if (seededKey.current === member.id) return;
     seededKey.current = member.id;
     const seed: Record<string, Overlay> = {};
-    for (const it of items)
-      seed[it.id] = { start: it.start_date, due: it.due_date };
+    for (const it of items) seed[it.id] = { start: it.start_date, due: it.due_date };
     setOverlay(seed);
     setError(null);
   }, [open, member, items]);
@@ -168,18 +164,11 @@ export function SprintMemberGanttModal({
     [items, overlay],
   );
 
-  const placed = useMemo(
-    () => cards.filter((c) => c.start_date && c.due_date),
-    [cards],
-  );
-  const backlog = useMemo(
-    () => cards.filter((c) => !(c.start_date && c.due_date)),
-    [cards],
-  );
+  const placed = useMemo(() => cards.filter((c) => c.start_date && c.due_date), [cards]);
+  const backlog = useMemo(() => cards.filter((c) => !(c.start_date && c.due_date)), [cards]);
 
   const startIdxOf = useCallback(
-    (c: SprintItemCard) =>
-      c.start_date ? clampIdx(dateToIdx(c.start_date)) : 0,
+    (c: SprintItemCard) => (c.start_date ? clampIdx(dateToIdx(c.start_date)) : 0),
     [clampIdx, dateToIdx],
   );
   const durOf = useCallback(
@@ -218,7 +207,7 @@ export function SprintMemberGanttModal({
         onSaved?.();
       } catch {
         setOverlay((o) => ({ ...o, [card.id]: baseline }));
-        flashError("저장에 실패했습니다. 다시 시도해주세요.");
+        flashError('저장에 실패했습니다. 다시 시도해주세요.');
       }
     },
     [boardId, onSaved, flashError],
@@ -236,7 +225,7 @@ export function SprintMemberGanttModal({
 
   // ── 바 이동/리사이즈 (pointer) ──
   const onBarPointerDown = useCallback(
-    (e: React.PointerEvent, card: SprintItemCard, kind: "move" | "l" | "r") => {
+    (e: React.PointerEvent, card: SprintItemCard, kind: 'move' | 'l' | 'r') => {
       if (!canEdit || !card.task_id) return;
       e.preventDefault();
       e.stopPropagation();
@@ -250,9 +239,9 @@ export function SprintMemberGanttModal({
         const delta = Math.round((ev.clientX - startX) / DAY_W);
         let s = s0;
         let dur = d0;
-        if (kind === "move") {
+        if (kind === 'move') {
           s = Math.max(0, Math.min(range.total - d0, s0 + delta));
-        } else if (kind === "r") {
+        } else if (kind === 'r') {
           dur = Math.max(1, Math.min(range.total - s0, d0 + delta));
         } else {
           const ns = Math.max(0, Math.min(s0 + d0 - 1, s0 + delta));
@@ -263,17 +252,12 @@ export function SprintMemberGanttModal({
         setLive(card.id, s, dur);
       };
       const up = () => {
-        window.removeEventListener("pointermove", move);
-        window.removeEventListener("pointerup", up);
-        void commit(
-          card,
-          idxToDate(final.s),
-          idxToDate(final.s + final.dur - 1),
-          baseline,
-        );
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        void commit(card, idxToDate(final.s), idxToDate(final.s + final.dur - 1), baseline);
       };
-      window.addEventListener("pointermove", move);
-      window.addEventListener("pointerup", up);
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
     },
     [canEdit, startIdxOf, durOf, range.total, setLive, commit, idxToDate],
   );
@@ -303,7 +287,7 @@ export function SprintMemberGanttModal({
     (e: React.DragEvent) => {
       if (!canEdit || !dragItemRef.current) return;
       e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
+      e.dataTransfer.dropEffect = 'move';
       setDropDay(laneXToDay(e.clientX));
     },
     [canEdit, laneXToDay],
@@ -311,7 +295,7 @@ export function SprintMemberGanttModal({
   const onRowsDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      const id = dragItemRef.current || e.dataTransfer.getData("text/plain");
+      const id = dragItemRef.current || e.dataTransfer.getData('text/plain');
       dragItemRef.current = null;
       setDropDay(null);
       if (!canEdit || !id) return;
@@ -339,18 +323,16 @@ export function SprintMemberGanttModal({
   const todayIdx = dateToIdx(todayIso);
   const showToday = todayIdx >= 0 && todayIdx < range.total;
 
-  const accent = member
-    ? getAssigneeHex(member.name, memberColor)
-    : DEFAULT_FEATURE_COLOR;
+  const accent = member ? getAssigneeHex(member.name, memberColor) : DEFAULT_FEATURE_COLOR;
 
   // 범례용 Feature 목록(배치된 카드 기준)
   const legendFeatures = useMemo(() => {
     const seen = new Map<string, { title: string; color: string }>();
     for (const c of placed) {
-      const key = c.feature_id ?? "__none__";
+      const key = c.feature_id ?? '__none__';
       if (!seen.has(key)) {
         seen.set(key, {
-          title: c.feature_title ?? "미분류",
+          title: c.feature_title ?? '미분류',
           color: c.feature_color ?? DEFAULT_FEATURE_COLOR,
         });
       }
@@ -370,19 +352,17 @@ export function SprintMemberGanttModal({
         <div
           key={d}
           className={`shrink-0 text-center py-1.5 border-r border-foreground/[0.06] ${
-            weekend ? "bg-foreground/[0.02]" : ""
+            weekend ? 'bg-foreground/[0.02]' : ''
           }`}
           style={{ width: DAY_W }}
         >
-          <div
-            className={`text-xs ${isToday ? "text-bridge-secondary" : "text-slate-500"}`}
-          >
+          <div className={`text-xs ${isToday ? 'text-bridge-secondary' : 'text-slate-500'}`}>
             {DOW[dow]}
           </div>
           <div
-            className={`text-sm font-medium tabular-nums ${isToday ? "text-bridge-secondary" : "text-foreground"}`}
+            className={`text-sm font-medium tabular-nums ${isToday ? 'text-bridge-secondary' : 'text-foreground'}`}
           >
-            {iso.split("-")[2].replace(/^0/, "")}
+            {iso.split('-')[2].replace(/^0/, '')}
           </div>
         </div>,
       );
@@ -400,12 +380,10 @@ export function SprintMemberGanttModal({
         role="button"
         tabIndex={0}
         title={`${card.title}\n${mdLabel(idxToDate(s))} – ${mdLabel(idxToDate(s + dur - 1))} · ${dur}일`}
-        onPointerDown={(e) => onBarPointerDown(e, card, "move")}
-        onDoubleClick={() =>
-          card.task_id && onOpenChecklistItem?.(card.task_id, card.id)
-        }
+        onPointerDown={(e) => onBarPointerDown(e, card, 'move')}
+        onDoubleClick={() => card.task_id && onOpenChecklistItem?.(card.task_id, card.id)}
         className={`group absolute top-1.5 h-7 rounded-lg flex items-center gap-1.5 px-2 border border-white/15 shadow-lg ${
-          canEdit ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+          canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
         }`}
         style={{
           left: s * DAY_W,
@@ -415,14 +393,12 @@ export function SprintMemberGanttModal({
       >
         {canEdit && (
           <span
-            onPointerDown={(e) => onBarPointerDown(e, card, "l")}
+            onPointerDown={(e) => onBarPointerDown(e, card, 'l')}
             className="absolute left-0 top-0 h-full w-2 cursor-ew-resize"
           />
         )}
         <span className="flex-1 truncate text-xs font-medium text-white drop-shadow-sm">
-          {withTitle
-            ? card.title
-            : `${mdLabel(idxToDate(s))}–${mdLabel(idxToDate(s + dur - 1))}`}
+          {withTitle ? card.title : `${mdLabel(idxToDate(s))}–${mdLabel(idxToDate(s + dur - 1))}`}
         </span>
         {canEdit && (
           <button
@@ -440,7 +416,7 @@ export function SprintMemberGanttModal({
         )}
         {canEdit && (
           <span
-            onPointerDown={(e) => onBarPointerDown(e, card, "r")}
+            onPointerDown={(e) => onBarPointerDown(e, card, 'r')}
             className="absolute right-0 top-0 h-full w-2 cursor-ew-resize"
           />
         )}
@@ -488,22 +464,15 @@ export function SprintMemberGanttModal({
               className="sticky left-0 z-[3] h-full flex items-center gap-2 px-3 bg-bridge-obsidian border-r border-foreground/[0.08]"
               style={{ width: LABEL_W, flex: `0 0 ${LABEL_W}px` }}
             >
-              <span
-                className="w-[3px] h-6 rounded-full shrink-0"
-                style={{ background: color }}
-              />
+              <span className="w-[3px] h-6 rounded-full shrink-0" style={{ background: color }} />
               <div className="min-w-0">
-                <div className="text-[12px] font-medium text-foreground truncate">
-                  {card.title}
-                </div>
+                <div className="text-[12px] font-medium text-foreground truncate">{card.title}</div>
                 <div className="text-xs text-slate-500 truncate">
-                  {card.feature_title ?? "미분류"} · {durOf(card)}일
+                  {card.feature_title ?? '미분류'} · {durOf(card)}일
                 </div>
               </div>
             </div>
-            <div className="relative flex-1 h-full">
-              {renderBar(card, false)}
-            </div>
+            <div className="relative flex-1 h-full">{renderBar(card, false)}</div>
           </div>
         );
       });
@@ -515,13 +484,13 @@ export function SprintMemberGanttModal({
       { title: string; color: string; created: string; list: SprintItemCard[] }
     >();
     for (const c of placed) {
-      const key = c.feature_id ?? "__none__";
+      const key = c.feature_id ?? '__none__';
       let g = groups.get(key);
       if (!g) {
         g = {
-          title: c.feature_title ?? "미분류",
+          title: c.feature_title ?? '미분류',
           color: c.feature_color ?? DEFAULT_FEATURE_COLOR,
-          created: c.feature_created_at ?? "",
+          created: c.feature_created_at ?? '',
           list: [],
         };
         groups.set(key, g);
@@ -529,8 +498,8 @@ export function SprintMemberGanttModal({
       g.list.push(c);
     }
     const ordered = Array.from(groups.entries()).sort((a, b) => {
-      if (a[0] === "__none__") return 1;
-      if (b[0] === "__none__") return -1;
+      if (a[0] === '__none__') return 1;
+      if (b[0] === '__none__') return -1;
       return a[1].created.localeCompare(b[1].created);
     });
     return ordered.map(([key, g]) => {
@@ -549,10 +518,7 @@ export function SprintMemberGanttModal({
               style={{ background: g.color }}
             />
             <div className="min-w-0">
-              <div
-                className="text-[12px] font-bold truncate"
-                style={{ color: g.color }}
-              >
+              <div className="text-[12px] font-bold truncate" style={{ color: g.color }}>
                 {g.title}
               </div>
               <div className="text-xs text-slate-500">
@@ -564,7 +530,7 @@ export function SprintMemberGanttModal({
             {lanes.map((lane, i) => (
               <div
                 key={i}
-                className={`relative h-10 ${i > 0 ? "border-t border-dashed border-foreground/[0.06]" : ""}`}
+                className={`relative h-10 ${i > 0 ? 'border-t border-dashed border-foreground/[0.06]' : ''}`}
               >
                 {lane.map((card) => renderBar(card, true))}
               </div>
@@ -584,7 +550,7 @@ export function SprintMemberGanttModal({
       open={open}
       onClose={onClose}
       accentColor
-      aria-label={member ? `${member.name} 간트` : "구성원 간트"}
+      aria-label={member ? `${member.name} 간트` : '구성원 간트'}
       className="sm:max-w-[1160px] w-full h-[90dvh] sm:h-[780px] flex flex-col overflow-hidden p-0"
     >
       <div className="flex flex-col h-full min-h-0">
@@ -594,17 +560,15 @@ export function SprintMemberGanttModal({
             className="w-10 h-10 rounded-xl grid place-items-center text-sm font-bold text-white shrink-0"
             style={{ background: accent }}
           >
-            {member ? getInitials(member.name) : "·"}
+            {member ? getInitials(member.name) : '·'}
           </span>
           <div className="min-w-0">
-            <div className="text-base font-bold text-foreground truncate">
-              {member?.name ?? ""}
-            </div>
+            <div className="text-base font-bold text-foreground truncate">{member?.name ?? ''}</div>
             <div className="text-xs text-slate-500 truncate">
-              {sprintName ? `${sprintName} · ` : ""}
+              {sprintName ? `${sprintName} · ` : ''}
               {sprintStart && sprintEnd
                 ? `${mdLabel(sprintStart)} – ${mdLabel(sprintEnd)}`
-                : "기간 미설정"}{" "}
+                : '기간 미설정'}{' '}
               · 담당 업무 배치
             </div>
           </div>
@@ -640,149 +604,140 @@ export function SprintMemberGanttModal({
 
         {/* 바디 = 간트 (가로 전체) */}
         <section className="flex-1 flex flex-col min-w-0 min-h-0">
-            <div className="flex items-center gap-3 px-4 py-2.5 border-b border-foreground/[0.08]">
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                개인 간트
-              </span>
-              <div className="flex gap-2.5 items-center flex-wrap text-xs text-slate-500">
-                {legendFeatures.map((f, i) => (
-                  <span key={i} className="inline-flex items-center gap-1">
-                    <i
-                      className="w-2.5 h-2.5 rounded-sm inline-block"
-                      style={{ background: f.color }}
-                    />
-                    {f.title}
-                  </span>
-                ))}
-              </div>
-              <div className="ml-auto flex bg-bridge-dark border border-foreground/[0.08] rounded-lg p-0.5">
-                <button
-                  type="button"
-                  onClick={() => switchMode("flex")}
-                  className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${
-                    mode === "flex"
-                      ? "bg-bridge-accent text-white"
-                      : "text-slate-400 hover:text-foreground"
-                  }`}
-                >
-                  <LayoutGrid className="w-3 h-3" /> 플렉서블
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchMode("task")}
-                  className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${
-                    mode === "task"
-                      ? "bg-bridge-accent text-white"
-                      : "text-slate-400 hover:text-foreground"
-                  }`}
-                >
-                  <Rows3 className="w-3 h-3" /> 업무별
-                </button>
-              </div>
+          <div className="flex items-center gap-3 px-4 py-2.5 border-b border-foreground/[0.08]">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              개인 간트
+            </span>
+            <div className="flex gap-2.5 items-center flex-wrap text-xs text-slate-500">
+              {legendFeatures.map((f, i) => (
+                <span key={i} className="inline-flex items-center gap-1">
+                  <i
+                    className="w-2.5 h-2.5 rounded-sm inline-block"
+                    style={{ background: f.color }}
+                  />
+                  {f.title}
+                </span>
+              ))}
             </div>
-
-            <div
-              ref={scrollRef}
-              className="flex-1 overflow-auto custom-scrollbar relative"
-            >
-              <div
-                className="relative"
-                style={{ minWidth: LABEL_W + range.total * DAY_W }}
+            <div className="ml-auto flex bg-bridge-dark border border-foreground/[0.08] rounded-lg p-0.5">
+              <button
+                type="button"
+                onClick={() => switchMode('flex')}
+                className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${
+                  mode === 'flex'
+                    ? 'bg-bridge-accent text-white'
+                    : 'text-slate-400 hover:text-foreground'
+                }`}
               >
-                {/* 날짜 헤더 */}
-                <div className="sticky top-0 z-20 flex bg-bridge-obsidian border-b border-foreground/[0.08]">
-                  <div
-                    className="sticky left-0 z-[21] flex items-center px-3.5 text-xs text-slate-500 bg-bridge-obsidian border-r border-foreground/[0.08]"
-                    style={{ width: LABEL_W, flex: `0 0 ${LABEL_W}px` }}
-                  >
-                    업무
-                  </div>
-                  <div className="flex">{dateCells}</div>
-                </div>
+                <LayoutGrid className="w-3 h-3" /> 플렉서블
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode('task')}
+                className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${
+                  mode === 'task'
+                    ? 'bg-bridge-accent text-white'
+                    : 'text-slate-400 hover:text-foreground'
+                }`}
+              >
+                <Rows3 className="w-3 h-3" /> 업무별
+              </button>
+            </div>
+          </div>
 
-                {/* 행 영역 */}
+          <div ref={scrollRef} className="flex-1 overflow-auto custom-scrollbar relative">
+            <div className="relative" style={{ minWidth: LABEL_W + range.total * DAY_W }}>
+              {/* 날짜 헤더 */}
+              <div className="sticky top-0 z-20 flex bg-bridge-obsidian border-b border-foreground/[0.08]">
                 <div
-                  ref={rowsRef}
-                  className="relative"
-                  onDragOver={onRowsDragOver}
-                  onDragLeave={(e) => {
-                    if (!rowsRef.current?.contains(e.relatedTarget as Node))
-                      setDropDay(null);
-                  }}
-                  onDrop={onRowsDrop}
+                  className="sticky left-0 z-[21] flex items-center px-3.5 text-xs text-slate-500 bg-bridge-obsidian border-r border-foreground/[0.08]"
+                  style={{ width: LABEL_W, flex: `0 0 ${LABEL_W}px` }}
                 >
-                  {/* 배경 그리드 */}
-                  <div
-                    className="absolute inset-0 z-0 flex pointer-events-none"
-                    style={{ left: LABEL_W }}
-                  >
-                    {Array.from({ length: range.total }).map((_, d) => {
-                      const dow = new Date(
-                        (range.startNum + d) * MS,
-                      ).getUTCDay();
-                      const weekend = dow === 0 || dow === 6;
-                      return (
-                        <div
-                          key={d}
-                          className={`shrink-0 border-r border-foreground/[0.05] ${weekend ? "bg-foreground/[0.02]" : ""}`}
-                          style={{ width: DAY_W }}
-                        />
-                      );
-                    })}
-                  </div>
-                  {/* 오늘선 */}
-                  {showToday && (
-                    <div
-                      className="absolute top-0 bottom-0 w-0.5 bg-bridge-secondary z-[5] pointer-events-none shadow-[0_0_10px_var(--tw-shadow-color)] shadow-bridge-secondary"
-                      style={{ left: LABEL_W + todayIdx * DAY_W + DAY_W / 2 }}
-                    >
-                      <span className="absolute top-0.5 left-1 text-xs font-bold text-bridge-secondary whitespace-nowrap">
-                        오늘
-                      </span>
-                    </div>
-                  )}
-                  {/* 드롭 프리뷰 */}
-                  {dropDay !== null && (
-                    <div
-                      className="absolute top-0 bottom-0 rounded-lg border-[1.5px] border-dashed border-bridge-accent bg-bridge-accent/10 z-[4] pointer-events-none"
-                      style={{ left: LABEL_W + dropDay * DAY_W, width: DAY_W }}
-                    >
-                      <span className="absolute top-1 left-1.5 text-xs font-bold text-bridge-accent bg-bridge-obsidian px-1.5 rounded whitespace-nowrap">
-                        {mdLabel(idxToDate(dropDay))}
-                      </span>
-                    </div>
-                  )}
-
-                  {placed.length === 0 ? (
-                    <div
-                      className="py-12 text-xs text-slate-500 leading-relaxed relative z-[1]"
-                      style={{ paddingLeft: LABEL_W + 20 }}
-                    >
-                      아직 배치된 업무가 없습니다.
-                      <br />
-                      아래 카드를 타임라인으로 끌어오세요.
-                    </div>
-                  ) : mode === "task" ? (
-                    renderTaskRows()
-                  ) : (
-                    renderSwimlanes()
-                  )}
-
-                  {/* 드롭 힌트 행 */}
-                  {canEdit && placed.length > 0 && (
-                    <div
-                      className="flex items-center gap-2 h-11 text-xs text-slate-500 relative z-[1]"
-                      style={{ paddingLeft: LABEL_W + 12 }}
-                    >
-                      <span className="w-5 h-5 rounded-md border border-dashed border-foreground/20 grid place-items-center text-sm">
-                        +
-                      </span>
-                      아래 업무를 이 곳으로 끌어와 배치
-                    </div>
-                  )}
+                  업무
                 </div>
+                <div className="flex">{dateCells}</div>
+              </div>
+
+              {/* 행 영역 */}
+              <div
+                ref={rowsRef}
+                className="relative"
+                onDragOver={onRowsDragOver}
+                onDragLeave={(e) => {
+                  if (!rowsRef.current?.contains(e.relatedTarget as Node)) setDropDay(null);
+                }}
+                onDrop={onRowsDrop}
+              >
+                {/* 배경 그리드 */}
+                <div
+                  className="absolute inset-0 z-0 flex pointer-events-none"
+                  style={{ left: LABEL_W }}
+                >
+                  {Array.from({ length: range.total }).map((_, d) => {
+                    const dow = new Date((range.startNum + d) * MS).getUTCDay();
+                    const weekend = dow === 0 || dow === 6;
+                    return (
+                      <div
+                        key={d}
+                        className={`shrink-0 border-r border-foreground/[0.05] ${weekend ? 'bg-foreground/[0.02]' : ''}`}
+                        style={{ width: DAY_W }}
+                      />
+                    );
+                  })}
+                </div>
+                {/* 오늘선 */}
+                {showToday && (
+                  <div
+                    className="absolute top-0 bottom-0 w-0.5 bg-bridge-secondary z-[5] pointer-events-none shadow-[0_0_10px_var(--tw-shadow-color)] shadow-bridge-secondary"
+                    style={{ left: LABEL_W + todayIdx * DAY_W + DAY_W / 2 }}
+                  >
+                    <span className="absolute top-0.5 left-1 text-xs font-bold text-bridge-secondary whitespace-nowrap">
+                      오늘
+                    </span>
+                  </div>
+                )}
+                {/* 드롭 프리뷰 */}
+                {dropDay !== null && (
+                  <div
+                    className="absolute top-0 bottom-0 rounded-lg border-[1.5px] border-dashed border-bridge-accent bg-bridge-accent/10 z-[4] pointer-events-none"
+                    style={{ left: LABEL_W + dropDay * DAY_W, width: DAY_W }}
+                  >
+                    <span className="absolute top-1 left-1.5 text-xs font-bold text-bridge-accent bg-bridge-obsidian px-1.5 rounded whitespace-nowrap">
+                      {mdLabel(idxToDate(dropDay))}
+                    </span>
+                  </div>
+                )}
+
+                {placed.length === 0 ? (
+                  <div
+                    className="py-12 text-xs text-slate-500 leading-relaxed relative z-[1]"
+                    style={{ paddingLeft: LABEL_W + 20 }}
+                  >
+                    아직 배치된 업무가 없습니다.
+                    <br />
+                    아래 카드를 타임라인으로 끌어오세요.
+                  </div>
+                ) : mode === 'task' ? (
+                  renderTaskRows()
+                ) : (
+                  renderSwimlanes()
+                )}
+
+                {/* 드롭 힌트 행 */}
+                {canEdit && placed.length > 0 && (
+                  <div
+                    className="flex items-center gap-2 h-11 text-xs text-slate-500 relative z-[1]"
+                    style={{ paddingLeft: LABEL_W + 12 }}
+                  >
+                    <span className="w-5 h-5 rounded-md border border-dashed border-foreground/20 grid place-items-center text-sm">
+                      +
+                    </span>
+                    아래 업무를 이 곳으로 끌어와 배치
+                  </div>
+                )}
               </div>
             </div>
+          </div>
         </section>
 
         {/* 하단 백로그 서랍 */}
@@ -806,7 +761,7 @@ export function SprintMemberGanttModal({
                 onClick={() => setDrawerOpen((v) => !v)}
                 className="ml-auto text-xs text-slate-400 hover:text-foreground border border-foreground/10 rounded-lg px-2.5 py-1 transition-colors"
               >
-                {drawerOpen ? "접기 ▾" : "펼치기 ▴"}
+                {drawerOpen ? '접기 ▾' : '펼치기 ▴'}
               </button>
             )}
           </div>
@@ -825,21 +780,16 @@ export function SprintMemberGanttModal({
                       draggable={canEdit}
                       onDragStart={(e) => {
                         dragItemRef.current = card.id;
-                        e.dataTransfer.setData("text/plain", card.id);
-                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData('text/plain', card.id);
+                        e.dataTransfer.effectAllowed = 'move';
                       }}
                       onDragEnd={() => {
                         dragItemRef.current = null;
                         setDropDay(null);
                       }}
-                      onClick={() =>
-                        card.task_id &&
-                        onOpenChecklistItem?.(card.task_id, card.id)
-                      }
+                      onClick={() => card.task_id && onOpenChecklistItem?.(card.task_id, card.id)}
                       className={`shrink-0 w-56 rounded-xl border border-foreground/[0.08] bg-bridge-obsidian p-2.5 transition-colors hover:border-foreground/[0.14] ${
-                        canEdit
-                          ? "cursor-grab active:cursor-grabbing"
-                          : "cursor-pointer"
+                        canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
                       }`}
                       style={{ borderLeft: `3px solid ${color}` }}
                     >
@@ -847,11 +797,8 @@ export function SprintMemberGanttModal({
                         className="text-xs font-bold mb-1 flex items-center gap-1.5"
                         style={{ color }}
                       >
-                        <span
-                          className="w-1.5 h-1.5 rounded-sm"
-                          style={{ background: color }}
-                        />
-                        {card.feature_title ?? "미분류"}
+                        <span className="w-1.5 h-1.5 rounded-sm" style={{ background: color }} />
+                        {card.feature_title ?? '미분류'}
                       </div>
                       <div className="text-xs font-medium text-foreground leading-snug line-clamp-2">
                         {card.title}
@@ -872,11 +819,11 @@ export function SprintMemberGanttModal({
                 <Loader2 className="w-3 h-3 animate-spin" /> {error}
               </span>
             ) : !canEdit ? (
-              "읽기 전용 · 편집 권한이 없습니다"
-            ) : mode === "flex" ? (
-              "플렉서블: 겹치지 않는 업무는 한 레인에 묶입니다 · 바를 끌어 이동/기간 조절"
+              '읽기 전용 · 편집 권한이 없습니다'
+            ) : mode === 'flex' ? (
+              '플렉서블: 겹치지 않는 업무는 한 레인에 묶입니다 · 바를 끌어 이동/기간 조절'
             ) : (
-              "Esc 닫기 · 바를 끌어 이동 · 양끝을 끌어 기간 조절"
+              'Esc 닫기 · 바를 끌어 이동 · 양끝을 끌어 기간 조절'
             )}
           </span>
           <button

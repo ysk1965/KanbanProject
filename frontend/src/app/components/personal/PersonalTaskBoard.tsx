@@ -2,8 +2,19 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FEATURE_COLORS } from '../../constants';
 import {
-  Plus, Check, Trash2, Flag, Calendar, ChevronDown,
-  Flame, CalendarClock, Zap, Archive, X, Pencil, Repeat,
+  Plus,
+  Check,
+  Trash2,
+  Flag,
+  Calendar,
+  ChevronDown,
+  Flame,
+  CalendarClock,
+  Zap,
+  Archive,
+  X,
+  Pencil,
+  Repeat,
 } from 'lucide-react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -11,10 +22,23 @@ import { MotionModal } from '../ui/MotionModal';
 import { IconButton } from '../ui/IconButton';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { personalTaskAPI, personalHabitAPI } from '../../utils/api';
-import { PersonalTask, PersonalTaskPriority, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix } from '../../types';
+import {
+  PersonalTask,
+  PersonalTaskPriority,
+  PersonalHabit,
+  HabitTodayItem,
+  HabitFrequency,
+  HabitWeeklyMatrix,
+} from '../../types';
 import { getDDay, getTodayDateString, type DdayUrgency } from '../../utils/dateUtils';
 import { startOfDay, parseISO, addDays, format } from 'date-fns';
-import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal, DeleteConfirmModal, type HabitFormData } from './PersonalHabits';
+import {
+  CheckInConfirmModal,
+  TaskCompleteConfirmModal,
+  HabitFormModal,
+  DeleteConfirmModal,
+  type HabitFormData,
+} from './PersonalHabits';
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -31,45 +55,63 @@ type Quadrant = 'q1' | 'q2' | 'q3' | 'q4';
 // NONE·LOW는 백엔드 PersonalTaskPriority에 원래 있던 값이다.
 // 보드 백로그가 NONE으로 항목을 만들면서 화면에도 들어오게 됐다.
 const PRIORITY_CONFIG: Record<PersonalTaskPriority, { color: string; dot: string }> = {
-  NONE:   { color: 'text-slate-500',  dot: 'bg-slate-500' },
-  LOW:    { color: 'text-slate-400',  dot: 'bg-slate-400' },
-  MEDIUM: { color: 'text-amber-400',  dot: 'bg-amber-400' },
-  HIGH:   { color: 'text-orange-500', dot: 'bg-orange-500' },
-  URGENT: { color: 'text-red-500',    dot: 'bg-red-500' },
+  NONE: { color: 'text-slate-500', dot: 'bg-slate-500' },
+  LOW: { color: 'text-slate-400', dot: 'bg-slate-400' },
+  MEDIUM: { color: 'text-amber-400', dot: 'bg-amber-400' },
+  HIGH: { color: 'text-orange-500', dot: 'bg-orange-500' },
+  URGENT: { color: 'text-red-500', dot: 'bg-red-500' },
 };
 
 const PRIORITY_LABEL_KEYS: Record<PersonalTaskPriority, string> = {
-  NONE:   'personal.tasks.priorityNone',
-  LOW:    'personal.tasks.priorityLow',
+  NONE: 'personal.tasks.priorityNone',
+  LOW: 'personal.tasks.priorityLow',
   MEDIUM: 'personal.tasks.priorityMedium',
-  HIGH:   'personal.tasks.priorityHigh',
+  HIGH: 'personal.tasks.priorityHigh',
   URGENT: 'personal.tasks.priorityUrgent',
 };
 
-const QUADRANT_CONFIG: Record<Quadrant, {
-  icon: React.ElementType;
-  color: string; border: string; bg: string; headerBg: string;
-  dropBorder: string;
-}> = {
+const QUADRANT_CONFIG: Record<
+  Quadrant,
+  {
+    icon: React.ElementType;
+    color: string;
+    border: string;
+    bg: string;
+    headerBg: string;
+    dropBorder: string;
+  }
+> = {
   q1: {
     icon: Flame,
-    color: 'text-red-400', border: 'border-red-500/20', bg: 'bg-red-500/[0.03]',
-    headerBg: 'bg-red-500/10', dropBorder: 'border-red-400/50',
+    color: 'text-red-400',
+    border: 'border-red-500/20',
+    bg: 'bg-red-500/[0.03]',
+    headerBg: 'bg-red-500/10',
+    dropBorder: 'border-red-400/50',
   },
   q2: {
     icon: CalendarClock,
-    color: 'text-bridge-accent', border: 'border-bridge-accent/20', bg: 'bg-bridge-accent/[0.03]',
-    headerBg: 'bg-bridge-accent/10', dropBorder: 'border-bridge-accent/50',
+    color: 'text-bridge-accent',
+    border: 'border-bridge-accent/20',
+    bg: 'bg-bridge-accent/[0.03]',
+    headerBg: 'bg-bridge-accent/10',
+    dropBorder: 'border-bridge-accent/50',
   },
   q3: {
     icon: Zap,
-    color: 'text-amber-400', border: 'border-amber-500/20', bg: 'bg-amber-500/[0.03]',
-    headerBg: 'bg-amber-500/10', dropBorder: 'border-amber-400/50',
+    color: 'text-amber-400',
+    border: 'border-amber-500/20',
+    bg: 'bg-amber-500/[0.03]',
+    headerBg: 'bg-amber-500/10',
+    dropBorder: 'border-amber-400/50',
   },
   q4: {
     icon: Archive,
-    color: 'text-slate-400', border: 'border-foreground/10', bg: 'bg-white/[0.02]',
-    headerBg: 'bg-foreground/5', dropBorder: 'border-slate-400/50',
+    color: 'text-slate-400',
+    border: 'border-foreground/10',
+    bg: 'bg-white/[0.02]',
+    headerBg: 'bg-foreground/5',
+    dropBorder: 'border-slate-400/50',
   },
 };
 
@@ -82,10 +124,10 @@ const QUADRANT_LABEL_KEYS: Record<Quadrant, { label: string; sublabel: string }>
 
 const DDAY_STYLES: Record<DdayUrgency, string> = {
   overdue: 'bg-red-500/15 text-red-400',
-  today:   'bg-orange-500/15 text-orange-400',
-  soon:    'bg-amber-500/15 text-amber-400',
-  normal:  'bg-foreground/5 text-slate-400',
-  none:    '',
+  today: 'bg-orange-500/15 text-orange-400',
+  soon: 'bg-amber-500/15 text-amber-400',
+  normal: 'bg-foreground/5 text-slate-400',
+  none: '',
 };
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -134,8 +176,8 @@ function deriveFrequency(days: number[]): { type: HabitFrequency; days?: string 
   if (sorted.length === 7) return { type: 'DAILY' };
   const weekdays = [1, 2, 3, 4, 5];
   const weekend = [0, 6];
-  if (sorted.length === 5 && weekdays.every(d => sorted.includes(d))) return { type: 'WEEKDAY' };
-  if (sorted.length === 2 && weekend.every(d => sorted.includes(d))) return { type: 'WEEKEND' };
+  if (sorted.length === 5 && weekdays.every((d) => sorted.includes(d))) return { type: 'WEEKDAY' };
+  if (sorted.length === 2 && weekend.every((d) => sorted.includes(d))) return { type: 'WEEKEND' };
   return { type: 'CUSTOM', days: sorted.join(',') };
 }
 
@@ -145,24 +187,49 @@ const DAY_LABELS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAY_LABELS_TWO = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const DAY_DISPLAY_ORDER = [0, 1, 2, 3, 4, 5, 6]; // Sun → Sat
 
-function getScheduledDays(frequencyType: HabitFrequency, frequencyDays?: string): Set<number> {
+function getScheduledDays(
+  frequencyType: HabitFrequency,
+  frequencyDays?: string | null,
+): Set<number> {
   switch (frequencyType) {
-    case 'DAILY': return new Set([0, 1, 2, 3, 4, 5, 6]);
-    case 'WEEKDAY': return new Set([1, 2, 3, 4, 5]);
-    case 'WEEKEND': return new Set([0, 6]);
-    case 'CUSTOM': return new Set(frequencyDays ? frequencyDays.split(',').map(Number).map(d => d === 7 ? 0 : d) : []);
-    default: return new Set([0, 1, 2, 3, 4, 5, 6]);
+    case 'DAILY':
+      return new Set([0, 1, 2, 3, 4, 5, 6]);
+    case 'WEEKDAY':
+      return new Set([1, 2, 3, 4, 5]);
+    case 'WEEKEND':
+      return new Set([0, 6]);
+    case 'CUSTOM':
+      return new Set(
+        frequencyDays
+          ? frequencyDays
+              .split(',')
+              .map(Number)
+              .map((d) => (d === 7 ? 0 : d))
+          : [],
+      );
+    default:
+      return new Set([0, 1, 2, 3, 4, 5, 6]);
   }
 }
 
-function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () => void; refreshKey?: number }) {
+function AllHabitsBar({
+  onNavigateHabits,
+  refreshKey,
+}: {
+  onNavigateHabits?: () => void;
+  refreshKey?: number;
+}) {
   const { t } = useTranslation();
   const reduced = useReducedMotion();
   const [allHabits, setAllHabits] = useState<PersonalHabit[]>([]);
   const [todayHabits, setTodayHabits] = useState<HabitTodayItem[]>([]);
   const [weeklyMatrix, setWeeklyMatrix] = useState<HabitWeeklyMatrix | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [checkInConfirm, setCheckInConfirm] = useState<{ id: string; isUndo: boolean; isNonToday?: boolean } | null>(null);
+  const [checkInConfirm, setCheckInConfirm] = useState<{
+    id: string;
+    isUndo: boolean;
+    isNonToday?: boolean;
+  } | null>(null);
   const [editHabit, setEditHabit] = useState<PersonalHabit | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -172,9 +239,9 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
   const weeklyCompletionMap = useMemo(() => {
     const map = new Map<string, Set<number>>();
     if (!weeklyMatrix) return map;
-    weeklyMatrix.habits.forEach(row => {
+    weeklyMatrix.habits.forEach((row) => {
       const completedDays = new Set<number>();
-      row.days.forEach(day => {
+      row.days.forEach((day) => {
         if (day.is_completed) {
           completedDays.add(new Date(day.date + 'T00:00:00').getDay());
         }
@@ -202,7 +269,7 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
         personalHabitAPI.getToday(fmt(now)),
         personalHabitAPI.getWeekly(fmt(monday), fmt(sunday)),
       ]);
-      setAllHabits(Array.isArray(all) ? all.filter(h => h.is_active) : []);
+      setAllHabits(Array.isArray(all) ? all.filter((h) => h.is_active) : []);
       setTodayHabits(Array.isArray(today) ? today : []);
       setWeeklyMatrix(weekly && weekly.habits ? weekly : null);
     } catch {
@@ -212,39 +279,41 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData, refreshKey]);
+  useEffect(() => {
+    loadData();
+  }, [loadData, refreshKey]);
 
   // Map today's completion status by habit_id
   const todayStatusMap = useMemo(() => {
     const map = new Map<string, HabitTodayItem>();
-    todayHabits.forEach(h => map.set(h.habit_id, h));
+    todayHabits.forEach((h) => map.set(h.habit_id, h));
     return map;
   }, [todayHabits]);
 
-  const completedCount = todayHabits.filter(h => h.is_completed).length;
+  const completedCount = todayHabits.filter((h) => h.is_completed).length;
 
   const handleCheckIn = async (habitId: string, isUndo?: boolean) => {
     const revertTo = !!isUndo;
     const todayDate = getTodayDateString();
-    const isInTodayHabits = todayHabits.some(h => h.habit_id === habitId);
+    const isInTodayHabits = todayHabits.some((h) => h.habit_id === habitId);
 
     // Optimistic update for todayHabits (only if habit is scheduled today)
     if (isInTodayHabits) {
-      setTodayHabits(prev => prev.map(h =>
-        h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h
-      ));
+      setTodayHabits((prev) =>
+        prev.map((h) => (h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h)),
+      );
     }
     // Optimistic update for weekly matrix (works for all habits)
-    setWeeklyMatrix(prev => {
+    setWeeklyMatrix((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        habits: prev.habits.map(row => {
+        habits: prev.habits.map((row) => {
           if (row.habit_id !== habitId) return row;
           return {
             ...row,
-            days: row.days.map(day =>
-              day.date === todayDate ? { ...day, is_completed: !isUndo } : day
+            days: row.days.map((day) =>
+              day.date === todayDate ? { ...day, is_completed: !isUndo } : day,
             ),
           };
         }),
@@ -253,24 +322,24 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
     try {
       const updated = await personalHabitAPI.checkIn(habitId, { log_date: todayDate });
       if (isInTodayHabits) {
-        setTodayHabits(prev => prev.map(h => h.habit_id === habitId ? updated : h));
+        setTodayHabits((prev) => prev.map((h) => (h.habit_id === habitId ? updated : h)));
       }
     } catch {
       if (isInTodayHabits) {
-        setTodayHabits(prev => prev.map(h =>
-          h.habit_id === habitId ? { ...h, is_completed: revertTo } : h
-        ));
+        setTodayHabits((prev) =>
+          prev.map((h) => (h.habit_id === habitId ? { ...h, is_completed: revertTo } : h)),
+        );
       }
-      setWeeklyMatrix(prev => {
+      setWeeklyMatrix((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
-          habits: prev.habits.map(row => {
+          habits: prev.habits.map((row) => {
             if (row.habit_id !== habitId) return row;
             return {
               ...row,
-              days: row.days.map(day =>
-                day.date === todayDate ? { ...day, is_completed: revertTo } : day
+              days: row.days.map((day) =>
+                day.date === todayDate ? { ...day, is_completed: revertTo } : day,
               ),
             };
           }),
@@ -326,47 +395,60 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
 
         {/* Horizontal scroll cards */}
         <div className="flex gap-2.5 p-3 overflow-x-auto custom-scrollbar">
-          {[...allHabits].sort((a, b) => {
-            const aScheduled = getScheduledDays(a.frequency_type, a.frequency_days).has(todayDow);
-            const bScheduled = getScheduledDays(b.frequency_type, b.frequency_days).has(todayDow);
-            if (aScheduled === bScheduled) return 0;
-            return aScheduled ? -1 : 1;
-          }).map((habit, idx) => {
-            const todayStatus = todayStatusMap.get(habit.id);
-            const scheduledDays = getScheduledDays(habit.frequency_type, habit.frequency_days);
-            const isScheduledToday = scheduledDays.has(todayDow);
-            const isCompleted = todayStatus?.is_completed ?? weeklyCompletionMap.get(habit.id)?.has(todayDow) ?? false;
-            const color = habit.color || '#8B5CF6';
-            const streak = todayStatus?.current_streak ?? habit.best_streak;
-            const weeklyCompleted = todayStatus?.weekly_completed ?? 0;
-            const weeklyTarget = todayStatus?.weekly_target ?? 0;
+          {[...allHabits]
+            .sort((a, b) => {
+              const aScheduled = getScheduledDays(a.frequency_type, a.frequency_days).has(todayDow);
+              const bScheduled = getScheduledDays(b.frequency_type, b.frequency_days).has(todayDow);
+              if (aScheduled === bScheduled) return 0;
+              return aScheduled ? -1 : 1;
+            })
+            .map((habit, idx) => {
+              const todayStatus = todayStatusMap.get(habit.id);
+              const scheduledDays = getScheduledDays(habit.frequency_type, habit.frequency_days);
+              const isScheduledToday = scheduledDays.has(todayDow);
+              const isCompleted =
+                todayStatus?.is_completed ??
+                weeklyCompletionMap.get(habit.id)?.has(todayDow) ??
+                false;
+              const color = habit.color || '#8B5CF6';
+              const streak = todayStatus?.current_streak ?? habit.best_streak;
+              const weeklyCompleted = todayStatus?.weekly_completed ?? 0;
+              const weeklyTarget = todayStatus?.weekly_target ?? 0;
 
-            return (
-              <motion.div
-                key={habit.id}
-                initial={reduced ? false : { opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={reduced ? { duration: 0 } : { delay: idx * 0.03 }}
-                className={`flex-shrink-0 w-[164px] md:w-[188px] rounded-xl border p-3.5 text-left relative group transition-colors cursor-pointer ${
-                  isScheduledToday
-                    ? 'bg-foreground/[0.03] hover:bg-foreground/5'
-                    : 'border-dashed border-foreground/[0.08] bg-foreground/[0.02] hover:bg-foreground/5 opacity-60 hover:opacity-80'
-                }`}
-                style={isScheduledToday ? { borderColor: `${color}40` } : undefined}
-                onClick={() => setEditHabit(habit)}
-              >
-                {/* Top progress gauge bar */}
-                <div className="absolute top-0 left-3 right-3 h-[2.5px] rounded-b-full overflow-hidden"
-                  style={{ backgroundColor: `${color}22`, opacity: isScheduledToday ? 1 : 0.4 }}
+              return (
+                <motion.div
+                  key={habit.id}
+                  initial={reduced ? false : { opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={reduced ? { duration: 0 } : { delay: idx * 0.03 }}
+                  className={`flex-shrink-0 w-[164px] md:w-[188px] rounded-xl border p-3.5 text-left relative group transition-colors cursor-pointer ${
+                    isScheduledToday
+                      ? 'bg-foreground/[0.03] hover:bg-foreground/5'
+                      : 'border-dashed border-foreground/[0.08] bg-foreground/[0.02] hover:bg-foreground/5 opacity-60 hover:opacity-80'
+                  }`}
+                  style={isScheduledToday ? { borderColor: `${color}40` } : undefined}
+                  onClick={() => setEditHabit(habit)}
                 >
-                  <motion.div
-                    className="h-full rounded-b-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: weeklyTarget > 0 ? `${Math.min((weeklyCompleted / weeklyTarget) * 100, 100)}%` : '100%' }}
-                    transition={{ duration: 0.5, ease: 'easeOut' }}
-                    style={{ backgroundColor: weeklyCompleted >= weeklyTarget ? '#2DD4BF' : color }}
-                  />
-                </div>
+                  {/* Top progress gauge bar */}
+                  <div
+                    className="absolute top-0 left-3 right-3 h-[2.5px] rounded-b-full overflow-hidden"
+                    style={{ backgroundColor: `${color}22`, opacity: isScheduledToday ? 1 : 0.4 }}
+                  >
+                    <motion.div
+                      className="h-full rounded-b-full"
+                      initial={{ width: 0 }}
+                      animate={{
+                        width:
+                          weeklyTarget > 0
+                            ? `${Math.min((weeklyCompleted / weeklyTarget) * 100, 100)}%`
+                            : '100%',
+                      }}
+                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                      style={{
+                        backgroundColor: weeklyCompleted >= weeklyTarget ? '#2DD4BF' : color,
+                      }}
+                    />
+                  </div>
 
                   {/* Icon + title + check */}
                   <div className="flex items-center gap-2 mb-2">
@@ -395,8 +477,8 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
                           isCompleted
                             ? 'bg-bridge-secondary border-bridge-secondary'
                             : isScheduledToday
-                            ? 'border-foreground/20 group-hover:border-purple-400/50'
-                            : 'border-dashed border-foreground/15 group-hover:border-blue-400/50'
+                              ? 'border-foreground/20 group-hover:border-purple-400/50'
+                              : 'border-dashed border-foreground/15 group-hover:border-blue-400/50'
                         }`}
                         animate={isCompleted ? { scale: [1, 1.2, 1] } : {}}
                         transition={{ duration: 0.3 }}
@@ -405,11 +487,15 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
                       </motion.div>
                     </button>
                     <div className="flex-1 min-w-0">
-                      <div className={`text-[13px] font-bold truncate leading-tight ${
-                        isCompleted ? 'text-slate-500 line-through'
-                          : !isScheduledToday ? 'text-slate-500'
-                          : 'text-foreground'
-                      }`}>
+                      <div
+                        className={`text-[13px] font-bold truncate leading-tight ${
+                          isCompleted
+                            ? 'text-slate-500 line-through'
+                            : !isScheduledToday
+                              ? 'text-slate-500'
+                              : 'text-foreground'
+                        }`}
+                      >
                         {habit.icon && <span className="mr-1">{habit.icon}</span>}
                         {habit.title}
                       </div>
@@ -424,27 +510,30 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
 
                   {/* Day chips */}
                   <div className="flex gap-[3px]">
-                    {DAY_DISPLAY_ORDER.map(dayIdx => {
+                    {DAY_DISPLAY_ORDER.map((dayIdx) => {
                       const isScheduled = scheduledDays.has(dayIdx);
                       const isTodayDay = dayIdx === todayDow;
-                      const isDayCompleted = weeklyCompletionMap.get(habit.id)?.has(dayIdx) ?? false;
+                      const isDayCompleted =
+                        weeklyCompletionMap.get(habit.id)?.has(dayIdx) ?? false;
                       return (
                         <div key={dayIdx} className="flex flex-col items-center gap-1 flex-1">
-                          <span className={`text-xs leading-none ${
-                            dayIdx === 0
-                              ? isTodayDay && isScheduled
-                                ? 'font-bold text-red-400'
-                                : isTodayDay
-                                ? 'font-bold text-red-400/70'
-                                : 'font-medium text-red-400/60'
-                              : isTodayDay && isScheduled
-                              ? 'font-bold text-purple-300'
-                              : isTodayDay
-                              ? 'font-bold text-slate-400'
-                              : isScheduled
-                              ? 'font-medium text-slate-400'
-                              : 'text-slate-600/30'
-                          }`}>
+                          <span
+                            className={`text-xs leading-none ${
+                              dayIdx === 0
+                                ? isTodayDay && isScheduled
+                                  ? 'font-bold text-red-400'
+                                  : isTodayDay
+                                    ? 'font-bold text-red-400/70'
+                                    : 'font-medium text-red-400/60'
+                                : isTodayDay && isScheduled
+                                  ? 'font-bold text-purple-300'
+                                  : isTodayDay
+                                    ? 'font-bold text-slate-400'
+                                    : isScheduled
+                                      ? 'font-medium text-slate-400'
+                                      : 'text-slate-600/30'
+                            }`}
+                          >
                             {DAY_LABELS_SHORT[dayIdx]}
                           </span>
                           {isDayCompleted ? (
@@ -456,7 +545,11 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
                               }`}
                               style={{ backgroundColor: color }}
                             >
-                              <Check size={isTodayDay ? 8 : 7} className="text-white" strokeWidth={3} />
+                              <Check
+                                size={isTodayDay ? 8 : 7}
+                                className="text-white"
+                                strokeWidth={3}
+                              />
                             </div>
                           ) : (
                             <div
@@ -464,12 +557,14 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
                                 isTodayDay && isScheduled
                                   ? 'w-3 h-3 ring-[1.5px] ring-purple-400/60'
                                   : isScheduled
-                                  ? 'w-2 h-2'
-                                  : 'w-1.5 h-1.5'
+                                    ? 'w-2 h-2'
+                                    : 'w-1.5 h-1.5'
                               }`}
                               style={{
                                 backgroundColor: isScheduled
-                                  ? isTodayDay ? color : `${color}55`
+                                  ? isTodayDay
+                                    ? color
+                                    : `${color}55`
                                   : 'rgba(255,255,255,0.04)',
                               }}
                             />
@@ -478,19 +573,24 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
                       );
                     })}
                   </div>
-
-              </motion.div>
-            );
-          })}
+                </motion.div>
+              );
+            })}
         </div>
       </div>
 
       {/* Check-in Confirm Modal */}
       <CheckInConfirmModal
         open={!!checkInConfirm}
-        habitName={checkInConfirm ? (allHabits.find(h => h.id === checkInConfirm.id)?.title || '') : ''}
-        habitIcon={checkInConfirm ? allHabits.find(h => h.id === checkInConfirm.id)?.icon : undefined}
-        streakCount={checkInConfirm ? todayStatusMap.get(checkInConfirm.id)?.current_streak : undefined}
+        habitName={
+          checkInConfirm ? allHabits.find((h) => h.id === checkInConfirm.id)?.title || '' : ''
+        }
+        habitIcon={
+          checkInConfirm ? allHabits.find((h) => h.id === checkInConfirm.id)?.icon : undefined
+        }
+        streakCount={
+          checkInConfirm ? todayStatusMap.get(checkInConfirm.id)?.current_streak : undefined
+        }
         isUndo={checkInConfirm?.isUndo}
         isNonToday={checkInConfirm?.isNonToday}
         onConfirm={() => {
@@ -518,7 +618,7 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
 
       <DeleteConfirmModal
         open={!!deleteConfirm}
-        habitName={allHabits.find(h => h.id === deleteConfirm)?.title || ''}
+        habitName={allHabits.find((h) => h.id === deleteConfirm)?.title || ''}
         onConfirm={() => deleteConfirm && handleDeleteHabit(deleteConfirm)}
         onCancel={() => setDeleteConfirm(null)}
       />
@@ -528,7 +628,11 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
 
 // ── Main Component ────────────────────────────────────────────
 
-export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: PersonalTaskBoardProps) {
+export function PersonalTaskBoard({
+  tasks,
+  onRefresh,
+  onOptimisticUpdate,
+}: PersonalTaskBoardProps) {
   const { t } = useTranslation();
   const reduced = useReducedMotion();
   const [modalTaskId, setModalTaskId] = useState<string | null>(null);
@@ -550,7 +654,11 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
   const [habitColor, setHabitColor] = useState(HABIT_COLORS_INLINE[0]);
   const [habitRefreshKey, setHabitRefreshKey] = useState(0);
 
-  const [taskConfirm, setTaskConfirm] = useState<{ id: string; title: string; isDone: boolean } | null>(null);
+  const [taskConfirm, setTaskConfirm] = useState<{
+    id: string;
+    title: string;
+    isDone: boolean;
+  } | null>(null);
 
   // Restore scroll position after data refresh
   useEffect(() => {
@@ -563,30 +671,33 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
   // ── Filtered lists ──
   const todayDate = getTodayDateString();
   const activeTasks = useMemo(
-    () => tasks.filter(t => t.status !== 'DONE' && t.status !== 'ARCHIVED'),
+    () => tasks.filter((t) => t.status !== 'DONE' && t.status !== 'ARCHIVED'),
     [tasks],
   );
   const completedTasks = useMemo(
-    () => tasks
-      .filter(t => t.status === 'DONE')
-      .sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? '')),
+    () =>
+      tasks
+        .filter((t) => t.status === 'DONE')
+        .sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? '')),
     [tasks],
   );
   // Today's completed tasks → shown inline in quadrants (exclude overdue ones)
   const todayCompletedTasks = useMemo(
-    () => completedTasks.filter(t => {
-      if (!t.completed_at) return false;
-      if (t.due_date && t.due_date < todayDate) return false;
-      return format(new Date(t.completed_at), 'yyyy-MM-dd') === todayDate;
-    }),
+    () =>
+      completedTasks.filter((t) => {
+        if (!t.completed_at) return false;
+        if (t.due_date && t.due_date < todayDate) return false;
+        return format(new Date(t.completed_at), 'yyyy-MM-dd') === todayDate;
+      }),
     [completedTasks, todayDate],
   );
   // Past completed tasks → only shown in modal
   const pastCompletedTasks = useMemo(
-    () => completedTasks.filter(t => {
-      if (!t.completed_at) return true;
-      return format(new Date(t.completed_at), 'yyyy-MM-dd') !== todayDate;
-    }),
+    () =>
+      completedTasks.filter((t) => {
+        if (!t.completed_at) return true;
+        return format(new Date(t.completed_at), 'yyyy-MM-dd') !== todayDate;
+      }),
     [completedTasks, todayDate],
   );
 
@@ -646,7 +757,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
       setNewTitle('');
       setSelectedDays([0, 1, 2, 3, 4, 5, 6]);
       setHabitColor(HABIT_COLORS_INLINE[0]);
-      setHabitRefreshKey(k => k + 1);
+      setHabitRefreshKey((k) => k + 1);
     } catch (error) {
       console.error('Failed to create habit:', error);
     }
@@ -682,19 +793,25 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
     }
   };
 
-  const handleUpdate = useCallback(async (taskId: string, data: {
-    title?: string;
-    due_date?: string | null;
-    priority?: PersonalTaskPriority;
-    description?: string;
-  }) => {
-    try {
-      await personalTaskAPI.update(taskId, data);
-      onRefresh();
-    } catch (error) {
-      console.error('Failed to update task:', error);
-    }
-  }, [onRefresh]);
+  const handleUpdate = useCallback(
+    async (
+      taskId: string,
+      data: {
+        title?: string;
+        due_date?: string | null;
+        priority?: PersonalTaskPriority;
+        description?: string;
+      },
+    ) => {
+      try {
+        await personalTaskAPI.update(taskId, data);
+        onRefresh();
+      } catch (error) {
+        console.error('Failed to update task:', error);
+      }
+    },
+    [onRefresh],
+  );
 
   // ── DnD handlers ──
   const handleDragStart = useCallback((taskId: string) => {
@@ -706,58 +823,64 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
     setDragOverQuadrant(null);
   }, []);
 
-  const handleQuadrantDrop = useCallback((targetQuadrant: Quadrant) => {
-    if (!draggedTaskId) return;
-    const task = activeTasks.find(t => t.id === draggedTaskId);
-    if (!task) return;
+  const handleQuadrantDrop = useCallback(
+    (targetQuadrant: Quadrant) => {
+      if (!draggedTaskId) return;
+      const task = activeTasks.find((t) => t.id === draggedTaskId);
+      if (!task) return;
 
-    const currentQuadrant = getQuadrant(task);
-    if (currentQuadrant === targetQuadrant) {
+      const currentQuadrant = getQuadrant(task);
+      if (currentQuadrant === targetQuadrant) {
+        setDraggedTaskId(null);
+        setDragOverQuadrant(null);
+        return;
+      }
+
+      const updates: { priority?: PersonalTaskPriority; due_date?: string } = {};
+
+      const targetImportant = targetQuadrant === 'q1' || targetQuadrant === 'q2';
+      const currentImportant = currentQuadrant === 'q1' || currentQuadrant === 'q2';
+      if (targetImportant && !currentImportant) {
+        updates.priority = 'HIGH';
+      } else if (!targetImportant && currentImportant) {
+        updates.priority = 'MEDIUM';
+      }
+
+      const targetUrgent = targetQuadrant === 'q1' || targetQuadrant === 'q3';
+      const currentUrgent = currentQuadrant === 'q1' || currentQuadrant === 'q3';
+      if (targetUrgent && !currentUrgent) {
+        updates.due_date = getTodayDateString();
+      } else if (!targetUrgent && currentUrgent) {
+        updates.due_date = getNotUrgentDateString();
+      }
+
+      if (Object.keys(updates).length > 0) {
+        // Optimistic: 로컬 state만 즉시 변경 → 옮긴 카드만 부드럽게 이동
+        onOptimisticUpdate(draggedTaskId, updates);
+        // Background API call (실패 시 전체 리프레시로 롤백)
+        personalTaskAPI.update(draggedTaskId, updates).catch(() => onRefresh());
+      }
       setDraggedTaskId(null);
       setDragOverQuadrant(null);
-      return;
-    }
-
-    const updates: { priority?: PersonalTaskPriority; due_date?: string } = {};
-
-    const targetImportant = targetQuadrant === 'q1' || targetQuadrant === 'q2';
-    const currentImportant = currentQuadrant === 'q1' || currentQuadrant === 'q2';
-    if (targetImportant && !currentImportant) {
-      updates.priority = 'HIGH';
-    } else if (!targetImportant && currentImportant) {
-      updates.priority = 'MEDIUM';
-    }
-
-    const targetUrgent = targetQuadrant === 'q1' || targetQuadrant === 'q3';
-    const currentUrgent = currentQuadrant === 'q1' || currentQuadrant === 'q3';
-    if (targetUrgent && !currentUrgent) {
-      updates.due_date = getTodayDateString();
-    } else if (!targetUrgent && currentUrgent) {
-      updates.due_date = getNotUrgentDateString();
-    }
-
-    if (Object.keys(updates).length > 0) {
-      // Optimistic: 로컬 state만 즉시 변경 → 옮긴 카드만 부드럽게 이동
-      onOptimisticUpdate(draggedTaskId, updates);
-      // Background API call (실패 시 전체 리프레시로 롤백)
-      personalTaskAPI.update(draggedTaskId, updates).catch(() => onRefresh());
-    }
-    setDraggedTaskId(null);
-    setDragOverQuadrant(null);
-  }, [draggedTaskId, activeTasks, onOptimisticUpdate, onRefresh]);
+    },
+    [draggedTaskId, activeTasks, onOptimisticUpdate, onRefresh],
+  );
 
   const urgentDeadlineLabel = format(getUrgentDeadline(), 'M/d');
 
   return (
     <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
       <div className="max-w-5xl mx-auto p-4 md:p-6 pb-6 space-y-4">
-
         {/* ── Quick Add Bar (hidden on mobile – use FAB instead) ── */}
-        <div className={`hidden md:block bg-bridge-obsidian rounded-xl border transition-all ${
-          isAddFocused
-            ? (captureType === 'habit' ? 'border-purple-500/50 shadow-lg shadow-purple-500/5' : 'border-bridge-accent/50 shadow-lg shadow-bridge-accent/5')
-            : 'border-foreground/10'
-        }`}>
+        <div
+          className={`hidden md:block bg-bridge-obsidian rounded-xl border transition-all ${
+            isAddFocused
+              ? captureType === 'habit'
+                ? 'border-purple-500/50 shadow-lg shadow-purple-500/5'
+                : 'border-bridge-accent/50 shadow-lg shadow-bridge-accent/5'
+              : 'border-foreground/10'
+          }`}
+        >
           <div className="flex items-center gap-2 px-3 md:px-4 py-3">
             {/* Mode Toggle */}
             <div className="flex items-center gap-0.5 bg-foreground/5 rounded-lg p-0.5 shrink-0">
@@ -789,19 +912,25 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               onFocus={() => setIsAddFocused(true)}
-              onBlur={() => { if (!newTitle.trim()) setIsAddFocused(false); }}
+              onBlur={() => {
+                if (!newTitle.trim()) setIsAddFocused(false);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleQuickAdd();
                 if (e.key === 'Escape') {
-                  setNewTitle(''); setNewDueDate(getTodayDateString()); setNewPriority('MEDIUM');
-                  setSelectedDays([0, 1, 2, 3, 4, 5, 6]); setHabitColor(HABIT_COLORS_INLINE[0]);
+                  setNewTitle('');
+                  setNewDueDate(getTodayDateString());
+                  setNewPriority('MEDIUM');
+                  setSelectedDays([0, 1, 2, 3, 4, 5, 6]);
+                  setHabitColor(HABIT_COLORS_INLINE[0]);
                   setIsAddFocused(false);
                   addInputRef.current?.blur();
                 }
               }}
-              placeholder={captureType === 'task'
-                ? t('personal.tasks.addPlaceholder', '할 일 추가...')
-                : t('personal.quickCapture.habitPlaceholder', '습관 이름을 입력하세요...')
+              placeholder={
+                captureType === 'task'
+                  ? t('personal.tasks.addPlaceholder', '할 일 추가...')
+                  : t('personal.quickCapture.habitPlaceholder', '습관 이름을 입력하세요...')
               }
               className="flex-1 min-w-0 bg-transparent text-sm text-foreground placeholder-slate-500 outline-none"
             />
@@ -820,7 +949,11 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                 {HABIT_DAY_CHIPS.map(({ value, label }) => (
                   <button
                     key={value}
-                    onClick={() => setSelectedDays(prev => prev.includes(value) ? prev.filter(d => d !== value) : [...prev, value])}
+                    onClick={() =>
+                      setSelectedDays((prev) =>
+                        prev.includes(value) ? prev.filter((d) => d !== value) : [...prev, value],
+                      )
+                    }
                     className={`w-7 h-7 text-xs font-bold rounded-md transition-all ${
                       selectedDays.includes(value)
                         ? 'bg-purple-500 text-white'
@@ -851,7 +984,11 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                 {HABIT_DAY_CHIPS.map(({ value, label }) => (
                   <button
                     key={value}
-                    onClick={() => setSelectedDays(prev => prev.includes(value) ? prev.filter(d => d !== value) : [...prev, value])}
+                    onClick={() =>
+                      setSelectedDays((prev) =>
+                        prev.includes(value) ? prev.filter((d) => d !== value) : [...prev, value],
+                      )
+                    }
                     className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
                       selectedDays.includes(value)
                         ? 'bg-purple-500 text-white'
@@ -868,7 +1005,9 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
           {captureType === 'habit' && isAddFocused && (
             <div className="px-4 pb-2">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500 shrink-0">{t('personal.habit.color', '색상')}</span>
+                <span className="text-xs text-slate-500 shrink-0">
+                  {t('personal.habit.color', '색상')}
+                </span>
                 <ColorPickerPopover
                   colors={HABIT_COLORS_INLINE}
                   selectedColor={habitColor}
@@ -884,7 +1023,9 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
           {isAddFocused && newTitle.trim() && (
             <div className="px-4 pb-3">
               <div className="flex items-center justify-between pt-2 border-t border-foreground/5">
-                <span className="text-xs text-slate-500">Enter {t('personal.tasks.toAdd', '추가')} · Esc {t('common.cancel', '취소')}</span>
+                <span className="text-xs text-slate-500">
+                  Enter {t('personal.tasks.toAdd', '추가')} · Esc {t('common.cancel', '취소')}
+                </span>
                 <button
                   onClick={handleQuickAdd}
                   className={`px-3 py-1 text-white text-xs rounded-lg font-medium transition-colors ${
@@ -930,7 +1071,11 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
             )}
             {todayCompletedTasks.length > 0 && (
               <span className="text-xs text-emerald-400/60 hidden sm:inline">
-                ({t('personal.tasks.todayDone', '오늘 {{count}}개', { count: todayCompletedTasks.length })})
+                (
+                {t('personal.tasks.todayDone', '오늘 {{count}}개', {
+                  count: todayCompletedTasks.length,
+                })}
+                )
               </span>
             )}
           </div>
@@ -943,7 +1088,9 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                 <span className="text-xs tracking-[0.15em] uppercase font-bold text-red-400/80">
                   {t('personal.tasks.urgentColumn')}
                 </span>
-                <span className="text-xs text-slate-500 ml-1.5">~{urgentDeadlineLabel} (D-{URGENT_DAYS})</span>
+                <span className="text-xs text-slate-500 ml-1.5">
+                  ~{urgentDeadlineLabel} (D-{URGENT_DAYS})
+                </span>
               </div>
               <div className="text-center hidden sm:block">
                 <span className="text-xs tracking-[0.15em] uppercase font-bold text-slate-400/80">
@@ -956,27 +1103,33 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
             {/* Matrix 2x2 Grid */}
             <LayoutGroup>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                {(['q1', 'q2', 'q3', 'q4'] as Quadrant[]).map(q => (
-                  <div key={q} className={
-                    q === 'q1' ? 'order-1 sm:order-none' :
-                    q === 'q2' ? 'order-3 sm:order-none' :
-                    q === 'q3' ? 'order-2 sm:order-none' :
-                                'order-4 sm:order-none'
-                  }>
-                  <QuadrantCell
-                    quadrant={q}
-                    tasks={taskQuadrants[q]}
-                    isDragOver={dragOverQuadrant === q}
-                    draggedTaskId={draggedTaskId}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    onDragOver={() => setDragOverQuadrant(q)}
-                    onDragLeave={() => setDragOverQuadrant(null)}
-                    onDrop={() => handleQuadrantDrop(q)}
-                    onToggleComplete={requestTaskToggle}
-                    onOpenModal={(id) => setModalTaskId(id)}
-                    onUpdate={handleUpdate}
-                  />
+                {(['q1', 'q2', 'q3', 'q4'] as Quadrant[]).map((q) => (
+                  <div
+                    key={q}
+                    className={
+                      q === 'q1'
+                        ? 'order-1 sm:order-none'
+                        : q === 'q2'
+                          ? 'order-3 sm:order-none'
+                          : q === 'q3'
+                            ? 'order-2 sm:order-none'
+                            : 'order-4 sm:order-none'
+                    }
+                  >
+                    <QuadrantCell
+                      quadrant={q}
+                      tasks={taskQuadrants[q]}
+                      isDragOver={dragOverQuadrant === q}
+                      draggedTaskId={draggedTaskId}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={() => setDragOverQuadrant(q)}
+                      onDragLeave={() => setDragOverQuadrant(null)}
+                      onDrop={() => handleQuadrantDrop(q)}
+                      onToggleComplete={requestTaskToggle}
+                      onOpenModal={(id) => setModalTaskId(id)}
+                      onUpdate={handleUpdate}
+                    />
                   </div>
                 ))}
               </div>
@@ -1001,21 +1154,30 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                 <span className="text-xs text-slate-400/80">{t('personal.tasks.q4Desc')}</span>
               </div>
               <div className="flex-1" />
-              <span className="text-xs text-slate-500 italic hidden sm:inline">{t('personal.tasks.dragToMove')}</span>
+              <span className="text-xs text-slate-500 italic hidden sm:inline">
+                {t('personal.tasks.dragToMove')}
+              </span>
             </div>
           </div>
         </div>
-
       </div>
 
       {/* ── Task Detail Modal ── */}
       <TaskDetailModal
         open={!!modalTaskId}
-        task={modalTaskId ? tasks.find(t => t.id === modalTaskId) ?? null : null}
+        task={modalTaskId ? (tasks.find((t) => t.id === modalTaskId) ?? null) : null}
         onClose={() => setModalTaskId(null)}
         onUpdate={(data) => modalTaskId && handleUpdate(modalTaskId, data)}
-        onDelete={() => { if (modalTaskId) { handleDelete(modalTaskId); setModalTaskId(null); } }}
-        onToggleComplete={() => { const t = modalTaskId ? tasks.find(t => t.id === modalTaskId) : null; if (t) requestTaskToggle(t); }}
+        onDelete={() => {
+          if (modalTaskId) {
+            handleDelete(modalTaskId);
+            setModalTaskId(null);
+          }
+        }}
+        onToggleComplete={() => {
+          const t = modalTaskId ? tasks.find((t) => t.id === modalTaskId) : null;
+          if (t) requestTaskToggle(t);
+        }}
       />
 
       {/* Task Complete Confirm Modal */}
@@ -1025,7 +1187,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
         isUndo={taskConfirm?.isDone}
         onConfirm={() => {
           if (taskConfirm) {
-            const task = tasks.find(t => t.id === taskConfirm.id);
+            const task = tasks.find((t) => t.id === taskConfirm.id);
             if (task) handleToggleComplete(task);
             setTaskConfirm(null);
           }
@@ -1034,7 +1196,11 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
       />
 
       {/* Completed Tasks Modal */}
-      <MotionModal open={showCompleted} onClose={() => setShowCompleted(false)} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
+      <MotionModal
+        open={showCompleted}
+        onClose={() => setShowCompleted(false)}
+        className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]"
+      >
         <div>
           <div className="h-[2px] bg-gradient-to-r from-emerald-500/60 via-emerald-400/30 to-transparent" />
           <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
@@ -1046,7 +1212,8 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                 {t('personal.tasks.completed', '완료됨')}
               </h3>
               <span className="text-xs text-slate-500">
-                {completedTasks.length}{t('personal.tasks.completedCount', '개 완료')} · 7일 후 자동 삭제
+                {completedTasks.length}
+                {t('personal.tasks.completedCount', '개 완료')} · 7일 후 자동 삭제
               </span>
             </div>
             <IconButton onClick={() => setShowCompleted(false)} aria-label="닫기">
@@ -1060,7 +1227,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
             </div>
           ) : (
             <div className="max-h-[60dvh] overflow-y-auto custom-scrollbar p-2 space-y-1">
-              {completedTasks.map(task => (
+              {completedTasks.map((task) => (
                 <CompletedTaskRow
                   key={task.id}
                   task={task}
@@ -1079,9 +1246,18 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
 // ── QuadrantCell ──────────────────────────────────────────────
 
 function QuadrantCell({
-  quadrant, tasks, isDragOver, draggedTaskId,
-  onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
-  onToggleComplete, onOpenModal, onUpdate,
+  quadrant,
+  tasks,
+  isDragOver,
+  draggedTaskId,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onToggleComplete,
+  onOpenModal,
+  onUpdate,
 }: {
   quadrant: Quadrant;
   tasks: PersonalTask[];
@@ -1094,7 +1270,15 @@ function QuadrantCell({
   onDrop: () => void;
   onToggleComplete: (task: PersonalTask) => void;
   onOpenModal: (id: string) => void;
-  onUpdate: (id: string, data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => void;
+  onUpdate: (
+    id: string,
+    data: {
+      title?: string;
+      due_date?: string | null;
+      priority?: PersonalTaskPriority;
+      description?: string;
+    },
+  ) => void;
 }) {
   const { t } = useTranslation();
   const reduced = useReducedMotion();
@@ -1148,7 +1332,7 @@ function QuadrantCell({
         )}
 
         <AnimatePresence mode="popLayout">
-          {tasks.map(task => (
+          {tasks.map((task) => (
             <motion.div
               key={task.id}
               layoutId={reduced ? undefined : `task-${task.id}`}
@@ -1156,7 +1340,11 @@ function QuadrantCell({
               initial={reduced ? false : { opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
+              transition={
+                reduced
+                  ? { duration: 0 }
+                  : { type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }
+              }
             >
               <MatrixTaskCard
                 task={task}
@@ -1177,16 +1365,22 @@ function QuadrantCell({
 
 // ── HabitMatrixCard (unused — kept for future) ───────────────
 
-function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
+function HabitMatrixCard({
+  habit,
+  onCheckIn,
+  onEdit,
+  onDelete,
+}: {
   habit: HabitTodayItem;
   onCheckIn: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
-  const urgencyRatio = (habit.weekly_target > 0 && habit.weekly_completed < habit.weekly_target)
-    ? (habit.weekly_target - habit.weekly_completed) / Math.max(habit.weekly_target, 1)
-    : 0;
+  const urgencyRatio =
+    habit.weekly_target > 0 && habit.weekly_completed < habit.weekly_target
+      ? (habit.weekly_target - habit.weekly_completed) / Math.max(habit.weekly_target, 1)
+      : 0;
 
   return (
     <div
@@ -1194,9 +1388,10 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
       className={`
         group flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer
         border transition-all
-        ${habit.is_completed
-          ? 'bg-bridge-secondary/5 border-bridge-secondary/20'
-          : 'bg-bridge-obsidian border-foreground/5 hover:border-purple-400/30 hover:bg-purple-500/5'
+        ${
+          habit.is_completed
+            ? 'bg-bridge-secondary/5 border-bridge-secondary/20'
+            : 'bg-bridge-obsidian border-foreground/5 hover:border-purple-400/30 hover:bg-purple-500/5'
         }
       `}
     >
@@ -1228,18 +1423,17 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
 
       {/* Color bar + icon */}
       <div className="flex items-center gap-1.5 shrink-0">
-        <div
-          className="w-1 h-7 rounded-full shrink-0"
-          style={{ backgroundColor: habit.color }}
-        />
+        <div className="w-1 h-7 rounded-full shrink-0" style={{ backgroundColor: habit.color }} />
         <span className="text-sm">{habit.icon || '🔥'}</span>
       </div>
 
       {/* Title + meta */}
       <div className="flex-1 min-w-0">
-        <span className={`text-[12px] leading-tight line-clamp-1 ${
-          habit.is_completed ? 'line-through text-slate-500' : 'text-foreground'
-        }`}>
+        <span
+          className={`text-[12px] leading-tight line-clamp-1 ${
+            habit.is_completed ? 'line-through text-slate-500' : 'text-foreground'
+          }`}
+        >
           {habit.title}
         </span>
         <div className="flex items-center gap-1.5 mt-0.5">
@@ -1259,13 +1453,19 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
       {/* Edit/Delete (hover) */}
       <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
-          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
           className="p-1 text-slate-500 hover:text-foreground rounded transition-colors"
         >
           <Pencil size={11} />
         </button>
         <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
           className="p-1 text-slate-500 hover:text-red-400 rounded transition-colors"
         >
           <Trash2 size={11} />
@@ -1294,7 +1494,11 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
 
 // ── TaskBoard Weekly Donut ────────────────────────────────────
 
-function TaskBoardWeeklyDonut({ completed, target, color }: {
+function TaskBoardWeeklyDonut({
+  completed,
+  target,
+  color,
+}: {
   completed: number;
   target: number;
   color: string;
@@ -1349,8 +1553,13 @@ function TaskBoardWeeklyDonut({ completed, target, color }: {
 // ── MatrixTaskCard ────────────────────────────────────────────
 
 function MatrixTaskCard({
-  task, isDragging,
-  onDragStart, onDragEnd, onToggleComplete, onOpenModal, onUpdate,
+  task,
+  isDragging,
+  onDragStart,
+  onDragEnd,
+  onToggleComplete,
+  onOpenModal,
+  onUpdate,
 }: {
   task: PersonalTask;
   isDragging: boolean;
@@ -1358,7 +1567,12 @@ function MatrixTaskCard({
   onDragEnd: () => void;
   onToggleComplete: () => void;
   onOpenModal: () => void;
-  onUpdate: (data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => void;
+  onUpdate: (data: {
+    title?: string;
+    due_date?: string | null;
+    priority?: PersonalTaskPriority;
+    description?: string;
+  }) => void;
 }) {
   const isDone = task.status === 'DONE';
   const dday = getDDay(task.due_date);
@@ -1369,7 +1583,10 @@ function MatrixTaskCard({
     <div
       draggable={!isDone}
       onDragStart={(e) => {
-        if (isDone) { e.preventDefault(); return; }
+        if (isDone) {
+          e.preventDefault();
+          return;
+        }
         e.dataTransfer?.setData('text/plain', task.id);
         onDragStart();
       }}
@@ -1380,15 +1597,19 @@ function MatrixTaskCard({
         onClick={onOpenModal}
         className={`
           flex items-center gap-2 px-2.5 py-2 rounded-lg
-          ${isDone
-            ? 'bg-emerald-500/[0.04] border border-emerald-500/10 opacity-60 cursor-pointer'
-            : `cursor-grab active:cursor-grabbing bg-white/[0.03] border border-foreground/5 hover:border-foreground/10 hover:bg-white/[0.06] ${isDragging ? 'opacity-40 rotate-1' : ''}`
+          ${
+            isDone
+              ? 'bg-emerald-500/[0.04] border border-emerald-500/10 opacity-60 cursor-pointer'
+              : `cursor-grab active:cursor-grabbing bg-white/[0.03] border border-foreground/5 hover:border-foreground/10 hover:bg-white/[0.06] ${isDragging ? 'opacity-40 rotate-1' : ''}`
           }
           transition-all
         `}
       >
         <button
-          onClick={(e) => { e.stopPropagation(); onToggleComplete(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleComplete();
+          }}
           className={`w-4 h-4 rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-colors ${
             isDone
               ? 'bg-emerald-500 border-emerald-500'
@@ -1399,9 +1620,13 @@ function MatrixTaskCard({
         </button>
 
         <div className="flex-1 min-w-0">
-          <span className={`text-[12px] leading-tight line-clamp-2 ${
-            isDone ? 'line-through text-slate-500' : 'text-foreground'
-          }`}>{task.title}</span>
+          <span
+            className={`text-[12px] leading-tight line-clamp-2 ${
+              isDone ? 'line-through text-slate-500' : 'text-foreground'
+            }`}
+          >
+            {task.title}
+          </span>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
@@ -1444,7 +1669,11 @@ function MatrixTaskCard({
 
 // ── CompletedTaskRow ──────────────────────────────────────────
 
-function CompletedTaskRow({ task, onToggleComplete, onDelete }: {
+function CompletedTaskRow({
+  task,
+  onToggleComplete,
+  onDelete,
+}: {
   task: PersonalTask;
   onToggleComplete: () => void;
   onDelete: () => void;
@@ -1490,11 +1719,23 @@ function CompletedTaskRow({ task, onToggleComplete, onDelete }: {
 
 // ── TaskDetailModal ───────────────────────────────────────────
 
-export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onToggleComplete }: {
+export function TaskDetailModal({
+  open,
+  task,
+  onClose,
+  onUpdate,
+  onDelete,
+  onToggleComplete,
+}: {
   open: boolean;
   task: PersonalTask | null;
   onClose: () => void;
-  onUpdate: (data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => void;
+  onUpdate: (data: {
+    title?: string;
+    due_date?: string | null;
+    priority?: PersonalTaskPriority;
+    description?: string;
+  }) => void;
   onDelete: () => void;
   onToggleComplete: () => void;
 }) {
@@ -1536,7 +1777,11 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
+    <MotionModal
+      open={open}
+      onClose={onClose}
+      className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]"
+    >
       <div>
         {/* Top accent line */}
         <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
@@ -1556,7 +1801,10 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing)
+                (e.target as HTMLInputElement).blur();
+            }}
             className={`flex-1 min-w-0 bg-transparent text-sm font-bold outline-none placeholder-slate-500 ${isDone ? 'line-through text-slate-500' : 'text-foreground'}`}
             placeholder={t('personal.tasks.titlePlaceholder', '할 일 제목')}
           />
@@ -1583,7 +1831,9 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
                 className="bg-transparent text-xs text-muted-foreground outline-none [color-scheme:dark]"
               />
               {dday.urgency !== 'none' && (
-                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${DDAY_STYLES[dday.urgency]}`}>
+                <span
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded ${DDAY_STYLES[dday.urgency]}`}
+                >
                   {dday.text}
                 </span>
               )}
@@ -1591,10 +1841,7 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
 
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10">
               <Flag size={13} className="text-slate-400" />
-              <PriorityInline
-                value={priority}
-                onChange={(p) => setPriority(p)}
-              />
+              <PriorityInline value={priority} onChange={(p) => setPriority(p)} />
             </div>
           </div>
 
@@ -1607,9 +1854,7 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
           />
 
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <span className="text-xs text-slate-600">
-              Esc {t('common.close', '닫기')}
-            </span>
+            <span className="text-xs text-slate-600">Esc {t('common.close', '닫기')}</span>
             <button
               onClick={handleSave}
               disabled={!title.trim() || !hasChanges}
@@ -1626,7 +1871,10 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
 
 // ── PriorityDropdown ─────────────────────────────────────────
 
-function PriorityDropdown({ value, onChange }: {
+function PriorityDropdown({
+  value,
+  onChange,
+}: {
   value: PersonalTaskPriority;
   onChange: (p: PersonalTaskPriority) => void;
 }) {
@@ -1647,10 +1895,13 @@ function PriorityDropdown({ value, onChange }: {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-full mt-1 bg-bridge-obsidian border border-foreground/10 rounded-lg shadow-xl z-50 py-1 min-w-[100px]">
-            {ALL.map(p => (
+            {ALL.map((p) => (
               <button
                 key={p}
-                onClick={() => { onChange(p); setOpen(false); }}
+                onClick={() => {
+                  onChange(p);
+                  setOpen(false);
+                }}
                 className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-foreground/5 transition-colors ${
                   value === p ? 'text-foreground' : 'text-slate-400'
                 }`}
@@ -1668,7 +1919,10 @@ function PriorityDropdown({ value, onChange }: {
 
 // ── PriorityInline ───────────────────────────────────────────
 
-function PriorityInline({ value, onChange }: {
+function PriorityInline({
+  value,
+  onChange,
+}: {
   value: PersonalTaskPriority;
   onChange: (p: PersonalTaskPriority) => void;
 }) {
@@ -1677,7 +1931,7 @@ function PriorityInline({ value, onChange }: {
 
   return (
     <div className="flex items-center gap-0.5">
-      {ALL.map(p => (
+      {ALL.map((p) => (
         <button
           key={p}
           onClick={() => onChange(p)}
@@ -1686,9 +1940,13 @@ function PriorityInline({ value, onChange }: {
               ? `${PRIORITY_CONFIG[p].color} font-bold`
               : 'text-slate-500 hover:text-muted-foreground hover:bg-foreground/5'
           }`}
-          style={value === p ? {
-            backgroundColor: `color-mix(in srgb, currentColor 15%, transparent)`,
-          } : undefined}
+          style={
+            value === p
+              ? {
+                  backgroundColor: `color-mix(in srgb, currentColor 15%, transparent)`,
+                }
+              : undefined
+          }
         >
           {t(PRIORITY_LABEL_KEYS[p])}
         </button>

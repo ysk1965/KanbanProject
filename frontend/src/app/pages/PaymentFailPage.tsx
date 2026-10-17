@@ -39,12 +39,8 @@ export function PaymentFailPage() {
           <XCircle className="w-8 h-8 text-red-400" />
         </motion.div>
 
-        <h2 className="text-xl font-bold text-foreground mb-2">
-          {t('payment.failed')}
-        </h2>
-        <p className="text-slate-400 mb-1">
-          {t(`payment.${errorMessageKey}`)}
-        </p>
+        <h2 className="text-xl font-bold text-foreground mb-2">{t('payment.failed')}</h2>
+        <p className="text-slate-400 mb-1">{t(`payment.${errorMessageKey}`)}</p>
         <p className="text-xs text-slate-600 mb-6">
           {t('payment.errorCode')}: {errorCode}
         </p>
@@ -58,9 +54,7 @@ export function PaymentFailPage() {
             <ArrowRight className="w-4 h-4" />
           </button>
           <button
-            onClick={() =>
-              window.open('mailto:support@bridgespots.com', '_blank')
-            }
+            onClick={() => window.open('mailto:support@bridgespots.com', '_blank')}
             className="flex items-center justify-center gap-2 px-6 py-3 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-xl transition-colors"
           >
             <MessageCircle className="w-4 h-4" />

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useTranslation } from "react-i18next";
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Bell,
   Trash2,
@@ -17,8 +17,8 @@ import {
   ChevronDown,
   X,
   Pencil,
-} from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
+} from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import {
   meetingAPI,
   featureAPI,
@@ -30,17 +30,17 @@ import {
   AIApplyResult,
   DiarizedTranscript,
   DiarizedSegment,
-} from "../utils/api";
-import { getInitials, getAssigneeHex } from "../utils/assigneeColor";
+} from '../utils/api';
+import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import {
   useAudioRecorder,
   formatDuration,
   formatFileSize,
   MAX_RECORDING_SIZE,
-} from "../hooks/useAudioRecorder";
-import { MotionModal } from "./ui/MotionModal";
-import { TranscriptionProgress } from "./ui/TranscriptionProgress";
-import { wsManager } from "../utils/websocket";
+} from '../hooks/useAudioRecorder';
+import { MotionModal } from './ui/MotionModal';
+import { TranscriptionProgress } from './ui/TranscriptionProgress';
+import { wsManager } from '../utils/websocket';
 
 // ============================
 // MeetingDetailPanel (Inline expandable)
@@ -67,8 +67,8 @@ export function MeetingDetailPanel({
   // Detail state
   const [detail, setDetail] = useState<MeetingDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editingMemo, setEditingMemo] = useState("");
-  const [editingTranscript, setEditingTranscript] = useState("");
+  const [editingMemo, setEditingMemo] = useState('');
+  const [editingTranscript, setEditingTranscript] = useState('');
 
   // Audio recorder
   const {
@@ -87,8 +87,7 @@ export function MeetingDetailPanel({
     current?: number;
     total?: number;
   } | null>(null);
-  const hasMicSupport =
-    typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+  const hasMicSupport = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
   // isRestricted from AuthContext (milkyway domain OR @cookapps.com email)
 
   // AI state
@@ -104,14 +103,9 @@ export function MeetingDetailPanel({
   const [showNoChangesModal, setShowNoChangesModal] = useState(false);
 
   // Diarized transcript state
-  const [speakerMapping, setSpeakerMapping] = useState<
-    Record<string, string | null>
-  >({});
-  const [activeSpeakerDropdown, setActiveSpeakerDropdown] = useState<
-    string | null
-  >(null);
-  const [isEditingTranscriptManually, setIsEditingTranscriptManually] =
-    useState(false);
+  const [speakerMapping, setSpeakerMapping] = useState<Record<string, string | null>>({});
+  const [activeSpeakerDropdown, setActiveSpeakerDropdown] = useState<string | null>(null);
+  const [isEditingTranscriptManually, setIsEditingTranscriptManually] = useState(false);
   const [editingSegments, setEditingSegments] = useState<DiarizedSegment[]>([]);
 
   // Close speaker dropdown on outside click
@@ -119,12 +113,12 @@ export function MeetingDetailPanel({
     if (!activeSpeakerDropdown) return;
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest("[data-speaker-dropdown]")) {
+      if (!target.closest('[data-speaker-dropdown]')) {
         setActiveSpeakerDropdown(null);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [activeSpeakerDropdown]);
 
   // Auto-resize textarea refs
@@ -133,18 +127,12 @@ export function MeetingDetailPanel({
 
   const autoResize = useCallback((el: HTMLTextAreaElement | null) => {
     if (!el) return;
-    el.style.height = "auto";
+    el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
   }, []);
 
-  useEffect(
-    () => autoResize(memoRef.current),
-    [editingMemo, autoResize, loading],
-  );
-  useEffect(
-    () => autoResize(transcriptRef.current),
-    [editingTranscript, autoResize, loading],
-  );
+  useEffect(() => autoResize(memoRef.current), [editingMemo, autoResize, loading]);
+  useEffect(() => autoResize(transcriptRef.current), [editingTranscript, autoResize, loading]);
 
   // Subscribe to transcription progress + result events via WebSocket
   useEffect(() => {
@@ -153,11 +141,9 @@ export function MeetingDetailPanel({
     // Timeout fallback: if no COMPLETE/ERROR received within 5 minutes, auto-recover
     const timeout = setTimeout(
       () => {
-        console.warn(
-          "Transcription timeout — no WebSocket result received in 5 minutes",
-        );
-        setTranscriptionProgress({ stage: "ERROR", percent: 0 });
-        alert(t("meeting.transcriptionError"));
+        console.warn('Transcription timeout — no WebSocket result received in 5 minutes');
+        setTranscriptionProgress({ stage: 'ERROR', percent: 0 });
+        alert(t('meeting.transcriptionError'));
         setIsTranscribing(false);
         setTimeout(() => setTranscriptionProgress(null), 1200);
       },
@@ -169,22 +155,19 @@ export function MeetingDetailPanel({
         const event = JSON.parse(message.body);
         if (event.data?.meeting_id !== meetingId) return;
 
-        if (event.type === "TRANSCRIPTION_PROGRESS") {
+        if (event.type === 'TRANSCRIPTION_PROGRESS') {
           setTranscriptionProgress({
             stage: event.data.stage,
             percent: event.data.percent,
             current: event.data.current,
             total: event.data.total,
           });
-        } else if (event.type === "TRANSCRIPTION_COMPLETE") {
+        } else if (event.type === 'TRANSCRIPTION_COMPLETE') {
           clearTimeout(timeout);
           const transcript = event.data.transcript as string;
-          const diarized = event.data
-            .diarized_transcript as DiarizedTranscript | null;
+          const diarized = event.data.diarized_transcript as DiarizedTranscript | null;
           setDetail((prev) =>
-            prev
-              ? { ...prev, transcript, diarized_transcript: diarized }
-              : prev,
+            prev ? { ...prev, transcript, diarized_transcript: diarized } : prev,
           );
           setEditingTranscript(transcript);
           if (diarized) {
@@ -194,11 +177,11 @@ export function MeetingDetailPanel({
           clearRecording();
           setIsTranscribing(false);
           setTimeout(() => setTranscriptionProgress(null), 1200);
-        } else if (event.type === "TRANSCRIPTION_ERROR") {
+        } else if (event.type === 'TRANSCRIPTION_ERROR') {
           clearTimeout(timeout);
-          console.error("Transcription failed:", event.data.error);
-          setTranscriptionProgress({ stage: "ERROR", percent: 0 });
-          alert(t("meeting.transcriptionError"));
+          console.error('Transcription failed:', event.data.error);
+          setTranscriptionProgress({ stage: 'ERROR', percent: 0 });
+          alert(t('meeting.transcriptionError'));
           setIsTranscribing(false);
           setTimeout(() => setTranscriptionProgress(null), 1200);
         }
@@ -222,8 +205,8 @@ export function MeetingDetailPanel({
     try {
       const data = await meetingAPI.getMeetingDetail(boardId, meetingId);
       setDetail(data);
-      setEditingMemo(data.memo || "");
-      setEditingTranscript(data.transcript || "");
+      setEditingMemo(data.memo || '');
+      setEditingTranscript(data.transcript || '');
       if (data.diarized_transcript) {
         setSpeakerMapping(data.diarized_transcript.speaker_mapping || {});
         setIsEditingTranscriptManually(false);
@@ -233,12 +216,12 @@ export function MeetingDetailPanel({
         setAiVisible(true);
         setAiCollapsed(true);
         setAiSnapshot({
-          memo: data.memo || "",
-          transcript: data.transcript || "",
+          memo: data.memo || '',
+          transcript: data.transcript || '',
         });
       }
     } catch (error) {
-      console.error("Failed to load meeting detail:", error);
+      console.error('Failed to load meeting detail:', error);
     } finally {
       setLoading(false);
     }
@@ -261,18 +244,14 @@ export function MeetingDetailPanel({
       await meetingAPI.updateMeeting(boardId, meetingId, { memo: editingMemo });
       setDetail((prev) => (prev ? { ...prev, memo: editingMemo } : prev));
     } catch (error) {
-      console.error("Failed to save memo:", error);
+      console.error('Failed to save memo:', error);
     }
   };
 
   // Transcript
   const handleTranscriptSave = async () => {
     try {
-      const result = await meetingAPI.updateTranscript(
-        boardId,
-        meetingId,
-        editingTranscript,
-      );
+      const result = await meetingAPI.updateTranscript(boardId, meetingId, editingTranscript);
       setDetail((prev) =>
         prev
           ? {
@@ -283,24 +262,19 @@ export function MeetingDetailPanel({
           : prev,
       );
     } catch (error) {
-      console.error("Failed to save transcript:", error);
+      console.error('Failed to save transcript:', error);
     }
   };
 
   const handleDiarizedTranscriptSave = async () => {
     if (editingSegments.length === 0) return;
     try {
-      const newTranscript = editingSegments.map((s) => s.text).join("\n");
+      const newTranscript = editingSegments.map((s) => s.text).join('\n');
       const newDiarized: DiarizedTranscript = {
         segments: editingSegments,
         speaker_mapping: speakerMapping,
       };
-      await meetingAPI.updateTranscript(
-        boardId,
-        meetingId,
-        newTranscript,
-        newDiarized,
-      );
+      await meetingAPI.updateTranscript(boardId, meetingId, newTranscript, newDiarized);
       setDetail((prev) =>
         prev
           ? {
@@ -312,7 +286,7 @@ export function MeetingDetailPanel({
       );
       setEditingTranscript(newTranscript);
     } catch (error) {
-      console.error("Failed to save diarized transcript:", error);
+      console.error('Failed to save diarized transcript:', error);
     }
   };
 
@@ -321,32 +295,29 @@ export function MeetingDetailPanel({
     try {
       await startRecording();
     } catch {
-      alert(t("meeting.microphoneAccessDenied"));
+      alert(t('meeting.microphoneAccessDenied'));
     }
   };
 
   const handleTranscribe = async () => {
     if (!audioBlob) return;
     setIsTranscribing(true);
-    setTranscriptionProgress({ stage: "UPLOADING", percent: 2 });
+    setTranscriptionProgress({ stage: 'UPLOADING', percent: 2 });
     try {
       // 202 Accepted — result delivered via WebSocket (TRANSCRIPTION_COMPLETE/ERROR)
       await meetingAPI.transcribeAudio(boardId, meetingId, audioBlob);
     } catch (error) {
       // Synchronous validation errors (402 credit exhausted, file too large, etc.)
-      console.error("Transcription request failed:", error);
-      setTranscriptionProgress({ stage: "ERROR", percent: 0 });
-      alert(t("meeting.transcriptionError"));
+      console.error('Transcription request failed:', error);
+      setTranscriptionProgress({ stage: 'ERROR', percent: 0 });
+      alert(t('meeting.transcriptionError'));
       setIsTranscribing(false);
       setTimeout(() => setTranscriptionProgress(null), 1200);
     }
   };
 
   // Speaker mapping
-  const handleSpeakerMappingChange = async (
-    speaker: string,
-    participantId: string | null,
-  ) => {
+  const handleSpeakerMappingChange = async (speaker: string, participantId: string | null) => {
     const newMapping = { ...speakerMapping, [speaker]: participantId };
     setSpeakerMapping(newMapping);
     setActiveSpeakerDropdown(null);
@@ -366,7 +337,7 @@ export function MeetingDetailPanel({
     try {
       await meetingAPI.updateSpeakerMapping(boardId, meetingId, newMapping);
     } catch (error) {
-      console.error("Failed to update speaker mapping:", error);
+      console.error('Failed to update speaker mapping:', error);
       // Revert on failure
       setSpeakerMapping((prev) => ({
         ...prev,
@@ -387,48 +358,46 @@ export function MeetingDetailPanel({
   // Speaker color cycling (6 colors)
   const SPEAKER_COLORS = [
     {
-      bg: "bg-indigo-500/10",
-      text: "text-indigo-600 dark:text-indigo-300",
-      hoverBg: "hover:bg-indigo-500/20",
-      dot: "#6366F1",
+      bg: 'bg-indigo-500/10',
+      text: 'text-indigo-600 dark:text-indigo-300',
+      hoverBg: 'hover:bg-indigo-500/20',
+      dot: '#6366F1',
     },
     {
-      bg: "bg-purple-500/10",
-      text: "text-purple-600 dark:text-purple-300",
-      hoverBg: "hover:bg-purple-500/20",
-      dot: "#8B5CF6",
+      bg: 'bg-purple-500/10',
+      text: 'text-purple-600 dark:text-purple-300',
+      hoverBg: 'hover:bg-purple-500/20',
+      dot: '#8B5CF6',
     },
     {
-      bg: "bg-teal-500/10",
-      text: "text-teal-600 dark:text-teal-300",
-      hoverBg: "hover:bg-teal-500/20",
-      dot: "#14B8A6",
+      bg: 'bg-teal-500/10',
+      text: 'text-teal-600 dark:text-teal-300',
+      hoverBg: 'hover:bg-teal-500/20',
+      dot: '#14B8A6',
     },
     {
-      bg: "bg-rose-500/10",
-      text: "text-rose-600 dark:text-rose-300",
-      hoverBg: "hover:bg-rose-500/20",
-      dot: "#F43F5E",
+      bg: 'bg-rose-500/10',
+      text: 'text-rose-600 dark:text-rose-300',
+      hoverBg: 'hover:bg-rose-500/20',
+      dot: '#F43F5E',
     },
     {
-      bg: "bg-amber-500/10",
-      text: "text-amber-600 dark:text-amber-300",
-      hoverBg: "hover:bg-amber-500/20",
-      dot: "#F59E0B",
+      bg: 'bg-amber-500/10',
+      text: 'text-amber-600 dark:text-amber-300',
+      hoverBg: 'hover:bg-amber-500/20',
+      dot: '#F59E0B',
     },
     {
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-600 dark:text-emerald-300",
-      hoverBg: "hover:bg-emerald-500/20",
-      dot: "#10B981",
+      bg: 'bg-emerald-500/10',
+      text: 'text-emerald-600 dark:text-emerald-300',
+      hoverBg: 'hover:bg-emerald-500/20',
+      dot: '#10B981',
     },
   ];
 
   const speakerColorMap = useMemo(() => {
     if (!detail?.diarized_transcript) return {};
-    const uniqueSpeakers = [
-      ...new Set(detail.diarized_transcript.segments.map((s) => s.speaker)),
-    ];
+    const uniqueSpeakers = [...new Set(detail.diarized_transcript.segments.map((s) => s.speaker))];
     const map: Record<string, (typeof SPEAKER_COLORS)[0]> = {};
     uniqueSpeakers.forEach((speaker, idx) => {
       map[speaker] = SPEAKER_COLORS[idx % SPEAKER_COLORS.length];
@@ -438,21 +407,21 @@ export function MeetingDetailPanel({
 
   // Actions
   const handleNotify = async () => {
-    if (!confirm(t("meeting.notifyConfirm"))) return;
+    if (!confirm(t('meeting.notifyConfirm'))) return;
     try {
       await meetingAPI.notifyParticipants(boardId, meetingId);
-      alert(t("meeting.notifySuccess"));
+      alert(t('meeting.notifySuccess'));
     } catch (error) {
-      console.error("Failed to notify participants:", error);
+      console.error('Failed to notify participants:', error);
     }
   };
 
   const handleSaveToNote = async () => {
     try {
       await meetingAPI.saveToNote(boardId, meetingId);
-      alert(t("meeting.saveToNoteSuccess", "노트에 저장되었습니다"));
+      alert(t('meeting.saveToNoteSuccess', '노트에 저장되었습니다'));
     } catch (error) {
-      console.error("Failed to save meeting to note:", error);
+      console.error('Failed to save meeting to note:', error);
     }
   };
 
@@ -460,37 +429,31 @@ export function MeetingDetailPanel({
     if (detail?.recurrence_group_id) {
       setDeleteScopeModal(true);
     } else {
-      if (!confirm(t("meeting.deleteConfirm"))) return;
+      if (!confirm(t('meeting.deleteConfirm'))) return;
       doDelete();
     }
   };
 
-  const doDelete = async (scope?: "THIS_ONLY" | "THIS_AND_FUTURE") => {
+  const doDelete = async (scope?: 'THIS_ONLY' | 'THIS_AND_FUTURE') => {
     try {
       await meetingAPI.deleteMeeting(boardId, meetingId, scope);
       setDeleteScopeModal(false);
       onDeleted();
     } catch (error) {
-      console.error("Failed to delete meeting:", error);
+      console.error('Failed to delete meeting:', error);
     }
   };
 
   // AI Organize
   const isAIDimmed = (): boolean => {
     if (!aiSnapshot || !aiData) return false;
-    return (
-      editingMemo === aiSnapshot.memo &&
-      editingTranscript === aiSnapshot.transcript
-    );
+    return editingMemo === aiSnapshot.memo && editingTranscript === aiSnapshot.transcript;
   };
 
   const handleAIOrganize = async () => {
     if (aiLoading) return;
     if (aiSnapshot && aiData) {
-      if (
-        editingMemo === aiSnapshot.memo &&
-        editingTranscript === aiSnapshot.transcript
-      ) {
+      if (editingMemo === aiSnapshot.memo && editingTranscript === aiSnapshot.transcript) {
         setShowNoChangesModal(true);
         return;
       }
@@ -505,7 +468,7 @@ export function MeetingDetailPanel({
       setAiSnapshot({ memo: editingMemo, transcript: editingTranscript });
       setDetail((prev) => (prev ? { ...prev, ai_suggestions: data } : prev));
     } catch {
-      setAiError(t("meeting.aiError"));
+      setAiError(t('meeting.aiError'));
     } finally {
       setAiLoading(false);
     }
@@ -517,19 +480,17 @@ export function MeetingDetailPanel({
         {loading ? (
           <div className="flex items-center justify-center py-4 text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            {t("common.loading")}
+            {t('common.loading')}
           </div>
         ) : detail ? (
           <>
             {/* Participants */}
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                {t("meeting.participants")}
+                {t('meeting.participants')}
               </label>
               {detail.participants.length === 0 ? (
-                <p className="text-xs text-slate-400">
-                  {t("meeting.noParticipants")}
-                </p>
+                <p className="text-xs text-slate-400">{t('meeting.noParticipants')}</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {detail.participants.map((p) => (
@@ -538,11 +499,7 @@ export function MeetingDetailPanel({
                       className="flex items-center gap-1.5 bg-foreground/5 rounded-lg px-2.5 py-1.5"
                     >
                       {p.profile_image ? (
-                        <img
-                          src={p.profile_image}
-                          alt={p.name}
-                          className="w-5 h-5 rounded-full"
-                        />
+                        <img src={p.profile_image} alt={p.name} className="w-5 h-5 rounded-full" />
                       ) : (
                         <div
                           className="w-5 h-5 rounded-full flex items-center justify-center text-xs text-white font-medium whitespace-nowrap overflow-hidden"
@@ -551,9 +508,7 @@ export function MeetingDetailPanel({
                           {getInitials(p.name)}
                         </div>
                       )}
-                      <span className="text-xs text-muted-foreground">
-                        {p.name}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{p.name}</span>
                     </div>
                   ))}
                 </div>
@@ -563,14 +518,14 @@ export function MeetingDetailPanel({
             {/* Memo */}
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                {t("meeting.memo")}
+                {t('meeting.memo')}
               </label>
               <textarea
                 ref={memoRef}
                 value={editingMemo}
                 onChange={(e) => setEditingMemo(e.target.value)}
                 onBlur={handleMemoSave}
-                placeholder={t("meeting.memoPlaceholder")}
+                placeholder={t('meeting.memoPlaceholder')}
                 rows={2}
                 className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none max-h-[300px] overflow-y-auto"
               />
@@ -581,40 +536,38 @@ export function MeetingDetailPanel({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    {t("meeting.transcript")}
+                    {t('meeting.transcript')}
                   </label>
-                  {detail.diarized_transcript &&
-                    !isEditingTranscriptManually && (
-                      <button
-                        onClick={() => {
-                          if (detail.diarized_transcript) {
-                            setEditingSegments(
-                              detail.diarized_transcript.segments.map((s) => ({
-                                ...s,
-                              })),
-                            );
-                          }
-                          setIsEditingTranscriptManually(true);
-                        }}
-                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
-                      >
-                        <Pencil className="h-3 w-3" />
-                        {t("meeting.editManually", "직접 편집")}
-                      </button>
-                    )}
-                  {detail.diarized_transcript &&
-                    isEditingTranscriptManually && (
-                      <button
-                        onClick={async () => {
-                          await handleDiarizedTranscriptSave();
-                          setIsEditingTranscriptManually(false);
-                        }}
-                        className="flex items-center gap-1 text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors"
-                      >
-                        <Users className="h-3 w-3" />
-                        {t("meeting.viewConversation", "대화형 보기")}
-                      </button>
-                    )}
+                  {detail.diarized_transcript && !isEditingTranscriptManually && (
+                    <button
+                      onClick={() => {
+                        if (detail.diarized_transcript) {
+                          setEditingSegments(
+                            detail.diarized_transcript.segments.map((s) => ({
+                              ...s,
+                            })),
+                          );
+                        }
+                        setIsEditingTranscriptManually(true);
+                      }}
+                      className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      {t('meeting.editManually', '직접 편집')}
+                    </button>
+                  )}
+                  {detail.diarized_transcript && isEditingTranscriptManually && (
+                    <button
+                      onClick={async () => {
+                        await handleDiarizedTranscriptSave();
+                        setIsEditingTranscriptManually(false);
+                      }}
+                      className="flex items-center gap-1 text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors"
+                    >
+                      <Users className="h-3 w-3" />
+                      {t('meeting.viewConversation', '대화형 보기')}
+                    </button>
+                  )}
                 </div>
 
                 {/* Recording Controls */}
@@ -627,7 +580,7 @@ export function MeetingDetailPanel({
                         className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition-colors disabled:opacity-50"
                       >
                         <Mic className="h-3.5 w-3.5" />
-                        {t("meeting.startRecording")}
+                        {t('meeting.startRecording')}
                       </button>
                     ) : (
                       <>
@@ -637,8 +590,7 @@ export function MeetingDetailPanel({
                             {formatDuration(recordingDuration)}
                           </span>
                           <span className="text-xs text-slate-500">
-                            {formatFileSize(recordingSize)} /{" "}
-                            {formatFileSize(MAX_RECORDING_SIZE)}
+                            {formatFileSize(recordingSize)} / {formatFileSize(MAX_RECORDING_SIZE)}
                           </span>
                         </div>
                         <button
@@ -646,7 +598,7 @@ export function MeetingDetailPanel({
                           className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
                         >
                           <SquareIcon className="h-3 w-3" />
-                          {t("meeting.stopRecording")}
+                          {t('meeting.stopRecording')}
                         </button>
                       </>
                     )}
@@ -657,14 +609,14 @@ export function MeetingDetailPanel({
                         className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-bridge-secondary bg-bridge-secondary/10 rounded-lg hover:bg-bridge-secondary/20 transition-colors"
                       >
                         <FileText className="h-3.5 w-3.5" />
-                        {t("meeting.transcribe")}
+                        {t('meeting.transcribe')}
                       </button>
                     )}
 
                     {isTranscribing && (
                       <div className="flex items-center px-3 py-1.5">
                         <TranscriptionProgress
-                          stage={transcriptionProgress?.stage ?? "UPLOADING"}
+                          stage={transcriptionProgress?.stage ?? 'UPLOADING'}
                           percent={transcriptionProgress?.percent ?? 0}
                           current={transcriptionProgress?.current}
                           total={transcriptionProgress?.total}
@@ -680,18 +632,14 @@ export function MeetingDetailPanel({
                   <div className="mb-2">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs text-slate-500">
-                        {formatFileSize(
-                          isRecording ? recordingSize : (audioBlob?.size ?? 0),
-                        )}{" "}
-                        / {formatFileSize(MAX_RECORDING_SIZE)}
+                        {formatFileSize(isRecording ? recordingSize : (audioBlob?.size ?? 0))} /{' '}
+                        {formatFileSize(MAX_RECORDING_SIZE)}
                       </span>
                       <span className="text-xs text-slate-500">
                         {Math.min(
                           100,
                           Math.round(
-                            ((isRecording
-                              ? recordingSize
-                              : (audioBlob?.size ?? 0)) /
+                            ((isRecording ? recordingSize : (audioBlob?.size ?? 0)) /
                               MAX_RECORDING_SIZE) *
                               100,
                           ),
@@ -702,19 +650,15 @@ export function MeetingDetailPanel({
                     <div className="w-full h-1.5 bg-foreground/5 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-300 ${
-                          (isRecording
-                            ? recordingSize
-                            : (audioBlob?.size ?? 0)) /
+                          (isRecording ? recordingSize : (audioBlob?.size ?? 0)) /
                             MAX_RECORDING_SIZE >
                           0.9
-                            ? "bg-red-500"
-                            : (isRecording
-                                  ? recordingSize
-                                  : (audioBlob?.size ?? 0)) /
+                            ? 'bg-red-500'
+                            : (isRecording ? recordingSize : (audioBlob?.size ?? 0)) /
                                   MAX_RECORDING_SIZE >
                                 0.7
-                              ? "bg-amber-500"
-                              : "bg-bridge-secondary"
+                              ? 'bg-amber-500'
+                              : 'bg-bridge-secondary'
                         }`}
                         style={{
                           width: `${Math.min(100, ((isRecording ? recordingSize : (audioBlob?.size ?? 0)) / MAX_RECORDING_SIZE) * 100)}%`,
@@ -728,9 +672,7 @@ export function MeetingDetailPanel({
                 {detail.diarized_transcript ? (
                   <div
                     className={`space-y-1.5 max-h-[400px] overflow-y-auto rounded-xl border border-foreground/10 p-3 ${
-                      isEditingTranscriptManually
-                        ? "bg-foreground/[0.04]"
-                        : "bg-foreground/[0.02]"
+                      isEditingTranscriptManually ? 'bg-foreground/[0.04]' : 'bg-foreground/[0.02]'
                     }`}
                   >
                     {(isEditingTranscriptManually
@@ -738,25 +680,17 @@ export function MeetingDetailPanel({
                       : detail.diarized_transcript.segments
                     ).map((seg, idx) => {
                       const displayName = getSpeakerDisplayName(seg.speaker);
-                      const color =
-                        speakerColorMap[seg.speaker] || SPEAKER_COLORS[0];
+                      const color = speakerColorMap[seg.speaker] || SPEAKER_COLORS[0];
                       const isMapped = !!speakerMapping[seg.speaker];
 
                       return (
-                        <div
-                          key={idx}
-                          className="flex items-start gap-2.5 group"
-                        >
+                        <div key={idx} className="flex items-start gap-2.5 group">
                           {/* Speaker label - clickable for mapping */}
-                          <div
-                            className="relative flex-shrink-0"
-                            data-speaker-dropdown
-                          >
+                          <div className="relative flex-shrink-0" data-speaker-dropdown>
                             <button
                               onClick={() =>
                                 setActiveSpeakerDropdown(
-                                  activeSpeakerDropdown ===
-                                    `${seg.speaker}-${idx}`
+                                  activeSpeakerDropdown === `${seg.speaker}-${idx}`
                                     ? null
                                     : `${seg.speaker}-${idx}`,
                                 )
@@ -771,27 +705,21 @@ export function MeetingDetailPanel({
                             </button>
 
                             {/* Speaker Mapping Dropdown */}
-                            {activeSpeakerDropdown ===
-                              `${seg.speaker}-${idx}` && (
+                            {activeSpeakerDropdown === `${seg.speaker}-${idx}` && (
                               <div className="absolute top-full left-0 mt-1 z-50 min-w-[180px] bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl py-1 overflow-hidden">
                                 <div className="px-3 py-2 border-b border-foreground/[0.08]">
                                   <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                                    {t("meeting.mapSpeaker", "화자 매핑")}
+                                    {t('meeting.mapSpeaker', '화자 매핑')}
                                   </span>
                                 </div>
                                 {detail.participants.map((p) => (
                                   <button
                                     key={p.id}
-                                    onClick={() =>
-                                      handleSpeakerMappingChange(
-                                        seg.speaker,
-                                        p.id,
-                                      )
-                                    }
+                                    onClick={() => handleSpeakerMappingChange(seg.speaker, p.id)}
                                     className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
                                       speakerMapping[seg.speaker] === p.id
-                                        ? "bg-bridge-accent/10 text-bridge-accent"
-                                        : "text-foreground/70 hover:bg-foreground/5"
+                                        ? 'bg-bridge-accent/10 text-bridge-accent'
+                                        : 'text-foreground/70 hover:bg-foreground/5'
                                     }`}
                                   >
                                     {p.profile_image ? (
@@ -804,9 +732,7 @@ export function MeetingDetailPanel({
                                       <div
                                         className="w-5 h-5 rounded-full flex items-center justify-center text-xs text-white font-medium"
                                         style={{
-                                          backgroundColor: getAssigneeHex(
-                                            p.name,
-                                          ),
+                                          backgroundColor: getAssigneeHex(p.name),
                                         }}
                                       >
                                         {getInitials(p.name)}
@@ -822,18 +748,11 @@ export function MeetingDetailPanel({
                                   <>
                                     <div className="border-t border-foreground/[0.08]" />
                                     <button
-                                      onClick={() =>
-                                        handleSpeakerMappingChange(
-                                          seg.speaker,
-                                          null,
-                                        )
-                                      }
+                                      onClick={() => handleSpeakerMappingChange(seg.speaker, null)}
                                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-500 hover:bg-foreground/5 transition-colors"
                                     >
                                       <X className="h-3.5 w-3.5" />
-                                      <span>
-                                        {t("meeting.unmapSpeaker", "매핑 해제")}
-                                      </span>
+                                      <span>{t('meeting.unmapSpeaker', '매핑 해제')}</span>
                                     </button>
                                   </>
                                 )}
@@ -848,20 +767,18 @@ export function MeetingDetailPanel({
                               onChange={(e) => {
                                 setEditingSegments((prev) =>
                                   prev.map((s, i) =>
-                                    i === idx
-                                      ? { ...s, text: e.target.value }
-                                      : s,
+                                    i === idx ? { ...s, text: e.target.value } : s,
                                   ),
                                 );
                               }}
                               onInput={(e) => {
                                 const el = e.target as HTMLTextAreaElement;
-                                el.style.height = "auto";
+                                el.style.height = 'auto';
                                 el.style.height = `${el.scrollHeight}px`;
                               }}
                               ref={(el) => {
                                 if (el) {
-                                  el.style.height = "auto";
+                                  el.style.height = 'auto';
                                   el.style.height = `${el.scrollHeight}px`;
                                 }
                               }}
@@ -883,7 +800,7 @@ export function MeetingDetailPanel({
                     value={editingTranscript}
                     onChange={(e) => setEditingTranscript(e.target.value)}
                     onBlur={handleTranscriptSave}
-                    placeholder={t("meeting.transcriptPlaceholder")}
+                    placeholder={t('meeting.transcriptPlaceholder')}
                     rows={2}
                     className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none max-h-[400px] overflow-y-auto"
                   />
@@ -904,8 +821,8 @@ export function MeetingDetailPanel({
                       disabled={aiLoading}
                       className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
                         isAIDimmed()
-                          ? "text-slate-500 bg-foreground/5 cursor-default"
-                          : "text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent hover:shadow-[0_0_20px_rgba(45,212,191,0.3)]"
+                          ? 'text-slate-500 bg-foreground/5 cursor-default'
+                          : 'text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent hover:shadow-[0_0_20px_rgba(45,212,191,0.3)]'
                       }`}
                     >
                       {aiLoading ? (
@@ -913,7 +830,7 @@ export function MeetingDetailPanel({
                       ) : (
                         <Sparkles className="h-3.5 w-3.5" />
                       )}
-                      {t("meeting.aiOrganize")}
+                      {t('meeting.aiOrganize')}
                     </button>
                   </div>
                 )}
@@ -923,7 +840,7 @@ export function MeetingDetailPanel({
                   className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-colors"
                 >
                   <Bell className="h-3.5 w-3.5" />
-                  {t("meeting.notify")}
+                  {t('meeting.notify')}
                 </button>
               )}
               <button
@@ -931,14 +848,14 @@ export function MeetingDetailPanel({
                 className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-emerald-400 bg-emerald-500/10 rounded-lg hover:bg-emerald-500/20 transition-colors"
               >
                 <BookOpen className="h-3.5 w-3.5" />
-                {t("meeting.saveToNote", "노트로 저장")}
+                {t('meeting.saveToNote', '노트로 저장')}
               </button>
               <button
                 onClick={handleDelete}
                 className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition-colors ml-auto"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                {t("meeting.delete")}
+                {t('meeting.delete')}
               </button>
             </div>
 
@@ -950,14 +867,14 @@ export function MeetingDetailPanel({
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-bridge-accent" />
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                      {t("meeting.aiOrganizeTitle")}
+                      {t('meeting.aiOrganizeTitle')}
                     </span>
                   </div>
                   <button
                     onClick={() => setAiCollapsed(false)}
                     className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors font-medium"
                   >
-                    {t("meeting.aiExpand")}
+                    {t('meeting.aiExpand')}
                   </button>
                 </div>
               ) : (
@@ -985,17 +902,13 @@ export function MeetingDetailPanel({
           <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-foreground/5 flex items-center justify-center">
             <Sparkles className="h-6 w-6 text-slate-400" />
           </div>
-          <h3 className="text-base font-bold text-foreground mb-2">
-            {t("meeting.aiNoChanges")}
-          </h3>
-          <p className="text-sm text-slate-400 mb-5">
-            {t("meeting.aiNoChangesDesc")}
-          </p>
+          <h3 className="text-base font-bold text-foreground mb-2">{t('meeting.aiNoChanges')}</h3>
+          <p className="text-sm text-slate-400 mb-5">{t('meeting.aiNoChangesDesc')}</p>
           <button
             onClick={() => setShowNoChangesModal(false)}
             className="px-6 py-2.5 bg-foreground/5 border border-foreground/10 text-sm font-bold text-foreground rounded-xl hover:bg-foreground/10 transition-all"
           >
-            {t("common.confirm") || "확인"}
+            {t('common.confirm') || '확인'}
           </button>
         </div>
       </MotionModal>
@@ -1008,32 +921,32 @@ export function MeetingDetailPanel({
       >
         <div className="p-6">
           <h3 className="text-lg font-bold text-foreground mb-2">
-            {t("meeting.deleteRecurringTitle", "반복 회의 삭제")}
+            {t('meeting.deleteRecurringTitle', '반복 회의 삭제')}
           </h3>
           <p className="text-sm text-slate-400 mb-6">
             {t(
-              "meeting.deleteRecurringMessage",
-              "이 회의는 반복 회의입니다. 어떻게 삭제하시겠습니까?",
+              'meeting.deleteRecurringMessage',
+              '이 회의는 반복 회의입니다. 어떻게 삭제하시겠습니까?',
             )}
           </p>
           <div className="flex flex-col gap-3">
             <button
-              onClick={() => doDelete("THIS_ONLY")}
+              onClick={() => doDelete('THIS_ONLY')}
               className="w-full px-4 py-3 text-sm font-bold bg-foreground/5 border border-foreground/10 rounded-xl text-foreground hover:bg-foreground/10 transition-all"
             >
-              {t("meeting.deleteThisOnly", "이 회의만 삭제")}
+              {t('meeting.deleteThisOnly', '이 회의만 삭제')}
             </button>
             <button
-              onClick={() => doDelete("THIS_AND_FUTURE")}
+              onClick={() => doDelete('THIS_AND_FUTURE')}
               className="w-full px-4 py-3 text-sm font-bold bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
             >
-              {t("meeting.deleteThisAndFuture", "이후 회의 모두 삭제")}
+              {t('meeting.deleteThisAndFuture', '이후 회의 모두 삭제')}
             </button>
             <button
               onClick={() => setDeleteScopeModal(false)}
               className="w-full px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
             >
-              {t("common.cancel")}
+              {t('common.cancel')}
             </button>
           </div>
         </div>
@@ -1077,9 +990,7 @@ function MeetingAIInlineSection({
     tasks: {},
     checklists: {},
   });
-  const [expandedFeatures, setExpandedFeatures] = useState<
-    Record<number, boolean>
-  >({});
+  const [expandedFeatures, setExpandedFeatures] = useState<Record<number, boolean>>({});
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [result, setResult] = useState<AIApplyResult | null>(null);
@@ -1122,26 +1033,22 @@ function MeetingAIInlineSection({
         const existingTasks = tasksRes.tasks;
 
         const featureTitleToId = new Map<string, string>();
-        existingFeatures.forEach((f) =>
-          featureTitleToId.set(f.title.trim().toLowerCase(), f.id),
-        );
+        existingFeatures.forEach((f) => featureTitleToId.set(f.title.trim().toLowerCase(), f.id));
 
         const tasksByFeatureId = new Map<string, Set<string>>();
         existingTasks.forEach((t) => {
-          if (!tasksByFeatureId.has(t.feature_id))
-            tasksByFeatureId.set(t.feature_id, new Set());
+          if (!tasksByFeatureId.has(t.feature_id)) tasksByFeatureId.set(t.feature_id, new Set());
           tasksByFeatureId.get(t.feature_id)!.add(t.title.trim().toLowerCase());
         });
 
         const locked: Record<string, boolean> = {};
         suggestions.features.forEach((feature, fi) => {
           let featureId: string | null = null;
-          if (feature.type === "EXISTING" && feature.feature_id) {
+          if (feature.type === 'EXISTING' && feature.feature_id) {
             featureId = feature.feature_id;
-          } else if (feature.type === "NEW") {
+          } else if (feature.type === 'NEW') {
             const norm = feature.title.trim().toLowerCase();
-            if (featureTitleToId.has(norm))
-              featureId = featureTitleToId.get(norm)!;
+            if (featureTitleToId.has(norm)) featureId = featureTitleToId.get(norm)!;
           }
           if (featureId) {
             const existing = tasksByFeatureId.get(featureId) || new Set();
@@ -1166,9 +1073,7 @@ function MeetingAIInlineSection({
   const isFeatureAllLocked = useCallback(
     (fi: number) => {
       if (!suggestions) return false;
-      return suggestions.features[fi].tasks.every((_, ti) =>
-        isTaskLocked(fi, ti),
-      );
+      return suggestions.features[fi].tasks.every((_, ti) => isTaskLocked(fi, ti));
     },
     [suggestions, isTaskLocked],
   );
@@ -1231,12 +1136,10 @@ function MeetingAIInlineSection({
         checklists: { ...prev.checklists, [key]: newVal },
       };
       const taskKey = `${fi}-${ti}`;
-      const anyClChecked = suggestions!.features[fi].tasks[ti].checklists.some(
-        (_, idx) => {
-          const cKey = `${fi}-${ti}-${idx}`;
-          return cKey === key ? newVal : next.checklists[cKey];
-        },
-      );
+      const anyClChecked = suggestions!.features[fi].tasks[ti].checklists.some((_, idx) => {
+        const cKey = `${fi}-${ti}-${idx}`;
+        return cKey === key ? newVal : next.checklists[cKey];
+      });
       next.tasks = { ...prev.tasks, [taskKey]: anyClChecked };
       const anyTaskChecked = suggestions!.features[fi].tasks.some((_, idx) => {
         const tKey = `${fi}-${idx}`;
@@ -1266,9 +1169,7 @@ function MeetingAIInlineSection({
           checklistSel[`${fi}-${ti}-${ci}`] = locked ? true : newVal;
         });
       });
-      const anyChecked = feature.tasks.some(
-        (_, idx) => taskSel[`${fi}-${idx}`],
-      );
+      const anyChecked = feature.tasks.some((_, idx) => taskSel[`${fi}-${idx}`]);
       featureSel[fi] = anyChecked;
     });
     setSelection({
@@ -1288,7 +1189,7 @@ function MeetingAIInlineSection({
     });
     Object.entries(selection.checklists).forEach(([key, v]) => {
       if (v) {
-        const parts = key.split("-");
+        const parts = key.split('-');
         const taskKey = `${parts[0]}-${parts[1]}`;
         if (!lockedItems.tasks[taskKey]) count++;
       }
@@ -1334,7 +1235,7 @@ function MeetingAIInlineSection({
       const applyResult = await meetingAPI.aiApply(boardId, meetingId, request);
       setResult(applyResult);
     } catch {
-      setApplyError(t("meeting.aiError"));
+      setApplyError(t('meeting.aiError'));
     } finally {
       setApplying(false);
     }
@@ -1350,17 +1251,17 @@ function MeetingAIInlineSection({
     );
 
   const renderFeatureLabel = (feature: AIFeatureSuggestion) => {
-    if (feature.type === "EXISTING") {
+    if (feature.type === 'EXISTING') {
       return (
         <span className="text-xs font-bold uppercase tracking-widest text-slate-400 bg-foreground/5 px-1.5 py-0.5 rounded">
-          {t("meeting.aiExistingFeature")}
+          {t('meeting.aiExistingFeature')}
         </span>
       );
     }
     return (
       <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
         <Sparkles className="h-3 w-3" />
-        {t("meeting.aiNewFeature")}
+        {t('meeting.aiNewFeature')}
       </span>
     );
   };
@@ -1373,7 +1274,7 @@ function MeetingAIInlineSection({
             <Sparkles className="h-8 w-8 text-bridge-accent animate-pulse" />
             <Loader2 className="h-5 w-5 text-bridge-accent animate-spin absolute -bottom-1 -right-1" />
           </div>
-          <p className="text-sm text-slate-400">{t("meeting.aiAnalyzing")}</p>
+          <p className="text-sm text-slate-400">{t('meeting.aiAnalyzing')}</p>
         </div>
       </div>
     );
@@ -1389,13 +1290,13 @@ function MeetingAIInlineSection({
               onClick={onRetry}
               className="px-4 py-2 text-sm font-medium text-foreground bg-foreground/5 border border-foreground/10 rounded-xl hover:bg-foreground/10 transition-all"
             >
-              {t("meeting.aiRetry")}
+              {t('meeting.aiRetry')}
             </button>
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-foreground transition-colors"
             >
-              {t("meeting.aiClose")}
+              {t('meeting.aiClose')}
             </button>
           </div>
         </div>
@@ -1411,14 +1312,14 @@ function MeetingAIInlineSection({
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-bridge-accent" />
           <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-            {t("meeting.aiOrganizeTitle")}
+            {t('meeting.aiOrganizeTitle')}
           </span>
         </div>
         <button
           onClick={onClose}
           className="text-xs text-slate-500 hover:text-muted-foreground transition-colors"
         >
-          {t("meeting.aiClose")}
+          {t('meeting.aiClose')}
         </button>
       </div>
 
@@ -1428,15 +1329,12 @@ function MeetingAIInlineSection({
           <div className="flex items-center gap-2 mb-3">
             <Star className="h-4 w-4 text-bridge-accent" />
             <span className="text-xs font-bold text-bridge-accent uppercase tracking-widest">
-              {t("meeting.aiKeyPoints")}
+              {t('meeting.aiKeyPoints')}
             </span>
           </div>
           <ul className="space-y-1.5">
             {suggestions.key_points.map((point, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-2 text-sm text-foreground"
-              >
+              <li key={i} className="flex items-start gap-2 text-sm text-foreground">
                 <span className="text-bridge-accent mt-1 text-xs">●</span>
                 <span>{point}</span>
               </li>
@@ -1449,7 +1347,7 @@ function MeetingAIInlineSection({
       {suggestions.summary && suggestions.summary.length > 0 && (
         <div className="space-y-2">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-            {t("meeting.aiSummaryTitle")}
+            {t('meeting.aiSummaryTitle')}
           </span>
           <div className="space-y-2">
             {suggestions.summary.map((topic, i) => (
@@ -1457,17 +1355,15 @@ function MeetingAIInlineSection({
                 key={i}
                 className={`rounded-xl border p-4 ${
                   topic.important
-                    ? "bg-amber-500/5 border-amber-500/20"
-                    : "bg-white/[0.02] border-foreground/5"
+                    ? 'bg-amber-500/5 border-amber-500/20'
+                    : 'bg-white/[0.02] border-foreground/5'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-medium text-foreground">
-                    {topic.topic}
-                  </span>
+                  <span className="text-sm font-medium text-foreground">{topic.topic}</span>
                   {topic.important && (
                     <span className="text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
-                      {t("meeting.aiImportant")}
+                      {t('meeting.aiImportant')}
                     </span>
                   )}
                 </div>
@@ -1479,7 +1375,7 @@ function MeetingAIInlineSection({
                     {topic.decisions && topic.decisions.length > 0 && (
                       <div>
                         <span className="text-xs font-bold uppercase tracking-widest text-green-600 dark:text-green-400">
-                          {t("meeting.aiDecisions", "Decisions")}
+                          {t('meeting.aiDecisions', 'Decisions')}
                         </span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.decisions.map((d, j) => (
@@ -1499,7 +1395,7 @@ function MeetingAIInlineSection({
                     {topic.discussions && topic.discussions.length > 0 && (
                       <div>
                         <span className="text-xs font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
-                          {t("meeting.aiDiscussions", "Discussions")}
+                          {t('meeting.aiDiscussions', 'Discussions')}
                         </span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.discussions.map((d, j) => (
@@ -1519,7 +1415,7 @@ function MeetingAIInlineSection({
                     {topic.action_items && topic.action_items.length > 0 && (
                       <div>
                         <span className="text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
-                          {t("meeting.aiActionItems", "Action Items")}
+                          {t('meeting.aiActionItems', 'Action Items')}
                         </span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.action_items.map((a, j) => (
@@ -1541,13 +1437,8 @@ function MeetingAIInlineSection({
                   /* Fallback: legacy points format */
                   <ul className="space-y-1">
                     {topic.points.map((point, j) => (
-                      <li
-                        key={j}
-                        className="flex items-start gap-2 text-sm text-foreground/80"
-                      >
-                        <span className="text-muted-foreground mt-1 text-xs">
-                          –
-                        </span>
+                      <li key={j} className="flex items-start gap-2 text-sm text-foreground/80">
+                        <span className="text-muted-foreground mt-1 text-xs">–</span>
                         <span>{point}</span>
                       </li>
                     ))}
@@ -1564,15 +1455,13 @@ function MeetingAIInlineSection({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              {t("meeting.aiRecommendedTasks")}
+              {t('meeting.aiRecommendedTasks')}
             </span>
             <button
               onClick={toggleAll}
               className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors font-medium"
             >
-              {isAllSelected
-                ? t("meeting.aiDeselectAll")
-                : t("meeting.aiSelectAll")}
+              {isAllSelected ? t('meeting.aiDeselectAll') : t('meeting.aiSelectAll')}
             </button>
           </div>
 
@@ -1588,10 +1477,7 @@ function MeetingAIInlineSection({
                       {renderCheckbox(true, true)}
                     </span>
                   ) : (
-                    <button
-                      onClick={() => toggleFeature(fi)}
-                      className="flex-shrink-0"
-                    >
+                    <button onClick={() => toggleFeature(fi)} className="flex-shrink-0">
                       {renderCheckbox(!!selection.features[fi])}
                     </button>
                   )}
@@ -1605,10 +1491,10 @@ function MeetingAIInlineSection({
                     className="flex-shrink-0 text-slate-400 hover:text-foreground transition-colors"
                   >
                     <ChevronRight
-                      className={`h-4 w-4 transition-transform ${expandedFeatures[fi] ? "rotate-90" : ""}`}
+                      className={`h-4 w-4 transition-transform ${expandedFeatures[fi] ? 'rotate-90' : ''}`}
                     />
                   </button>
-                  {feature.type === "NEW" && feature.color && (
+                  {feature.type === 'NEW' && feature.color && (
                     <div
                       className="w-3 h-3 rounded-full flex-shrink-0"
                       style={{ backgroundColor: feature.color }}
@@ -1625,17 +1511,14 @@ function MeetingAIInlineSection({
                     {feature.tasks.map((task, ti) => (
                       <div key={ti}>
                         <div
-                          className={`flex items-center gap-2 px-4 py-2.5 pl-10 ${isTaskLocked(fi, ti) ? "opacity-60" : ""}`}
+                          className={`flex items-center gap-2 px-4 py-2.5 pl-10 ${isTaskLocked(fi, ti) ? 'opacity-60' : ''}`}
                         >
                           {isTaskLocked(fi, ti) ? (
                             <span className="flex-shrink-0 cursor-not-allowed">
                               {renderCheckbox(true, true)}
                             </span>
                           ) : (
-                            <button
-                              onClick={() => toggleTask(fi, ti)}
-                              className="flex-shrink-0"
-                            >
+                            <button onClick={() => toggleTask(fi, ti)} className="flex-shrink-0">
                               {renderCheckbox(!!selection.tasks[`${fi}-${ti}`])}
                             </button>
                           )}
@@ -1652,14 +1535,14 @@ function MeetingAIInlineSection({
                           </div>
                           {isTaskLocked(fi, ti) && (
                             <span className="text-xs text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded flex-shrink-0">
-                              {t("meeting.aiAlreadyExists")}
+                              {t('meeting.aiAlreadyExists')}
                             </span>
                           )}
                         </div>
                         {task.checklists.map((checklist, ci) => (
                           <div
                             key={ci}
-                            className={`flex items-center gap-2 px-4 py-2 pl-16 ${isTaskLocked(fi, ti) ? "opacity-60" : ""}`}
+                            className={`flex items-center gap-2 px-4 py-2 pl-16 ${isTaskLocked(fi, ti) ? 'opacity-60' : ''}`}
                           >
                             {isTaskLocked(fi, ti) ? (
                               <span className="flex-shrink-0 cursor-not-allowed">
@@ -1670,9 +1553,7 @@ function MeetingAIInlineSection({
                                 onClick={() => toggleChecklist(fi, ti, ci)}
                                 className="flex-shrink-0"
                               >
-                                {renderCheckbox(
-                                  !!selection.checklists[`${fi}-${ti}-${ci}`],
-                                )}
+                                {renderCheckbox(!!selection.checklists[`${fi}-${ti}-${ci}`])}
                               </button>
                             )}
                             <span className="text-xs text-slate-400 truncate">
@@ -1690,7 +1571,7 @@ function MeetingAIInlineSection({
 
           <div className="flex items-center justify-between pt-2">
             <span className="text-xs text-slate-400">
-              {t("meeting.aiSelectedCount", { count: selectedCount })}
+              {t('meeting.aiSelectedCount', { count: selectedCount })}
             </span>
             <button
               onClick={handleApply}
@@ -1700,16 +1581,14 @@ function MeetingAIInlineSection({
               {applying ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {t("meeting.aiApplying")}
+                  {t('meeting.aiApplying')}
                 </>
               ) : (
-                t("meeting.aiApply")
+                t('meeting.aiApply')
               )}
             </button>
           </div>
-          {applyError && (
-            <p className="text-xs text-red-400 text-center">{applyError}</p>
-          )}
+          {applyError && <p className="text-xs text-red-400 text-center">{applyError}</p>}
         </div>
       )}
 
@@ -1721,7 +1600,7 @@ function MeetingAIInlineSection({
               <CheckSquare className="h-4 w-4 text-green-400" />
             </div>
             <p className="text-sm text-muted-foreground">
-              {t("meeting.aiApplySuccess", {
+              {t('meeting.aiApplySuccess', {
                 features: result.features_created,
                 tasks: result.tasks_created,
                 checklists: result.checklists_created,
@@ -1736,9 +1615,7 @@ function MeetingAIInlineSection({
         (!suggestions.summary || suggestions.summary.length === 0) && (
           <div className="bg-white/[0.02] rounded-xl border border-foreground/5 p-6 text-center">
             <Sparkles className="h-6 w-6 text-slate-500 mx-auto mb-2" />
-            <p className="text-sm text-slate-400">
-              {t("meeting.aiNoSuggestions")}
-            </p>
+            <p className="text-sm text-slate-400">{t('meeting.aiNoSuggestions')}</p>
           </div>
         )}
     </div>

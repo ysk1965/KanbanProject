@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   LayoutGrid,
   GanttChart,
@@ -9,22 +9,24 @@ import {
   Lock,
   Check,
   ChevronDown,
-} from "lucide-react";
-import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
+} from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 
 type ViewMode =
-  | "kanban"
-  | "gantt"
-  | "schedule"
-  | "calendar"
-  | "milestone"
-  | "meeting"
-  | "notes"
-  | "statistics"
-  | "ai_report"
-  | "list"
-  | "mindmap"
-  | "minikanban";
+  | 'kanban'
+  | 'gantt'
+  | 'schedule'
+  | 'calendar'
+  | 'milestone'
+  | 'meeting'
+  | 'library'
+  | 'report'
+  | 'ld_upscale'
+  | 'statistics'
+  | 'ai_report'
+  | 'list'
+  | 'mindmap'
+  | 'minikanban';
 
 interface FloatingViewSwitcherProps {
   /** 현재 활성화된 뷰 모드 */
@@ -47,42 +49,42 @@ interface BoardViewItem {
 /** 보드 표현 뷰 (칸반/리스트/간트/캘린더/미니 칸반) — 같은 데이터를 다르게 보여주는 그룹 */
 const BOARD_VIEWS: BoardViewItem[] = [
   {
-    mode: "kanban",
+    mode: 'kanban',
     icon: LayoutGrid,
-    labelKey: "kanban.viewBoardKanban",
-    labelFallback: "칸반",
+    labelKey: 'kanban.viewBoardKanban',
+    labelFallback: '칸반',
     isPremium: false,
     checkAccess: () => true,
   },
   {
-    mode: "list",
+    mode: 'list',
     icon: List,
-    labelKey: "kanban.viewBoardList",
-    labelFallback: "리스트",
+    labelKey: 'kanban.viewBoardList',
+    labelFallback: '리스트',
     isPremium: false,
     checkAccess: () => true,
   },
   {
-    mode: "gantt",
+    mode: 'gantt',
     icon: GanttChart,
-    labelKey: "kanban.viewBoardGantt",
-    labelFallback: "간트",
+    labelKey: 'kanban.viewBoardGantt',
+    labelFallback: '간트',
     isPremium: true,
     checkAccess: (canAccessGantt) => canAccessGantt,
   },
   {
-    mode: "calendar",
+    mode: 'calendar',
     icon: Calendar,
-    labelKey: "kanban.viewBoardCalendar",
-    labelFallback: "캘린더",
+    labelKey: 'kanban.viewBoardCalendar',
+    labelFallback: '캘린더',
     isPremium: false,
     checkAccess: () => true,
   },
   {
-    mode: "minikanban",
+    mode: 'minikanban',
     icon: Columns3,
-    labelKey: "kanban.viewBoardMiniKanban",
-    labelFallback: "미니 칸반",
+    labelKey: 'kanban.viewBoardMiniKanban',
+    labelFallback: '미니 칸반',
     isPremium: false,
     checkAccess: () => true,
   },
@@ -109,10 +111,10 @@ export function FloatingViewSwitcher({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          aria-label={t("kanban.viewSwitcher", "뷰 전환")}
+          aria-label={t('kanban.viewSwitcher', '뷰 전환')}
           // 자동수정 도크가 열리면 그 높이만큼 비켜 올라간다. 도크가 없으면 0px.
           style={{
-            transform: "translateY(calc(-1 * var(--autofix-dock-h, 0px)))",
+            transform: 'translateY(calc(-1 * var(--autofix-dock-h, 0px)))',
           }}
           className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-40
             flex items-center gap-1.5 px-3.5 py-2.5 rounded-full
@@ -122,16 +124,12 @@ export function FloatingViewSwitcher({
             hover:border-foreground/[0.12] hover:bg-bridge-obsidian
             focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
         >
-          <ActiveIcon
-            size={15}
-            className="text-bridge-accent"
-            aria-hidden="true"
-          />
+          <ActiveIcon size={15} className="text-bridge-accent" aria-hidden="true" />
           <span>{t(active.labelKey, active.labelFallback)}</span>
           <ChevronDown
             size={14}
             aria-hidden="true"
-            className={`transition-transform ${open ? "rotate-180" : ""}`}
+            className={`transition-transform ${open ? 'rotate-180' : ''}`}
           />
         </button>
       </PopoverTrigger>
@@ -140,18 +138,11 @@ export function FloatingViewSwitcher({
         side="top"
         sideOffset={12}
         role="menu"
-        aria-label={t("kanban.viewBoard", "보드 서브뷰")}
+        aria-label={t('kanban.viewBoard', '보드 서브뷰')}
         className="w-52 p-1.5 bg-bridge-obsidian border-foreground/[0.08] shadow-2xl rounded-xl"
       >
         {BOARD_VIEWS.map(
-          ({
-            mode,
-            icon: Icon,
-            labelKey,
-            labelFallback,
-            isPremium,
-            checkAccess,
-          }) => {
+          ({ mode, icon: Icon, labelKey, labelFallback, isPremium, checkAccess }) => {
             const isActive = viewMode === mode;
             const hasAccess = checkAccess(canAccessGantt);
             const label = t(labelKey, labelFallback);
@@ -163,7 +154,7 @@ export function FloatingViewSwitcher({
                 aria-checked={isActive}
                 aria-label={
                   isPremium && !hasAccess
-                    ? `${label} (${t("common.premiumRequired", "프리미엄 필요")})`
+                    ? `${label} (${t('common.premiumRequired', '프리미엄 필요')})`
                     : label
                 }
                 onClick={() => {
@@ -173,19 +164,15 @@ export function FloatingViewSwitcher({
                 }}
                 className={
                   isActive
-                    ? "w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-bold bg-bridge-accent/15 text-bridge-accent transition-colors"
-                    : "w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                    ? 'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-bold bg-bridge-accent/15 text-bridge-accent transition-colors'
+                    : 'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors'
                 }
               >
                 <Icon size={15} aria-hidden="true" />
                 <span className="flex-1 text-left">{label}</span>
                 {isActive && <Check size={14} aria-hidden="true" />}
                 {isPremium && !hasAccess && (
-                  <Lock
-                    size={12}
-                    className="text-slate-500"
-                    aria-hidden="true"
-                  />
+                  <Lock size={12} className="text-slate-500" aria-hidden="true" />
                 )}
               </button>
             );
@@ -196,4 +183,4 @@ export function FloatingViewSwitcher({
   );
 }
 
-FloatingViewSwitcher.displayName = "FloatingViewSwitcher";
+FloatingViewSwitcher.displayName = 'FloatingViewSwitcher';

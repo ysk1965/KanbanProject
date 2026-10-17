@@ -24,11 +24,8 @@ import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
-import com.kanban.domain.monitoring.entity.AiUsageLog;
-import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
-import com.kanban.domain.subscription.service.AiCreditService;
-import com.kanban.global.config.AIProvider;
-import com.kanban.global.config.AIResponse;
+import com.kanban.global.ai.AiInvocationRequest;
+import com.kanban.global.ai.AiInvocationTemplate;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +34,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -46,7 +44,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class NoteAIService {
 
-    private final AIProvider aiProvider;
+    private final AiInvocationTemplate aiInvocationTemplate;
+    private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper;
     private final NoteRepository noteRepository;
     private final FeatureRepository featureRepository;
@@ -57,8 +56,6 @@ public class NoteAIService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final ActivityService activityService;
-    private final AiUsageLogRepository aiUsageLogRepository;
-    private final AiCreditService aiCreditService;
 
     @Value("${ai.provider:claude}")
     private String provider;
@@ -75,77 +72,78 @@ public class NoteAIService {
         return "openai".equals(provider) ? openaiModel : claudeModel;
     }
 
-    @Transactional
+    /**
+     * 트랜잭션 밖에서 실행된다 — 입력 읽기와 결과 저장은 {@code transactionTemplate}으로 각각 짧게 묶고,
+     * LLM 호출은 {@link AiInvocationTemplate}이 트랜잭션 없이 수행한다(크레딧 차감·사용량 로그는 각자 짧은 트랜잭션).
+     */
     public NoteAIResponse.Suggestions generateSuggestions(String boardId, String noteId, String userId, String language) {
-        // Consume AI credit before processing
-        aiCreditService.consumeCredit(boardId, userId, "NOTE_AI", 1);
+        // 1. 입력 읽기 (tx) — 보드 컨텍스트 JSON까지 여기서 문자열로 만든다 (Feature/Task 연관은 LAZY)
+        PromptInput input = transactionTemplate.execute(status -> {
+            boardService.checkMemberOrAbove(boardId, userId);
 
-        boardService.checkMemberOrAbove(boardId, userId);
+            Note note = noteRepository.findByIdAndBoardId(noteId, boardId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_NOT_FOUND));
 
-        Note note = noteRepository.findByIdAndBoardId(noteId, boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_NOT_FOUND));
+            if (note.getIsDeleted()) {
+                throw new BusinessException(ErrorCode.NOTE_NOT_FOUND);
+            }
 
-        if (note.getIsDeleted()) {
-            throw new BusinessException(ErrorCode.NOTE_NOT_FOUND);
-        }
+            if (note.isBoard()) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "화이트보드에는 AI 정리를 사용할 수 없습니다");
+            }
 
-        if (note.isBoard()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "화이트보드에는 AI 정리를 사용할 수 없습니다");
-        }
+            String rawContent = note.getContent();
+            if (rawContent == null || rawContent.isBlank()) {
+                throw new BusinessException(ErrorCode.AI_NOTE_CONTENT_EMPTY);
+            }
 
-        String rawContent = note.getContent();
-        if (rawContent == null || rawContent.isBlank()) {
-            throw new BusinessException(ErrorCode.AI_NOTE_CONTENT_EMPTY);
-        }
+            // Notes are stored either as BlockNote JSON (starts with '[') or legacy HTML.
+            // Both must collapse to plain text before going to the LLM.
+            String plainText = extractPlainText(rawContent);
+            if (plainText.isBlank()) {
+                throw new BusinessException(ErrorCode.AI_NOTE_CONTENT_EMPTY);
+            }
 
-        // Notes are stored either as BlockNote JSON (starts with '[') or legacy HTML.
-        // Both must collapse to plain text before going to the LLM.
-        String plainText = extractPlainText(rawContent);
-        if (plainText.isBlank()) {
-            throw new BusinessException(ErrorCode.AI_NOTE_CONTENT_EMPTY);
-        }
+            // Build board context
+            List<Feature> existingFeatures = featureRepository.findByBoardIdOrderByPositionAsc(boardId);
+            Map<String, List<Task>> featureTasksMap = new LinkedHashMap<>();
+            for (Feature f : existingFeatures) {
+                List<Task> tasks = taskRepository.findByFeatureIdOrderByPositionAsc(f.getId());
+                featureTasksMap.put(f.getId(), tasks);
+            }
 
-        // Build board context
-        List<Feature> existingFeatures = featureRepository.findByBoardIdOrderByPositionAsc(boardId);
-        Map<String, List<Task>> featureTasksMap = new LinkedHashMap<>();
-        for (Feature f : existingFeatures) {
-            List<Task> tasks = taskRepository.findByFeatureIdOrderByPositionAsc(f.getId());
-            featureTasksMap.put(f.getId(), tasks);
-        }
+            String boardContext = buildBoardContextJson(existingFeatures, featureTasksMap);
+            return new PromptInput(note.getTitle(), rawContent,
+                    buildSystemPrompt(language),
+                    buildUserPrompt(note.getTitle(), plainText, boardContext));
+        });
 
-        String boardContext = buildBoardContextJson(existingFeatures, featureTasksMap);
-        String systemPrompt = buildSystemPrompt(language);
-        String userPrompt = buildUserPrompt(note.getTitle(), plainText, boardContext);
-
+        // 2. 크레딧 차감 → AI 호출 → 사용량 로그 → 파싱 (트랜잭션 없음)
         log.info("Generating AI suggestions for note: {} in board: {}", noteId, boardId);
-        String model = getModel();
-        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS);
+        AiInvocationRequest request = AiInvocationRequest.builder()
+                .boardId(boardId).userId(userId)
+                .featureType("NOTE").creditCost(1)
+                .systemPrompt(input.systemPrompt()).userPrompt(input.userPrompt())
+                .model(getModel()).maxTokens(MAX_TOKENS)
+                .build();
+        NoteAIResponse.Suggestions suggestions = aiInvocationTemplate.invoke(request,
+                content -> parseAIResponse(content, noteId, input.noteTitle()));
 
-        try {
-            aiUsageLogRepository.save(AiUsageLog.builder()
-                    .boardId(boardId).userId(userId)
-                    .featureType("NOTE").provider(provider.toUpperCase())
-                    .model(model)
-                    .inputTokens(aiResult.inputTokens())
-                    .outputTokens(aiResult.outputTokens())
-                    .estimatedCostUsd(AiUsageLog.calculateCost(model, aiResult.inputTokens(), aiResult.outputTokens()))
-                    .build());
-        } catch (Exception e) {
-            log.debug("Failed to save AI usage log: {}", e.getMessage());
-        }
-
-        NoteAIResponse.Suggestions suggestions = parseAIResponse(aiResult.content(), noteId, note.getTitle());
-
-        // Save AI suggestions and content snapshot to note
-        try {
-            String suggestionsJson = objectMapper.writeValueAsString(suggestions);
-            note.updateAiSuggestions(suggestionsJson);
-            note.updateAiContentSnapshot(rawContent);
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to serialize AI suggestions for note: {}", noteId, e);
-        }
+        // 3. 결과 저장 (tx) — AI 제안과 당시 본문 스냅샷을 노트에 남긴다
+        transactionTemplate.executeWithoutResult(status ->
+                noteRepository.findByIdAndBoardId(noteId, boardId).ifPresent(note -> {
+                    try {
+                        note.updateAiSuggestions(objectMapper.writeValueAsString(suggestions));
+                        note.updateAiContentSnapshot(input.rawContent());
+                    } catch (JsonProcessingException e) {
+                        log.warn("Failed to serialize AI suggestions for note: {}", noteId, e);
+                    }
+                }));
 
         return suggestions;
+    }
+
+    private record PromptInput(String noteTitle, String rawContent, String systemPrompt, String userPrompt) {
     }
 
     @Transactional
@@ -520,8 +518,7 @@ public class NoteAIService {
 
     private NoteAIResponse.Suggestions parseAIResponse(String aiResponse, String noteId, String noteTitle) {
         try {
-            String json = extractJson(aiResponse);
-            JsonNode root = objectMapper.readTree(json);
+            JsonNode root = aiInvocationTemplate.readJsonTree(aiResponse);
 
             List<String> keyPoints = new ArrayList<>();
             JsonNode keyPointsNode = root.get("key_points");
@@ -603,27 +600,6 @@ public class NoteAIService {
             log.error("Failed to parse AI response for note: {}", noteId, e);
             throw new BusinessException(ErrorCode.AI_NOTE_PARSE_FAILED);
         }
-    }
-
-    private String extractJson(String response) {
-        if (response == null) return "{}";
-        String trimmed = response.trim();
-
-        if (trimmed.startsWith("```")) {
-            int firstNewline = trimmed.indexOf('\n');
-            int lastFence = trimmed.lastIndexOf("```");
-            if (firstNewline > 0 && lastFence > firstNewline) {
-                trimmed = trimmed.substring(firstNewline + 1, lastFence).trim();
-            }
-        }
-
-        int start = trimmed.indexOf('{');
-        int end = trimmed.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            return trimmed.substring(start, end + 1);
-        }
-
-        return trimmed;
     }
 
     private List<String> parseStringArray(JsonNode node, String field) {

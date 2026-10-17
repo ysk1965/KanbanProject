@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Upload,
   FolderPlus,
@@ -10,25 +10,25 @@ import {
   HardDrive,
   UploadCloud,
   Check,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   myStorageAPI,
   makeBoardStorageAPI,
   makeOrgStorageAPI,
   type StorageApi,
-} from "../../utils/api";
+} from '../../utils/api';
 import type {
   StorageFolderTree as FolderNode,
   StorageFileItem,
   StorageUsage,
-} from "../../utils/api";
-import { StorageFolderTree } from "./StorageFolderTree";
-import { StorageFileCard } from "./StorageFileCard";
-import { StoragePreviewModal } from "./StoragePreviewModal";
-import { StorageTrashModal } from "./StorageTrashModal";
-import { StorageUsageDetailModal } from "./StorageUsageDetailModal";
-import { formatBytes, folderPath } from "./storageUtils";
+} from '../../utils/api';
+import { StorageFolderTree } from './StorageFolderTree';
+import { StorageFileCard } from './StorageFileCard';
+import { StoragePreviewModal } from './StoragePreviewModal';
+import { StorageTrashModal } from './StorageTrashModal';
+import { StorageUsageDetailModal } from './StorageUsageDetailModal';
+import { formatBytes, folderPath, publicFileLink } from './storageUtils';
 
 interface StorageViewProps {
   /** 개인 스코프 (마이스페이스) */
@@ -37,14 +37,6 @@ interface StorageViewProps {
   boardId?: string;
   /** 조직 스코프 */
   orgId?: string;
-}
-
-const API_ORIGIN = (
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1"
-).replace(/\/$/, "");
-
-function publicFileLink(shareCode: string): string {
-  return `${API_ORIGIN}/public/storage/files/${shareCode}/download`;
 }
 
 export function StorageView({ boardId, orgId }: StorageViewProps) {
@@ -65,7 +57,7 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
   const [trashOpen, setTrashOpen] = useState(false);
   const [usageDetailOpen, setUsageDetailOpen] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
+  const [newFolderName, setNewFolderName] = useState('');
   const [dragOverMain, setDragOverMain] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -81,7 +73,7 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
       setFolders(f);
       setUsage(u);
     } catch (e) {
-      console.error("Failed to load storage folders:", e);
+      console.error('Failed to load storage folders:', e);
     }
   }, []);
 
@@ -90,7 +82,7 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
     try {
       setFiles(await api.getFiles(folderId));
     } catch (e) {
-      console.error("Failed to load files:", e);
+      console.error('Failed to load files:', e);
     } finally {
       setFilesLoading(false);
     }
@@ -127,10 +119,9 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
             setUploads((prev) => ({ ...prev, [key]: p })),
           );
         } catch (e: unknown) {
-          const msg =
-            (e as { message?: string })?.message || "업로드에 실패했습니다";
+          const msg = (e as { message?: string })?.message || '업로드에 실패했습니다';
           const code = (e as { code?: string })?.code;
-          showFlash(code === "ST003" ? "스토리지 용량이 부족합니다" : msg);
+          showFlash(code === 'ST003' ? '스토리지 용량이 부족합니다' : msg);
         } finally {
           setUploads((prev) => {
             const next = { ...prev };
@@ -160,63 +151,62 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
     }
     try {
       await api.createFolder(name, currentFolderId);
-      setNewFolderName("");
+      setNewFolderName('');
       setCreatingFolder(false);
       await loadFolders();
     } catch (e) {
-      console.error("Create folder failed:", e);
-      showFlash("폴더 생성에 실패했습니다");
+      console.error('Create folder failed:', e);
+      showFlash('폴더 생성에 실패했습니다');
     }
   };
 
   const renameCurrentFolder = async () => {
     if (!currentFolderId) return;
     const current = breadcrumb[breadcrumb.length - 1];
-    const name = window.prompt("폴더 이름", current?.name ?? "");
+    const name = window.prompt('폴더 이름', current?.name ?? '');
     if (!name || name.trim() === current?.name) return;
     try {
       await api.renameFolder(currentFolderId, name.trim());
       await loadFolders();
     } catch (e) {
-      console.error("Rename failed:", e);
+      console.error('Rename failed:', e);
     }
   };
 
   const deleteCurrentFolder = async () => {
     if (!currentFolderId) return;
-    if (!window.confirm("이 폴더와 안의 파일을 휴지통으로 이동할까요?")) return;
+    if (!window.confirm('이 폴더와 안의 파일을 휴지통으로 이동할까요?')) return;
     try {
       await api.deleteFolder(currentFolderId);
-      setCurrentFolderId(
-        breadcrumb.length > 1 ? breadcrumb[breadcrumb.length - 2].id : null,
-      );
+      setCurrentFolderId(breadcrumb.length > 1 ? breadcrumb[breadcrumb.length - 2].id : null);
       await Promise.all([loadFolders(), loadFiles(null)]);
     } catch (e) {
-      console.error("Delete folder failed:", e);
+      console.error('Delete folder failed:', e);
     }
   };
 
   // ===== File ops =====
 
-  const handleDropFileToFolder = async (
-    fileId: string,
-    targetFolderId: string | null,
-  ) => {
+  const handleDropFileToFolder = async (fileId: string, targetFolderId: string | null) => {
     try {
       await api.moveFile(fileId, targetFolderId);
       await loadFiles(currentFolderId);
-      showFlash("이동되었습니다");
+      showFlash('이동되었습니다');
     } catch (e) {
-      console.error("Move file failed:", e);
+      console.error('Move file failed:', e);
     }
   };
+
+  // 표 뷰어의 useEffect 의존성이라 참조를 고정한다
+  const handleLoadBlob = useCallback((file: StorageFileItem) => api.fetchBlob(file.id), [api]);
+  const handleLoadPreview = useCallback((file: StorageFileItem) => api.getPreview(file.id), [api]);
 
   const handleDownload = async (file: StorageFileItem) => {
     try {
       await api.downloadAndSave(file.id, file.original_filename);
     } catch (e) {
-      console.error("Download failed:", e);
-      showFlash("다운로드에 실패했습니다");
+      console.error('Download failed:', e);
+      showFlash('다운로드에 실패했습니다');
     }
   };
 
@@ -224,22 +214,18 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
     try {
       if (file.is_shared) {
         await api.disableFileShare(file.id);
-        showFlash("공유가 해제되었습니다");
+        showFlash('공유가 해제되었습니다');
       } else {
         const updated = await api.enableFileShare(file.id);
         if (updated.share_code) {
-          await navigator.clipboard
-            ?.writeText(publicFileLink(updated.share_code))
-            .catch(() => {});
-          showFlash("공유 링크가 복사되었습니다");
+          await navigator.clipboard?.writeText(publicFileLink(updated.share_code)).catch(() => {});
+          showFlash('공유 링크가 복사되었습니다');
         }
       }
       await loadFiles(currentFolderId);
-      setPreview((p) =>
-        p && p.id === file.id ? { ...p, is_shared: !file.is_shared } : p,
-      );
+      setPreview((p) => (p && p.id === file.id ? { ...p, is_shared: !file.is_shared } : p));
     } catch (e) {
-      console.error("Toggle share failed:", e);
+      console.error('Toggle share failed:', e);
     }
   };
 
@@ -249,15 +235,13 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
       setFiles((prev) => prev.filter((f) => f.id !== file.id));
       loadFolders();
     } catch (e) {
-      console.error("Delete file failed:", e);
+      console.error('Delete file failed:', e);
     }
   };
 
   const activeUploads = Object.entries(uploads);
   const usagePercent =
-    usage && usage.quota > 0
-      ? Math.min(100, (usage.used / usage.quota) * 100)
-      : 0;
+    usage && usage.quota > 0 ? Math.min(100, (usage.used / usage.quota) * 100) : 0;
   const nearFull = usagePercent >= 90;
 
   if (loading) {
@@ -298,10 +282,10 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") submitNewFolder();
-                  if (e.key === "Escape") {
+                  if (e.key === 'Enter') submitNewFolder();
+                  if (e.key === 'Escape') {
                     setCreatingFolder(false);
-                    setNewFolderName("");
+                    setNewFolderName('');
                   }
                 }}
                 placeholder="폴더 이름"
@@ -338,9 +322,7 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
                 <span className="flex items-center gap-1.5 text-xs font-bold text-foreground">
                   <HardDrive className="w-3.5 h-3.5 text-slate-400" />
                   {formatBytes(usage.used)}
-                  <span className="text-slate-500 font-normal">
-                    / {formatBytes(usage.quota)}
-                  </span>
+                  <span className="text-slate-500 font-normal">/ {formatBytes(usage.quota)}</span>
                 </span>
                 <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
                   {usage.tier}
@@ -350,21 +332,17 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
                 <div
                   className={`h-full rounded-full transition-all ${
                     nearFull
-                      ? "bg-amber-500"
-                      : "bg-gradient-to-r from-bridge-secondary to-bridge-accent"
+                      ? 'bg-amber-500'
+                      : 'bg-gradient-to-r from-bridge-secondary to-bridge-accent'
                   }`}
                   style={{ width: `${usagePercent}%` }}
                 />
               </div>
               <div className="flex items-center justify-between mt-1.5">
-                <span
-                  className={`text-xs ${nearFull ? "text-amber-500" : "text-slate-500"}`}
-                >
-                  <b
-                    className={nearFull ? "text-amber-500" : "text-emerald-500"}
-                  >
+                <span className={`text-xs ${nearFull ? 'text-amber-500' : 'text-slate-500'}`}>
+                  <b className={nearFull ? 'text-amber-500' : 'text-emerald-500'}>
                     {formatBytes(Math.max(0, usage.quota - usage.used))}
-                  </b>{" "}
+                  </b>{' '}
                   남음
                 </span>
                 <span className="text-xs text-slate-500">자세히 ›</span>
@@ -383,8 +361,8 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
                 onClick={() => setCurrentFolderId(null)}
                 className={`px-1.5 py-0.5 rounded transition-colors ${
                   currentFolderId === null
-                    ? "text-foreground font-bold"
-                    : "text-slate-400 hover:text-foreground"
+                    ? 'text-foreground font-bold'
+                    : 'text-slate-400 hover:text-foreground'
                 }`}
               >
                 전체 파일
@@ -397,8 +375,8 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
                     onClick={() => setCurrentFolderId(node.id)}
                     className={`px-1.5 py-0.5 rounded truncate transition-colors ${
                       i === breadcrumb.length - 1
-                        ? "text-foreground font-bold"
-                        : "text-slate-400 hover:text-foreground"
+                        ? 'text-foreground font-bold'
+                        : 'text-slate-400 hover:text-foreground'
                     }`}
                   >
                     {node.name}
@@ -442,7 +420,7 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
               hidden
               onChange={(e) => {
                 if (e.target.files?.length) handleFiles(e.target.files);
-                e.target.value = "";
+                e.target.value = '';
               }}
             />
           </div>
@@ -480,8 +458,8 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
             onDrop={onDropMain}
             className={`flex-1 min-h-[240px] rounded-2xl border transition-colors ${
               dragOverMain
-                ? "border-bridge-accent border-dashed bg-bridge-accent/5"
-                : "border-foreground/[0.08]"
+                ? 'border-bridge-accent border-dashed bg-bridge-accent/5'
+                : 'border-foreground/[0.08]'
             } p-3 overflow-y-auto custom-scrollbar`}
           >
             {filesLoading ? (
@@ -496,12 +474,9 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
               >
                 <UploadCloud className="w-12 h-12 text-slate-600" />
                 <div>
-                  <p className="text-sm font-bold text-foreground">
-                    파일을 여기에 끌어다 놓으세요
-                  </p>
+                  <p className="text-sm font-bold text-foreground">파일을 여기에 끌어다 놓으세요</p>
                   <p className="text-xs text-slate-500 mt-1">
-                    이미지 · 영상 · 문서 · 압축파일 등 모든 형식을 올릴 수
-                    있어요
+                    이미지 · 영상 · 문서 · 압축파일 등 모든 형식을 올릴 수 있어요
                   </p>
                 </div>
               </motion.div>
@@ -547,6 +522,8 @@ export function StorageView({ boardId, orgId }: StorageViewProps) {
         file={preview}
         onClose={() => setPreview(null)}
         onDownload={handleDownload}
+        onLoadBlob={handleLoadBlob}
+        onLoadPreview={handleLoadPreview}
         onToggleShare={handleToggleShare}
       />
       <StorageUsageDetailModal

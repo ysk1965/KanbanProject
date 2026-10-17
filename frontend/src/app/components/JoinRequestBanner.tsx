@@ -42,7 +42,10 @@ export default function JoinRequestBanner({
       <div className="flex items-center gap-2 min-w-0">
         <UserPlus className="w-4 h-4 text-bridge-accent shrink-0" />
         <span className="text-sm text-foreground truncate">
-          {t('board.joinRequest.viewerMessage', '조직 구성원으로 보드를 열람 중입니다. 멤버로 참가하면 편집할 수 있습니다.')}
+          {t(
+            'board.joinRequest.viewerMessage',
+            '조직 구성원으로 보드를 열람 중입니다. 멤버로 참가하면 편집할 수 있습니다.',
+          )}
         </span>
       </div>
 

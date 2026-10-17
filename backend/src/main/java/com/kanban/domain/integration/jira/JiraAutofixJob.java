@@ -78,7 +78,12 @@ public class JiraAutofixJob {
     @Column(name = "instruction", columnDefinition = "TEXT")
     private String instruction;
 
-    /** 누가 맡겼는가. 임의 지시문이 맥에서 실행되므로 감사 경로가 필요하다. */
+    /**
+     * 누가 맡겼는가(JIRA 건은 누가 담았는가). 임의 지시문이 맥에서 실행되므로 감사 경로가 필요하다.
+     *
+     * <p>결과를 카드에 남길 때 작성자로도 쓴다. 비어 있으면 댓글을 접는다 — 화면이 작성자 없는
+     * 댓글을 그리지 못한다.
+     */
     @Column(name = "created_by", length = 36)
     private String createdBy;
 
@@ -178,8 +183,14 @@ public class JiraAutofixJob {
     // id를 여기서 부여한다. @PrePersist까지 미루면 assignTarget()이 브랜치 이름을 만들 때
     // id가 아직 null이라 모든 작업의 브랜치가 같아진다 — 재시도가 곧바로 push 충돌로 이어진다.
 
-    /** 트리아지가 고른 JIRA 이슈. */
-    public static JiraAutofixJob forJiraIssue(Board board, String issueKey, String taskId, Double confidence) {
+    /**
+     * 트리아지가 고른 JIRA 이슈.
+     *
+     * @param queuedBy 큐에 담은 사람. 지시문은 트리아지가 만들지만 실행을 시킨 것은 사람이므로
+     *                 감사 대상은 여기서도 필요하고, 결과 댓글의 작성자도 이 값으로 정해진다.
+     */
+    public static JiraAutofixJob forJiraIssue(Board board, String issueKey, String taskId,
+                                              Double confidence, String queuedBy) {
         return JiraAutofixJob.builder()
                 .id(UUID.randomUUID().toString())
                 .board(board)
@@ -187,6 +198,7 @@ public class JiraAutofixJob {
                 .jobKind(AutofixJobKind.JIRA)
                 .taskId(taskId)
                 .confidence(confidence)
+                .createdBy(queuedBy)
                 .status(AutofixJobStatus.QUEUED)
                 .build();
     }

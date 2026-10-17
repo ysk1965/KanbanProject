@@ -1,6 +1,19 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mail, Phone, Cake, Calendar, Clock, LayoutGrid, FileText, Copy, Check, Briefcase, Award, GraduationCap } from 'lucide-react';
+import {
+  Mail,
+  Phone,
+  Cake,
+  Calendar,
+  Clock,
+  LayoutGrid,
+  FileText,
+  Copy,
+  Check,
+  Briefcase,
+  Award,
+  GraduationCap,
+} from 'lucide-react';
 import type { OrgMemberDetail, OrgMemberBoard, LeaveBalance, ContractType } from '../../../types';
 
 interface MemberSidebarProps {
@@ -25,7 +38,10 @@ function formatDate(dateStr?: string | null): string {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function formatTenure(months: number, t: (key: string, opts?: Record<string, unknown>) => string): string {
+function formatTenure(
+  months: number,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
   if (!months || isNaN(months)) return '—';
   if (months < 12) return t('organization.members.detail.tenureMonths', { count: months });
   const y = Math.floor(months / 12);
@@ -39,7 +55,14 @@ function formatBirthday(dateStr?: string | null): string {
   return `${String(d.getMonth() + 1)}/${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function MemberSidebar({ member, boards, leaveBalances, isAdmin, isSelf, hrSystemEnabled }: MemberSidebarProps) {
+export function MemberSidebar({
+  member,
+  boards,
+  leaveBalances,
+  isAdmin,
+  isSelf,
+  hrSystemEnabled,
+}: MemberSidebarProps) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const canViewPrivate = isAdmin || isSelf;
@@ -49,13 +72,14 @@ export function MemberSidebar({ member, boards, leaveBalances, isAdmin, isSelf, 
       await navigator.clipboard.writeText(member.user.email);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch { /* fallback */ }
+    } catch {
+      /* fallback */
+    }
   };
 
   return (
     <div className="w-[260px] shrink-0 border-l border-foreground/[0.08] overflow-y-auto bg-foreground/[0.01]">
       <div className="p-4 space-y-5">
-
         {/* Contact Info */}
         <SidebarSection title={t('organization.members.detail.sidebarContact')}>
           {/* Email */}
@@ -90,12 +114,24 @@ export function MemberSidebar({ member, boards, leaveBalances, isAdmin, isSelf, 
         {/* Quick Stats */}
         <SidebarSection title={t('organization.members.detail.sidebarOverview')}>
           {!hrSystemEnabled && (
-            <StatRow icon={Calendar} label={t('organization.members.detail.statsHireDate')} value={formatDate(member.hire_date)} />
+            <StatRow
+              icon={Calendar}
+              label={t('organization.members.detail.statsHireDate')}
+              value={formatDate(member.hire_date)}
+            />
           )}
           {!hrSystemEnabled && (
-            <StatRow icon={Clock} label={t('organization.members.detail.statsTenure')} value={formatTenure(member.tenure_months, t)} />
+            <StatRow
+              icon={Clock}
+              label={t('organization.members.detail.statsTenure')}
+              value={formatTenure(member.tenure_months, t)}
+            />
           )}
-          <StatRow icon={LayoutGrid} label={t('organization.members.detail.statsBoards')} value={`${boards.length}`} />
+          <StatRow
+            icon={LayoutGrid}
+            label={t('organization.members.detail.statsBoards')}
+            value={`${boards.length}`}
+          />
           {!hrSystemEnabled && (
             <StatRow
               icon={FileText}
@@ -104,19 +140,33 @@ export function MemberSidebar({ member, boards, leaveBalances, isAdmin, isSelf, 
             />
           )}
           {member.position && (
-            <StatRow icon={Briefcase} label={t('organization.members.detail.position')} value={member.position.name} />
+            <StatRow
+              icon={Briefcase}
+              label={t('organization.members.detail.position')}
+              value={member.position.name}
+            />
           )}
           {member.title && (
-            <StatRow icon={Award} label={t('organization.members.detail.title')} value={member.title.name} />
+            <StatRow
+              icon={Award}
+              label={t('organization.members.detail.title')}
+              value={member.title.name}
+            />
           )}
           {member.grade && (
-            <StatRow icon={GraduationCap} label={t('organization.members.detail.grade')} value={member.grade.name} />
+            <StatRow
+              icon={GraduationCap}
+              label={t('organization.members.detail.grade')}
+              value={member.grade.name}
+            />
           )}
         </SidebarSection>
 
         {/* Leave Balance */}
         {!hrSystemEnabled && canViewPrivate && leaveBalances.length > 0 && (
-          <SidebarSection title={`${t('organization.members.detail.leaveBalance')} (${new Date().getFullYear()})`}>
+          <SidebarSection
+            title={`${t('organization.members.detail.leaveBalance')} (${new Date().getFullYear()})`}
+          >
             <div className="space-y-2.5">
               {leaveBalances.map((lb) => {
                 const pct = lb.total_days > 0 ? (lb.used_days / lb.total_days) * 100 : 0;
@@ -130,7 +180,10 @@ export function MemberSidebar({ member, boards, leaveBalances, isAdmin, isSelf, 
                       </span>
                     </div>
                     <div className="w-full h-1.5 bg-foreground/[0.03] rounded-full overflow-hidden">
-                      <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                      <div
+                        className={`h-full ${barColor} rounded-full transition-all`}
+                        style={{ width: `${Math.min(pct, 100)}%` }}
+                      />
                     </div>
                   </div>
                 );
@@ -161,7 +214,15 @@ function SidebarSection({ title, children }: { title: string; children: React.Re
   );
 }
 
-function StatRow({ icon: Icon, label, value }: { icon: typeof Calendar; label: string; value: string }) {
+function StatRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Calendar;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">

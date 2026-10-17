@@ -17,6 +17,7 @@ import com.kanban.domain.checklist.dto.ChecklistResponse;
 import com.kanban.domain.block.Block;
 import com.kanban.domain.block.BlockRepository;
 import com.kanban.domain.block.FixedBlockType;
+import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.contractor.entity.BoardContractor;
 import com.kanban.domain.contractor.repository.BoardContractorRepository;
 import com.kanban.domain.feature.Feature;
@@ -25,12 +26,21 @@ import com.kanban.domain.feature.service.InboxFeatureService;
 import com.kanban.domain.jobrole.dto.JobRoleResponse;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.integration.discord.service.DiscordNotificationService;
+import com.kanban.domain.integration.jira.JiraIssueLink;
+import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
 import com.kanban.domain.integration.slack.service.SlackNotificationService;
+import com.kanban.domain.milestone.Milestone;
+import com.kanban.domain.milestone.MilestoneFeature;
+import com.kanban.domain.milestone.MilestoneFeatureRepository;
+import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.notification.service.NotificationService;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
+import com.kanban.domain.task.dto.TaskRequest;
+import com.kanban.domain.task.dto.TaskResponse;
+import com.kanban.domain.task.service.TaskService;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -59,6 +69,7 @@ public class ChecklistService {
 
     private final ChecklistItemRepository checklistItemRepository;
     private final TaskRepository taskRepository;
+    private final TaskService taskService;
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final BoardMemberRepository boardMemberRepository;
@@ -67,13 +78,21 @@ public class ChecklistService {
     private final FeatureRepository featureRepository;
     private final BlockRepository blockRepository;
     private final InboxFeatureService inboxFeatureService;
+    private final MilestoneRepository milestoneRepository;
+    private final MilestoneFeatureRepository milestoneFeatureRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
+    /** 항목이 옮겨지거나 합쳐지거나 사라질 때, 그 항목에 달린 댓글의 소속을 맞춰주기 위해 쓴다. */
+    private final CommentRepository commentRepository;
     private final DailyChecklistRepository dailyChecklistRepository;
     private final ActivityService activityService;
     private final NotificationService notificationService;
     private final SlackNotificationService slackNotificationService;
     private final DiscordNotificationService discordNotificationService;
     private final WebSocketEventService webSocketEventService;
+    /** 워크로드 배치 패널에서 JIRA 소유 항목을 걸러내기 위한 연동 원장 조회. */
+    private final JiraIssueLinkRepository jiraIssueLinkRepository;
+    /** 담당자 변경을 JIRA로 넘기기 위한 통로. core→integration 역의존을 피하려 이벤트로 건넨다. */
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public ChecklistResponse.ListResponse getChecklist(String boardId, String taskId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -86,7 +105,16 @@ public class ChecklistService {
         }
 
         List<ChecklistItem> items = checklistItemRepository.findByTaskIdOrderByPositionAsc(taskId);
-        return ChecklistResponse.ListResponse.of(items);
+        return ChecklistResponse.ListResponse.of(items, countCommentsByItem(taskId));
+    }
+
+    /** 태스크 안의 항목별 댓글 수를 group by 한 번으로 집계한다(행마다 세면 N+1). */
+    private Map<String, Integer> countCommentsByItem(String taskId) {
+        Map<String, Integer> counts = new java.util.HashMap<>();
+        for (Object[] row : commentRepository.countByChecklistItemForTask(taskId)) {
+            counts.put((String) row[0], ((Number) row[1]).intValue());
+        }
+        return counts;
     }
 
     @Transactional
@@ -278,6 +306,7 @@ public class ChecklistService {
 
         // 변경 이력 기록 (제목/기간/담당자 변경분을 각각 로깅)
         logChecklistDiffs(task.getBoard(), user, item, oldTitle, oldStart, oldDue, oldAssigneeName);
+        publishAssigneeChangeIfAny(boardId, taskId, item, oldAssigneeId);
 
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(),
                 Map.of("task_id", taskId, "item", response));
@@ -399,10 +428,25 @@ public class ChecklistService {
 
         // 변경 이력 기록 (제목/기간/담당자 변경분을 각각 로깅)
         logChecklistDiffs(task.getBoard(), user, item, oldTitle, oldStart, oldDue, oldAssigneeName);
+        publishAssigneeChangeIfAny(boardId, taskId, item, oldAssigneeId);
 
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(),
                 Map.of("task_id", taskId, "item", response));
         return response;
+    }
+
+    /**
+     * 담당자가 실제로 바뀐 경우에만 JIRA push 이벤트를 낸다.
+     *
+     * <p>분기(배정/외주 배정/해제)마다 따로 내지 않고 최종 상태를 이전 값과 한 번 비교한다 —
+     * 분기가 늘 때마다 발행을 빠뜨리는 쪽이 실제로 반복된 사고였다.
+     * 대상 판정(그 항목이 JIRA 담당자를 대표하는가)과 계정 해석은 수신 측이 한다.
+     */
+    private void publishAssigneeChangeIfAny(String boardId, String taskId, ChecklistItem item, String oldAssigneeId) {
+        String newAssigneeId = item.getAssignee() != null ? item.getAssignee().getId() : null;
+        if (java.util.Objects.equals(oldAssigneeId, newAssigneeId)) return;
+        eventPublisher.publishEvent(
+                new com.kanban.domain.checklist.event.ChecklistAssigneeChangedEvent(boardId, taskId, item.getId()));
     }
 
     /**
@@ -450,6 +494,9 @@ public class ChecklistService {
         // 연관된 데일리 체크리스트 / 스케줄 블록 연결 해제 (타임블럭 업무 기록 보존)
         dailyChecklistRepository.unlinkByChecklistItemId(itemId);
         scheduleBlockRepository.unlinkByChecklistItemId(itemId);
+
+        // 댓글은 지우지 않고 소속만 끊는다 — 항목이 사라져도 그 대화는 태스크의 기록으로 남는다.
+        commentRepository.detachCommentsFromItem(itemId);
 
         checklistItemRepository.delete(item);
 
@@ -605,7 +652,23 @@ public class ChecklistService {
             return inboxFeatureService.getOrCreateInboxTask(boardId, userId);
         }
 
-        return createInlineTask(boardId, userId, feature, request.getTitle());
+        return createInlineTask(boardId, userId, feature, request.getTitle(), request.getMilestoneId());
+    }
+
+    /**
+     * 마일스톤을 검증하고 피처가 아직 연결 안 됐으면 연결한다.
+     * 불변식(Task.milestone은 피처가 연결된 마일스톤 중 하나) 유지 — TaskService.resolveAndLinkMilestone과 동일.
+     */
+    private Milestone resolveAndLinkMilestone(String boardId, Feature feature, String milestoneId) {
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
+        if (!milestone.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
+        }
+        if (milestoneFeatureRepository.findByMilestoneIdAndFeatureId(milestone.getId(), feature.getId()).isEmpty()) {
+            milestoneFeatureRepository.save(MilestoneFeature.create(milestone, feature));
+        }
+        return milestone;
     }
 
     private Feature createInlineFeature(String boardId, String userId, String title) {
@@ -630,7 +693,7 @@ public class ChecklistService {
         return feature;
     }
 
-    private Task createInlineTask(String boardId, String userId, Feature feature, String title) {
+    private Task createInlineTask(String boardId, String userId, Feature feature, String title, String milestoneId) {
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
@@ -648,6 +711,9 @@ public class ChecklistService {
                 .position(newPosition)
                 .createdBy(creator)
                 .build();
+        if (milestoneId != null && !milestoneId.isEmpty()) {
+            task.assignMilestone(resolveAndLinkMilestone(boardId, feature, milestoneId));
+        }
         taskRepository.save(task);
 
         feature.incrementTotalTasks();
@@ -673,16 +739,38 @@ public class ChecklistService {
             throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
         }
 
-        Task targetTask = taskRepository.findById(request.getTargetTaskId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        // 대상 Task 결정: 새로 만들어 옮기거나(new_task), 기존 Task로 옮기거나.
+        // 새 Task 생성은 같은 트랜잭션 안에서 일어나므로 아래 이동 단계가 실패하면 Task도 함께 롤백된다.
+        TaskResponse.Detail createdTask = null;
+        Task targetTask;
+        if (request.hasNewTask()) {
+            if (request.getTargetFeatureId() == null || request.getTargetFeatureId().isBlank()) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+            }
+            String title = request.getNewTask().getTitle().trim();
+            if (title.isEmpty()) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+            }
+            // TaskService.createTask 를 그대로 태워 Task 키 발급·제한 검사·활동 로그·TASK_CREATED 이벤트를 재사용한다.
+            createdTask = taskService.createTask(boardId, request.getTargetFeatureId(), userId,
+                    TaskRequest.Create.withMilestone(title, request.getTargetMilestoneId()));
+            targetTask = taskRepository.findById(createdTask.getId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+        } else {
+            if (request.getTargetTaskId() == null || request.getTargetTaskId().isBlank()) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+            }
+            targetTask = taskRepository.findById(request.getTargetTaskId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
-        if (!targetTask.getBoard().getId().equals(boardId)) {
-            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-        }
+            if (!targetTask.getBoard().getId().equals(boardId)) {
+                throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+            }
 
-        // 같은 Task로의 이동은 무시
-        if (sourceTask.getId().equals(targetTask.getId())) {
-            return ChecklistResponse.Detail.of(item);
+            // 같은 Task로의 이동은 무시
+            if (sourceTask.getId().equals(targetTask.getId())) {
+                return ChecklistResponse.Detail.of(item);
+            }
         }
 
         // 대상 Task에서 마지막 position 계산
@@ -690,6 +778,13 @@ public class ChecklistService {
         int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
 
         item.moveToTask(targetTask, newPosition);
+
+        // 이 항목에 달린 댓글도 함께 옮긴다. 댓글은 task_id를 따로 들고 있어서, 안 옮기면
+        // 항목만 새 태스크로 가고 대화는 원래 태스크 댓글 목록에 고아로 남는다.
+        int movedComments = commentRepository.moveCommentsToTask(itemId, targetTask.getId());
+        if (movedComments > 0) {
+            log.info("Checklist item {} moved with {} comment(s) to task {}", itemId, movedComments, targetTask.getId());
+        }
 
         // 항목이 다른 태스크로 옮겨가면 스프린트 소속도 대상 태스크의 것을 그대로 따른다(재정합 불필요).
 
@@ -700,10 +795,11 @@ public class ChecklistService {
                 Map.of("checklistTitle", item.getTitle(),
                         "fromTask", sourceTask.getTitle(),
                         "toTask", targetTask.getTitle(),
-                        "taskId", targetTask.getId()));
+                        "taskId", targetTask.getId(),
+                        "createdTask", createdTask != null));
 
-        log.info("Checklist item moved: {} from task {} to task {} by user: {}",
-                itemId, taskId, targetTask.getId(), userId);
+        log.info("Checklist item moved: {} from task {} to task {} (new task: {}) by user: {}",
+                itemId, taskId, targetTask.getId(), createdTask != null, userId);
 
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_MOVED, userId, user.getName(),
@@ -711,6 +807,9 @@ public class ChecklistService {
                         "source_task_id", taskId,
                         "target_task_id", targetTask.getId()));
 
+        if (createdTask != null) {
+            response.withCreatedTask(createdTask);
+        }
         return response;
     }
 
@@ -822,6 +921,10 @@ public class ChecklistService {
         // 타임블록 재지정: sources → target
         scheduleBlockRepository.relinkChecklistItemBlocks(target, sourceIds);
 
+        // 댓글 재지정: sources → target. 합쳐지는 항목의 대화도 대표 항목으로 따라와야 한다
+        // (소스 항목은 곧 삭제되므로 여기서 옮기지 않으면 어디에도 붙지 않은 댓글이 된다).
+        commentRepository.reassignCommentsToItem(sourceIds, targetId);
+
         // 대표 항목 필드 반영
         if (request.getTitle() != null && !request.getTitle().isBlank()) {
             target.updateTitle(request.getTitle());
@@ -926,7 +1029,8 @@ public class ChecklistService {
         return a.isAfter(b) ? a : b;
     }
 
-    public ChecklistResponse.BoardListResponse getBoardChecklistItems(String boardId, String userId, String assigneeId, Boolean isScheduled) {
+    public ChecklistResponse.BoardListResponse getBoardChecklistItems(
+            String boardId, String userId, String assigneeId, Boolean isScheduled, Boolean excludeJira) {
         boardService.checkViewerOrAbove(boardId, userId);
 
         List<ChecklistItem> items;
@@ -945,7 +1049,43 @@ public class ChecklistService {
             }
         }
 
+        if (Boolean.TRUE.equals(excludeJira)) {
+            items = filterOutJiraLinked(boardId, items);
+        }
+
         return ChecklistResponse.BoardListResponse.of(items);
+    }
+
+    /**
+     * JIRA가 소유한 항목 제외 — 워크로드 배치 패널용.
+     * 에픽(FEATURE)·이슈(TASK)·서브태스크(CHECKLIST) 어느 층에 링크가 있든 그 아래 항목은
+     * 배치 대상이 아니다. 원본 이슈가 JIRA에서 삭제된 링크는 소유가 BRIDGE로 돌아온 것이라 남긴다.
+     */
+    private List<ChecklistItem> filterOutJiraLinked(String boardId, List<ChecklistItem> items) {
+        java.util.Set<String> linkedFeatureIds = new java.util.HashSet<>();
+        java.util.Set<String> linkedTaskIds = new java.util.HashSet<>();
+        java.util.Set<String> linkedItemIds = new java.util.HashSet<>();
+        for (JiraIssueLink link : jiraIssueLinkRepository.findByBoardId(boardId)) {
+            if (link.isJiraDeleted()) continue;
+            switch (link.getTargetType()) {
+                case FEATURE -> linkedFeatureIds.add(link.getTargetId());
+                case TASK -> linkedTaskIds.add(link.getTargetId());
+                case CHECKLIST -> linkedItemIds.add(link.getTargetId());
+            }
+        }
+        if (linkedFeatureIds.isEmpty() && linkedTaskIds.isEmpty() && linkedItemIds.isEmpty()) {
+            return items;
+        }
+        return items.stream()
+                .filter(item -> {
+                    if (linkedItemIds.contains(item.getId())) return false;
+                    Task task = item.getTask();
+                    if (task == null) return true;
+                    if (linkedTaskIds.contains(task.getId())) return false;
+                    Feature feature = task.getFeature();
+                    return feature == null || !linkedFeatureIds.contains(feature.getId());
+                })
+                .toList();
     }
 
     /**

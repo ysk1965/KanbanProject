@@ -1,0 +1,105 @@
+# 테스트 프로파일 — local 프로파일의 필수 요소만 옮긴 격리 설정.
+# @DataJpaTest / @SpringBootTest 는 @ActiveProfiles("test") 로 이 파일을 쓴다.
+# 외부 서비스(Redis, S3, FCM, SMTP, AI API)는 전부 비활성/빈 값이며, 컨텍스트 기동에 필요한
+# 비밀값은 더미로 채운다. 운영 값은 절대 넣지 않는다.
+spring:
+  datasource:
+    url: jdbc:h2:mem:kanban-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: false
+        generate_statistics: false
+
+  flyway:
+    enabled: false
+
+  cache:
+    type: simple
+
+  # 시드 데이터(data.sql)는 테스트에서 쓰지 않는다 — 각 테스트가 자기 픽스처를 만든다.
+  sql:
+    init:
+      mode: never
+
+  # 메일/SMTP 미연결
+  mail:
+    host: localhost
+    port: 2525
+    username: ""
+    password: ""
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  task:
+    scheduling:
+      pool:
+        size: 1
+
+# 컨텍스트 기동 가드(JwtProvider.init)가 local 과 동일하게 "경고만" 하도록 insecure 접두어는 피한다.
+jwt:
+  secret: test-only-jwt-secret-key-that-is-long-enough-for-hmac-sha256-0123456789abcdef
+  access-expiration: 3600000
+  refresh-expiration: 86400000
+
+google:
+  oauth2:
+    client-id: ""
+    client-secret: ""
+
+ai:
+  provider: claude
+  claude:
+    api-key: ""
+  openai:
+    api-key: ""
+    admin-key: ""
+
+polar:
+  api-key: ""
+  # Standard Webhooks 형식(whsec_ + base64). 테스트 전용 더미 — 실제 Polar 시크릿이 아니다.
+  webhook-secret: whsec_dGVzdC13ZWJob29rLXNlY3JldC1mb3ItdW5pdC10ZXN0cw==
+  organization-id: ""
+
+firebase:
+  credentials-json: ""
+
+app:
+  frontend-url: http://localhost:5173
+  config-encryption-key: ""
+  websocket:
+    broker-type: simple
+  monitoring:
+    enabled: false
+    cloudwatch-enabled: false
+  file:
+    s3-enabled: false
+    local-dir: ./build/test-uploads
+  storage:
+    preview:
+      enabled: false
+      work-dir: ./build/test-docpreview
+
+autofix:
+  dispatch-enabled: false
+  slack-notify-enabled: false
+
+sentry:
+  dsn: ""
+
+logging:
+  level:
+    root: WARN
+    com.kanban: INFO
+    org.hibernate.stat: WARN

@@ -73,9 +73,16 @@ function formatDisplayDate(dateStr: string): string {
   return `${y}. ${m}. ${day}.`;
 }
 
-export function InsightsPeriodFilter({ orgId, startDate, endDate, onChange }: InsightsPeriodFilterProps) {
+export function InsightsPeriodFilter({
+  orgId,
+  startDate,
+  endDate,
+  onChange,
+}: InsightsPeriodFilterProps) {
   const { t } = useTranslation();
-  const [activePreset, setActivePreset] = useState<PresetKey>(() => detectPreset(startDate, endDate));
+  const [activePreset, setActivePreset] = useState<PresetKey>(() =>
+    detectPreset(startDate, endDate),
+  );
   const [activeSavedId, setActiveSavedId] = useState<string | null>(null);
   const [savedPresets, setSavedPresets] = useState<SavedPreset[]>(() => loadSavedPresets(orgId));
   const [showSaveForm, setShowSaveForm] = useState(false);
@@ -262,7 +269,10 @@ export function InsightsPeriodFilter({ orgId, startDate, endDate, onChange }: In
                             setSaveTitle('');
                           }
                         }}
-                        placeholder={t('organization.insights.period.presetTitlePlaceholder', 'e.g., Q1 2026')}
+                        placeholder={t(
+                          'organization.insights.period.presetTitlePlaceholder',
+                          'e.g., Q1 2026',
+                        )}
                         maxLength={20}
                         autoFocus
                         className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"

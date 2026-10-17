@@ -14,11 +14,11 @@
    Dark Mode
    ============================================ */
 .excalidraw-bridge-container .excalidraw.theme--dark {
-  --default-bg-color: var(--bridge-obsidian, #151B28);
+  --default-bg-color: var(--bridge-obsidian, #151b28);
   --island-bg-color: var(--bridge-surface, #1e2a42);
 
   /* Primary — Bridge Accent (Indigo) */
-  --color-primary: var(--bridge-accent, #6366F1);
+  --color-primary: var(--bridge-accent, #6366f1);
   --color-primary-darker: #5753d0;
   --color-primary-darkest: #4440bf;
   --color-primary-light: rgba(99, 102, 241, 0.15);
@@ -27,7 +27,7 @@
   /* Surface */
   --color-surface-high: var(--bridge-surface, #1e2a42);
   --color-surface-mid: #1a2235;
-  --color-surface-low: var(--bridge-obsidian, #151B28);
+  --color-surface-low: var(--bridge-obsidian, #151b28);
   --color-surface-lowest: var(--bridge-dark, #191f2d);
   --color-on-surface: #e2e8f0;
 
@@ -40,7 +40,7 @@
   --popup-text-color: #e2e8f0;
 
   /* Input */
-  --input-bg-color: var(--bridge-obsidian, #151B28);
+  --input-bg-color: var(--bridge-obsidian, #151b28);
   --input-border-color: var(--bridge-border, #384d6e);
 
   /* Scrollbar */
@@ -59,7 +59,7 @@
   --island-bg-color: var(--bridge-obsidian, #efe6d8);
 
   /* Primary — Bridge Accent */
-  --color-primary: var(--bridge-accent, #6366F1);
+  --color-primary: var(--bridge-accent, #6366f1);
   --color-primary-darker: #5753d0;
   --color-primary-darkest: #4440bf;
   --color-primary-hover: #5753d0;
@@ -69,19 +69,19 @@
   --color-surface-mid: #f5f1ed;
   --color-surface-low: var(--bridge-obsidian, #efe6d8);
   --color-surface-lowest: var(--bridge-dark, #fffcf8);
-  --color-on-surface: #3D2E1F;
+  --color-on-surface: #3d2e1f;
 
   /* Text */
-  --text-primary-color: #3D2E1F;
-  --popup-text-color: #3D2E1F;
+  --text-primary-color: #3d2e1f;
+  --popup-text-color: #3d2e1f;
 
   /* Border */
-  --color-border-outline: var(--bridge-border, #E4DFDA);
-  --color-border-outline-variant: var(--bridge-border, #E4DFDA);
+  --color-border-outline: var(--bridge-border, #e4dfda);
+  --color-border-outline-variant: var(--bridge-border, #e4dfda);
 
   /* Input */
   --input-bg-color: var(--bridge-dark, #fffcf8);
-  --input-border-color: var(--bridge-border, #E4DFDA);
+  --input-border-color: var(--bridge-border, #e4dfda);
 
   /* Scrollbar */
   --scrollbar-thumb: rgba(0, 0, 0, 0.1);

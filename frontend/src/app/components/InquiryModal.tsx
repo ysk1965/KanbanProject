@@ -1,6 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Send, Paperclip, ChevronLeft, Clock, CheckCircle2, Loader2, AlertCircle, MessageSquare } from 'lucide-react';
+import {
+  X,
+  Send,
+  Paperclip,
+  ChevronLeft,
+  Clock,
+  CheckCircle2,
+  Loader2,
+  AlertCircle,
+  MessageSquare,
+} from 'lucide-react';
 import { inquiryService } from '../utils/services';
 import { fileAPI } from '../utils/api';
 import type { InquirySummary, InquiryDetail, InquiryStatus } from '../types';
@@ -12,11 +22,30 @@ interface InquiryModalProps {
   onClose: () => void;
 }
 
-const STATUS_CONFIG: Record<InquiryStatus, { labelKey: string; color: string; icon: React.ReactNode }> = {
-  PENDING: { labelKey: 'inquiry.statusPending', color: 'text-yellow-400 bg-yellow-400/10', icon: <Clock size={12} /> },
-  IN_PROGRESS: { labelKey: 'inquiry.statusInProgress', color: 'text-blue-400 bg-blue-400/10', icon: <Loader2 size={12} /> },
-  RESOLVED: { labelKey: 'inquiry.statusResolved', color: 'text-green-400 bg-green-400/10', icon: <CheckCircle2 size={12} /> },
-  CLOSED: { labelKey: 'inquiry.statusClosed', color: 'text-slate-400 bg-slate-400/10', icon: <AlertCircle size={12} /> },
+const STATUS_CONFIG: Record<
+  InquiryStatus,
+  { labelKey: string; color: string; icon: React.ReactNode }
+> = {
+  PENDING: {
+    labelKey: 'inquiry.statusPending',
+    color: 'text-yellow-400 bg-yellow-400/10',
+    icon: <Clock size={12} />,
+  },
+  IN_PROGRESS: {
+    labelKey: 'inquiry.statusInProgress',
+    color: 'text-blue-400 bg-blue-400/10',
+    icon: <Loader2 size={12} />,
+  },
+  RESOLVED: {
+    labelKey: 'inquiry.statusResolved',
+    color: 'text-green-400 bg-green-400/10',
+    icon: <CheckCircle2 size={12} />,
+  },
+  CLOSED: {
+    labelKey: 'inquiry.statusClosed',
+    color: 'text-slate-400 bg-slate-400/10',
+    icon: <AlertCircle size={12} />,
+  },
 };
 
 export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
@@ -84,7 +113,10 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
       const file = selectedFiles[i];
       try {
         const result = await fileAPI.smartUpload(file);
-        setFiles(prev => [...prev, { file, tempKey: result.tempKey, previewUrl: result.previewUrl }]);
+        setFiles((prev) => [
+          ...prev,
+          { file, tempKey: result.tempKey, previewUrl: result.previewUrl },
+        ]);
       } catch (error) {
         console.error('File upload failed:', error);
       }
@@ -93,7 +125,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
   };
 
   const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
@@ -103,7 +135,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
       await inquiryService.createInquiry({
         title: title.trim(),
         content: content.trim(),
-        fileKeys: files.length > 0 ? files.map(f => f.tempKey) : undefined,
+        fileKeys: files.length > 0 ? files.map((f) => f.tempKey) : undefined,
       });
       setSubmitSuccess(true);
       setTitle('');
@@ -122,156 +154,172 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
   };
 
   return (
-    <MotionModal open={isOpen} onClose={onClose} className="sm:max-w-lg max-h-[80dvh] flex flex-col p-0 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
-          <div className="flex items-center gap-3">
-            {selectedInquiry && (
-              <button
-                onClick={() => setSelectedInquiry(null)}
-                className="text-slate-400 hover:text-foreground transition-colors"
-              >
-                <ChevronLeft size={20} />
-              </button>
-            )}
-            <MessageSquare size={20} className="text-bridge-accent" />
-            <h2 className="text-lg font-bold text-foreground">
-              {selectedInquiry ? t('inquiry.detailTitle') : t('inquiry.title')}
-            </h2>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors" aria-label="닫기">
-            <X size={20} />
+    <MotionModal
+      open={isOpen}
+      onClose={onClose}
+      className="sm:max-w-lg max-h-[80dvh] flex flex-col p-0 overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
+        <div className="flex items-center gap-3">
+          {selectedInquiry && (
+            <button
+              onClick={() => setSelectedInquiry(null)}
+              className="text-slate-400 hover:text-foreground transition-colors"
+            >
+              <ChevronLeft size={20} />
+            </button>
+          )}
+          <MessageSquare size={20} className="text-bridge-accent" />
+          <h2 className="text-lg font-bold text-foreground">
+            {selectedInquiry ? t('inquiry.detailTitle') : t('inquiry.title')}
+          </h2>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-slate-400 hover:text-foreground transition-colors"
+          aria-label="닫기"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* Tabs */}
+      {!selectedInquiry && (
+        <div className="flex border-b border-foreground/10">
+          <button
+            onClick={() => setActiveTab('new')}
+            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'new'
+                ? 'text-bridge-accent border-b-2 border-bridge-accent'
+                : 'text-slate-400 hover:text-foreground'
+            }`}
+          >
+            {t('inquiry.newInquiry')}
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'history'
+                ? 'text-bridge-accent border-b-2 border-bridge-accent'
+                : 'text-slate-400 hover:text-foreground'
+            }`}
+          >
+            {t('inquiry.myHistory')}
           </button>
         </div>
+      )}
 
-        {/* Tabs */}
-        {!selectedInquiry && (
-          <div className="flex border-b border-foreground/10">
-            <button
-              onClick={() => setActiveTab('new')}
-              className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                activeTab === 'new'
-                  ? 'text-bridge-accent border-b-2 border-bridge-accent'
-                  : 'text-slate-400 hover:text-foreground'
-              }`}
-            >
-              {t('inquiry.newInquiry')}
-            </button>
-            <button
-              onClick={() => setActiveTab('history')}
-              className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                activeTab === 'history'
-                  ? 'text-bridge-accent border-b-2 border-bridge-accent'
-                  : 'text-slate-400 hover:text-foreground'
-              }`}
-            >
-              {t('inquiry.myHistory')}
-            </button>
-          </div>
-        )}
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {selectedInquiry ? (
-            <InquiryDetailView inquiry={selectedInquiry} isLoading={isLoadingDetail} onReplySubmitted={() => loadInquiryDetail(selectedInquiry.id)} />
-          ) : activeTab === 'new' ? (
-            submitSuccess ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-3">
-                <CheckCircle2 size={48} className="text-green-400" />
-                <p className="text-foreground font-bold">{t('inquiry.submitted')}</p>
-                <p className="text-slate-400 text-sm">{t('inquiry.submittedDesc')}</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">
-                    {t('inquiry.titleLabel')}
-                  </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={e => setTitle(e.target.value)}
-                    placeholder={t('inquiry.titlePlaceholder')}
-                    className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-                    maxLength={200}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">
-                    {t('inquiry.contentLabel')}
-                  </label>
-                  <textarea
-                    value={content}
-                    onChange={e => setContent(e.target.value)}
-                    placeholder={t('inquiry.contentPlaceholder')}
-                    rows={6}
-                    className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
-                    maxLength={5000}
-                  />
-                </div>
-
-                {/* File Upload */}
-                <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">
-                    {t('inquiry.attachments')} ({files.length}/5)
-                  </label>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={files.length >= 5}
-                    className="flex items-center gap-2 px-4 py-2 bg-foreground/5 border border-foreground/10 rounded-xl text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Paperclip size={16} />
-                    <span className="text-sm">{t('inquiry.attachFile')}</span>
-                  </button>
-                  {files.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {files.map((f, i) => (
-                        <div key={i} className="flex items-center justify-between bg-foreground/5 rounded-lg px-3 py-2">
-                          <span className="text-sm text-muted-foreground truncate">{f.file.name}</span>
-                          <button onClick={() => removeFile(i)} className="text-slate-400 hover:text-red-400 ml-2">
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {selectedInquiry ? (
+          <InquiryDetailView
+            inquiry={selectedInquiry}
+            isLoading={isLoadingDetail}
+            onReplySubmitted={() => loadInquiryDetail(selectedInquiry.id)}
+          />
+        ) : activeTab === 'new' ? (
+          submitSuccess ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <CheckCircle2 size={48} className="text-green-400" />
+              <p className="text-foreground font-bold">{t('inquiry.submitted')}</p>
+              <p className="text-slate-400 text-sm">{t('inquiry.submittedDesc')}</p>
+            </div>
           ) : (
-            <InquiryHistoryView
-              inquiries={inquiries}
-              isLoading={isLoadingHistory}
-              onSelect={loadInquiryDetail}
-            />
-          )}
-        </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">
+                  {t('inquiry.titleLabel')}
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={t('inquiry.titlePlaceholder')}
+                  className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                  maxLength={200}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">
+                  {t('inquiry.contentLabel')}
+                </label>
+                <textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder={t('inquiry.contentPlaceholder')}
+                  rows={6}
+                  className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+                  maxLength={5000}
+                />
+              </div>
 
-        {/* Footer */}
-        {activeTab === 'new' && !submitSuccess && !selectedInquiry && (
-          <div className="px-6 py-4 border-t border-foreground/10">
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting || !title.trim() || !content.trim()}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : (
-                <Send size={18} />
-              )}
-              {isSubmitting ? t('inquiry.sending') : t('inquiry.send')}
-            </button>
-          </div>
+              {/* File Upload */}
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">
+                  {t('inquiry.attachments')} ({files.length}/5)
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={files.length >= 5}
+                  className="flex items-center gap-2 px-4 py-2 bg-foreground/5 border border-foreground/10 rounded-xl text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Paperclip size={16} />
+                  <span className="text-sm">{t('inquiry.attachFile')}</span>
+                </button>
+                {files.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {files.map((f, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between bg-foreground/5 rounded-lg px-3 py-2"
+                      >
+                        <span className="text-sm text-muted-foreground truncate">
+                          {f.file.name}
+                        </span>
+                        <button
+                          onClick={() => removeFile(i)}
+                          className="text-slate-400 hover:text-red-400 ml-2"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        ) : (
+          <InquiryHistoryView
+            inquiries={inquiries}
+            isLoading={isLoadingHistory}
+            onSelect={loadInquiryDetail}
+          />
         )}
+      </div>
+
+      {/* Footer */}
+      {activeTab === 'new' && !submitSuccess && !selectedInquiry && (
+        <div className="px-6 py-4 border-t border-foreground/10">
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting || !title.trim() || !content.trim()}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+            {isSubmitting ? t('inquiry.sending') : t('inquiry.send')}
+          </button>
+        </div>
+      )}
     </MotionModal>
   );
 }
@@ -305,7 +353,7 @@ function InquiryHistoryView({
 
   return (
     <div className="space-y-2">
-      {inquiries.map(inquiry => {
+      {inquiries.map((inquiry) => {
         const statusConfig = STATUS_CONFIG[inquiry.status];
         return (
           <button
@@ -319,11 +367,15 @@ function InquiryHistoryView({
                 <p className="text-slate-500 text-xs mt-1">
                   {formatDate(inquiry.created_at, 'yyyy-MM-dd')}
                   {inquiry.reply_count > 0 && (
-                    <span className="ml-2 text-bridge-accent">{t('inquiry.replyCount', { count: inquiry.reply_count })}</span>
+                    <span className="ml-2 text-bridge-accent">
+                      {t('inquiry.replyCount', { count: inquiry.reply_count })}
+                    </span>
                   )}
                 </p>
               </div>
-              <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
+              <span
+                className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}
+              >
                 {statusConfig.icon}
                 {t(statusConfig.labelKey)}
               </span>
@@ -377,7 +429,9 @@ function InquiryDetailView({
     <div className="space-y-4">
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
+          <span
+            className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}
+          >
             {statusInfo.icon}
             {t(statusInfo.labelKey)}
           </span>
@@ -389,13 +443,17 @@ function InquiryDetailView({
       </div>
 
       <div className="bg-foreground/5 rounded-xl p-4">
-        <p className="text-muted-foreground text-sm whitespace-pre-wrap leading-relaxed">{inquiry.content}</p>
+        <p className="text-muted-foreground text-sm whitespace-pre-wrap leading-relaxed">
+          {inquiry.content}
+        </p>
       </div>
 
       {inquiry.attachments.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('inquiry.attachments')}</p>
-          {inquiry.attachments.map(att => (
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+            {t('inquiry.attachments')}
+          </p>
+          {inquiry.attachments.map((att) => (
             <a
               key={att.id}
               href={att.url}
@@ -412,8 +470,10 @@ function InquiryDetailView({
 
       {inquiry.replies.length > 0 && (
         <div className="space-y-3 mt-6">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('inquiry.conversationHistory')}</p>
-          {inquiry.replies.map(reply => {
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+            {t('inquiry.conversationHistory')}
+          </p>
+          {inquiry.replies.map((reply) => {
             const isAdmin = reply.reply_type === 'ADMIN';
             const replier = isAdmin ? reply.admin : reply.user;
             const name = replier?.name || (isAdmin ? 'Admin' : '나');
@@ -429,20 +489,26 @@ function InquiryDetailView({
                 }`}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                    isAdmin ? 'bg-bridge-accent/30' : 'bg-emerald-500/30'
-                  }`}>
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                      isAdmin ? 'bg-bridge-accent/30' : 'bg-emerald-500/30'
+                    }`}
+                  >
                     <span className="text-xs text-white font-bold">{initial}</span>
                   </div>
                   <span className="text-foreground text-sm font-medium">{name}</span>
                   {isAdmin && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-bridge-accent/20 text-bridge-accent font-medium">Admin</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-bridge-accent/20 text-bridge-accent font-medium">
+                      Admin
+                    </span>
                   )}
                   <span className="text-slate-500 text-xs">
                     {formatDate(reply.created_at, 'yyyy-MM-dd')}
                   </span>
                 </div>
-                <p className="text-muted-foreground text-sm whitespace-pre-wrap leading-relaxed">{reply.content}</p>
+                <p className="text-muted-foreground text-sm whitespace-pre-wrap leading-relaxed">
+                  {reply.content}
+                </p>
               </div>
             );
           })}
@@ -452,10 +518,12 @@ function InquiryDetailView({
       {/* User Reply Input */}
       {!isClosed && (
         <div className="mt-6 space-y-3">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('inquiry.additionalInquiry')}</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+            {t('inquiry.additionalInquiry')}
+          </p>
           <textarea
             value={replyContent}
-            onChange={e => setReplyContent(e.target.value)}
+            onChange={(e) => setReplyContent(e.target.value)}
             placeholder={t('inquiry.additionalPlaceholder')}
             rows={3}
             className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"

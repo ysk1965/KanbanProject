@@ -1,26 +1,26 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
-import {
-  Camera,
-  AlertCircle,
-  ArrowLeft,
-  Download,
-  Check,
-  Loader2,
-} from "lucide-react";
-import { publicAlbumAPI, resolveFileUrl } from "../utils/api";
-import { PhotoLightbox } from "../components/organization/photo/PhotoLightbox";
-import { downloadPhoto, getDownloadedIds } from "../utils/nativeDownload";
-import type { SharedAlbumInfo, SharedPhotoItem, OrgPhoto } from "../types";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+import { Camera, AlertCircle, ArrowLeft, Download, Check, Loader2 } from 'lucide-react';
+import { publicAlbumAPI, resolveFileUrl } from '../utils/api';
+import { PhotoLightbox } from '../components/organization/photo/PhotoLightbox';
+import { downloadPhoto, getDownloadedIds } from '../utils/nativeDownload';
+import { InAppBrowserNotice } from '../components/organization/photo/InAppBrowserNotice';
+import { useInAppBrowserGate } from '../hooks/useInAppBrowserGate';
+import { usePhotoSaver } from '../hooks/usePhotoSaver';
+import { PhotoSavePanel } from '../components/organization/photo/PhotoSavePanel';
+import type { SharedAlbumInfo, SharedPhotoItem, OrgPhoto } from '../types';
+
+/** Photos per list request — fewer requests when many people share one IP (rate limit) */
+const PHOTO_PAGE_SIZE = 48;
 
 /** Map SharedPhotoItem → OrgPhoto shape so we can reuse PhotoLightbox */
 function toOrgPhoto(item: SharedPhotoItem): OrgPhoto {
   return {
     id: item.id,
-    tab_id: "",
-    s3_key: "",
+    tab_id: '',
+    s3_key: '',
     thumbnail_key: null,
     url: item.url,
     thumbnail_url: item.thumbnail_url,
@@ -30,7 +30,7 @@ function toOrgPhoto(item: SharedPhotoItem): OrgPhoto {
     width: item.width,
     height: item.height,
     caption: item.caption,
-    uploaded_by: { id: "", name: "", email: "", profile_image_url: null },
+    uploaded_by: { id: '', name: '', email: '', profile_image_url: null },
     created_at: item.created_at,
   };
 }
@@ -48,8 +48,22 @@ export function SharedAlbumPage() {
   const [lightboxPhoto, setLightboxPhoto] = useState<OrgPhoto | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
+  // In-app browsers (KakaoTalk…) ignore downloads → route to Safari/Chrome
+  const inAppGate = useInAppBrowserGate();
+
   // Download history
   const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
+
+  // iOS web: fetch first, then save from a second tap (share sheet needs a fresh tap)
+  const handleSaved = useCallback((ids: string[]) => {
+    setDownloadedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+  }, []);
+  const photoSaver = usePhotoSaver(handleSaved);
+  const startPhotoSave = photoSaver.start;
   useEffect(() => {
     if (photos.length > 0) {
       setDownloadedIds(getDownloadedIds(photos.map((p) => p.id)));
@@ -66,7 +80,7 @@ export function SharedAlbumPage() {
         const info = await publicAlbumAPI.getSharedAlbum(shareToken);
         setAlbumInfo(info);
       } catch {
-        setError(t("photoGallery.shareNotAvailable", "Album not available"));
+        setError(t('photoGallery.shareNotAvailable', 'Album not available'));
       } finally {
         setLoading(false);
       }
@@ -82,7 +96,7 @@ export function SharedAlbumPage() {
         setPhotosLoading(true);
         const data = await publicAlbumAPI.getSharedAlbumPhotos(shareToken, {
           cursor,
-          size: 12,
+          size: PHOTO_PAGE_SIZE,
         });
         const mapped = data.photos.map(toOrgPhoto);
         if (cursor) {
@@ -93,7 +107,7 @@ export function SharedAlbumPage() {
         setNextCursor(data.next_cursor);
         setHasNext(data.has_next);
       } catch {
-        console.warn("Failed to fetch shared album photos");
+        console.warn('Failed to fetch shared album photos');
       } finally {
         setPhotosLoading(false);
       }
@@ -111,30 +125,41 @@ export function SharedAlbumPage() {
     if (!sentinel) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (
-          entries[0]?.isIntersecting &&
-          hasNext &&
-          !photosLoading &&
-          nextCursor
-        ) {
+        if (entries[0]?.isIntersecting && hasNext && !photosLoading && nextCursor) {
           fetchPhotos(nextCursor);
         }
       },
-      { rootMargin: "200px" },
+      { rootMargin: '200px' },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasNext, photosLoading, nextCursor, fetchPhotos]);
 
   // Download single photo
-  const handleDownload = useCallback(async (photo: OrgPhoto) => {
-    try {
-      await downloadPhoto(photo.url, photo.original_filename, photo.id);
-      setDownloadedIds((prev) => new Set(prev).add(photo.id));
-    } catch (error) {
-      console.warn("Download failed:", error);
-    }
-  }, []);
+  const handleDownload = useCallback(
+    async (photo: OrgPhoto) => {
+      if (inAppGate.block()) return;
+      if (
+        startPhotoSave([
+          {
+            id: photo.id,
+            url: photo.url,
+            filename: photo.original_filename,
+            size: photo.file_size,
+          },
+        ])
+      ) {
+        return;
+      }
+      try {
+        await downloadPhoto(photo.url, photo.original_filename, photo.id);
+        setDownloadedIds((prev) => new Set(prev).add(photo.id));
+      } catch (error) {
+        console.warn('Download failed:', error);
+      }
+    },
+    [inAppGate, startPhotoSave],
+  );
 
   // Loading
   if (loading) {
@@ -142,9 +167,7 @@ export function SharedAlbumPage() {
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-bridge-accent mx-auto mb-4" />
-          <p className="text-slate-400 text-sm">
-            {t("app.loading", "Loading...")}
-          </p>
+          <p className="text-slate-400 text-sm">{t('app.loading', 'Loading...')}</p>
         </div>
       </div>
     );
@@ -159,12 +182,12 @@ export function SharedAlbumPage() {
             <AlertCircle size={28} className="text-red-400" />
           </div>
           <h2 className="text-xl font-bold text-foreground mb-2">
-            {t("photoGallery.shareNotAvailable", "Album not available")}
+            {t('photoGallery.shareNotAvailable', 'Album not available')}
           </h2>
           <p className="text-slate-400 text-sm mb-6">
             {t(
-              "photoGallery.shareNotAvailableDesc",
-              "This shared link has expired or the album has been deleted.",
+              'photoGallery.shareNotAvailableDesc',
+              'This shared link has expired or the album has been deleted.',
             )}
           </p>
           <Link
@@ -172,7 +195,7 @@ export function SharedAlbumPage() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-bridge-accent text-white rounded-xl text-sm font-medium hover:bg-bridge-accent/90 transition-colors"
           >
             <ArrowLeft size={14} />
-            {t("photoGallery.shareGoHome", "Go to Home")}
+            {t('photoGallery.shareGoHome', 'Go to Home')}
           </Link>
         </div>
       </div>
@@ -181,6 +204,8 @@ export function SharedAlbumPage() {
 
   return (
     <div className="min-h-screen bg-bridge-dark">
+      <InAppBrowserNotice gate={inAppGate} />
+
       {/* Top bar */}
       <header className="border-b border-foreground/5 bg-bridge-obsidian">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
@@ -193,7 +218,7 @@ export function SharedAlbumPage() {
           </Link>
           <div className="flex items-center gap-2 text-xs tracking-[0.3em] uppercase text-slate-500">
             <Camera size={12} />
-            {t("photoGallery.shareReadOnly", "READ ONLY")}
+            {t('photoGallery.shareReadOnly', 'READ ONLY')}
           </div>
         </div>
       </header>
@@ -216,12 +241,10 @@ export function SharedAlbumPage() {
           {albumInfo.album_name}
         </h1>
         {albumInfo.album_description && (
-          <p className="text-sm text-slate-400 mb-3">
-            {albumInfo.album_description}
-          </p>
+          <p className="text-sm text-slate-400 mb-3">{albumInfo.album_description}</p>
         )}
         <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
-          {albumInfo.photo_count} {t("photoGallery.photosUnit", "photos")}
+          {albumInfo.photo_count} {t('photoGallery.photosUnit', 'photos')}
         </span>
       </div>
 
@@ -233,7 +256,7 @@ export function SharedAlbumPage() {
           <div className="text-center py-20">
             <Camera size={36} className="mx-auto mb-3 text-slate-500/50" />
             <p className="text-sm text-slate-500">
-              {t("photoGallery.emptyTitle", "No photos yet")}
+              {t('photoGallery.emptyTitle', 'No photos yet')}
             </p>
           </div>
         ) : (
@@ -244,7 +267,7 @@ export function SharedAlbumPage() {
                 className="relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-bridge-obsidian border border-foreground/[0.08] hover:border-foreground/[0.12] transition-all group"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.02 }}
+                transition={{ delay: Math.min(i % PHOTO_PAGE_SIZE, 12) * 0.02 }}
                 onClick={() => setLightboxPhoto(photo)}
               >
                 <img
@@ -285,10 +308,7 @@ export function SharedAlbumPage() {
         {photosLoading && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 mt-2">
             {Array.from({ length: 10 }).map((_, i) => (
-              <div
-                key={i}
-                className="aspect-square rounded-xl bg-foreground/5 animate-pulse"
-              />
+              <div key={i} className="aspect-square rounded-xl bg-foreground/5 animate-pulse" />
             ))}
           </div>
         )}
@@ -306,6 +326,12 @@ export function SharedAlbumPage() {
         onNavigate={setLightboxPhoto}
         onDownload={handleDownload}
         onDelete={() => {}}
+      />
+
+      <PhotoSavePanel
+        state={photoSaver.state}
+        onSave={photoSaver.saveNow}
+        onCancel={photoSaver.cancel}
       />
 
       {/* Footer */}

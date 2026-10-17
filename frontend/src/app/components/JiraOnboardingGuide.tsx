@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { Loader2, Check, Settings2 } from "lucide-react";
-import { jiraAPI, JiraStatus } from "../utils/api";
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Loader2, Check, Settings2 } from 'lucide-react';
+import { jiraAPI, JiraStatus } from '../utils/api';
 
 interface JiraOnboardingGuideProps {
   boardId: string;
@@ -37,22 +37,22 @@ export function JiraOnboardingGuide({
   const steps = [
     {
       n: 1,
-      title: t("jiraIntegration.guideStep1", "JIRA 계정 연결"),
-      desc: t("jiraIntegration.guideStep1Desc", "Atlassian 로그인"),
+      title: t('jiraIntegration.guideStep1', 'JIRA 계정 연결'),
+      desc: t('jiraIntegration.guideStep1Desc', 'Atlassian 로그인'),
       done: connected,
     },
     {
       n: 2,
-      title: t("jiraIntegration.guideStep2", "프로젝트 선택"),
+      title: t('jiraIntegration.guideStep2', '프로젝트 선택'),
       desc: hasProject
-        ? status?.project_key || ""
-        : t("jiraIntegration.guideStep2Desc", "동기화할 프로젝트"),
+        ? status?.project_key || ''
+        : t('jiraIntegration.guideStep2Desc', '동기화할 프로젝트'),
       done: hasProject,
     },
     {
       n: 3,
-      title: t("jiraIntegration.guideStep3", "동기화 켜기"),
-      desc: t("jiraIntegration.guideStep3Desc", "컬럼 자동 세팅"),
+      title: t('jiraIntegration.guideStep3', '동기화 켜기'),
+      desc: t('jiraIntegration.guideStep3Desc', '컬럼 자동 세팅'),
       done: mirrorReady,
     },
   ];
@@ -65,9 +65,7 @@ export function JiraOnboardingGuide({
       onReady();
     } catch (e) {
       setError(
-        e instanceof Error
-          ? e.message
-          : t("jiraIntegration.saveFailed", "저장에 실패했습니다"),
+        e instanceof Error ? e.message : t('jiraIntegration.saveFailed', '저장에 실패했습니다'),
       );
     } finally {
       setIsSettingUp(false);
@@ -76,27 +74,27 @@ export function JiraOnboardingGuide({
 
   const ctaLabel =
     currentStep === 1
-      ? t("jiraIntegration.guideCtaConnect", "JIRA 계정 연결")
+      ? t('jiraIntegration.guideCtaConnect', 'JIRA 계정 연결')
       : currentStep === 2
-        ? t("jiraIntegration.guideCtaProject", "프로젝트 선택")
-        : t("jiraIntegration.guideCtaEnable", "동기화 켜기");
+        ? t('jiraIntegration.guideCtaProject', '프로젝트 선택')
+        : t('jiraIntegration.guideCtaEnable', '동기화 켜기');
 
   const onCta = currentStep === 3 ? handleMirrorSetup : onOpenSettings;
 
   const title =
     currentStep === 3
-      ? t("jiraIntegration.guideTitleAlmost", "거의 다 됐어요 — 마지막 한 단계")
-      : t("jiraIntegration.guideTitleStart", "JIRA와 이 보드를 연결해 보세요");
+      ? t('jiraIntegration.guideTitleAlmost', '거의 다 됐어요 — 마지막 한 단계')
+      : t('jiraIntegration.guideTitleStart', 'JIRA와 이 보드를 연결해 보세요');
 
   const lede =
     currentStep === 3
       ? t(
-          "jiraIntegration.guideLedeAlmost",
-          "동기화를 켜면 이 탭이 JIRA 상태를 그대로 미러링합니다. 카드를 옮기면 JIRA도 같이, JIRA에서 바뀌면 여기도 같이.",
+          'jiraIntegration.guideLedeAlmost',
+          '동기화를 켜면 이 탭이 JIRA 상태를 그대로 미러링합니다. 카드를 옮기면 JIRA도 같이, JIRA에서 바뀌면 여기도 같이.',
         )
       : t(
-          "jiraIntegration.guideLedeStart",
-          "연결이 끝나면 이 탭이 JIRA 상태를 그대로 미러링합니다. 컬럼이 자동으로 맞춰져요.",
+          'jiraIntegration.guideLedeStart',
+          '연결이 끝나면 이 탭이 JIRA 상태를 그대로 미러링합니다. 컬럼이 자동으로 맞춰져요.',
         );
 
   return (
@@ -112,12 +110,8 @@ export function JiraOnboardingGuide({
         </div>
       </div>
 
-      <h3 className="text-base md:text-lg font-bold text-foreground mb-2 text-balance">
-        {title}
-      </h3>
-      <p className="text-xs md:text-sm text-slate-500 max-w-md mb-7 leading-relaxed">
-        {lede}
-      </p>
+      <h3 className="text-base md:text-lg font-bold text-foreground mb-2 text-balance">{title}</h3>
+      <p className="text-xs md:text-sm text-slate-500 max-w-md mb-7 leading-relaxed">{lede}</p>
 
       {/* 가로 스텝퍼 */}
       <div className="flex w-full max-w-md mb-6">
@@ -125,45 +119,34 @@ export function JiraOnboardingGuide({
           const isDone = s.done;
           const isCurrent = !isDone && s.n === currentStep;
           return (
-            <div
-              key={s.n}
-              className="relative flex-1 flex flex-col items-center px-1"
-            >
+            <div key={s.n} className="relative flex-1 flex flex-col items-center px-1">
               {/* 연결선 */}
               {s.n > 1 && (
                 <span
                   className={`absolute top-4 right-1/2 w-full h-0.5 ${
-                    isDone || isCurrent
-                      ? "bg-bridge-secondary"
-                      : "bg-foreground/15"
+                    isDone || isCurrent ? 'bg-bridge-secondary' : 'bg-foreground/15'
                   }`}
                 />
               )}
               <div
                 className={`relative z-10 w-8 h-8 rounded-full grid place-items-center text-xs font-bold transition-colors ${
                   isDone
-                    ? "bg-bridge-secondary text-white"
+                    ? 'bg-bridge-secondary text-white'
                     : isCurrent
-                      ? "bg-bridge-obsidian text-bridge-accent ring-4 ring-bridge-accent/20 border-2 border-bridge-accent"
-                      : "bg-foreground/[0.06] text-slate-400 border-2 border-foreground/15"
+                      ? 'bg-bridge-obsidian text-bridge-accent ring-4 ring-bridge-accent/20 border-2 border-bridge-accent'
+                      : 'bg-foreground/[0.06] text-slate-400 border-2 border-foreground/15'
                 }`}
               >
                 {isDone ? <Check size={14} /> : s.n}
               </div>
               <div
                 className={`text-xs font-bold mt-2 leading-tight ${
-                  isCurrent
-                    ? "text-bridge-accent"
-                    : isDone
-                      ? "text-foreground"
-                      : "text-slate-400"
+                  isCurrent ? 'text-bridge-accent' : isDone ? 'text-foreground' : 'text-slate-400'
                 }`}
               >
                 {s.title}
               </div>
-              <div className="text-xs text-slate-500 mt-0.5 leading-tight">
-                {s.desc}
-              </div>
+              <div className="text-xs text-slate-500 mt-0.5 leading-tight">{s.desc}</div>
             </div>
           );
         })}
@@ -185,10 +168,7 @@ export function JiraOnboardingGuide({
       </button>
 
       <div className="text-xs text-slate-500 mt-3.5">
-        {t(
-          "jiraIntegration.guideLater",
-          "나중에 설정 › JIRA에서 언제든 바꿀 수 있어요.",
-        )}
+        {t('jiraIntegration.guideLater', '나중에 설정 › JIRA에서 언제든 바꿀 수 있어요.')}
       </div>
     </div>
   );

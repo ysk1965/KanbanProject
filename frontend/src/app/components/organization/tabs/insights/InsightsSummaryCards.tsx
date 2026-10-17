@@ -16,7 +16,10 @@ export function InsightsSummaryCards({ data, loading }: InsightsSummaryCardsProp
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="bg-bridge-obsidian rounded-2xl border border-black/5 dark:border-white/5 p-5 h-28 animate-pulse" />
+          <div
+            key={i}
+            className="bg-bridge-obsidian rounded-2xl border border-black/5 dark:border-white/5 p-5 h-28 animate-pulse"
+          />
         ))}
       </div>
     );
@@ -82,13 +85,18 @@ export function InsightsSummaryCards({ data, loading }: InsightsSummaryCardsProp
               {card.value}
             </span>
             {card.change !== null && (
-              <div className={`flex items-center gap-1 text-xs font-bold ${
-                card.change >= 0
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-rose-600 dark:text-rose-400'
-              }`}>
+              <div
+                className={`flex items-center gap-1 text-xs font-bold ${
+                  card.change >= 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-rose-600 dark:text-rose-400'
+                }`}
+              >
                 {card.change >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                <span>{card.change >= 0 ? '+' : ''}{card.change.toFixed(1)}%</span>
+                <span>
+                  {card.change >= 0 ? '+' : ''}
+                  {card.change.toFixed(1)}%
+                </span>
                 <span className="text-slate-400 font-normal ml-0.5">
                   {t('organization.insights.summary.vsLastPeriod', 'vs. last period')}
                 </span>

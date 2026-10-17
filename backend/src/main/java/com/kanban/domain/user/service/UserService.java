@@ -199,6 +199,7 @@ public class UserService {
         milestoneRepository.nullifyCreatedByUserId(userId);
         calendarEventRepository.nullifyMemberByUserId(userId);
         calendarEventRepository.nullifyCreatedByUserId(userId);
+        calendarEventRepository.nullifyMemoUpdatedByUserId(userId);
         checklistItemRepository.nullifyAssigneeByUserId(userId);
         inviteLinkRepository.nullifyCreatedByUserId(userId);
         boardMemberRepository.nullifyInvitedByUserId(userId);

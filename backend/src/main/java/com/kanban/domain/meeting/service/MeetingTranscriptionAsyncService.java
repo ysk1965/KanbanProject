@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.meeting.MeetingRepository;
 import com.kanban.domain.meeting.dto.MeetingResponse;
+import com.kanban.domain.subscription.CreditConsumption;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
@@ -11,14 +12,13 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * Separate bean for @Async transcription processing.
@@ -37,10 +37,19 @@ public class MeetingTranscriptionAsyncService {
     private final ObjectMapper objectMapper;
     private final MeetingTranscriptionService transcriptionService;
 
+    /**
+     * @param whisperCredit what {@code startTranscription} already consumed for Whisper — refunded together with the
+     *                      diarization credit if the job fails, each going back to the pool it was taken from
+     */
     @Async("taskExecutor")
-    public void processTranscriptionAsync(String boardId, String meetingId, String userId,
-                                          byte[] audioBytes, String originalFilename) {
-        int creditsConsumed = 1; // 1 credit already consumed synchronously for Whisper
+    public void processTranscriptionAsync(
+            String boardId,
+            String meetingId,
+            String userId,
+            byte[] audioBytes,
+            String originalFilename,
+            CreditConsumption whisperCredit) {
+        CreditConsumption consumed = whisperCredit != null ? whisperCredit : CreditConsumption.NONE;
         User user = userRepository.findById(userId).orElse(null);
         String userName = user != null ? user.getName() : null;
 
@@ -49,8 +58,8 @@ public class MeetingTranscriptionAsyncService {
             transcriptionService.sendProgress(boardId, userId, userName, meetingId, "TRANSCRIBING", 0, 1, 5);
 
             // Whisper API call (no transaction needed — external HTTP call)
-            var whisperSegments = transcriptionService.transcribe(audioBytes, originalFilename,
-                    boardId, userId, userName, meetingId);
+            var whisperSegments =
+                    transcriptionService.transcribe(audioBytes, originalFilename, boardId, userId, userName, meetingId);
 
             String transcriptText = whisperSegments.stream()
                     .map(MeetingTranscriptionService.WhisperSegmentDto::text)
@@ -60,14 +69,11 @@ public class MeetingTranscriptionAsyncService {
             // AI speaker diarization (no transaction needed — external API call)
             MeetingResponse.DiarizedTranscript diarizedTranscript = null;
             try {
-                aiCreditService.consumeCredit(boardId, userId, "MEETING_DIARIZE", 1);
-                creditsConsumed++;
+                // consumeCredit throws before returning when exhausted, so nothing is added in that case
+                consumed = consumed.plus(aiCreditService.consumeCredit(boardId, userId, "MEETING_DIARIZE", 1));
                 transcriptionService.sendProgress(boardId, userId, userName, meetingId, "DIARIZING", 0, 0, 70);
                 diarizedTranscript = transcriptionService.identifySpeakers(boardId, userId, whisperSegments);
             } catch (BusinessException e) {
-                if (e.getErrorCode() == ErrorCode.AI_CREDITS_EXHAUSTED) {
-                    creditsConsumed--; // Credit wasn't actually consumed
-                }
                 log.warn("Speaker diarization skipped for meeting: {} - {}", meetingId, e.getMessage());
             } catch (Exception e) {
                 log.warn("Speaker diarization failed for meeting: {} - {}", meetingId, e.getMessage());
@@ -80,8 +86,11 @@ public class MeetingTranscriptionAsyncService {
             transcriptionService.sendProgress(boardId, userId, userName, meetingId, "COMPLETE", 0, 0, 100);
 
             // Notify other board subscribers
-            webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_UPDATED,
-                    userId, userName,
+            webSocketEventService.sendBoardEvent(
+                    boardId,
+                    BoardEventType.MEETING_UPDATED,
+                    userId,
+                    userName,
                     Map.of("id", meetingId, "transcript", finalTranscript));
 
             // Send result to the requesting client
@@ -89,16 +98,16 @@ public class MeetingTranscriptionAsyncService {
             resultData.put("meeting_id", meetingId);
             resultData.put("transcript", finalTranscript);
             resultData.put("diarized_transcript", diarizedTranscript);
-            webSocketEventService.sendBoardEvent(boardId, BoardEventType.TRANSCRIPTION_COMPLETE,
-                    userId, userName, resultData);
+            webSocketEventService.sendBoardEvent(
+                    boardId, BoardEventType.TRANSCRIPTION_COMPLETE, userId, userName, resultData);
 
         } catch (Exception e) {
             log.error("Async transcription failed for meeting: {} - {}", meetingId, e.getMessage(), e);
 
-            // Refund consumed credits
+            // Refund consumed credits — each portion back to the pool (monthly / purchased) it came from
             try {
-                aiCreditService.refundCredit(boardId, userId, "MEETING_TRANSCRIBE_REFUND", creditsConsumed);
-                log.info("Refunded {} credits for failed transcription - meeting: {}", creditsConsumed, meetingId);
+                aiCreditService.refundCredit(boardId, userId, "MEETING_TRANSCRIBE_REFUND", consumed);
+                log.info("Refunded {} credits for failed transcription - meeting: {}", consumed.total(), meetingId);
             } catch (Exception refundEx) {
                 log.error("Failed to refund credits for meeting: {} - {}", meetingId, refundEx.getMessage());
             }
@@ -109,8 +118,8 @@ public class MeetingTranscriptionAsyncService {
             Map<String, Object> errorData = new LinkedHashMap<>();
             errorData.put("meeting_id", meetingId);
             errorData.put("error", e.getMessage() != null ? e.getMessage() : "Transcription failed");
-            webSocketEventService.sendBoardEvent(boardId, BoardEventType.TRANSCRIPTION_ERROR,
-                    userId, userName, errorData);
+            webSocketEventService.sendBoardEvent(
+                    boardId, BoardEventType.TRANSCRIPTION_ERROR, userId, userName, errorData);
         }
     }
 
@@ -118,9 +127,10 @@ public class MeetingTranscriptionAsyncService {
      * Narrow transaction: only holds DB connection for the brief save operation.
      */
     @Transactional
-    public String saveTranscriptionResult(String meetingId, String transcriptText,
-                                          MeetingResponse.DiarizedTranscript diarizedTranscript) {
-        Meeting meeting = meetingRepository.findById(meetingId)
+    public String saveTranscriptionResult(
+            String meetingId, String transcriptText, MeetingResponse.DiarizedTranscript diarizedTranscript) {
+        Meeting meeting = meetingRepository
+                .findById(meetingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
 
         String existingTranscript = meeting.getTranscript();

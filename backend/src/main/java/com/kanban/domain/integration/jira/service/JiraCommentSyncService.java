@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.comment.Comment;
+import com.kanban.domain.checklist.ChecklistItem;
+import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.comment.service.CommentService;
 import com.kanban.domain.integration.jira.*;
@@ -58,6 +60,7 @@ public class JiraCommentSyncService {
     private final JiraOAuthService oauthService;
     private final CommentRepository commentRepository;
     private final CommentService commentService;
+    private final ChecklistItemRepository checklistItemRepository;
     private final TaskRepository taskRepository;
     private final ObjectMapper objectMapper;
 
@@ -323,11 +326,28 @@ public class JiraCommentSyncService {
         String author = comment.getAuthor() != null ? comment.getAuthor().getName() : "알 수 없음";
         String content = comment.getContent() != null ? comment.getContent().trim() : "";
         StringBuilder sb = new StringBuilder(OUTBOUND_PREFIX).append(author).append("\n");
+        // 체크리스트 항목 댓글이면 어느 줄에 대한 이야기인지 밝힌다. JIRA 이슈는 태스크 단위라
+        // 이걸 빼면 항목별 대화가 맥락 없는 조각으로 섞인다.
+        String itemTitle = checklistItemTitle(comment.getChecklistItemId());
+        if (itemTitle != null) {
+            sb.append("[").append(itemTitle).append("]\n");
+        }
         sb.append(content.isEmpty() ? "(내용 없음)" : content);
         if (!comment.getAttachments().isEmpty()) {
             sb.append("\n\n(첨부 ").append(comment.getAttachments().size()).append("건은 BRIDGE에서 확인)");
         }
         return sb.toString();
+    }
+
+    /**
+     * 체크리스트 항목 제목. 항목이 이미 지워졌으면 null을 돌려 머리글을 생략한다 —
+     * 삭제된 줄 제목을 JIRA에 남기는 것보다 없는 편이 낫다.
+     */
+    private String checklistItemTitle(String checklistItemId) {
+        if (checklistItemId == null || checklistItemId.isBlank()) return null;
+        return checklistItemRepository.findById(checklistItemId)
+            .map(ChecklistItem::getTitle)
+            .orElse(null);
     }
 
     private String truncate(String value, int max) {

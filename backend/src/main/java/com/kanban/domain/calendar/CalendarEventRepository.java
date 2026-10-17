@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface CalendarEventRepository extends JpaRepository<CalendarEvent, String> {
@@ -16,9 +17,20 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, St
     @Query("SELECT e FROM CalendarEvent e " +
            "LEFT JOIN FETCH e.member " +
            "LEFT JOIN FETCH e.createdBy " +
+           "LEFT JOIN FETCH e.memoUpdatedBy " +
            "WHERE e.board.id = :boardId " +
            "ORDER BY e.startDate ASC")
     List<CalendarEvent> findByBoardIdWithDetails(@Param("boardId") String boardId);
+
+    /** 특정 멤버의 개인 일정 중 [start, end]와 겹치는 것 (부재/휴일근무 충돌 검증용). */
+    @Query("SELECT e FROM CalendarEvent e " +
+           "WHERE e.board.id = :boardId " +
+           "AND e.member.id = :memberId " +
+           "AND e.startDate <= :end AND e.endDate >= :start")
+    List<CalendarEvent> findOverlappingMemberEvents(@Param("boardId") String boardId,
+                                                    @Param("memberId") String memberId,
+                                                    @Param("start") LocalDate start,
+                                                    @Param("end") LocalDate end);
 
     @Modifying
     @Query("DELETE FROM CalendarEvent e WHERE e.board.id = :boardId")
@@ -31,4 +43,8 @@ public interface CalendarEventRepository extends JpaRepository<CalendarEvent, St
     @Modifying
     @Query("UPDATE CalendarEvent e SET e.createdBy = null WHERE e.createdBy.id = :userId")
     void nullifyCreatedByUserId(@Param("userId") String userId);
+
+    @Modifying
+    @Query("UPDATE CalendarEvent e SET e.memoUpdatedBy = null WHERE e.memoUpdatedBy.id = :userId")
+    void nullifyMemoUpdatedByUserId(@Param("userId") String userId);
 }

@@ -92,10 +92,10 @@ export function EmailVerificationPendingPage() {
               <span className="text-sm">&#x23F0;</span>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground font-medium mb-1">{t('emailVerification.linkValidity')}</p>
-              <p className="text-xs text-slate-400">
-                {t('emailVerification.linkValidityDesc')}
+              <p className="text-sm text-muted-foreground font-medium mb-1">
+                {t('emailVerification.linkValidity')}
               </p>
+              <p className="text-xs text-slate-400">{t('emailVerification.linkValidityDesc')}</p>
             </div>
           </div>
         </div>
@@ -127,7 +127,9 @@ export function EmailVerificationPendingPage() {
             ) : (
               <RefreshCw className="w-5 h-5" />
             )}
-            {cooldown > 0 ? t('emailVerification.resendCooldown', { seconds: cooldown }) : t('emailVerification.resendEmail')}
+            {cooldown > 0
+              ? t('emailVerification.resendCooldown', { seconds: cooldown })
+              : t('emailVerification.resendEmail')}
           </button>
 
           <button

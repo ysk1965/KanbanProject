@@ -1,5 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle2, Layers, ListChecks, X, Calendar } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  Layers,
+  ListChecks,
+  X,
+  Calendar,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEscClose } from '../hooks/useEscClose';
 import { Feature, Task, ChecklistItem } from '../types';
@@ -22,7 +30,11 @@ function parseLocalDate(dateStr: string): Date {
 }
 
 function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
 function toDateKey(d: Date): string {
@@ -49,7 +61,11 @@ function getTaskStatusBorder(task: Task, today: Date): string {
   return '#2dd4bf'; // bridge-secondary (teal)
 }
 
-function getStatusLabel(task: Task, today: Date, t: (key: string, fallback: string) => string): string {
+function getStatusLabel(
+  task: Task,
+  today: Date,
+  t: (key: string, fallback: string) => string,
+): string {
   if (task.completed) return t('weeklySchedule.completed', '완료');
   const dueDate = task.due_date ? parseLocalDate(task.due_date) : null;
   if (dueDate) {
@@ -58,7 +74,8 @@ function getStatusLabel(task: Task, today: Date, t: (key: string, fallback: stri
     if (dueNorm < todayNorm) return t('weeklySchedule.overdue', '마감 초과');
     const tomorrow = new Date(todayNorm);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    if (isSameDay(dueNorm, todayNorm) || isSameDay(dueNorm, tomorrow)) return t('weeklySchedule.dueSoon', '마감 임박');
+    if (isSameDay(dueNorm, todayNorm) || isSameDay(dueNorm, tomorrow))
+      return t('weeklySchedule.dueSoon', '마감 임박');
   }
   return t('weeklySchedule.inProgress', '진행 중');
 }
@@ -91,7 +108,13 @@ const LANE_HEIGHT = 28;
 
 // ── component ──
 
-export function CalendarView({ features, tasks, checklistDataMap, onViewFeature, onViewTask }: CalendarViewProps) {
+export function CalendarView({
+  features,
+  tasks,
+  checklistDataMap,
+  onViewFeature,
+  onViewTask,
+}: CalendarViewProps) {
   const { t, i18n } = useTranslation();
   const today = useMemo(() => new Date(), []);
 
@@ -115,11 +138,23 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
 
   // ── navigation ──
   const goToPrevMonth = useCallback(() => {
-    setCurrentMonth((m) => { if (m === 0) { setCurrentYear((y) => y - 1); return 11; } return m - 1; });
+    setCurrentMonth((m) => {
+      if (m === 0) {
+        setCurrentYear((y) => y - 1);
+        return 11;
+      }
+      return m - 1;
+    });
   }, []);
 
   const goToNextMonth = useCallback(() => {
-    setCurrentMonth((m) => { if (m === 11) { setCurrentYear((y) => y + 1); return 0; } return m + 1; });
+    setCurrentMonth((m) => {
+      if (m === 11) {
+        setCurrentYear((y) => y + 1);
+        return 0;
+      }
+      return m + 1;
+    });
   }, []);
 
   const goToToday = useCallback(() => {
@@ -244,7 +279,11 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
       const lo = s && e ? new Date(Math.min(s.getTime(), e.getTime())) : (s || e)!;
       const hi = s && e ? new Date(Math.max(s.getTime(), e.getTime())) : (s || e)!;
       if (!ranges.has(feature.id)) {
-        ranges.set(feature.id, { feature, minDate: new Date(lo.getTime()), maxDate: new Date(hi.getTime()) });
+        ranges.set(feature.id, {
+          feature,
+          minDate: new Date(lo.getTime()),
+          maxDate: new Date(hi.getTime()),
+        });
       } else {
         const r = ranges.get(feature.id)!;
         if (lo < r.minDate) r.minDate = new Date(lo.getTime());
@@ -282,22 +321,43 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
       const weekEndMs = new Date(we.getFullYear(), we.getMonth(), we.getDate()).getTime();
       const rawSpans: Array<Omit<WeekFeatureSpan, 'lane'>> = [];
       featureDateRanges.forEach(({ feature, minDate, maxDate }) => {
-        const minMs = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate()).getTime();
-        const maxMs = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate()).getTime();
+        const minMs = new Date(
+          minDate.getFullYear(),
+          minDate.getMonth(),
+          minDate.getDate(),
+        ).getTime();
+        const maxMs = new Date(
+          maxDate.getFullYear(),
+          maxDate.getMonth(),
+          maxDate.getDate(),
+        ).getTime();
         if (maxMs < weekStartMs || minMs > weekEndMs) return;
         const clampedStartMs = Math.max(minMs, weekStartMs);
         const clampedEndMs = Math.min(maxMs, weekEndMs);
         const startCol = Math.round((clampedStartMs - weekStartMs) / DAY_MS);
         const endCol = Math.round((clampedEndMs - weekStartMs) / DAY_MS);
         if (endCol > startCol) {
-          rawSpans.push({ feature, startCol, endCol, continuesLeft: minMs < weekStartMs, continuesRight: maxMs > weekEndMs });
+          rawSpans.push({
+            feature,
+            startCol,
+            endCol,
+            continuesLeft: minMs < weekStartMs,
+            continuesRight: maxMs > weekEndMs,
+          });
         }
       });
-      rawSpans.sort((a, b) => a.startCol - b.startCol || (b.endCol - b.startCol) - (a.endCol - a.startCol));
+      rawSpans.sort(
+        (a, b) => a.startCol - b.startCol || b.endCol - b.startCol - (a.endCol - a.startCol),
+      );
       const assigned: WeekFeatureSpan[] = [];
       rawSpans.forEach((span) => {
         let lane = 0;
-        while (assigned.some((a) => a.lane === lane && a.startCol <= span.endCol && a.endCol >= span.startCol)) lane++;
+        while (
+          assigned.some(
+            (a) => a.lane === lane && a.startCol <= span.endCol && a.endCol >= span.startCol,
+          )
+        )
+          lane++;
         assigned.push({ ...span, lane });
       });
       return assigned;
@@ -325,7 +385,9 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
     const done = items.filter((i) => i.completed).length;
     const total = items.length;
     return (
-      <span className={`flex items-center gap-0.5 ${textCls} ml-auto shrink-0 ${done === total ? 'text-emerald-400' : 'text-zinc-500'}`}>
+      <span
+        className={`flex items-center gap-0.5 ${textCls} ml-auto shrink-0 ${done === total ? 'text-emerald-400' : 'text-zinc-500'}`}
+      >
         <ListChecks size={iconSz} />
         {done}/{total}
       </span>
@@ -338,7 +400,9 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
 
   const getDayItemCount = (day: DayData) => {
     let count = 0;
-    day.featureGroups.forEach((g) => { count += 1 + g.tasks.length; });
+    day.featureGroups.forEach((g) => {
+      count += 1 + g.tasks.length;
+    });
     count += day.orphanTasks.length;
     return count;
   };
@@ -358,22 +422,47 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
       {/* Header */}
       <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-foreground/5">
         <div className="flex items-center gap-2 md:gap-3">
-          <button onClick={goToPrevMonth} className="p-1 md:p-1.5 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors" aria-label="이전 달">
+          <button
+            onClick={goToPrevMonth}
+            className="p-1 md:p-1.5 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            aria-label="이전 달"
+          >
             <ChevronLeft size={16} className="md:w-[18px] md:h-[18px]" />
           </button>
-          <h2 className="text-sm md:text-base font-bold text-foreground min-w-[80px] md:min-w-[120px] text-center">{monthLabel}</h2>
-          <button onClick={goToNextMonth} className="p-1 md:p-1.5 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors" aria-label="다음 달">
+          <h2 className="text-sm md:text-base font-bold text-foreground min-w-[80px] md:min-w-[120px] text-center">
+            {monthLabel}
+          </h2>
+          <button
+            onClick={goToNextMonth}
+            className="p-1 md:p-1.5 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            aria-label="다음 달"
+          >
             <ChevronRight size={16} className="md:w-[18px] md:h-[18px]" />
           </button>
         </div>
         <div className="flex items-center gap-2">
           <div className="hidden md:flex items-center gap-3 mr-3 text-xs text-zinc-500">
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-bridge-secondary" />{t('weeklySchedule.inProgress', '진행 중')}</span>
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" />{t('weeklySchedule.dueSoon', '마감 임박')}</span>
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500" />{t('weeklySchedule.overdue', '마감 초과')}</span>
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{t('weeklySchedule.completed', '완료')}</span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-bridge-secondary" />
+              {t('weeklySchedule.inProgress', '진행 중')}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+              {t('weeklySchedule.dueSoon', '마감 임박')}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              {t('weeklySchedule.overdue', '마감 초과')}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              {t('weeklySchedule.completed', '완료')}
+            </span>
           </div>
-          <button onClick={goToToday} className="px-2 md:px-3 py-1 text-xs md:text-xs font-medium rounded-lg bg-foreground/5 text-foreground/80 hover:bg-foreground/10 hover:text-foreground transition-colors">
+          <button
+            onClick={goToToday}
+            className="px-2 md:px-3 py-1 text-xs md:text-xs font-medium rounded-lg bg-foreground/5 text-foreground/80 hover:bg-foreground/10 hover:text-foreground transition-colors"
+          >
             {t('calendar.today', '오늘')}
           </button>
         </div>
@@ -395,7 +484,10 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
 
       {/* Calendar grid - week rows with spanning feature bars */}
       <div className="flex-1 overflow-hidden">
-        <div className="grid h-full" style={{ gridTemplateRows: `repeat(${weekRows.length}, 1fr)` }}>
+        <div
+          className="grid h-full"
+          style={{ gridTemplateRows: `repeat(${weekRows.length}, 1fr)` }}
+        >
           {weekRows.map((week, weekIdx) => {
             const spans = weekSpansData[weekIdx];
             const maxLane = spans.length > 0 ? Math.max(...spans.map((s) => s.lane)) + 1 : 0;
@@ -416,7 +508,9 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                   const totalItems = dayData ? getDayItemCount(dayData) : 0;
 
                   // Separate spanning vs non-spanning features
-                  const nonSpanningGroups = allGroups.filter((g) => !spanningFeatureIds.has(g.feature.id));
+                  const nonSpanningGroups = allGroups.filter(
+                    (g) => !spanningFeatureIds.has(g.feature.id),
+                  );
                   const spanningTasksForDay = allGroups
                     .filter((g) => spanningFeatureIds.has(g.feature.id))
                     .flatMap((g) => g.tasks);
@@ -441,7 +535,13 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                     <div
                       key={colIdx}
                       className={`border-b border-r border-foreground/5 flex flex-col overflow-hidden transition-colors ${
-                        !isCurrentMonth ? 'bg-white/[0.01]' : isHoliday ? 'bg-red-500/[0.03]' : weekend ? 'bg-white/[0.015]' : ''
+                        !isCurrentMonth
+                          ? 'bg-white/[0.01]'
+                          : isHoliday
+                            ? 'bg-red-500/[0.03]'
+                            : weekend
+                              ? 'bg-white/[0.015]'
+                              : ''
                       } ${isTodayCell ? 'ring-1 ring-inset ring-bridge-accent/30 bg-bridge-accent/[0.04]' : ''}`}
                     >
                       {/* Date number + holiday name */}
@@ -449,7 +549,9 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                         <button
                           onClick={() => openDayModal(dateKey, date)}
                           className={`text-xs md:text-xs font-medium w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded-full transition-colors shrink-0 ${
-                            totalItems > 0 ? 'cursor-pointer hover:bg-foreground/10' : 'cursor-default'
+                            totalItems > 0
+                              ? 'cursor-pointer hover:bg-foreground/10'
+                              : 'cursor-default'
                           } ${
                             isTodayCell
                               ? 'bg-bridge-accent text-white'
@@ -470,7 +572,9 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                           </span>
                         )}
                         {totalItems > 0 && (
-                          <span className="text-xs text-zinc-600 tabular-nums ml-auto shrink-0">{totalItems}</span>
+                          <span className="text-xs text-zinc-600 tabular-nums ml-auto shrink-0">
+                            {totalItems}
+                          </span>
                         )}
                       </div>
 
@@ -488,17 +592,24 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                             const isEnd = colIdx === span.endCol;
                             const isVisualStart = isStart && !span.continuesLeft;
                             const isVisualEnd = isEnd && !span.continuesRight;
-                            const isFeatureDueDay = span.feature.due_date && span.feature.due_date.substring(0, 10) === dateKey;
+                            const isFeatureDueDay =
+                              span.feature.due_date &&
+                              span.feature.due_date.substring(0, 10) === dateKey;
 
                             return (
                               <button
                                 key={lane}
-                                onClick={(e) => { e.stopPropagation(); onViewFeature(span.feature.id); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onViewFeature(span.feature.id);
+                                }}
                                 className="w-full flex items-center gap-1 overflow-hidden hover:brightness-125 transition-all"
                                 style={{
                                   height: LANE_HEIGHT,
                                   backgroundColor: `${span.feature.color}20`,
-                                  borderLeft: isVisualStart ? `3px solid ${span.feature.color}` : 'none',
+                                  borderLeft: isVisualStart
+                                    ? `3px solid ${span.feature.color}`
+                                    : 'none',
                                   borderTopLeftRadius: isVisualStart ? 4 : 0,
                                   borderBottomLeftRadius: isVisualStart ? 4 : 0,
                                   borderTopRightRadius: isVisualEnd ? 4 : 0,
@@ -507,15 +618,28 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                                   paddingRight: isEnd ? 4 : 0,
                                 }}
                               >
-                                {isStart && <Layers size={10} className="shrink-0 opacity-60" style={{ color: span.feature.color }} />}
                                 {isStart && (
-                                  <span className="truncate text-xs font-medium text-foreground">{span.feature.title}</span>
+                                  <Layers
+                                    size={10}
+                                    className="shrink-0 opacity-60"
+                                    style={{ color: span.feature.color }}
+                                  />
+                                )}
+                                {isStart && (
+                                  <span className="truncate text-xs font-medium text-foreground">
+                                    {span.feature.title}
+                                  </span>
                                 )}
                                 {isFeatureDueDay && (
-                                  <span className="ml-auto text-xs px-1 py-px rounded bg-foreground/10 text-zinc-400 shrink-0">D-Day</span>
+                                  <span className="ml-auto text-xs px-1 py-px rounded bg-foreground/10 text-zinc-400 shrink-0">
+                                    D-Day
+                                  </span>
                                 )}
-                                {isEnd && span.feature.status === 'DONE' && (
-                                  <CheckCircle2 size={10} className="ml-auto shrink-0 text-emerald-400" />
+                                {isEnd && span.feature.status === 'COMPLETED' && (
+                                  <CheckCircle2
+                                    size={10}
+                                    className="ml-auto shrink-0 text-emerald-400"
+                                  />
                                 )}
                               </button>
                             );
@@ -545,16 +669,24 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                         {visibleSpanningTasks.map((task) => (
                           <button
                             key={task.id}
-                            onClick={(e) => { e.stopPropagation(); onViewTask(task.id); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onViewTask(task.id);
+                            }}
                             className="w-full flex items-center gap-1.5 pl-2 pr-2 py-0.5 rounded group/t transition-all hover:bg-foreground/5"
                             style={{ borderLeft: `2px solid ${getTaskStatusBorder(task, today)}` }}
                           >
                             {task.completed ? (
                               <CheckCircle2 size={11} className="shrink-0 text-emerald-400" />
                             ) : (
-                              <span className="w-[11px] h-[11px] rounded-full border shrink-0" style={{ borderColor: getTaskStatusBorder(task, today) }} />
+                              <span
+                                className="w-[11px] h-[11px] rounded-full border shrink-0"
+                                style={{ borderColor: getTaskStatusBorder(task, today) }}
+                              />
                             )}
-                            <span className={`truncate text-xs group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}>
+                            <span
+                              className={`truncate text-xs group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}
+                            >
                               {task.title}
                             </span>
                             {renderChecklistBadge(task)}
@@ -566,40 +698,66 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                           const f = group.feature;
                           const visibleTasks = group.tasks.slice(0, MAX_TASKS_PER_FEATURE);
                           const hiddenTaskCount = group.tasks.length - MAX_TASKS_PER_FEATURE;
-                          const isFeatureDueDay = f.due_date && f.due_date.substring(0, 10) === dateKey;
+                          const isFeatureDueDay =
+                            f.due_date && f.due_date.substring(0, 10) === dateKey;
 
                           return (
                             <div key={f.id} className="space-y-0.5">
                               <button
-                                onClick={(e) => { e.stopPropagation(); onViewFeature(f.id); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onViewFeature(f.id);
+                                }}
                                 className="w-full flex items-center gap-1.5 px-2 py-1 rounded group/fh transition-all hover:brightness-125"
-                                style={{ backgroundColor: `${f.color}18`, borderLeft: `3px solid ${f.color}` }}
+                                style={{
+                                  backgroundColor: `${f.color}18`,
+                                  borderLeft: `3px solid ${f.color}`,
+                                }}
                               >
-                                <Layers size={11} className="shrink-0 opacity-60" style={{ color: f.color }} />
+                                <Layers
+                                  size={11}
+                                  className="shrink-0 opacity-60"
+                                  style={{ color: f.color }}
+                                />
                                 <span className="truncate text-xs font-medium text-foreground group-hover/fh:text-foreground">
                                   {f.title}
                                 </span>
                                 {isFeatureDueDay && (
-                                  <span className="ml-auto text-xs px-1 py-px rounded bg-foreground/10 text-zinc-400 shrink-0">D-Day</span>
+                                  <span className="ml-auto text-xs px-1 py-px rounded bg-foreground/10 text-zinc-400 shrink-0">
+                                    D-Day
+                                  </span>
                                 )}
-                                {f.status === 'DONE' && (
-                                  <CheckCircle2 size={11} className="ml-auto shrink-0 text-emerald-400" />
+                                {f.status === 'COMPLETED' && (
+                                  <CheckCircle2
+                                    size={11}
+                                    className="ml-auto shrink-0 text-emerald-400"
+                                  />
                                 )}
                               </button>
 
                               {visibleTasks.map((task) => (
                                 <button
                                   key={task.id}
-                                  onClick={(e) => { e.stopPropagation(); onViewTask(task.id); }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onViewTask(task.id);
+                                  }}
                                   className="w-full flex items-center gap-1.5 pl-3.5 pr-2 py-0.5 rounded group/t transition-all hover:bg-foreground/5"
-                                  style={{ borderLeft: `2px solid ${getTaskStatusBorder(task, today)}` }}
+                                  style={{
+                                    borderLeft: `2px solid ${getTaskStatusBorder(task, today)}`,
+                                  }}
                                 >
                                   {task.completed ? (
                                     <CheckCircle2 size={11} className="shrink-0 text-emerald-400" />
                                   ) : (
-                                    <span className="w-[11px] h-[11px] rounded-full border shrink-0" style={{ borderColor: getTaskStatusBorder(task, today) }} />
+                                    <span
+                                      className="w-[11px] h-[11px] rounded-full border shrink-0"
+                                      style={{ borderColor: getTaskStatusBorder(task, today) }}
+                                    />
                                   )}
-                                  <span className={`truncate text-xs group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}>
+                                  <span
+                                    className={`truncate text-xs group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}
+                                  >
                                     {task.title}
                                   </span>
                                   {renderChecklistBadge(task)}
@@ -607,7 +765,9 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                               ))}
 
                               {hiddenTaskCount > 0 && (
-                                <div className="pl-3.5 text-xs text-zinc-600 leading-none">+{hiddenTaskCount}</div>
+                                <div className="pl-3.5 text-xs text-zinc-600 leading-none">
+                                  +{hiddenTaskCount}
+                                </div>
                               )}
                             </div>
                           );
@@ -617,16 +777,24 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                         {visibleOrphans.map((task) => (
                           <button
                             key={task.id}
-                            onClick={(e) => { e.stopPropagation(); onViewTask(task.id); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onViewTask(task.id);
+                            }}
                             className="w-full flex items-center gap-1.5 pl-2 pr-2 py-0.5 rounded group/t transition-all hover:bg-foreground/5"
                             style={{ borderLeft: `2px solid ${getTaskStatusBorder(task, today)}` }}
                           >
                             {task.completed ? (
                               <CheckCircle2 size={11} className="shrink-0 text-emerald-400" />
                             ) : (
-                              <span className="w-[11px] h-[11px] rounded-full border shrink-0" style={{ borderColor: getTaskStatusBorder(task, today) }} />
+                              <span
+                                className="w-[11px] h-[11px] rounded-full border shrink-0"
+                                style={{ borderColor: getTaskStatusBorder(task, today) }}
+                              />
                             )}
-                            <span className={`truncate text-xs group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}>
+                            <span
+                              className={`truncate text-xs group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}
+                            >
                               {task.title}
                             </span>
                             {renderChecklistBadge(task)}
@@ -636,7 +804,10 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                         {/* More → opens modal */}
                         {hiddenCount > 0 && (
                           <button
-                            onClick={(e) => { e.stopPropagation(); openDayModal(dateKey, date); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDayModal(dateKey, date);
+                            }}
                             className="w-full text-xs text-zinc-600 hover:text-bridge-secondary text-center leading-none transition-colors"
                           >
                             +{hiddenCount}
@@ -670,10 +841,16 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-foreground">
-                    {modalDate.date.getMonth() + 1}{t('calendar.monthSuffix', '월')} {modalDate.date.getDate()}{t('calendar.daySuffix', '일')} ({dayLabels[modalDate.date.getDay()]})
+                    {modalDate.date.getMonth() + 1}
+                    {t('calendar.monthSuffix', '월')} {modalDate.date.getDate()}
+                    {t('calendar.daySuffix', '일')} ({dayLabels[modalDate.date.getDay()]})
                   </h3>
                   <p className="text-xs text-zinc-500 mt-0.5">
-                    {modalDayData.featureGroups.length}{t('calendar.featureCount', '개 피처')} · {modalDayData.featureGroups.reduce((sum, g) => sum + g.tasks.length, 0) + modalDayData.orphanTasks.length}{t('calendar.taskCount', '개 태스크')}
+                    {modalDayData.featureGroups.length}
+                    {t('calendar.featureCount', '개 피처')} ·{' '}
+                    {modalDayData.featureGroups.reduce((sum, g) => sum + g.tasks.length, 0) +
+                      modalDayData.orphanTasks.length}
+                    {t('calendar.taskCount', '개 태스크')}
                   </p>
                 </div>
               </div>
@@ -689,24 +866,37 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
             <div className="flex-1 overflow-y-auto px-4 md:px-6 py-3 md:py-4 space-y-3 md:space-y-4">
               {modalDayData.featureGroups.map((group) => {
                 const f = group.feature;
-                const isFeatureDueDay = f.due_date && f.due_date.substring(0, 10) === modalDate.dateKey;
+                const isFeatureDueDay =
+                  f.due_date && f.due_date.substring(0, 10) === modalDate.dateKey;
 
                 return (
                   <div key={f.id} className="space-y-1.5">
                     {/* Feature header */}
                     <button
-                      onClick={() => { onViewFeature(f.id); setModalDate(null); }}
+                      onClick={() => {
+                        onViewFeature(f.id);
+                        setModalDate(null);
+                      }}
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl group/fh transition-all hover:brightness-125"
-                      style={{ backgroundColor: `${f.color}12`, borderLeft: `3px solid ${f.color}` }}
+                      style={{
+                        backgroundColor: `${f.color}12`,
+                        borderLeft: `3px solid ${f.color}`,
+                      }}
                     >
-                      <Layers size={14} className="shrink-0 opacity-70" style={{ color: f.color }} />
+                      <Layers
+                        size={14}
+                        className="shrink-0 opacity-70"
+                        style={{ color: f.color }}
+                      />
                       <span className="truncate text-sm font-medium text-foreground group-hover/fh:text-foreground">
                         {f.title}
                       </span>
                       {isFeatureDueDay && (
-                        <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-foreground/10 text-zinc-400 shrink-0 font-medium">D-Day</span>
+                        <span className="ml-auto text-xs px-1.5 py-0.5 rounded bg-foreground/10 text-zinc-400 shrink-0 font-medium">
+                          D-Day
+                        </span>
                       )}
-                      {f.status === 'DONE' && (
+                      {f.status === 'COMPLETED' && (
                         <CheckCircle2 size={14} className="ml-auto shrink-0 text-emerald-400" />
                       )}
                     </button>
@@ -719,29 +909,45 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                           return (
                             <button
                               key={task.id}
-                              onClick={() => { onViewTask(task.id); setModalDate(null); }}
+                              onClick={() => {
+                                onViewTask(task.id);
+                                setModalDate(null);
+                              }}
                               className="w-full flex items-center gap-2.5 pl-5 pr-3 py-2 rounded-lg group/t transition-all hover:bg-foreground/5"
                               style={{ borderLeft: `2px solid ${statusColor}` }}
                             >
                               {task.completed ? (
                                 <CheckCircle2 size={13} className="shrink-0 text-emerald-400" />
                               ) : (
-                                <span className="w-3 h-3 rounded-full border-[1.5px] shrink-0" style={{ borderColor: statusColor }} />
+                                <span
+                                  className="w-3 h-3 rounded-full border-[1.5px] shrink-0"
+                                  style={{ borderColor: statusColor }}
+                                />
                               )}
                               <div className="flex-1 min-w-0 text-left">
-                                <span className={`block truncate text-sm group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}>
+                                <span
+                                  className={`block truncate text-sm group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}
+                                >
                                   {task.title}
                                 </span>
                                 {(task.due_date || task.start_date) && (
                                   <span className="text-xs text-zinc-600">
-                                    {task.start_date && task.start_date.substring(5, 10).replace('-', '/')}
+                                    {task.start_date &&
+                                      task.start_date.substring(5, 10).replace('-', '/')}
                                     {task.start_date && task.due_date && ' → '}
-                                    {task.due_date && task.due_date.substring(5, 10).replace('-', '/')}
+                                    {task.due_date &&
+                                      task.due_date.substring(5, 10).replace('-', '/')}
                                   </span>
                                 )}
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ color: statusColor, backgroundColor: `${statusColor}15` }}>
+                                <span
+                                  className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                                  style={{
+                                    color: statusColor,
+                                    backgroundColor: `${statusColor}15`,
+                                  }}
+                                >
                                   {getStatusLabel(task, today, t)}
                                 </span>
                                 {renderChecklistBadge(task, false)}
@@ -751,7 +957,9 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                         })}
                       </div>
                     ) : (
-                      <p className="pl-5 text-xs text-zinc-600 italic">{t('calendar.noTasks', '태스크 없음')}</p>
+                      <p className="pl-5 text-xs text-zinc-600 italic">
+                        {t('calendar.noTasks', '태스크 없음')}
+                      </p>
                     )}
                   </div>
                 );
@@ -768,19 +976,30 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                     return (
                       <button
                         key={task.id}
-                        onClick={() => { onViewTask(task.id); setModalDate(null); }}
+                        onClick={() => {
+                          onViewTask(task.id);
+                          setModalDate(null);
+                        }}
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg group/t transition-all hover:bg-foreground/5"
                         style={{ borderLeft: `2px solid ${statusColor}` }}
                       >
                         {task.completed ? (
                           <CheckCircle2 size={13} className="shrink-0 text-emerald-400" />
                         ) : (
-                          <span className="w-3 h-3 rounded-full border-[1.5px] shrink-0" style={{ borderColor: statusColor }} />
+                          <span
+                            className="w-3 h-3 rounded-full border-[1.5px] shrink-0"
+                            style={{ borderColor: statusColor }}
+                          />
                         )}
-                        <span className={`flex-1 truncate text-sm text-left group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}>
+                        <span
+                          className={`flex-1 truncate text-sm text-left group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}
+                        >
                           {task.title}
                         </span>
-                        <span className="text-xs px-1.5 py-0.5 rounded-full font-medium shrink-0" style={{ color: statusColor, backgroundColor: `${statusColor}15` }}>
+                        <span
+                          className="text-xs px-1.5 py-0.5 rounded-full font-medium shrink-0"
+                          style={{ color: statusColor, backgroundColor: `${statusColor}15` }}
+                        >
                           {getStatusLabel(task, today, t)}
                         </span>
                         {renderChecklistBadge(task, false)}
@@ -793,10 +1012,22 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
 
             {/* Modal footer - legend */}
             <div className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-2 md:py-3 border-t border-foreground/5 shrink-0 flex-wrap">
-              <span className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-bridge-secondary" />{t('weeklySchedule.inProgress', '진행 중')}</span>
-              <span className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-orange-500" />{t('weeklySchedule.dueSoon', '마감 임박')}</span>
-              <span className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-red-500" />{t('weeklySchedule.overdue', '마감 초과')}</span>
-              <span className="flex items-center gap-1.5 text-xs text-zinc-500"><span className="w-2 h-2 rounded-full bg-emerald-500" />{t('weeklySchedule.completed', '완료')}</span>
+              <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                <span className="w-2 h-2 rounded-full bg-bridge-secondary" />
+                {t('weeklySchedule.inProgress', '진행 중')}
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                <span className="w-2 h-2 rounded-full bg-orange-500" />
+                {t('weeklySchedule.dueSoon', '마감 임박')}
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                <span className="w-2 h-2 rounded-full bg-red-500" />
+                {t('weeklySchedule.overdue', '마감 초과')}
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                {t('weeklySchedule.completed', '완료')}
+              </span>
             </div>
           </div>
         </div>

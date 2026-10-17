@@ -11,6 +11,9 @@
     "addImage": "Hình ảnh",
     "addVideo": "Video",
     "empty": "Thêm một nút từ thanh công cụ để bắt đầu",
+    "selectedCount": "Đã chọn {{count}}",
+    "scaleDown": "Thu nhỏ vùng chọn",
+    "scaleUp": "Phóng to vùng chọn",
     "emptyReadOnly": "Sơ đồ này đang trống",
     "dropHere": "Thả hình ảnh hoặc video vào đây",
     "mediaUploadFailed": "Tải lên phương tiện thất bại. Vui lòng kiểm tra kích thước hoặc định dạng tệp.",
@@ -105,7 +108,7 @@
       },
       "personal": {
         "title": "Personal Productivity Hub",
-        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+        "desc": "Eisenhower Matrix task board and habit tracker with streaks — your personal growth toolkit lives right next to your team workspace."
       }
     },
     "myspace": {
@@ -116,8 +119,7 @@
       "tabs": {
         "overview": "Overview",
         "matrix": "Matrix",
-        "habits": "Habits",
-        "diary": "AI Diary"
+        "habits": "Habits"
       },
       "matrix": {
         "title": "Eisenhower Matrix",
@@ -126,10 +128,6 @@
       "habits": {
         "title": "Habit Tracker",
         "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
-      },
-      "diary": {
-        "title": "AI Diary",
-        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
       },
       "calendar": {
         "title": "Personal Calendar",
@@ -198,10 +196,6 @@
       "insights": {
         "text": "Phân tích hiệu suất cá nhân và động lực nhóm. Nắm bắt phân bổ công việc và mô hình cộng tác chỉ trong nháy mắt.",
         "title": "Personal & Team Insights"
-      },
-      "diary": {
-        "title": "AI Conversational Diary",
-        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
       },
       "label": "AI Intelligence",
       "narrative": {
@@ -369,7 +363,7 @@
     "searchPlaceholder": "Tìm kiếm dự án...",
     "logout": "Đăng xuất",
     "mySpace": "Không gian của tôi",
-    "mySpaceDesc": "Lịch cá nhân & Nhật ký AI",
+    "mySpaceDesc": "Lịch cá nhân & Thói quen",
     "mySpaceSetup": "Tạo không gian cá nhân của bạn",
     "mySpaceCreate": "Tạo",
     "mySpaceIntroTitle": "Không gian của tôi",
@@ -380,8 +374,6 @@
     "mySpaceIntroHabitDesc": "Theo dõi thói quen hàng ngày và phát triển đều đặn",
     "mySpaceIntroEventTitle": "Events",
     "mySpaceIntroEventDesc": "Quản lý lịch trình và sự kiện một cách trực quan",
-    "mySpaceIntroDiaryTitle": "AI Diary",
-    "mySpaceIntroDiaryDesc": "Viết nhật ký cảm xúc với sự hỗ trợ của AI",
     "mySpaceIntroStart": "Bắt đầu",
     "mySpaceIntroClose": "Đóng",
     "yourProjects": "Dự án của bạn",
@@ -874,7 +866,9 @@
     "breakTime": "Giờ nghỉ",
     "breakTimeDesc": "Giờ nghỉ không tính vào giờ làm việc",
     "effectiveHours": "Thực tế:",
-    "excludingBreak": "(trừ {{hours}} giờ nghỉ)"
+    "excludingBreak": "(trừ {{hours}} giờ nghỉ)",
+    "unplaceNotChecklist": "Chỉ khối gắn với mục checklist mới có thể chuyển về chưa xếp.",
+    "unplaceFailed": "Không thể chuyển về chưa xếp."
   },
   "dailySummary": {
     "summaryButton": "Tóm tắt",
@@ -1172,6 +1166,20 @@
     "progress": "Tien do bao tri {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
   },
+  "serverDown": {
+    "title": "Không thể kết nối máy chủ",
+    "subtitle": "Máy chủ đang được cập nhật hoặc tạm thời không phản hồi. Kết nối sẽ tự động khôi phục.",
+    "offlineTitle": "Bạn đang ngoại tuyến",
+    "offlineSubtitle": "Vui lòng kiểm tra kết nối mạng. Chúng tôi sẽ tự động thử lại khi có mạng.",
+    "elapsed": "Mất kết nối",
+    "statusLabel": "Trạng thái máy chủ",
+    "statusUnreachable": "Không phản hồi",
+    "statusOffline": "Mất mạng",
+    "checking": "Đang kiểm tra...",
+    "checkNow": "Thử lại ngay",
+    "autoRefresh": "Tự động kết nối lại mỗi 5 giây",
+    "hint": "Các thay đổi chưa lưu có thể đã mất. Màn hình này sẽ tự đóng khi máy chủ hoạt động trở lại."
+  },
   "nightShutdown": {
     "title": "Ngoài giờ hoạt động",
     "subtitle": "Bảo trì máy chủ diễn ra hàng ngày từ 03:30 đến 08:30 (KST)",
@@ -1379,6 +1387,7 @@
     "changeStatus": "Đổi trạng thái",
     "description": "Mo ta",
     "noDescription": "Khong co mo ta",
+    "jiraDescriptionLocked": "Mô tả này do JIRA quản lý. Hãy chỉnh sửa trong issue JIRA.",
     "period": "Thoi gian",
     "startDateTbd": "Ngay bat dau chua xac dinh",
     "endDateTbd": "Ngay ket thuc chua xac dinh",
@@ -1464,7 +1473,7 @@
     },
     "moveChecklistToTaskTitle": "Di chuyển mục checklist",
     "moveCompletedSection": "Đã hoàn thành",
-    "moveChecklistToTaskDesc": "Chọn task để di chuyển đến.",
+    "moveChecklistToTaskDesc": "Chọn task để di chuyển đến hoặc tạo task mới.",
     "deleteChecklistTitle": "Xoa muc danh sach kiem tra?",
     "deleteChecklistDesc": "Muc da xoa khong the khoi phuc.",
     "date": "Ngay",
@@ -1522,7 +1531,8 @@
     "aiDecisions": "Quyết định",
     "aiOpenQuestions": "Câu hỏi chưa giải quyết",
     "aiActionItems": "Hành động cần làm",
-    "checklist": "Checklist"
+    "checklist": "Checklist",
+    "download": "Tải xuống"
   },
   "mentionGroup": {
     "create": "Tạo nhóm đề cập",
@@ -1685,7 +1695,6 @@
       "personalBoards": "Bảng cá nhân",
       "adoptionRate": "Tỷ lệ sử dụng",
       "activePersonalBoards": "Hoạt động (30 ngày)",
-      "totalDiaryEntries": "Số nhật ký",
       "boardTypeDistribution": "Phân bố loại bảng"
     },
     "analytics": {
@@ -1721,11 +1730,6 @@
       "totalPersonalBoards": "Tổng Personal Board",
       "adoptionRateLabel": "Tỷ lệ áp dụng",
       "pbCreated": "PB đã tạo",
-      "diaryEngagement": "Tương tác Nhật ký",
-      "totalDiaryEntries": "Tổng mục",
-      "diaryCompletionRate": "Tỷ lệ hoàn thành",
-      "diaryActiveUsers": "Người dùng hoạt động",
-      "diaryEntries": "Nhật ký viết",
       "pbConversion": "Chuyển đổi Personal Board",
       "personalOnly": "Chỉ Personal",
       "personalAndTeam": "Personal + Team",
@@ -1992,8 +1996,6 @@
       "seatCountUpdateSuccess": "Số chỗ đã được cập nhật thành {{count}}.",
       "updateSeatCount": "Cập nhật số chỗ",
       "personalActivity": "Hoạt động cá nhân",
-      "diaryEntries": "Nhật ký",
-      "completionRate": "{{rate}}% Hoàn thành",
       "events": "Sự kiện",
       "lastActivity": "Hoạt động gần đây"
     },
@@ -2350,7 +2352,8 @@
     "nextDay": "ngày hôm sau",
     "custom": "Khối tùy chỉnh",
     "orgScheduleLabel": "{{boardName}}",
-    "orgScheduleReadOnly": "Chỉ đọc (bảng khác)"
+    "orgScheduleReadOnly": "Chỉ đọc (bảng khác)",
+    "willUnplace": "Chuyển về chưa xếp"
   },
   "scheduleDetail": {
     "title": "Chi tiet khoi thoi gian",
@@ -2376,7 +2379,9 @@
     "editCustom": "Chỉnh sửa khối",
     "titlePlaceholder": "Nhập tên lịch trình",
     "viewMeeting": "Xem chi tiết cuộc họp",
-    "escClose": "Esc để đóng"
+    "escClose": "Esc để đóng",
+    "unplace": "Chuyển về chưa xếp",
+    "unplaceHint": "Xóa các khối thời gian của ngày này và bỏ ngày đã đặt"
   },
   "emptyBoard": {
     "heading": "Bat dau voi bang cua ban",
@@ -3164,7 +3169,76 @@
       "schedule": "Lịch trình",
       "calendar": "Lịch",
       "notes": "Ghi chú",
-      "diary": "Nhật ký AI"
+      "features": "Tính năng"
+    },
+    "features": {
+      "timetable": "Thời gian biểu",
+      "timetable_new": "Thời gian biểu mới",
+      "timetable_default_title": "Thời gian biểu mới",
+      "songlist": "Danh sách bài hát",
+      "attendance": "Bảng điểm danh",
+      "soon": "Sắp ra mắt",
+      "soon_toast": "Sắp ra mắt",
+      "empty_title": "Tạo thời gian biểu đầu tiên",
+      "empty_desc": "Sắp xếp lịch tập dượt và thứ tự buổi lễ thành bảng rồi xuất PDF",
+      "saved_ago": "Đã lưu",
+      "saving": "Đang lưu…",
+      "duplicate": "Nhân bản",
+      "export_pdf": "Xuất PDF",
+      "delete": "Xóa",
+      "delete_confirm_title": "Xóa thời gian biểu này?",
+      "delete_confirm_desc": "Không thể hoàn tác sau khi xóa",
+      "untitled": "Chưa có tiêu đề",
+      "timetable_editor": {
+        "add_column": "Thêm cột",
+        "add_day": "Thêm ngày",
+        "add_row": "Thêm hàng",
+        "auto_merge": "Tự gộp ô giống nhau",
+        "auto_merge_none": "Không có ô liên tiếp cùng giá trị",
+        "auto_merge_title": "Gộp một lần các ô liên tiếp cùng giá trị (cùng màu) trong một cột",
+        "auto_merged": "Đã gộp {{count}} chỗ. Có thể hoàn tác từng chỗ bằng “Bỏ gộp”",
+        "cell_color": "Màu ô",
+        "color_default": "Mặc định",
+        "column_deleted": "Đã xóa cột",
+        "date": "Ngày",
+        "delete_column": "Xóa cột",
+        "delete_day": "Xóa ngày",
+        "delete_day_title": "Xóa khối ngày",
+        "delete_row": "Xóa hàng",
+        "hint_idle": "Chọn ô rồi chọn màu · kéo hoặc Shift+nhấp để chọn vùng gộp",
+        "hint_selected": "Đổi màu, hoặc kéo / Shift+nhấp để chọn vùng rồi gộp",
+        "merge": "Gộp ô",
+        "merge_same_column_only": "Chỉ gộp được trong cùng một cột",
+        "merged_rows": "Đã gộp {{count}} hàng. “Bỏ gộp” sẽ khôi phục",
+        "move_left": "Chuyển cột sang trái",
+        "move_right": "Chuyển cột sang phải",
+        "new_column": "Cột mới",
+        "no_date": "Chưa có ngày",
+        "pick_cell_first": "Hãy chọn ô cần tô màu trước",
+        "stat": "{{days}} ngày · {{rows}} hàng · {{cols}} cột · {{merged}} chỗ gộp",
+        "term_forgotten": "Đã xóa “{{value}}” khỏi bộ nhớ",
+        "time_hint_filled": "Đã điền tiếp từ giờ kết thúc của hàng trước",
+        "time_inverted": "Giờ kết thúc trước giờ bắt đầu",
+        "unmerge": "Bỏ gộp",
+        "unmerged": "Đã bỏ gộp. Các giá trị ẩn được khôi phục nguyên vẹn",
+        "weekdays": "CN,T2,T3,T4,T5,T6,T7",
+        "time_cascaded": "Đã dời theo giờ của {{count}} hàng bên dưới",
+        "insert_row_below": "Chèn hàng bên dưới",
+        "drag_row": "Kéo để đổi thứ tự hàng",
+        "move_row_merged": "Hãy bỏ gộp các hàng đã gộp trước",
+        "pasted_grid": "Đã dán {{rows}}×{{cols}} ô",
+        "time_overlap": "Trùng giờ với hàng trên",
+        "sum_hours": "{{h}} giờ",
+        "sum_minutes": "{{m}} phút",
+        "sum_hours_minutes": "{{h}} giờ {{m}} phút",
+        "sum_breaks": "nghỉ {{d}}",
+        "undo": "Hoàn tác",
+        "redo": "Làm lại",
+        "copy_image": "Sao chép dưới dạng ảnh",
+        "copy_image_done": "Đã sao chép ảnh vào bộ nhớ tạm",
+        "copy_image_saved": "Không dùng được bộ nhớ tạm, đã lưu thành tệp",
+        "copy_image_failed": "Không tạo được ảnh"
+      }
     },
     "overview": {
       "noEvents": "Không có sự kiện hôm nay",
@@ -3254,11 +3328,6 @@
       "checkInConfirm": "Hoàn thành \"{{name}}\" hôm nay?",
       "checkInStreak": "Sẽ đạt chuỗi {{count}} ngày liên tiếp!",
       "checkInComplete": "Hoàn thành"
-    },
-    "diary": {
-      "completionSuggestion": "Có vẻ chúng ta đã chia sẻ nhiều hôm nay. Viết thành nhật ký nhé? ✨",
-      "continueChat": "Nói thêm chút nữa",
-      "dayCutoffHint": "Trước 5 giờ sáng được tính là ngày hôm trước"
     },
     "schedule": {
       "overlapWarning": "Trùng lịch với {{count}} sự kiện",
@@ -4571,6 +4640,11 @@
     "deleteAlbumConfirm": "Xóa album?",
     "deleteAlbumWarning": "Xóa album này cũng sẽ xóa tất cả ảnh bên trong.",
     "deleteAlbumButton": "Xóa",
+    "deletingAlbum": "Đang xóa...",
+    "uploadedPhotos": "Ảnh trong album này",
+    "confirmDeletePhoto": "Nhấn lần nữa để xóa",
+    "confirmDeleteShort": "Xóa?",
+    "deletePhoto": "Xóa ảnh",
     "deletePhotosConfirm": "Xóa ảnh?",
     "deletePhotosWarning": "{{count}} ảnh đã chọn sẽ bị xóa.",
     "photoDeleted": "Đã xóa ảnh",
@@ -4653,7 +4727,24 @@
       "7d": "7 ngày",
       "30d": "30 ngày",
       "never": "Vô thời hạn"
-    }
+    },
+    "removeSelected": "Bỏ chọn",
+    "moreSelected": "+{{count}} ảnh",
+    "failUnsupported": "Định dạng không hỗ trợ",
+    "failTooLarge": "Vượt quá 30MB",
+    "failNetwork": "Lỗi mạng",
+    "failGeneric": "Tải lên thất bại",
+    "queueUploading": "Đã tải lên {{done}}/{{total}}",
+    "queueDone": "Đã tải lên {{count}} ảnh",
+    "queueKeepsRunning": "Việc tải lên vẫn tiếp tục khi bạn đóng cửa sổ này",
+    "queueFailedCount": "{{count}} ảnh thất bại",
+    "queueAllDone": "Tất cả ảnh đã có trong album",
+    "retryFailed": "Thử lại {{count}} ảnh thất bại",
+    "showFailures": "Chi tiết",
+    "filesSkipped": "Đã bỏ qua {{count}} tệp (định dạng không hỗ trợ hoặc quá 30MB)",
+    "uploadStarted": "Đang tải lên {{count}} ảnh. Bạn có thể đóng cửa sổ này.",
+    "clearAll": "Xóa tất cả",
+    "addToQueue": "Thêm {{count}} ảnh để tải lên"
   },
   "listViewGroupBy": "Nhóm",
   "listViewSortBy": "Sắp xếp",
@@ -4676,11 +4767,13 @@
     "filterMyTasks": "Chỉ hiện việc của tôi",
     "toggleExpand": "Mở rộng/Thu gọn",
     "focusSearch": "Tìm kiếm",
+    "viewDashboard": "Chế độ bảng điều khiển",
     "viewKanban": "Chế độ Kanban",
     "viewList": "Chế độ danh sách",
     "viewGantt": "Chế độ Gantt",
     "viewCalendar": "Chế độ lịch",
     "viewMilestone": "Chế độ cột mốc",
+    "viewMindmap": "Chế độ sơ đồ tư duy",
     "addFeature": "Thêm Feature",
     "addBlock": "Thêm khối",
     "resetFilters": "Đặt lại bộ lọc",
@@ -4755,5 +4848,53 @@
     "noSearchResults": "Không có kết quả tìm kiếm",
     "clearSearch": "Xóa tìm kiếm",
     "excludeFeature": "Xóa khỏi sơ đồ tư duy"
+  },
+  "checklistDetail": {
+    "open": "Mở chi tiết",
+    "title": "Chi tiết mục",
+    "info": "Thông tin mục",
+    "gallery": "Hình ảnh {{count}}",
+    "galleryHint": "Từ bình luận",
+    "noImages": "Ảnh đăng trong bình luận sẽ hiện ở đây",
+    "comments": "Bình luận {{count}}",
+    "placeholder": "Bình luận về mục này…",
+    "empty": "Chưa có trao đổi nào",
+    "emptyHint": "Hãy để lại bình luận đầu tiên",
+    "backToTask": "Xem toàn bộ bình luận của nhiệm vụ",
+    "deletedBanner": "Mục này đã bị xóa · chỉ đọc",
+    "chip": "Danh sách · {{title}}",
+    "unknownItem": "Mục đã xóa"
+  },
+  "inAppBrowser": {
+    "bannerText": "Không thể lưu ảnh trong {{app}}. Hãy mở trang này bằng Safari hoặc Chrome.",
+    "openButton": "Mở bằng trình duyệt",
+    "howButton": "Cách mở",
+    "guideTitle": "Hãy mở bằng trình duyệt bên ngoài",
+    "guideBody": "Không thể lưu ảnh trong {{app}}. Mở trang này bằng Safari hoặc Chrome để lưu ảnh.",
+    "manualSteps": "Nhấn menu ··· hoặc chia sẻ ở trên hoặc dưới màn hình, rồi chọn 'Mở bằng Safari' (Mở bằng trình duyệt bên ngoài).",
+    "copyHint": "Nếu không có menu đó, hãy sao chép liên kết và dán vào thanh địa chỉ Safari.",
+    "copyHintAuto": "Nếu trình duyệt không mở, hãy sao chép liên kết và dán vào Safari hoặc Chrome.",
+    "copyLink": "Sao chép liên kết",
+    "copied": "Đã sao chép",
+    "apps": {
+      "kakaotalk": "KakaoTalk",
+      "line": "LINE",
+      "naver": "ứng dụng NAVER",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "band": "BAND",
+      "daum": "ứng dụng Daum",
+      "webview": "ứng dụng này"
+    }
+  },
+  "photoSave": {
+    "preparing": "Đang chuẩn bị ảnh {{current}}/{{total}}",
+    "ready": "Đã sẵn sàng {{count}} ảnh",
+    "saveButton": "Lưu vào Ảnh",
+    "hint": "Nhấn 'Lưu hình ảnh' trong bảng chia sẻ để lưu vào ứng dụng Ảnh.",
+    "done": "Đã lưu {{count}} ảnh",
+    "cancelled": "Đã hủy lưu",
+    "chunk": "Nhóm {{current}}/{{total}}",
+    "failed": "Không tải được {{count}} ảnh"
   }
 }

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { CalendarDays, FileText } from "lucide-react";
+import { useEffect, useRef, useState } from 'react';
+import { CalendarDays, FileText } from 'lucide-react';
 
-import { autoReportAPI, type AutoReport } from "../../utils/api";
-import { formatDate } from "../../utils/dateUtils";
-import { AutoReportView } from "../AutoReportView";
+import { autoReportAPI, type AutoReport } from '../../utils/api';
+import { formatDate } from '../../utils/dateUtils';
+import { AutoReportView } from '../AutoReportView';
 
 /**
  * 보고서 갤러리 카드의 썸네일. 발행된 보고서 본문(HTML)을 실제로 렌더해 축소한 진짜 미리보기다.
@@ -29,10 +29,7 @@ function pumpQueue() {
 }
 
 /** 캐시 + 동시성 제한을 통과하는 본문 fetch. 상세 모달도 같은 캐시를 재사용한다. */
-export function fetchReportBody(
-  boardId: string,
-  reportId: string,
-): Promise<AutoReport> {
+export function fetchReportBody(boardId: string, reportId: string): Promise<AutoReport> {
   const cached = reportCache.get(reportId);
   if (cached) return Promise.resolve(cached);
   return new Promise<AutoReport>((resolve, reject) => {
@@ -63,12 +60,10 @@ export function ReportThumbnail({ boardId, report }: ReportThumbnailProps) {
   const clipRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.28);
   const [visible, setVisible] = useState(false);
-  const [full, setFull] = useState<AutoReport | null>(
-    () => reportCache.get(report.id) ?? null,
-  );
+  const [full, setFull] = useState<AutoReport | null>(() => reportCache.get(report.id) ?? null);
   const [failed, setFailed] = useState(false);
 
-  const isWeekly = report.report_type === "WEEKLY_INTEGRATED";
+  const isWeekly = report.report_type === 'WEEKLY_INTEGRATED';
 
   // 카드 폭 → 축소 배율. 반응형 그리드라 폭이 변하므로 ResizeObserver로 따라간다.
   useEffect(() => {
@@ -93,7 +88,7 @@ export function ReportThumbnail({ boardId, report }: ReportThumbnailProps) {
           io.disconnect();
         }
       },
-      { rootMargin: "240px" },
+      { rootMargin: '240px' },
     );
     io.observe(el);
     return () => io.disconnect();
@@ -118,7 +113,7 @@ export function ReportThumbnail({ boardId, report }: ReportThumbnailProps) {
       {/* 타입 색 상단 스트립 */}
       <div
         className={`absolute inset-x-0 top-0 h-[3px] z-10 ${
-          isWeekly ? "bg-bridge-secondary" : "bg-bridge-accent"
+          isWeekly ? 'bg-bridge-secondary' : 'bg-bridge-accent'
         }`}
       />
 
@@ -127,7 +122,7 @@ export function ReportThumbnail({ boardId, report }: ReportThumbnailProps) {
           style={{
             width: RENDER_WIDTH,
             transform: `scale(${scale})`,
-            transformOrigin: "top left",
+            transformOrigin: 'top left',
           }}
           className="pointer-events-none select-none bg-bridge-dark"
           aria-hidden
@@ -155,17 +150,11 @@ export function ReportThumbnail({ boardId, report }: ReportThumbnailProps) {
 }
 
 /** 본문 조회 실패 시 최소한의 정보를 보여주는 커버. */
-function FallbackCover({
-  report,
-  isWeekly,
-}: {
-  report: AutoReport;
-  isWeekly: boolean;
-}) {
+function FallbackCover({ report, isWeekly }: { report: AutoReport; isWeekly: boolean }) {
   return (
     <div className="flex flex-col gap-2 h-full px-4 py-5">
       <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-        {isWeekly ? "주간 보고서" : "일일 개발 보고서"}
+        {isWeekly ? '주간 보고서' : '일일 개발 보고서'}
       </span>
       <FileText className="w-6 h-6 text-slate-500" />
       <span className="mt-auto flex items-center gap-1.5 text-xs text-slate-500">

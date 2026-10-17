@@ -25,8 +25,10 @@ public interface TaskWeightRepository extends JpaRepository<TaskWeight, String> 
 
     void deleteByWeightLevelId(String weightLevelId);
 
+    // native: JPQL 서브쿼리는 Task의 @SQLRestriction 때문에 soft-deleted 태스크의
+    // 가중치를 못 지워 하드 삭제 시 FK 위반이 났다
     @Modifying
-    @Query("DELETE FROM TaskWeight tw WHERE tw.task.id IN " +
-           "(SELECT t.id FROM Task t WHERE t.feature.id = :featureId)")
+    @Query(value = "DELETE FROM task_weights WHERE task_id IN " +
+           "(SELECT id FROM tasks WHERE feature_id = :featureId)", nativeQuery = true)
     void deleteByFeatureId(@Param("featureId") String featureId);
 }

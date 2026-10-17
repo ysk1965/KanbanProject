@@ -10,6 +10,7 @@ import {
   UserCheck,
   ArrowRightLeft,
   Loader2,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   LineChart,
@@ -28,7 +29,6 @@ import type {
   SignupTrend,
   ActiveUserStats,
   ConversionStats,
-  DiaryStats,
   PersonalConversionStats,
 } from '../../utils/api';
 
@@ -39,13 +39,11 @@ export function AdminAnalyticsTab() {
   const [signupTrend, setSignupTrend] = useState<SignupTrend | null>(null);
   const [activeUserStats, setActiveUserStats] = useState<ActiveUserStats | null>(null);
   const [conversionStats, setConversionStats] = useState<ConversionStats | null>(null);
-  const [diaryStats, setDiaryStats] = useState<DiaryStats | null>(null);
   const [pbConversionStats, setPbConversionStats] = useState<PersonalConversionStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [signupDays, setSignupDays] = useState<PeriodOption>(30);
   const [dauDays, setDauDays] = useState<PeriodOption>(30);
-  const [diaryDays, setDiaryDays] = useState<PeriodOption>(30);
 
   useEffect(() => {
     loadAllData();
@@ -59,25 +57,19 @@ export function AdminAnalyticsTab() {
     loadActiveUserStats();
   }, [dauDays]);
 
-  useEffect(() => {
-    loadDiaryStats();
-  }, [diaryDays]);
-
   const loadAllData = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const [signup, active, conversion, diary, pbConversion] = await Promise.all([
+      const [signup, active, conversion, pbConversion] = await Promise.all([
         adminService.getSignupTrend(signupDays),
         adminService.getActiveUserStats(dauDays),
         adminService.getConversionStats(365),
-        adminService.getDiaryStats(diaryDays),
         adminService.getPersonalConversionStats(365),
       ]);
       setSignupTrend(signup);
       setActiveUserStats(active);
       setConversionStats(conversion);
-      setDiaryStats(diary);
       setPbConversionStats(pbConversion);
     } catch (err) {
       console.error('Failed to load analytics:', err);
@@ -102,15 +94,6 @@ export function AdminAnalyticsTab() {
       setActiveUserStats(data);
     } catch (err) {
       console.error('Failed to load active user stats:', err);
-    }
-  };
-
-  const loadDiaryStats = async () => {
-    try {
-      const data = await adminService.getDiaryStats(diaryDays);
-      setDiaryStats(data);
-    } catch (err) {
-      console.error('Failed to load diary stats:', err);
     }
   };
 
@@ -205,9 +188,11 @@ export function AdminAnalyticsTab() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-bridge-accent" />
-              <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.signupTrend')}</h3>
+              <h3 className="text-lg font-bold text-foreground">
+                {t('admin.analytics.signupTrend')}
+              </h3>
               <span className="text-sm text-slate-400 ml-2">
-                {t('admin.analytics.totalCount', { count: signupTrend.total.toLocaleString() })}
+                {t('admin.analytics.totalCount', { count: signupTrend.total })}
               </span>
             </div>
             <PeriodSelector value={signupDays} onChange={setSignupDays} options={periodOptions} />
@@ -217,12 +202,7 @@ export function AdminAnalyticsTab() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={signupTrend.data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={formatDate}
-                  stroke="#64748b"
-                  fontSize={12}
-                />
+                <XAxis dataKey="date" tickFormatter={formatDate} stroke="#64748b" fontSize={12} />
                 <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
                 <Tooltip
                   contentStyle={tooltipStyle}
@@ -241,7 +221,11 @@ export function AdminAnalyticsTab() {
                       email_count: t('admin.analytics.emailSignup'),
                       google_count: t('admin.analytics.googleSignup'),
                     };
-                    return <span className="text-muted-foreground text-sm">{labels[value] || value}</span>;
+                    return (
+                      <span className="text-muted-foreground text-sm">
+                        {labels[value] || value}
+                      </span>
+                    );
                   }}
                 />
                 <Bar dataKey="email_count" stackId="a" fill="#6366F1" radius={[0, 0, 0, 0]} />
@@ -267,12 +251,7 @@ export function AdminAnalyticsTab() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={activeUserStats.trend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={formatDate}
-                  stroke="#64748b"
-                  fontSize={12}
-                />
+                <XAxis dataKey="date" tickFormatter={formatDate} stroke="#64748b" fontSize={12} />
                 <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
                 <Tooltip
                   contentStyle={tooltipStyle}
@@ -298,7 +277,9 @@ export function AdminAnalyticsTab() {
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <ArrowUpRight className="h-5 w-5 text-amber-400" />
-            <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.conversionRate')}</h3>
+            <h3 className="text-lg font-bold text-foreground">
+              {t('admin.analytics.conversionRate')}
+            </h3>
           </div>
 
           {/* Conversion Summary Cards */}
@@ -331,7 +312,9 @@ export function AdminAnalyticsTab() {
           {/* Conversion Funnel Visual */}
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-sm text-slate-400">{t('admin.analytics.conversionFunnel')}</span>
+              <span className="text-sm text-slate-400">
+                {t('admin.analytics.conversionFunnel')}
+              </span>
             </div>
             <ConversionFunnel
               total={conversionStats.total_trial_started}
@@ -344,7 +327,9 @@ export function AdminAnalyticsTab() {
           {/* Monthly Conversion Trend */}
           {conversionStats.trend.length > 0 && (
             <div>
-              <h4 className="text-sm font-medium text-slate-400 mb-4">{t('admin.analytics.monthlyConversionTrend')}</h4>
+              <h4 className="text-sm font-medium text-slate-400 mb-4">
+                {t('admin.analytics.monthlyConversionTrend')}
+              </h4>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={conversionStats.trend}>
@@ -367,7 +352,11 @@ export function AdminAnalyticsTab() {
                           trial_started: t('admin.analytics.trialStarted'),
                           converted: t('admin.analytics.converted'),
                         };
-                        return <span className="text-muted-foreground text-sm">{labels[value] || value}</span>;
+                        return (
+                          <span className="text-muted-foreground text-sm">
+                            {labels[value] || value}
+                          </span>
+                        );
                       }}
                     />
                     <Bar dataKey="trial_started" fill="#6366F1" radius={[4, 4, 0, 0]} />
@@ -380,61 +369,14 @@ export function AdminAnalyticsTab() {
         </div>
       )}
 
-      {/* Diary Engagement Chart */}
-      {diaryStats && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 md:p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <UserCheck className="h-5 w-5 text-emerald-400" />
-              <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.diaryEngagement', 'Diary Engagement')}</h3>
-            </div>
-            <PeriodSelector value={diaryDays} onChange={setDiaryDays} options={periodOptions} />
-          </div>
-
-          {/* Diary Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-            <ConversionMetric
-              label={t('admin.analytics.totalDiaryEntries', 'Total Entries')}
-              value={diaryStats.total_entries}
-            />
-            <ConversionMetric
-              label={t('admin.analytics.diaryCompletionRate', 'Completion Rate')}
-              value={`${diaryStats.completion_rate}%`}
-              highlight
-            />
-            <ConversionMetric
-              label={t('admin.analytics.diaryActiveUsers', 'Active Users')}
-              value={diaryStats.active_users}
-              positive
-            />
-          </div>
-
-          {diaryStats.trend.length > 0 && (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={diaryStats.trend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="date" tickFormatter={formatDate} stroke="#64748b" fontSize={12} />
-                  <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    labelFormatter={(label) => `${t('admin.analytics.date')}: ${label}`}
-                    formatter={(value: number) => [value, t('admin.analytics.diaryEntries', 'Diary Entries')]}
-                  />
-                  <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Personal -> Team Conversion */}
       {pbConversionStats && (
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <ArrowRightLeft className="h-5 w-5 text-bridge-secondary" />
-            <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.pbConversion', 'Personal Board Conversion')}</h3>
+            <h3 className="text-lg font-bold text-foreground">
+              {t('admin.analytics.pbConversion', 'Personal Board Conversion')}
+            </h3>
           </div>
 
           {/* Conversion Summary */}
@@ -465,20 +407,31 @@ export function AdminAnalyticsTab() {
               <div className="space-y-2">
                 <div className="h-4 bg-foreground/5 rounded-full overflow-hidden flex">
                   {bothPct > 0 && (
-                    <div className="h-full bg-bridge-secondary transition-all duration-500" style={{ width: `${bothPct}%` }} />
+                    <div
+                      className="h-full bg-bridge-secondary transition-all duration-500"
+                      style={{ width: `${bothPct}%` }}
+                    />
                   )}
                   {personalPct > 0 && (
-                    <div className="h-full bg-purple-500/60 transition-all duration-500" style={{ width: `${personalPct}%` }} />
+                    <div
+                      className="h-full bg-purple-500/60 transition-all duration-500"
+                      style={{ width: `${personalPct}%` }}
+                    />
                   )}
                 </div>
                 <div className="flex gap-4 text-xs">
                   <span className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-bridge-secondary" />
-                    <span className="text-slate-400">{t('admin.analytics.personalAndTeam', 'Personal + Team')} {bothPct.toFixed(1)}%</span>
+                    <span className="text-slate-400">
+                      {t('admin.analytics.personalAndTeam', 'Personal + Team')} {bothPct.toFixed(1)}
+                      %
+                    </span>
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-purple-500/60" />
-                    <span className="text-slate-400">{t('admin.analytics.personalOnly', 'Personal Only')} {personalPct.toFixed(1)}%</span>
+                    <span className="text-slate-400">
+                      {t('admin.analytics.personalOnly', 'Personal Only')} {personalPct.toFixed(1)}%
+                    </span>
                   </span>
                 </div>
               </div>
@@ -562,7 +515,7 @@ function ConversionMetric({
   highlight?: boolean;
 }) {
   let valueColor = 'text-foreground';
-  let Icon = null;
+  let Icon: LucideIcon | null = null;
   if (positive) {
     valueColor = 'text-emerald-400';
     Icon = ArrowUpRight;
@@ -633,15 +586,21 @@ function ConversionFunnel({
       <div className="flex gap-4 text-xs">
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <span className="text-slate-400">{t('admin.analytics.funnelConverted')} {convertedPct.toFixed(1)}%</span>
+          <span className="text-slate-400">
+            {t('admin.analytics.funnelConverted')} {convertedPct.toFixed(1)}%
+          </span>
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-bridge-accent" />
-          <span className="text-slate-400">{t('admin.analytics.funnelInProgress')} {inProgressPct.toFixed(1)}%</span>
+          <span className="text-slate-400">
+            {t('admin.analytics.funnelInProgress')} {inProgressPct.toFixed(1)}%
+          </span>
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
-          <span className="text-slate-400">{t('admin.analytics.funnelExpired')} {expiredPct.toFixed(1)}%</span>
+          <span className="text-slate-400">
+            {t('admin.analytics.funnelExpired')} {expiredPct.toFixed(1)}%
+          </span>
         </span>
       </div>
     </div>

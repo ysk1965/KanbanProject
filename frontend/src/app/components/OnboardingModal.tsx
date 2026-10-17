@@ -145,7 +145,13 @@ function ScheduleIllustration() {
   const rows = [
     { name: '', bars: [{ col: 0, span: 2, color: 'bg-indigo-500/50' }] },
     { name: '', bars: [{ col: 1, span: 3, color: 'bg-teal-500/50' }] },
-    { name: '', bars: [{ col: 0, span: 1, color: 'bg-rose-500/40' }, { col: 2, span: 2, color: 'bg-amber-500/40' }] },
+    {
+      name: '',
+      bars: [
+        { col: 0, span: 1, color: 'bg-rose-500/40' },
+        { col: 2, span: 2, color: 'bg-amber-500/40' },
+      ],
+    },
   ];
 
   return (
@@ -185,7 +191,11 @@ function ScheduleIllustration() {
                     }}
                     initial={{ scaleX: 0 }}
                     animate={{ scaleX: 1 }}
-                    transition={{ delay: 0.6 + ri * 0.15 + bi * 0.1, duration: 0.4, ease: 'easeOut' }}
+                    transition={{
+                      delay: 0.6 + ri * 0.15 + bi * 0.1,
+                      duration: 0.4,
+                      ease: 'easeOut',
+                    }}
                   />
                 ))}
               </div>
@@ -319,7 +329,8 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
               <div
                 className="absolute inset-0"
                 style={{
-                  background: 'linear-gradient(160deg, rgba(45,212,191,0.04) 0%, rgba(99,102,241,0.06) 50%, rgba(45,212,191,0.03) 100%)',
+                  background:
+                    'linear-gradient(160deg, rgba(45,212,191,0.04) 0%, rgba(99,102,241,0.06) 50%, rgba(45,212,191,0.03) 100%)',
                 }}
               />
               <div className="absolute inset-0 border-r border-white/[0.04]" />
@@ -414,9 +425,24 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
 
                         <div className="space-y-3">
                           {[
-                            { icon: <LayoutDashboard size={16} />, text: t('onboarding.welcome.highlight1'), color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-                            { icon: <Sparkles size={16} />, text: t('onboarding.welcome.highlight2'), color: 'text-purple-400', bg: 'bg-purple-500/10' },
-                            { icon: <Users size={16} />, text: t('onboarding.welcome.highlight3'), color: 'text-teal-400', bg: 'bg-teal-500/10' },
+                            {
+                              icon: <LayoutDashboard size={16} />,
+                              text: t('onboarding.welcome.highlight1'),
+                              color: 'text-indigo-400',
+                              bg: 'bg-indigo-500/10',
+                            },
+                            {
+                              icon: <Sparkles size={16} />,
+                              text: t('onboarding.welcome.highlight2'),
+                              color: 'text-purple-400',
+                              bg: 'bg-purple-500/10',
+                            },
+                            {
+                              icon: <Users size={16} />,
+                              text: t('onboarding.welcome.highlight3'),
+                              color: 'text-teal-400',
+                              bg: 'bg-teal-500/10',
+                            },
                           ].map((item, i) => (
                             <motion.div
                               key={i}
@@ -425,7 +451,9 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: 0.25 + i * 0.1 }}
                             >
-                              <div className={`w-8 h-8 rounded-lg ${item.bg} flex items-center justify-center ${item.color}`}>
+                              <div
+                                className={`w-8 h-8 rounded-lg ${item.bg} flex items-center justify-center ${item.color}`}
+                              >
                                 {item.icon}
                               </div>
                               <span className="text-sm text-muted-foreground">{item.text}</span>
@@ -454,7 +482,9 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: 0.1 + i * 0.06 }}
                             >
-                              <div className={`w-9 h-9 rounded-lg ${feature.bgColor} flex items-center justify-center ${feature.color} shrink-0 group-hover:scale-110 transition-transform`}>
+                              <div
+                                className={`w-9 h-9 rounded-lg ${feature.bgColor} flex items-center justify-center ${feature.color} shrink-0 group-hover:scale-110 transition-transform`}
+                              >
                                 {feature.icon}
                               </div>
                               <div className="min-w-0">
@@ -509,7 +539,9 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                               <div className="w-6 h-6 rounded-full bg-bridge-secondary/15 flex items-center justify-center shrink-0 mt-0.5">
                                 <CheckCircle2 size={14} className="text-bridge-secondary" />
                               </div>
-                              <span className="text-sm text-muted-foreground leading-relaxed">{tip}</span>
+                              <span className="text-sm text-muted-foreground leading-relaxed">
+                                {tip}
+                              </span>
                             </motion.div>
                           ))}
                         </div>
@@ -531,9 +563,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                         setStep(i);
                       }}
                       className={`h-2 rounded-full transition-all duration-300 ${
-                        i === step
-                          ? 'w-6 bg-bridge-secondary'
-                          : 'w-2 bg-white/15 hover:bg-white/25'
+                        i === step ? 'w-6 bg-bridge-secondary' : 'w-2 bg-white/15 hover:bg-white/25'
                       }`}
                     />
                   ))}
@@ -552,9 +582,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                     className="flex items-center gap-2 px-5 py-2.5 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.25)] transition-all active:scale-[0.97]"
                   >
                     <span>
-                      {step === totalSteps - 1
-                        ? t('onboarding.start')
-                        : t('onboarding.continue')}
+                      {step === totalSteps - 1 ? t('onboarding.start') : t('onboarding.continue')}
                     </span>
                     <ArrowRight size={16} />
                   </button>

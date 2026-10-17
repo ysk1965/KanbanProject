@@ -57,14 +57,22 @@ export function OrganizationPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bridge-dark flex items-center justify-center" role="status" aria-label="로딩 중">
+      <div
+        className="min-h-screen bg-bridge-dark flex items-center justify-center"
+        role="status"
+        aria-label="로딩 중"
+      >
         <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
       </div>
     );
   }
 
   const roleLabel = (role: string) => {
-    const map: Record<string, string> = { OWNER: t('organization.role.owner', 'Owner'), ADMIN: t('organization.role.admin', 'Admin'), MEMBER: t('organization.role.member', 'Member') };
+    const map: Record<string, string> = {
+      OWNER: t('organization.role.owner', 'Owner'),
+      ADMIN: t('organization.role.admin', 'Admin'),
+      MEMBER: t('organization.role.member', 'Member'),
+    };
     return map[role] || role;
   };
 
@@ -108,7 +116,10 @@ export function OrganizationPage() {
               {t('organization.list.emptyTitle', 'No organizations yet')}
             </h3>
             <p className="text-sm text-slate-500 mb-8 leading-relaxed max-w-sm">
-              {t('organization.list.emptyDesc', 'Create your first organization to manage teams, boards, and leave requests in one place.')}
+              {t(
+                'organization.list.emptyDesc',
+                'Create your first organization to manage teams, boards, and leave requests in one place.',
+              )}
             </p>
             <button
               onClick={() => setShowCreateModal(true)}
@@ -131,7 +142,11 @@ export function OrganizationPage() {
                 className="w-full bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] hover:border-foreground/[0.12] p-5 transition-colors text-left flex items-center gap-4 group"
               >
                 {org.logo_url ? (
-                  <img src={org.logo_url} alt={org.name || '조직 로고'} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                  <img
+                    src={org.logo_url}
+                    alt={org.name || '조직 로고'}
+                    className="w-12 h-12 rounded-xl object-cover shrink-0"
+                  />
                 ) : (
                   <div className="w-12 h-12 rounded-xl bg-bridge-accent/10 flex items-center justify-center shrink-0">
                     <Building2 size={22} className="text-bridge-accent" />
@@ -158,7 +173,10 @@ export function OrganizationPage() {
                     </span>
                   </div>
                 </div>
-                <ChevronRight size={16} className="text-slate-500 group-hover:text-foreground transition-colors shrink-0" />
+                <ChevronRight
+                  size={16}
+                  className="text-slate-500 group-hover:text-foreground transition-colors shrink-0"
+                />
               </motion.button>
             ))}
           </div>
@@ -194,7 +212,10 @@ export function OrganizationPage() {
             <textarea
               value={createForm.description}
               onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-              placeholder={t('organization.create.descriptionPlaceholder', 'Brief description of the organization')}
+              placeholder={t(
+                'organization.create.descriptionPlaceholder',
+                'Brief description of the organization',
+              )}
               rows={3}
               className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
             />
@@ -214,9 +235,7 @@ export function OrganizationPage() {
               disabled={!createForm.name.trim() || creating}
               className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {creating
-                ? t('common.creating', 'Creating...')
-                : t('common.create', 'Create')}
+              {creating ? t('common.creating', 'Creating...') : t('common.create', 'Create')}
             </button>
           </div>
         </div>

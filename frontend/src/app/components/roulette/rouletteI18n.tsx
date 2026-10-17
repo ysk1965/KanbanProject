@@ -65,7 +65,8 @@ const translations = {
     linkCopied: '링크가 복사되었습니다!',
     shareMessage: '🎉 오늘 커피 당첨자: {winner}!\n커피 룰렛으로 공정하게 정했어요',
     saveGroupPromptTitle: '그룹으로 저장할까요?',
-    saveGroupPromptDescription: '그룹으로 저장하면 다음에 참가자를 다시 입력할 필요 없이 바로 불러올 수 있어요!',
+    saveGroupPromptDescription:
+      '그룹으로 저장하면 다음에 참가자를 다시 입력할 필요 없이 바로 불러올 수 있어요!',
     saveGroupPromptBenefit1: '✓ 원클릭으로 참가자 불러오기',
     saveGroupPromptBenefit2: '✓ 당첨 기록 자동 저장',
     saveGroupPromptBenefit3: '✓ 누가 많이 당첨됐는지 확인',

@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { Check, CheckCircle2, ChevronDown, Layers } from "lucide-react";
-import type { Block } from "../types";
+import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Check, CheckCircle2, ChevronDown, Layers } from 'lucide-react';
+import type { Block } from '../types';
 
 interface BlockStatusPickerProps {
   blocks: Block[];
@@ -22,10 +22,10 @@ export function BlockStatusPicker({
 }: BlockStatusPickerProps) {
   const { t } = useTranslation();
 
-  const doneBlock = blocks.find((b) => b.fixed_type === "DONE");
+  const doneBlock = blocks.find((b) => b.fixed_type === 'DONE');
   const isCurrentlyDone = doneBlock?.id === currentBlockId;
   const selectableBlocks = blocks.filter(
-    (b) => b.fixed_type !== "FEATURE" && b.fixed_type !== "DONE",
+    (b) => b.fixed_type !== 'FEATURE' && b.fixed_type !== 'DONE',
   );
 
   const [open, setOpen] = useState(false);
@@ -38,8 +38,8 @@ export function BlockStatusPicker({
         setOpen(false);
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
   if (!canEdit) {
@@ -57,8 +57,8 @@ export function BlockStatusPicker({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-foreground/10 text-foreground border border-foreground/10 hover:bg-foreground/[0.15] hover:border-foreground/15 transition-colors"
-        title={t("task.changeStatus")}
-        aria-label={t("task.changeStatus")}
+        title={t('task.changeStatus')}
+        aria-label={t('task.changeStatus')}
       >
         <Layers className="h-3 w-3" />
         {currentBlockName}
@@ -80,8 +80,8 @@ export function BlockStatusPicker({
                 }}
                 className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg outline-none ${
                   isCurrent
-                    ? "text-foreground cursor-default"
-                    : "text-foreground cursor-pointer hover:bg-foreground/5"
+                    ? 'text-foreground cursor-default'
+                    : 'text-foreground cursor-pointer hover:bg-foreground/5'
                 }`}
               >
                 {isCurrent ? (
@@ -106,8 +106,8 @@ export function BlockStatusPicker({
                 }}
                 className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg outline-none text-emerald-400 ${
                   isCurrentlyDone
-                    ? "cursor-default opacity-70"
-                    : "cursor-pointer hover:bg-emerald-500/10"
+                    ? 'cursor-default opacity-70'
+                    : 'cursor-pointer hover:bg-emerald-500/10'
                 }`}
               >
                 {isCurrentlyDone ? (
@@ -115,7 +115,7 @@ export function BlockStatusPicker({
                 ) : (
                   <CheckCircle2 className="h-4 w-4" />
                 )}
-                <span className="font-bold">{t("task.markComplete")}</span>
+                <span className="font-bold">{t('task.markComplete')}</span>
               </button>
             </>
           )}

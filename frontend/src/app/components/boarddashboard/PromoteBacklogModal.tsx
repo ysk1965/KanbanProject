@@ -1,30 +1,27 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { Check, ChevronDown, Loader2, Search, Sparkles } from "lucide-react";
-import { MotionModal } from "../ui/MotionModal";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Check, ChevronDown, Loader2, Search, Sparkles } from 'lucide-react';
+import { MotionModal } from '../ui/MotionModal';
 import {
   checklistAPI,
   personalTaskAPI,
   taskAPI,
   type PromoteSuggestion,
   type TaskResponse,
-} from "../../utils/api";
-import type { Feature, Milestone, PersonalTask } from "../../types";
-import { getDDay, getTodayDateString } from "../../utils/dateUtils";
-import { getAssigneeHex } from "../../utils/assigneeColor";
-import {
-  buildMilestoneColorMap,
-  resolveMilestoneColor,
-} from "../../utils/milestoneColor";
+} from '../../utils/api';
+import type { Feature, Milestone, PersonalTask } from '../../types';
+import { getDDay, getTodayDateString } from '../../utils/dateUtils';
+import { getAssigneeHex } from '../../utils/assigneeColor';
+import { buildMilestoneColorMap, resolveMilestoneColor } from '../../utils/milestoneColor';
 
-export type PromoteTarget = "TIMEBLOCK" | "TASK" | "CHECKLIST_ITEM";
+export type PromoteTarget = 'TIMEBLOCK' | 'TASK' | 'CHECKLIST_ITEM';
 
 /** 목록을 무엇으로 정렬할지. 기본은 섹션(최근 → 내 것 → 피처별). */
-type SortMode = "default" | "due" | "recent";
+type SortMode = 'default' | 'due' | 'recent';
 
 /** 마일스톤 필터 값 — null이면 전체, "none"이면 마일스톤 미배정만 */
 type MilestoneFilter = string | null;
-const MILESTONE_NONE = "none";
+const MILESTONE_NONE = 'none';
 
 interface PromoteBacklogModalProps {
   boardId: string;
@@ -46,15 +43,15 @@ interface PromoteBacklogModalProps {
 
 /** "HH:mm" 한 시간 뒤 */
 function addHour(time: string): string {
-  const [h, m] = time.split(":").map(Number);
+  const [h, m] = time.split(':').map(Number);
   const next = (h + 1) % 24;
-  return `${String(next).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return `${String(next).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 /** 지금 시각을 정시로 내림 — 타임블록 기본값 */
 function currentHour(): string {
   const now = new Date();
-  return `${String(now.getHours()).padStart(2, "0")}:00`;
+  return `${String(now.getHours()).padStart(2, '0')}:00`;
 }
 
 /**
@@ -70,7 +67,7 @@ function readRecent(boardId: string, target: PromoteTarget): string[] {
     const raw = localStorage.getItem(recentKey(boardId, target));
     const parsed = raw ? JSON.parse(raw) : null;
     return Array.isArray(parsed)
-      ? parsed.filter((value): value is string => typeof value === "string")
+      ? parsed.filter((value): value is string => typeof value === 'string')
       : [];
   } catch {
     return [];
@@ -79,10 +76,10 @@ function readRecent(boardId: string, target: PromoteTarget): string[] {
 
 function pushRecent(boardId: string, target: PromoteTarget, id: string) {
   try {
-    const next = [
-      id,
-      ...readRecent(boardId, target).filter((value) => value !== id),
-    ].slice(0, RECENT_MAX);
+    const next = [id, ...readRecent(boardId, target).filter((value) => value !== id)].slice(
+      0,
+      RECENT_MAX,
+    );
     localStorage.setItem(recentKey(boardId, target), JSON.stringify(next));
   } catch {
     // 저장 실패는 조용히 넘긴다 — 순서 힌트일 뿐 기능이 아니다
@@ -112,10 +109,7 @@ interface SuggestionRow {
 }
 
 /** 마일스톤 미배정을 포함한 태스크 소속 판정 */
-function inMilestone(
-  taskMilestoneId: string | null | undefined,
-  filter: MilestoneFilter,
-): boolean {
+function inMilestone(taskMilestoneId: string | null | undefined, filter: MilestoneFilter): boolean {
   if (filter === null) return true;
   if (filter === MILESTONE_NONE) return !taskMilestoneId;
   return taskMilestoneId === filter;
@@ -161,46 +155,40 @@ export function PromoteBacklogModal({
 
   // 붙일 곳 — 고르기 전에는 비어 있다. 아무거나 미리 골라 두면
   // 고르지 않고 승격을 눌러 엉뚱한 곳에 붙는다.
-  const [featureId, setFeatureId] = useState("");
-  const [taskId, setTaskId] = useState("");
+  const [featureId, setFeatureId] = useState('');
+  const [taskId, setTaskId] = useState('');
 
   const [tasks, setTasks] = useState<TaskResponse[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [tasksLoaded, setTasksLoaded] = useState(false);
 
   // 목록 좁히기
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [showDone, setShowDone] = useState(false);
   const [featureFilter, setFeatureFilter] = useState<string | null>(null);
-  const [sortMode, setSortMode] = useState<SortMode>("default");
+  const [sortMode, setSortMode] = useState<SortMode>('default');
   const [activeIndex, setActiveIndex] = useState(0);
 
   const milestoneList = useMemo(() => milestones ?? [], [milestones]);
 
   // 보드에서 보고 있던 마일스톤을 그대로 물려받는다 — 승격도 같은 맥락에서 일어난다.
   // "all"은 페이지가 쓰는 전체 표시값이라 여기선 null로 바꾼다.
-  const [milestoneFilter, setMilestoneFilter] = useState<MilestoneFilter>(
-    () => {
-      if (!selectedMilestoneId || selectedMilestoneId === "all") return null;
-      if (selectedMilestoneId === MILESTONE_NONE) return MILESTONE_NONE;
-      return milestoneList.some((m) => m.id === selectedMilestoneId)
-        ? selectedMilestoneId
-        : null;
-    },
-  );
+  const [milestoneFilter, setMilestoneFilter] = useState<MilestoneFilter>(() => {
+    if (!selectedMilestoneId || selectedMilestoneId === 'all') return null;
+    if (selectedMilestoneId === MILESTONE_NONE) return MILESTONE_NONE;
+    return milestoneList.some((m) => m.id === selectedMilestoneId) ? selectedMilestoneId : null;
+  });
   const [milestoneOpen, setMilestoneOpen] = useState(false);
 
   // 추천
   const [suggestions, setSuggestions] = useState<PromoteSuggestion[]>([]);
-  const [suggestSource, setSuggestSource] = useState<"AI" | "RULE" | null>(
-    null,
-  );
+  const [suggestSource, setSuggestSource] = useState<'AI' | 'RULE' | null>(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [creditsExhausted, setCreditsExhausted] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(() => {
     try {
-      return localStorage.getItem(suggestKey(boardId)) !== "0";
+      return localStorage.getItem(suggestKey(boardId)) !== '0';
     } catch {
       return true;
     }
@@ -210,13 +198,10 @@ export function PromoteBacklogModal({
   const listRef = useRef<HTMLDivElement>(null);
   const milestoneRef = useRef<HTMLDivElement>(null);
 
-  const isPicker = target !== "TIMEBLOCK";
-  const isFeatureMode = target === "TASK";
+  const isPicker = target !== 'TIMEBLOCK';
+  const isFeatureMode = target === 'TASK';
 
-  const milestoneColorMap = useMemo(
-    () => buildMilestoneColorMap(milestoneList),
-    [milestoneList],
-  );
+  const milestoneColorMap = useMemo(() => buildMilestoneColorMap(milestoneList), [milestoneList]);
 
   /**
    * 목록은 두 탭 모두 태스크가 있어야 만들어진다.
@@ -232,24 +217,20 @@ export function PromoteBacklogModal({
         setTasks(res.tasks ?? []);
         setTasksLoaded(true);
       })
-      .catch(() =>
-        setError(
-          t("backlog.taskLoadFailed", "태스크 목록을 불러오지 못했습니다."),
-        ),
-      )
+      .catch(() => setError(t('backlog.taskLoadFailed', '태스크 목록을 불러오지 못했습니다.')))
       .finally(() => setTasksLoading(false));
   }, [isPicker, boardId, tasksLoaded, tasksLoading, t]);
 
   /** 탭을 바꾸면 좁히기 조건과 고른 것을 비운다 — 다른 목록이라 이어질 이유가 없다 */
   const switchTarget = useCallback((next: PromoteTarget) => {
     setTarget(next);
-    setQuery("");
+    setQuery('');
     setFeatureFilter(null);
     setShowDone(false);
-    setSortMode("default");
+    setSortMode('default');
     setActiveIndex(0);
-    setFeatureId("");
-    setTaskId("");
+    setFeatureId('');
+    setTaskId('');
     setError(null);
     setSuggestions([]);
     setSuggestSource(null);
@@ -304,9 +285,7 @@ export function PromoteBacklogModal({
   const taskPool = useMemo(
     () =>
       tasks.filter(
-        (task) =>
-          (showDone || !task.completed) &&
-          inMilestone(task.milestone_id, milestoneFilter),
+        (task) => (showDone || !task.completed) && inMilestone(task.milestone_id, milestoneFilter),
       ),
     [tasks, showDone, milestoneFilter],
   );
@@ -341,13 +320,13 @@ export function PromoteBacklogModal({
         (task) =>
           (showDone || !task.completed) &&
           (task.title.toLowerCase().includes(q) ||
-            (task.feature_title ?? "").toLowerCase().includes(q) ||
-            (task.task_key ?? "").toLowerCase().includes(q)),
+            (task.feature_title ?? '').toLowerCase().includes(q) ||
+            (task.task_key ?? '').toLowerCase().includes(q)),
       );
       return [
         {
-          key: "search",
-          label: t("backlog.sectionSearch", "검색 결과"),
+          key: 'search',
+          label: t('backlog.sectionSearch', '검색 결과'),
           items: hit,
         },
       ];
@@ -358,25 +337,25 @@ export function PromoteBacklogModal({
       pool = pool.filter((task) => task.feature_id === featureFilter);
     }
 
-    if (sortMode !== "default") {
+    if (sortMode !== 'default') {
       const sorted = [...pool].sort((a, b) => {
-        if (sortMode === "due") {
+        if (sortMode === 'due') {
           if (!a.due_date && !b.due_date) return 0;
           if (!a.due_date) return 1;
           if (!b.due_date) return -1;
           return a.due_date.localeCompare(b.due_date);
         }
-        const left = a.updated_at ?? a.created_at ?? "";
-        const right = b.updated_at ?? b.created_at ?? "";
+        const left = a.updated_at ?? a.created_at ?? '';
+        const right = b.updated_at ?? b.created_at ?? '';
         return right.localeCompare(left);
       });
       return [
         {
           key: sortMode,
           label:
-            sortMode === "due"
-              ? t("backlog.sortDue", "마감 임박")
-              : t("backlog.sortRecent", "최근 수정"),
+            sortMode === 'due'
+              ? t('backlog.sortDue', '마감 임박')
+              : t('backlog.sortRecent', '최근 수정'),
           items: sorted,
         },
       ];
@@ -384,9 +363,7 @@ export function PromoteBacklogModal({
 
     const used = new Set<string>();
     const take = (predicate: (task: TaskResponse) => boolean) => {
-      const picked = pool.filter(
-        (task) => !used.has(task.id) && predicate(task),
-      );
+      const picked = pool.filter((task) => !used.has(task.id) && predicate(task));
       picked.forEach((task) => used.add(task.id));
       return picked;
     };
@@ -399,20 +376,18 @@ export function PromoteBacklogModal({
     recent.forEach((task) => used.add(task.id));
     if (recent.length) {
       sections.push({
-        key: "recent",
-        label: t("backlog.sectionRecent", "최근에 붙인 곳"),
+        key: 'recent',
+        label: t('backlog.sectionRecent', '최근에 붙인 곳'),
         items: recent,
       });
     }
 
     if (userId) {
-      const mine = take(
-        (task) => !!task.assignees?.some((a) => a.id === userId),
-      );
+      const mine = take((task) => !!task.assignees?.some((a) => a.id === userId));
       if (mine.length) {
         sections.push({
-          key: "mine",
-          label: t("backlog.sectionMine", "내 태스크"),
+          key: 'mine',
+          label: t('backlog.sectionMine', '내 태스크'),
           items: mine,
         });
       }
@@ -442,7 +417,7 @@ export function PromoteBacklogModal({
     byFeature.forEach((items, id) => {
       sections.push({
         key: `f-${id}`,
-        label: items[0]?.feature_title ?? "",
+        label: items[0]?.feature_title ?? '',
         color: items[0]?.feature_color,
         featureScoped: true,
         items,
@@ -450,18 +425,7 @@ export function PromoteBacklogModal({
     });
 
     return sections;
-  }, [
-    tasks,
-    taskPool,
-    showDone,
-    featureFilter,
-    sortMode,
-    query,
-    recentIds,
-    userId,
-    features,
-    t,
-  ]);
+  }, [tasks, taskPool, showDone, featureFilter, sortMode, query, recentIds, userId, features, t]);
 
   /** 피처 섹션 — 최근에 붙인 곳만 위로 올리고 나머지는 보드 순서 */
   const featureSections = useMemo<Section<Feature>[]>(() => {
@@ -469,11 +433,9 @@ export function PromoteBacklogModal({
     if (q) {
       return [
         {
-          key: "search",
-          label: t("backlog.sectionSearch", "검색 결과"),
-          items: features.filter((feature) =>
-            feature.title.toLowerCase().includes(q),
-          ),
+          key: 'search',
+          label: t('backlog.sectionSearch', '검색 결과'),
+          items: features.filter((feature) => feature.title.toLowerCase().includes(q)),
         },
       ];
     }
@@ -487,15 +449,15 @@ export function PromoteBacklogModal({
     const sections: Section<Feature>[] = [];
     if (recent.length) {
       sections.push({
-        key: "recent",
-        label: t("backlog.sectionRecent", "최근에 붙인 곳"),
+        key: 'recent',
+        label: t('backlog.sectionRecent', '최근에 붙인 곳'),
         items: recent,
       });
     }
     if (rest.length) {
       sections.push({
-        key: "all",
-        label: t("backlog.feature", "붙일 피처"),
+        key: 'all',
+        label: t('backlog.feature', '붙일 피처'),
         items: rest,
       });
     }
@@ -538,15 +500,7 @@ export function PromoteBacklogModal({
         else setSuggestLoading(false);
       }
     },
-    [
-      isPicker,
-      item.id,
-      target,
-      milestoneFilter,
-      showDone,
-      recentIds,
-      i18n.language,
-    ],
+    [isPicker, item.id, target, milestoneFilter, showDone, recentIds, i18n.language],
   );
 
   // 조건이 바뀌면 규칙 추천만 다시 받는다(무료). AI 결과는 버튼을 다시 눌러야 갱신된다.
@@ -560,7 +514,7 @@ export function PromoteBacklogModal({
     const next = !suggestOpen;
     setSuggestOpen(next);
     try {
-      localStorage.setItem(suggestKey(boardId), next ? "1" : "0");
+      localStorage.setItem(suggestKey(boardId), next ? '1' : '0');
     } catch {
       // 접힘 상태는 편의값이라 저장 실패를 알리지 않는다
     }
@@ -594,22 +548,22 @@ export function PromoteBacklogModal({
   const reasonText = useCallback(
     (suggestion: PromoteSuggestion) => {
       if (suggestion.reason) return suggestion.reason;
-      const words = (suggestion.reason_tokens ?? []).slice(0, 3).join(" · ");
+      const words = (suggestion.reason_tokens ?? []).slice(0, 3).join(' · ');
       switch (suggestion.reason_code) {
-        case "TITLE_MATCH":
+        case 'TITLE_MATCH':
           return words
-            ? t("backlog.reasonTitleMatch", "‘{{words}}’ 겹침", { words })
-            : t("backlog.reasonRelated", "관련도 높음");
-        case "TAG_MATCH":
-          return t("backlog.reasonTagMatch", "같은 말머리");
-        case "MINE":
-          return t("backlog.reasonMine", "내가 맡은 일");
-        case "RECENT":
-          return t("backlog.reasonRecent", "최근에 붙인 곳");
-        case "SAME_MILESTONE":
-          return t("backlog.reasonSameMilestone", "같은 마일스톤");
+            ? t('backlog.reasonTitleMatch', '‘{{words}}’ 겹침', { words })
+            : t('backlog.reasonRelated', '관련도 높음');
+        case 'TAG_MATCH':
+          return t('backlog.reasonTagMatch', '같은 말머리');
+        case 'MINE':
+          return t('backlog.reasonMine', '내가 맡은 일');
+        case 'RECENT':
+          return t('backlog.reasonRecent', '최근에 붙인 곳');
+        case 'SAME_MILESTONE':
+          return t('backlog.reasonSameMilestone', '같은 마일스톤');
         default:
-          return t("backlog.reasonRelated", "관련도 높음");
+          return t('backlog.reasonRelated', '관련도 높음');
       }
     },
     [t],
@@ -624,24 +578,16 @@ export function PromoteBacklogModal({
       ? featureSections.flatMap((section) => section.items.map((f) => f.id))
       : taskSections.flatMap((section) => section.items.map((task) => task.id));
     return [...suggested, ...listed];
-  }, [
-    suggestOpen,
-    suggestionRows,
-    isFeatureMode,
-    featureSections,
-    taskSections,
-  ]);
+  }, [suggestOpen, suggestionRows, isFeatureMode, featureSections, taskSections]);
 
   useEffect(() => {
-    setActiveIndex((prev) =>
-      prev >= flatIds.length ? Math.max(0, flatIds.length - 1) : prev,
-    );
+    setActiveIndex((prev) => (prev >= flatIds.length ? Math.max(0, flatIds.length - 1) : prev));
   }, [flatIds.length]);
 
   useEffect(() => {
     listRef.current
       ?.querySelector(`[data-idx="${activeIndex}"]`)
-      ?.scrollIntoView({ block: "nearest" });
+      ?.scrollIntoView({ block: 'nearest' });
   }, [activeIndex]);
 
   const pick = useCallback(
@@ -655,13 +601,13 @@ export function PromoteBacklogModal({
   /** 검색창에서도, 목록 안에서도 같은 커서를 움직인다 */
   const handleListKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "ArrowDown") {
+      if (e.key === 'ArrowDown') {
         e.preventDefault();
         setActiveIndex((prev) => Math.min(prev + 1, flatIds.length - 1));
-      } else if (e.key === "ArrowUp") {
+      } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setActiveIndex((prev) => Math.max(prev - 1, 0));
-      } else if (e.key === "Enter") {
+      } else if (e.key === 'Enter') {
         e.preventDefault();
         const id = flatIds[activeIndex];
         if (id) pick(id);
@@ -678,8 +624,8 @@ export function PromoteBacklogModal({
         setMilestoneOpen(false);
       }
     };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
   }, [milestoneOpen]);
 
   const selectedTask = useMemo(
@@ -693,8 +639,8 @@ export function PromoteBacklogModal({
 
   const canSubmit = useMemo(() => {
     if (submitting) return false;
-    if (target === "TASK") return !!featureId;
-    if (target === "CHECKLIST_ITEM") return !!taskId;
+    if (target === 'TASK') return !!featureId;
+    if (target === 'CHECKLIST_ITEM') return !!taskId;
     return !!date && !!startTime && !!endTime && startTime < endTime;
   }, [submitting, target, featureId, taskId, date, startTime, endTime]);
 
@@ -705,46 +651,38 @@ export function PromoteBacklogModal({
     try {
       const updated = await personalTaskAPI.promote(item.id, {
         target,
-        ...(target === "TASK"
+        ...(target === 'TASK'
           ? {
               feature_id: featureId,
               // 간트에 떨궈서 열렸다면 그 날짜에 바가 생겨야 한다
-              ...(presetDate
-                ? { start_date: presetDate, due_date: presetDate }
-                : {}),
+              ...(presetDate ? { start_date: presetDate, due_date: presetDate } : {}),
             }
           : {}),
-        ...(target === "CHECKLIST_ITEM" ? { task_id: taskId } : {}),
-        ...(target === "TIMEBLOCK"
+        ...(target === 'CHECKLIST_ITEM' ? { task_id: taskId } : {}),
+        ...(target === 'TIMEBLOCK'
           ? { scheduled_date: date, start_time: startTime, end_time: endTime }
           : {}),
       });
 
       // 승격 API는 체크리스트 항목에 날짜를 받지 않는다(제목·담당자만 만든다).
       // 간트 날짜 칸에 떨궈서 열린 경우엔 그 자리에 바가 생겨야 하므로 여기서 채운다.
-      if (
-        target === "CHECKLIST_ITEM" &&
-        presetDate &&
-        updated.promoted_ref_id
-      ) {
+      if (target === 'CHECKLIST_ITEM' && presetDate && updated.promoted_ref_id) {
         try {
-          await checklistAPI.patchItem(
-            boardId,
-            taskId,
-            updated.promoted_ref_id,
-            { start_date: presetDate, due_date: presetDate },
-          );
+          await checklistAPI.patchItem(boardId, taskId, updated.promoted_ref_id, {
+            start_date: presetDate,
+            due_date: presetDate,
+          });
         } catch {
           // 항목은 이미 만들어졌다 — 날짜만 비어 배치 레일에 남는다(복구 가능한 상태)
         }
       }
 
-      if (target === "TASK") pushRecent(boardId, target, featureId);
-      if (target === "CHECKLIST_ITEM") pushRecent(boardId, target, taskId);
+      if (target === 'TASK') pushRecent(boardId, target, featureId);
+      if (target === 'CHECKLIST_ITEM') pushRecent(boardId, target, taskId);
 
       onPromoted(updated);
     } catch {
-      setError(t("backlog.promoteFailed", "승격에 실패했습니다."));
+      setError(t('backlog.promoteFailed', '승격에 실패했습니다.'));
       setSubmitting(false);
     }
   }, [
@@ -763,33 +701,32 @@ export function PromoteBacklogModal({
   ]);
 
   const TARGETS: { key: PromoteTarget; label: string }[] = [
-    { key: "TIMEBLOCK", label: t("backlog.kindTimeblock", "타임블록") },
-    { key: "CHECKLIST_ITEM", label: t("backlog.kindChecklist", "체크리스트") },
-    { key: "TASK", label: t("backlog.kindTask", "태스크") },
+    { key: 'TIMEBLOCK', label: t('backlog.kindTimeblock', '타임블록') },
+    { key: 'CHECKLIST_ITEM', label: t('backlog.kindChecklist', '체크리스트') },
+    { key: 'TASK', label: t('backlog.kindTask', '태스크') },
   ];
 
   const SORTS: { key: SortMode; label: string }[] = [
-    { key: "default", label: t("backlog.sortDefault", "기본") },
-    { key: "due", label: t("backlog.sortDue", "마감 임박") },
-    { key: "recent", label: t("backlog.sortRecent", "최근 수정") },
+    { key: 'default', label: t('backlog.sortDefault', '기본') },
+    { key: 'due', label: t('backlog.sortDue', '마감 임박') },
+    { key: 'recent', label: t('backlog.sortRecent', '최근 수정') },
   ];
 
   const headTitle =
-    target === "TASK"
-      ? t("backlog.promoteToTask", "태스크로 승격")
-      : target === "CHECKLIST_ITEM"
-        ? t("backlog.promoteToChecklist", "체크리스트로 승격")
-        : t("backlog.promoteToTimeblock", "타임블록으로 승격");
+    target === 'TASK'
+      ? t('backlog.promoteToTask', '태스크로 승격')
+      : target === 'CHECKLIST_ITEM'
+        ? t('backlog.promoteToChecklist', '체크리스트로 승격')
+        : t('backlog.promoteToTimeblock', '타임블록으로 승격');
 
   const fieldClass =
-    "w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all";
-  const labelClass =
-    "text-xs font-bold uppercase tracking-widest text-slate-400";
+    'w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all';
+  const labelClass = 'text-xs font-bold uppercase tracking-widest text-slate-400';
   const chipClass = (on: boolean) =>
     `flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-full text-xs border transition-colors ${
       on
-        ? "bg-bridge-accent/15 text-bridge-accent border-transparent font-bold"
-        : "text-slate-400 border-foreground/10 hover:text-foreground"
+        ? 'bg-bridge-accent/15 text-bridge-accent border-transparent font-bold'
+        : 'text-slate-400 border-foreground/10 hover:text-foreground'
     }`;
 
   const activeMilestone = useMemo(
@@ -801,9 +738,7 @@ export function PromoteBacklogModal({
   const milestoneCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     let none = 0;
-    const pool = isFeatureMode
-      ? []
-      : tasks.filter((task) => showDone || !task.completed);
+    const pool = isFeatureMode ? [] : tasks.filter((task) => showDone || !task.completed);
     pool.forEach((task) => {
       if (task.milestone_id) {
         counts[task.milestone_id] = (counts[task.milestone_id] ?? 0) + 1;
@@ -850,15 +785,15 @@ export function PromoteBacklogModal({
       onMouseEnter={() => setActiveIndex(idx)}
       className={`w-full flex items-start gap-2.5 text-left px-2.5 py-2 rounded-lg border transition-colors ${
         selected
-          ? "bg-bridge-accent/15 border-bridge-accent/50"
+          ? 'bg-bridge-accent/15 border-bridge-accent/50'
           : idx === activeIndex
-            ? "bg-bridge-accent/10 border-bridge-accent/25"
-            : "border-transparent hover:bg-foreground/5"
+            ? 'bg-bridge-accent/10 border-bridge-accent/25'
+            : 'border-transparent hover:bg-foreground/5'
       }`}
     >
       <span
         className="shrink-0 w-2 h-2 rounded-full mt-1.5"
-        style={{ backgroundColor: color || "#64748b" }}
+        style={{ backgroundColor: color || '#64748b' }}
         aria-hidden="true"
       />
       <span className="flex-1 min-w-0">
@@ -868,7 +803,7 @@ export function PromoteBacklogModal({
         */}
         <span
           className={`block line-clamp-2 text-sm text-foreground ${
-            selected ? "font-bold" : "font-medium"
+            selected ? 'font-bold' : 'font-medium'
           }`}
         >
           {title}
@@ -879,9 +814,7 @@ export function PromoteBacklogModal({
       </span>
       <span className="shrink-0 flex items-center gap-2 mt-0.5">
         {tail}
-        {selected && (
-          <Check className="w-4 h-4 text-bridge-accent" aria-hidden="true" />
-        )}
+        {selected && <Check className="w-4 h-4 text-bridge-accent" aria-hidden="true" />}
       </span>
     </button>
   );
@@ -891,11 +824,7 @@ export function PromoteBacklogModal({
     const assignee = task.assignees?.[0];
     const extra = (task.assignees?.length ?? 0) - 1;
     if (!assignee) {
-      return (
-        <span className="text-slate-600">
-          {t("backlog.noAssignee", "담당 없음")}
-        </span>
-      );
+      return <span className="text-slate-600">{t('backlog.noAssignee', '담당 없음')}</span>;
     }
     return (
       <span className="flex items-center gap-1">
@@ -908,7 +837,7 @@ export function PromoteBacklogModal({
         </span>
         <span>
           {assignee.name}
-          {extra > 0 ? ` +${extra}` : ""}
+          {extra > 0 ? ` +${extra}` : ''}
         </span>
       </span>
     );
@@ -933,14 +862,9 @@ export function PromoteBacklogModal({
     );
   };
 
-  const renderTaskRow = (
-    task: TaskResponse,
-    idx: number,
-    featureScoped?: boolean,
-  ) => {
+  const renderTaskRow = (task: TaskResponse, idx: number, featureScoped?: boolean) => {
     const dday = getDDay(task.due_date);
-    const outsideFilter =
-      !!query.trim() && !inMilestone(task.milestone_id, milestoneFilter);
+    const outsideFilter = !!query.trim() && !inMilestone(task.milestone_id, milestoneFilter);
     return renderRow(
       task.id,
       idx,
@@ -949,17 +873,15 @@ export function PromoteBacklogModal({
       task.title,
       <>
         {/* 섹션이 이미 피처 하나로 묶여 있으면 행마다 같은 이름을 반복하지 않는다 */}
-        {!featureScoped && (
-          <span className="truncate max-w-[10rem]">{task.feature_title}</span>
-        )}
+        {!featureScoped && <span className="truncate max-w-[10rem]">{task.feature_title}</span>}
         {renderAssignee(task)}
         {renderProgress(task)}
         {dday.text && (
           <span
             className={
-              dday.urgency === "normal" || dday.urgency === "none"
-                ? ""
-                : "font-bold text-amber-600 dark:text-amber-400"
+              dday.urgency === 'normal' || dday.urgency === 'none'
+                ? ''
+                : 'font-bold text-amber-600 dark:text-amber-400'
             }
           >
             {dday.text}
@@ -968,19 +890,17 @@ export function PromoteBacklogModal({
         {/* 완료 여부는 상태가 갈릴 때만 — "할 일"이 줄줄이 붙어 있으면 읽히지 않는다 */}
         {task.completed && (
           <span className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-foreground/[0.06] text-slate-400">
-            {t("backlog.doneBadge", "완료")}
+            {t('backlog.doneBadge', '완료')}
           </span>
         )}
         {outsideFilter && (
           <span className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-            {t("backlog.otherMilestone", "다른 마일스톤")}
+            {t('backlog.otherMilestone', '다른 마일스톤')}
           </span>
         )}
       </>,
       task.task_key ? (
-        <span className="text-xs text-slate-600 tabular-nums">
-          {task.task_key}
-        </span>
+        <span className="text-xs text-slate-600 tabular-nums">{task.task_key}</span>
       ) : null,
     );
   };
@@ -994,7 +914,7 @@ export function PromoteBacklogModal({
       feature.title,
       <>
         <span>
-          {t("backlog.taskCount", "태스크 {{done}}/{{total}}", {
+          {t('backlog.taskCount', '태스크 {{done}}/{{total}}', {
             done: feature.completed_tasks,
             total: feature.total_tasks,
           })}
@@ -1009,9 +929,7 @@ export function PromoteBacklogModal({
           />
         </span>
       </>,
-      <span className="text-xs text-slate-600 tabular-nums">
-        {feature.progress_percentage}%
-      </span>,
+      <span className="text-xs text-slate-600 tabular-nums">{feature.progress_percentage}%</span>,
     );
 
   const isEmpty = sections.every((section) => section.items.length === 0);
@@ -1026,7 +944,7 @@ export function PromoteBacklogModal({
       onClose={onClose}
       accentColor
       className="w-full sm:max-w-lg"
-      aria-label={t("backlog.promoteTitle", "백로그 항목 승격")}
+      aria-label={t('backlog.promoteTitle', '백로그 항목 승격')}
     >
       <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
         <div className="min-w-0">
@@ -1044,8 +962,8 @@ export function PromoteBacklogModal({
             aria-pressed={target === option.key}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
               target === option.key
-                ? "bg-bridge-accent/15 text-bridge-accent"
-                : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                ? 'bg-bridge-accent/15 text-bridge-accent'
+                : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             {option.label}
@@ -1053,11 +971,11 @@ export function PromoteBacklogModal({
         ))}
       </div>
 
-      {target === "TIMEBLOCK" && (
+      {target === 'TIMEBLOCK' && (
         <div className="px-5 pb-5 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className={labelClass} htmlFor="promote-date">
-              {t("backlog.date", "날짜")}
+              {t('backlog.date', '날짜')}
             </label>
             <input
               id="promote-date"
@@ -1070,7 +988,7 @@ export function PromoteBacklogModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className={labelClass} htmlFor="promote-start">
-                {t("backlog.startTime", "시작")}
+                {t('backlog.startTime', '시작')}
               </label>
               <input
                 id="promote-start"
@@ -1087,7 +1005,7 @@ export function PromoteBacklogModal({
             </div>
             <div className="flex flex-col gap-1.5">
               <label className={labelClass} htmlFor="promote-end">
-                {t("backlog.endTime", "종료")}
+                {t('backlog.endTime', '종료')}
               </label>
               <input
                 id="promote-end"
@@ -1100,8 +1018,8 @@ export function PromoteBacklogModal({
           </div>
           <p className="text-xs text-slate-500 leading-relaxed">
             {t(
-              "backlog.timeblockNote",
-              "항목은 백로그에 남습니다. 시간을 잡았을 뿐 아직 끝난 일이 아닙니다.",
+              'backlog.timeblockNote',
+              '이 시간에 개인 블록으로 잡힙니다. 항목은 백로그에서 빠집니다.',
             )}
           </p>
         </div>
@@ -1127,11 +1045,8 @@ export function PromoteBacklogModal({
                     className="w-2 h-2 rounded-full shrink-0"
                     style={{
                       backgroundColor: activeMilestone
-                        ? resolveMilestoneColor(
-                            activeMilestone.id,
-                            milestoneColorMap,
-                          ).hex
-                        : "#64748b",
+                        ? resolveMilestoneColor(activeMilestone.id, milestoneColorMap).hex
+                        : '#64748b',
                     }}
                     aria-hidden="true"
                   />
@@ -1139,8 +1054,8 @@ export function PromoteBacklogModal({
                     {activeMilestone
                       ? activeMilestone.title
                       : milestoneFilter === MILESTONE_NONE
-                        ? t("backlog.milestoneNone", "마일스톤 없음")
-                        : t("backlog.milestoneAll", "전체 마일스톤")}
+                        ? t('backlog.milestoneNone', '마일스톤 없음')
+                        : t('backlog.milestoneAll', '전체 마일스톤')}
                   </span>
                   {activeMilestone && (
                     <span className="text-xs text-slate-500 shrink-0">
@@ -1155,18 +1070,15 @@ export function PromoteBacklogModal({
                         ? milestoneCounts.none
                         : milestoneCounts.total}
                   </span>
-                  <ChevronDown
-                    className="w-4 h-4 text-slate-500 shrink-0"
-                    aria-hidden="true"
-                  />
+                  <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" aria-hidden="true" />
                 </button>
 
                 {milestoneOpen && (
                   <div
                     role="listbox"
-                    aria-label={t("backlog.milestone", "마일스톤")}
+                    aria-label={t('backlog.milestone', '마일스톤')}
                     onKeyDown={(e) => {
-                      if (e.key === "Escape") {
+                      if (e.key === 'Escape') {
                         // 모달까지 닫히면 고르던 것이 날아간다 — 여기서 멈춘다
                         e.stopPropagation();
                         setMilestoneOpen(false);
@@ -1177,30 +1089,27 @@ export function PromoteBacklogModal({
                     {[
                       {
                         id: null as MilestoneFilter,
-                        label: t("backlog.milestoneAll", "전체 마일스톤"),
+                        label: t('backlog.milestoneAll', '전체 마일스톤'),
                         count: milestoneCounts.total,
-                        hex: "#64748b",
+                        hex: '#64748b',
                       },
                       ...milestoneList.map((milestone) => ({
                         id: milestone.id as MilestoneFilter,
                         label: milestone.title,
                         count: milestoneCounts.counts[milestone.id] ?? 0,
-                        hex: resolveMilestoneColor(
-                          milestone.id,
-                          milestoneColorMap,
-                        ).hex,
+                        hex: resolveMilestoneColor(milestone.id, milestoneColorMap).hex,
                         dday: getDDay(milestone.end_date).text,
                         progress: milestone.progress_percentage,
                       })),
                       {
                         id: MILESTONE_NONE as MilestoneFilter,
-                        label: t("backlog.milestoneNone", "마일스톤 없음"),
+                        label: t('backlog.milestoneNone', '마일스톤 없음'),
                         count: milestoneCounts.none,
-                        hex: "#64748b",
+                        hex: '#64748b',
                       },
                     ].map((option) => (
                       <button
-                        key={option.id ?? "all"}
+                        key={option.id ?? 'all'}
                         type="button"
                         role="option"
                         aria-selected={milestoneFilter === option.id}
@@ -1211,8 +1120,8 @@ export function PromoteBacklogModal({
                         }}
                         className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm transition-colors ${
                           milestoneFilter === option.id
-                            ? "bg-bridge-accent/15 text-foreground font-bold"
-                            : "text-foreground hover:bg-foreground/5"
+                            ? 'bg-bridge-accent/15 text-foreground font-bold'
+                            : 'text-foreground hover:bg-foreground/5'
                         }`}
                       >
                         <span
@@ -1221,24 +1130,21 @@ export function PromoteBacklogModal({
                           aria-hidden="true"
                         />
                         <span className="truncate">{option.label}</span>
-                        {"dday" in option && option.dday && (
-                          <span className="text-xs text-slate-500 shrink-0">
-                            {option.dday}
-                          </span>
+                        {'dday' in option && option.dday && (
+                          <span className="text-xs text-slate-500 shrink-0">{option.dday}</span>
                         )}
                         <span className="flex-1" />
-                        {"progress" in option &&
-                          typeof option.progress === "number" && (
-                            <span className="w-10 h-1 rounded-full bg-foreground/10 overflow-hidden shrink-0">
-                              <span
-                                className="block h-full rounded-full"
-                                style={{
-                                  width: `${option.progress}%`,
-                                  backgroundColor: option.hex,
-                                }}
-                              />
-                            </span>
-                          )}
+                        {'progress' in option && typeof option.progress === 'number' && (
+                          <span className="w-10 h-1 rounded-full bg-foreground/10 overflow-hidden shrink-0">
+                            <span
+                              className="block h-full rounded-full"
+                              style={{
+                                width: `${option.progress}%`,
+                                backgroundColor: option.hex,
+                              }}
+                            />
+                          </span>
+                        )}
                         <span className="text-xs text-slate-500 tabular-nums shrink-0">
                           {option.count}
                         </span>
@@ -1266,19 +1172,13 @@ export function PromoteBacklogModal({
                   onKeyDown={handleListKeyDown}
                   placeholder={
                     isFeatureMode
-                      ? t(
-                          "backlog.searchFeaturePlaceholder",
-                          "피처 이름으로 검색",
-                        )
-                      : t(
-                          "backlog.searchTaskPlaceholder",
-                          "제목 · 피처 · 키로 검색",
-                        )
+                      ? t('backlog.searchFeaturePlaceholder', '피처 이름으로 검색')
+                      : t('backlog.searchTaskPlaceholder', '제목 · 피처 · 키로 검색')
                   }
                   aria-label={
                     isFeatureMode
-                      ? t("backlog.feature", "붙일 피처")
-                      : t("backlog.task", "붙일 태스크")
+                      ? t('backlog.feature', '붙일 피처')
+                      : t('backlog.task', '붙일 태스크')
                   }
                   className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-2 pl-9 pr-3 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 />
@@ -1293,7 +1193,7 @@ export function PromoteBacklogModal({
                   aria-pressed={showDone}
                   className={chipClass(showDone)}
                 >
-                  {t("backlog.includeDone", "완료 포함")}
+                  {t('backlog.includeDone', '완료 포함')}
                 </button>
               )}
             </div>
@@ -1306,9 +1206,7 @@ export function PromoteBacklogModal({
                     key={feature.id}
                     type="button"
                     onClick={() => {
-                      setFeatureFilter((prev) =>
-                        prev === feature.id ? null : feature.id,
-                      );
+                      setFeatureFilter((prev) => (prev === feature.id ? null : feature.id));
                       setActiveIndex(0);
                     }}
                     aria-pressed={featureFilter === feature.id}
@@ -1351,24 +1249,21 @@ export function PromoteBacklogModal({
           <div className="px-3 pt-2.5">
             <div className="rounded-2xl border border-bridge-accent/30 bg-bridge-accent/[0.07] px-3 py-2.5">
               <div className="flex items-center gap-2">
-                <Sparkles
-                  className="w-3.5 h-3.5 text-bridge-accent shrink-0"
-                  aria-hidden="true"
-                />
+                <Sparkles className="w-3.5 h-3.5 text-bridge-accent shrink-0" aria-hidden="true" />
                 <span className="text-xs font-bold uppercase tracking-widest text-bridge-accent truncate">
-                  {t("backlog.suggestTitle", "붙일 만한 곳")}
+                  {t('backlog.suggestTitle', '붙일 만한 곳')}
                 </span>
                 {suggestSource && (
                   <span
                     className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
-                      suggestSource === "AI"
-                        ? "bg-bridge-secondary/15 text-teal-600 dark:text-teal-400"
-                        : "bg-foreground/[0.06] text-slate-400"
+                      suggestSource === 'AI'
+                        ? 'bg-bridge-secondary/15 text-teal-600 dark:text-teal-400'
+                        : 'bg-foreground/[0.06] text-slate-400'
                     }`}
                   >
-                    {suggestSource === "AI"
-                      ? t("backlog.suggestSourceAi", "AI")
-                      : t("backlog.suggestSourceRule", "규칙")}
+                    {suggestSource === 'AI'
+                      ? t('backlog.suggestSourceAi', 'AI')
+                      : t('backlog.suggestSourceRule', '규칙')}
                   </span>
                 )}
                 <span className="flex-1" />
@@ -1378,13 +1273,8 @@ export function PromoteBacklogModal({
                   disabled={aiLoading || !suggestOpen}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold text-bridge-accent hover:bg-bridge-accent/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  {aiLoading && (
-                    <Loader2
-                      className="w-3 h-3 animate-spin"
-                      aria-hidden="true"
-                    />
-                  )}
-                  {t("backlog.suggestWithAi", "AI로 추천 · 크레딧 1")}
+                  {aiLoading && <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />}
+                  {t('backlog.suggestWithAi', 'AI로 추천 · 크레딧 1')}
                 </button>
                 <button
                   type="button"
@@ -1392,9 +1282,7 @@ export function PromoteBacklogModal({
                   aria-expanded={suggestOpen}
                   className="px-1.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                 >
-                  {suggestOpen
-                    ? t("common.collapse", "접기")
-                    : t("common.expand", "펼치기")}
+                  {suggestOpen ? t('common.collapse', '접기') : t('common.expand', '펼치기')}
                 </button>
               </div>
 
@@ -1402,24 +1290,19 @@ export function PromoteBacklogModal({
                 <div
                   className="mt-2 flex flex-col gap-1.5"
                   role="group"
-                  aria-label={t("backlog.suggestTitle", "붙일 만한 곳")}
+                  aria-label={t('backlog.suggestTitle', '붙일 만한 곳')}
                 >
                   {suggestLoading && !suggestionRows.length ? (
                     <p className="py-3 text-center text-xs text-slate-500">
-                      {t("common.loading", "불러오는 중")}
+                      {t('common.loading', '불러오는 중')}
                     </p>
                   ) : !suggestionRows.length ? (
                     <p className="py-3 text-center text-xs text-slate-500">
-                      {t(
-                        "backlog.suggestEmpty",
-                        "추천할 만한 곳을 찾지 못했습니다.",
-                      )}
+                      {t('backlog.suggestEmpty', '추천할 만한 곳을 찾지 못했습니다.')}
                     </p>
                   ) : (
                     suggestionRows.map((row, idx) => {
-                      const selected = isFeatureMode
-                        ? row.id === featureId
-                        : row.id === taskId;
+                      const selected = isFeatureMode ? row.id === featureId : row.id === taskId;
                       return (
                         <button
                           key={`s-${row.id}`}
@@ -1430,10 +1313,10 @@ export function PromoteBacklogModal({
                           aria-pressed={selected}
                           className={`w-full flex items-start gap-2.5 text-left px-2.5 py-2 rounded-xl border transition-colors ${
                             selected
-                              ? "bg-bridge-accent/15 border-bridge-accent/50"
+                              ? 'bg-bridge-accent/15 border-bridge-accent/50'
                               : idx === activeIndex
-                                ? "bg-bridge-obsidian border-bridge-accent/35"
-                                : "bg-bridge-obsidian/60 border-foreground/[0.08] hover:border-foreground/[0.16]"
+                                ? 'bg-bridge-obsidian border-bridge-accent/35'
+                                : 'bg-bridge-obsidian/60 border-foreground/[0.08] hover:border-foreground/[0.16]'
                           }`}
                         >
                           <span className="shrink-0 w-4 h-4 mt-0.5 rounded-md bg-bridge-accent/20 text-bridge-accent text-xs font-bold flex items-center justify-center">
@@ -1442,7 +1325,7 @@ export function PromoteBacklogModal({
                           <span className="flex-1 min-w-0">
                             <span
                               className={`block line-clamp-2 text-sm text-foreground ${
-                                selected ? "font-bold" : "font-medium"
+                                selected ? 'font-bold' : 'font-medium'
                               }`}
                             >
                               {row.title}
@@ -1458,10 +1341,7 @@ export function PromoteBacklogModal({
                               </span>
                             )}
                             {selected && (
-                              <Check
-                                className="w-4 h-4 text-bridge-accent"
-                                aria-hidden="true"
-                              />
+                              <Check className="w-4 h-4 text-bridge-accent" aria-hidden="true" />
                             )}
                           </span>
                         </button>
@@ -1471,10 +1351,7 @@ export function PromoteBacklogModal({
 
                   {creditsExhausted && (
                     <p className="text-xs text-amber-600 dark:text-amber-400">
-                      {t(
-                        "backlog.suggestNoCredits",
-                        "AI 크레딧이 없어 규칙 추천으로 보여줍니다.",
-                      )}
+                      {t('backlog.suggestNoCredits', 'AI 크레딧이 없어 규칙 추천으로 보여줍니다.')}
                     </p>
                   )}
                 </div>
@@ -1487,9 +1364,7 @@ export function PromoteBacklogModal({
             role="listbox"
             onKeyDown={handleListKeyDown}
             aria-label={
-              isFeatureMode
-                ? t("backlog.feature", "붙일 피처")
-                : t("backlog.task", "붙일 태스크")
+              isFeatureMode ? t('backlog.feature', '붙일 피처') : t('backlog.task', '붙일 태스크')
             }
             className="max-h-[38vh] min-h-[12rem] overflow-y-auto custom-scrollbar px-3 py-2"
           >
@@ -1499,26 +1374,18 @@ export function PromoteBacklogModal({
             */}
             {!isFeatureMode && tasksLoading && !tasksLoaded ? (
               <div className="flex items-center justify-center gap-2 py-16">
-                <Loader2
-                  className="w-5 h-5 animate-spin text-bridge-accent"
-                  aria-hidden="true"
-                />
-                <span className="text-xs text-slate-500">
-                  {t("common.loading", "불러오는 중")}
-                </span>
+                <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" aria-hidden="true" />
+                <span className="text-xs text-slate-500">{t('common.loading', '불러오는 중')}</span>
               </div>
             ) : isEmpty ? (
               <div className="py-14 text-center text-xs text-slate-500 leading-relaxed">
                 {isFeatureMode && features.length === 0 ? (
                   // 붙일 곳 자체가 없는 보드 — 좁히기 문제가 아니라서 힌트를 주지 않는다
-                  t("backlog.noFeature", "피처가 없습니다")
+                  t('backlog.noFeature', '피처가 없습니다')
                 ) : milestoneFilter !== null && !query.trim() ? (
                   // 좁혀서 빈 것이므로 빠져나갈 길을 같이 준다
                   <>
-                    {t(
-                      "backlog.noMatchMilestone",
-                      "이 마일스톤에는 붙일 곳이 없습니다.",
-                    )}
+                    {t('backlog.noMatchMilestone', '이 마일스톤에는 붙일 곳이 없습니다.')}
                     <br />
                     <button
                       type="button"
@@ -1528,27 +1395,18 @@ export function PromoteBacklogModal({
                       }}
                       className="mt-2 px-3 py-1.5 rounded-lg text-xs font-bold text-bridge-accent hover:bg-bridge-accent/10 transition-colors"
                     >
-                      {t("backlog.milestoneAll", "전체 마일스톤")}
+                      {t('backlog.milestoneAll', '전체 마일스톤')}
                     </button>
                   </>
                 ) : (
                   <>
                     {isFeatureMode
-                      ? t(
-                          "backlog.noMatchFeature",
-                          "조건에 맞는 피처가 없습니다.",
-                        )
-                      : t(
-                          "backlog.noMatchTask",
-                          "조건에 맞는 태스크가 없습니다.",
-                        )}
+                      ? t('backlog.noMatchFeature', '조건에 맞는 피처가 없습니다.')
+                      : t('backlog.noMatchTask', '조건에 맞는 태스크가 없습니다.')}
                     <br />
                     {isFeatureMode
-                      ? t("backlog.noMatchFeatureHint", "검색어를 지워 보세요.")
-                      : t(
-                          "backlog.noMatchHint",
-                          "검색어를 지우거나 완료 포함을 켜 보세요.",
-                        )}
+                      ? t('backlog.noMatchFeatureHint', '검색어를 지워 보세요.')
+                      : t('backlog.noMatchHint', '검색어를 지우거나 완료 포함을 켜 보세요.')}
                   </>
                 )}
               </div>
@@ -1566,20 +1424,14 @@ export function PromoteBacklogModal({
                     <span className="text-xs font-bold uppercase tracking-widest text-slate-500 truncate">
                       {section.label}
                     </span>
-                    <span className="text-xs text-slate-600">
-                      {section.items.length}
-                    </span>
+                    <span className="text-xs text-slate-600">{section.items.length}</span>
                     <span className="flex-1 h-px bg-foreground/[0.06]" />
                   </div>
                   {section.items.map((entry) => {
                     rowIndex += 1;
                     return isFeatureMode
                       ? renderFeatureRow(entry as Feature, rowIndex)
-                      : renderTaskRow(
-                          entry as TaskResponse,
-                          rowIndex,
-                          section.featureScoped,
-                        );
+                      : renderTaskRow(entry as TaskResponse, rowIndex, section.featureScoped);
                   })}
                 </div>
               ))
@@ -1592,44 +1444,34 @@ export function PromoteBacklogModal({
         <div className="px-5 pt-3 flex flex-col gap-1.5">
           {presetDate && (
             <p className="text-xs font-bold text-bridge-secondary">
-              {t("backlog.presetDate", "{{date}}에 배치됩니다", {
+              {t('backlog.presetDate', '{{date}}에 배치됩니다', {
                 date: presetDate,
               })}
             </p>
           )}
-          {error && (
-            <p className="text-xs font-bold text-rose-600 dark:text-rose-400">
-              {error}
-            </p>
-          )}
+          {error && <p className="text-xs font-bold text-rose-600 dark:text-rose-400">{error}</p>}
         </div>
       )}
       {error && !isPicker && (
-        <p className="px-5 pt-3 text-xs font-bold text-rose-600 dark:text-rose-400">
-          {error}
-        </p>
+        <p className="px-5 pt-3 text-xs font-bold text-rose-600 dark:text-rose-400">{error}</p>
       )}
 
       <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-foreground/[0.08]">
         <p className="min-w-0 text-xs text-slate-500 truncate">
           {selectedTask ? (
             <>
-              <span className="font-bold text-foreground">
-                {selectedTask.title}
-              </span>
-              {t("backlog.pickedChecklistSuffix", "의 체크리스트로")}
+              <span className="font-bold text-foreground">{selectedTask.title}</span>
+              {t('backlog.pickedChecklistSuffix', '의 체크리스트로')}
             </>
           ) : selectedFeature ? (
             <>
-              <span className="font-bold text-foreground">
-                {selectedFeature.title}
-              </span>
-              {t("backlog.pickedTaskSuffix", " 아래 태스크로")}
+              <span className="font-bold text-foreground">{selectedFeature.title}</span>
+              {t('backlog.pickedTaskSuffix', ' 아래 태스크로')}
             </>
           ) : isPicker ? (
-            t("backlog.pickHint", "붙일 곳을 고르세요 · ↑↓ 이동 · Enter 선택")
+            t('backlog.pickHint', '붙일 곳을 고르세요 · ↑↓ 이동 · Enter 선택')
           ) : (
-            t("common.escToClose", "Esc 닫기")
+            t('common.escToClose', 'Esc 닫기')
           )}
         </p>
         <div className="flex items-center gap-2 shrink-0">
@@ -1638,7 +1480,7 @@ export function PromoteBacklogModal({
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
           >
-            {t("common.cancel", "취소")}
+            {t('common.cancel', '취소')}
           </button>
           <button
             type="button"
@@ -1646,10 +1488,8 @@ export function PromoteBacklogModal({
             disabled={!canSubmit}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            {submitting && (
-              <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
-            )}
-            {t("backlog.promote", "승격")}
+            {submitting && <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />}
+            {t('backlog.promote', '승격')}
           </button>
         </div>
       </div>

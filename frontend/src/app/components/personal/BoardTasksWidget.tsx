@@ -43,10 +43,7 @@ function BoardTaskItemRow({ item, index }: { item: BoardTaskItem; index: number 
       className="flex items-center gap-2 py-1.5"
     >
       {/* Check circle */}
-      <button
-        onClick={handleToggle}
-        className="shrink-0"
-      >
+      <button onClick={handleToggle} className="shrink-0">
         <div
           className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
             checked
@@ -55,7 +52,13 @@ function BoardTaskItemRow({ item, index }: { item: BoardTaskItem; index: number 
           }`}
         >
           {checked && (
-            <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              className="w-2.5 h-2.5 text-white"
+              viewBox="0 0 12 12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M2.5 6L5 8.5L9.5 3.5" />
             </svg>
           )}
@@ -75,7 +78,9 @@ function BoardTaskItemRow({ item, index }: { item: BoardTaskItem; index: number 
         <span
           className="text-xs px-1.5 py-0.5 rounded-full shrink-0 font-bold"
           style={{
-            backgroundColor: item.feature_color ? `${item.feature_color}25` : 'rgba(99,102,241,0.15)',
+            backgroundColor: item.feature_color
+              ? `${item.feature_color}25`
+              : 'rgba(99,102,241,0.15)',
             color: item.feature_color || '#6366F1',
           }}
         >
@@ -100,9 +105,7 @@ function BoardGroup({ group, groupIndex }: { group: BoardTaskGroup; groupIndex: 
       <div className="flex items-center gap-2 mb-1.5">
         {group.board_emoji && <span className="text-sm">{group.board_emoji}</span>}
         <span className="text-xs font-bold text-foreground">{group.board_name}</span>
-        <span className="text-xs text-slate-500 ml-auto">
-          {group.pending_count}건 남음
-        </span>
+        <span className="text-xs text-slate-500 ml-auto">{group.pending_count}건 남음</span>
       </div>
 
       {/* Items */}
@@ -129,7 +132,8 @@ export function BoardTasksWidget({ date }: BoardTasksWidgetProps) {
   useEffect(() => {
     setLoading(true);
     setError(false);
-    personalDashboardService.getBoardTasks(date)
+    personalDashboardService
+      .getBoardTasks(date)
       .then(setData)
       .catch(() => setError(true))
       .finally(() => setLoading(false));

@@ -176,6 +176,12 @@ resource "aws_elastic_beanstalk_environment" "main" {
   application         = aws_elastic_beanstalk_application.main.name
   solution_stack_name = var.solution_stack_name
 
+  # Platform minor/patch versions are bumped by EB managed updates; without this every
+  # apply rolls the platform back to var.solution_stack_name (instance replacement).
+  lifecycle {
+    ignore_changes = [solution_stack_name]
+  }
+
   # VPC Configuration
   setting {
     namespace = "aws:ec2:vpc"
@@ -211,6 +217,14 @@ resource "aws_elastic_beanstalk_environment" "main" {
   setting {
     namespace = "aws:autoscaling:launchconfiguration"
     name      = "InstanceType"
+    value     = var.instance_type
+  }
+
+  # EB 는 aws:ec2:instances/InstanceTypes 를 우선하므로 레거시 InstanceType 과 같이 맞춰 둔다.
+  # (이걸 빼면 콘솔에 남아 있던 이전 타입이 그대로 쓰일 수 있다)
+  setting {
+    namespace = "aws:ec2:instances"
+    name      = "InstanceTypes"
     value     = var.instance_type
   }
 
@@ -352,11 +366,27 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = "enhanced"
   }
 
-  # Deployment
+  # Deployment — 무중단: 배포 중에만 인스턴스 1대를 추가로 띄워 새 버전이
+  # 헬스체크를 통과한 뒤 구 인스턴스를 교체한다. 상시 인스턴스 수(min 1)는 그대로라
+  # 추가 비용은 배포 시간 몇 분간의 EC2 요금뿐. (min 1대 환경에서는 Rolling/AllAtOnce
+  # 모두 그 한 대를 내리므로 다운타임이 발생한다)
   setting {
     namespace = "aws:elasticbeanstalk:command"
     name      = "DeploymentPolicy"
-    value     = var.environment == "prod" ? "Rolling" : "AllAtOnce"
+    value     = "RollingWithAdditionalBatch"
+  }
+
+  # 추가 배치는 정확히 1대 — ASG max(2)를 넘지 않게 고정
+  setting {
+    namespace = "aws:elasticbeanstalk:command"
+    name      = "BatchSizeType"
+    value     = "Fixed"
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:command"
+    name      = "BatchSize"
+    value     = "1"
   }
 
   # CloudWatch Logs

@@ -1,17 +1,13 @@
-import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { X, Flag, Plus, Briefcase, ChevronRight } from "lucide-react";
-import { format } from "date-fns";
-import { IconButton } from "../ui/IconButton";
-import { Milestone } from "../../types";
-import { CalendarEventItem } from "../../utils/api";
-import { HolidayInfo } from "../../hooks/useHolidays";
-import { calendarTypeMeta } from "./calendarEventMeta";
-import {
-  MilestoneColorMap,
-  resolveMilestoneColor,
-  withAlpha,
-} from "../../utils/milestoneColor";
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { X, Flag, Plus, Briefcase, ChevronRight } from 'lucide-react';
+import { format } from 'date-fns';
+import { IconButton } from '../ui/IconButton';
+import { Milestone } from '../../types';
+import { CalendarEventItem } from '../../utils/api';
+import { HolidayInfo } from '../../hooks/useHolidays';
+import { calendarTypeMeta } from './calendarEventMeta';
+import { MilestoneColorMap, resolveMilestoneColor, withAlpha } from '../../utils/milestoneColor';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,7 +17,8 @@ import {
 export interface DayDetailData {
   milestones: Milestone[];
   events: CalendarEventItem[]; // TEAM
-  absences: CalendarEventItem[]; // MEMBER
+  absences: CalendarEventItem[]; // MEMBER (부재 계열)
+  holidayWorks: CalendarEventItem[]; // MEMBER/HOLIDAY_WORK (휴일근무)
   customHolidays: CalendarEventItem[]; // CALENDAR/HOLIDAY (사용자 생성 — 편집 가능)
   workdayEvents: CalendarEventItem[]; // CALENDAR/WORKDAY (근무일 지정 — 편집 가능)
   publicHolidays: HolidayInfo[]; // 라이브러리 공휴일 (레코드 없음 — 편집 불가)
@@ -47,12 +44,12 @@ interface DayDetailPanelProps {
 // ---------------------------------------------------------------------------
 
 function parseDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.split("-").map(Number);
+  const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d);
 }
 
 function initialsOf(name: string): string {
-  return name.trim().charAt(0) || "?";
+  return name.trim().charAt(0) || '?';
 }
 
 // ---------------------------------------------------------------------------
@@ -80,6 +77,7 @@ export function DayDetailPanel({
     data.milestones.length +
     data.events.length +
     data.absences.length +
+    data.holidayWorks.length +
     data.customHolidays.length +
     data.publicHolidays.length +
     data.workdayEvents.length;
@@ -88,9 +86,7 @@ export function DayDetailPanel({
 
   const groupLabel = (label: string, count: number) => (
     <div className="flex items-center gap-1.5 px-1.5 mb-1.5">
-      <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
-        {label}
-      </span>
+      <span className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</span>
       <span className="text-xs font-medium text-slate-400 bg-foreground/[0.06] rounded-full px-1.5">
         {count}
       </span>
@@ -101,11 +97,7 @@ export function DayDetailPanel({
     <>
       {/* Mobile backdrop — 모바일 오버레이가 열렸을 때만 */}
       {mobileOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
-          onClick={onClose}
-          aria-hidden
-        />
+        <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={onClose} aria-hidden />
       )}
 
       <aside
@@ -113,9 +105,9 @@ export function DayDetailPanel({
           w-full max-w-sm lg:max-w-none lg:w-[320px] shrink-0
           border-l border-foreground/[0.08] bg-bridge-dark
           flex-col overflow-hidden shadow-2xl lg:shadow-none
-          ${mobileOpen ? "flex" : "hidden"} lg:flex`}
+          ${mobileOpen ? 'flex' : 'hidden'} lg:flex`}
         role="complementary"
-        aria-label={t("schedule.calendar.detail.title", "선택한 날짜 상세")}
+        aria-label={t('schedule.calendar.detail.title', '선택한 날짜 상세')}
       >
         {/* Top accent line */}
         <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent shrink-0" />
@@ -128,15 +120,11 @@ export function DayDetailPanel({
                 {dateObj.getDate()}
               </span>
               <span className="text-xs text-slate-400 font-medium truncate">
-                {format(dateObj, "yyyy · MMM")} · {format(dateObj, "EEEE")}
+                {format(dateObj, 'yyyy · MMM')} · {format(dateObj, 'EEEE')}
               </span>
             </div>
             <div className="lg:hidden">
-              <IconButton
-                aria-label={t("common.close", "닫기")}
-                size="sm"
-                onClick={onClose}
-              >
+              <IconButton aria-label={t('common.close', '닫기')} size="sm" onClick={onClose}>
                 <X className="w-4 h-4" />
               </IconButton>
             </div>
@@ -145,22 +133,22 @@ export function DayDetailPanel({
           {/* Count summary */}
           <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
             <span>
-              {t("schedule.calendar.layer.event", "이벤트")}{" "}
-              <b className="text-slate-300 tabular-nums">
-                {data.events.length}
-              </b>
+              {t('schedule.calendar.layer.event', '이벤트')}{' '}
+              <b className="text-slate-300 tabular-nums">{data.events.length}</b>
             </span>
             <span>
-              {t("schedule.calendar.layer.absence", "부재")}{" "}
-              <b className="text-slate-300 tabular-nums">
-                {data.absences.length}
-              </b>
+              {t('schedule.calendar.layer.absence', '부재')}{' '}
+              <b className="text-slate-300 tabular-nums">{data.absences.length}</b>
             </span>
+            {data.holidayWorks.length > 0 && (
+              <span>
+                {t('schedule.calendar.layer.holidayWork', '휴일근무')}{' '}
+                <b className="text-slate-300 tabular-nums">{data.holidayWorks.length}</b>
+              </span>
+            )}
             <span>
-              {t("schedule.calendar.layer.milestone", "마일스톤")}{" "}
-              <b className="text-slate-300 tabular-nums">
-                {data.milestones.length}
-              </b>
+              {t('schedule.calendar.layer.milestone', '마일스톤')}{' '}
+              <b className="text-slate-300 tabular-nums">{data.milestones.length}</b>
             </span>
           </div>
         </div>
@@ -171,10 +159,7 @@ export function DayDetailPanel({
             <div className="flex flex-col items-center justify-center h-full text-center px-6 py-16">
               <span className="text-2xl opacity-40 mb-2">✳️</span>
               <p className="text-xs text-slate-500">
-                {t(
-                  "schedule.calendar.detail.empty",
-                  "이 날은 등록된 일정이 없습니다",
-                )}
+                {t('schedule.calendar.detail.empty', '이 날은 등록된 일정이 없습니다')}
               </p>
             </div>
           ) : (
@@ -185,7 +170,7 @@ export function DayDetailPanel({
                 data.workdayEvents.length > 0) && (
                 <div>
                   {groupLabel(
-                    t("schedule.calendar.detail.holidayGroup", "휴무일"),
+                    t('schedule.calendar.detail.holidayGroup', '휴무일'),
                     data.publicHolidays.length +
                       data.customHolidays.length +
                       data.workdayEvents.length,
@@ -204,7 +189,7 @@ export function DayDetailPanel({
                         <div className="min-w-0 flex-1">
                           <div
                             className={`text-sm font-medium text-foreground truncate ${
-                              isWorkdayForced ? "line-through opacity-60" : ""
+                              isWorkdayForced ? 'line-through opacity-60' : ''
                             }`}
                           >
                             {h.name}
@@ -212,13 +197,10 @@ export function DayDetailPanel({
                           <div className="text-xs text-slate-500">
                             {isWorkdayForced
                               ? t(
-                                  "schedule.calendar.detail.workdayOverridden",
-                                  "공휴일 · 근무일로 지정됨",
+                                  'schedule.calendar.detail.workdayOverridden',
+                                  '공휴일 · 근무일로 지정됨',
                                 )
-                              : t(
-                                  "schedule.calendar.detail.publicHoliday",
-                                  "공휴일 · 시스템 제공",
-                                )}
+                              : t('schedule.calendar.detail.publicHoliday', '공휴일 · 시스템 제공')}
                           </div>
                         </div>
                         {canManage && !isWorkdayForced && (
@@ -227,10 +209,7 @@ export function DayDetailPanel({
                             onClick={() => onDesignateWorkday(date)}
                             className="text-xs font-medium text-slate-400 hover:text-bridge-accent whitespace-nowrap px-1.5 py-1 rounded-lg hover:bg-bridge-accent/10 transition-colors shrink-0"
                           >
-                            {t(
-                              "schedule.calendar.detail.designateWorkday",
-                              "근무일 지정",
-                            )}
+                            {t('schedule.calendar.detail.designateWorkday', '근무일 지정')}
                           </button>
                         )}
                       </div>
@@ -252,17 +231,13 @@ export function DayDetailPanel({
                           </span>
                           <div className="min-w-0 flex-1">
                             <div className="text-sm font-medium text-foreground truncate">
-                              {e.title ||
-                                t("schedule.calendar.layer.holiday", "휴무일")}
+                              {e.title || t('schedule.calendar.layer.holiday', '휴무일')}
                             </div>
                             <div className="text-xs text-slate-500">
-                              {t(
-                                "schedule.calendar.detail.customHoliday",
-                                "지정 휴무일",
-                              )}
+                              {t('schedule.calendar.detail.customHoliday', '지정 휴무일')}
                               {e.recurring
-                                ? ` · ${t("schedule.calendar.detail.yearly", "매년 반복")}`
-                                : ""}
+                                ? ` · ${t('schedule.calendar.detail.yearly', '매년 반복')}`
+                                : ''}
                             </div>
                           </div>
                           <ChevronRight className="w-4 h-4 text-slate-600 shrink-0" />
@@ -284,17 +259,13 @@ export function DayDetailPanel({
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-medium text-foreground truncate">
-                            {e.title ||
-                              t("schedule.calendar.workday", "근무일")}
+                            {e.title || t('schedule.calendar.workday', '근무일')}
                           </div>
                           <div className="text-xs text-slate-500">
-                            {t(
-                              "schedule.calendar.detail.workdayDesignated",
-                              "근무일 지정",
-                            )}
+                            {t('schedule.calendar.detail.workdayDesignated', '근무일 지정')}
                             {e.recurring
-                              ? ` · ${t("schedule.calendar.detail.yearly", "매년 반복")}`
-                              : ""}
+                              ? ` · ${t('schedule.calendar.detail.yearly', '매년 반복')}`
+                              : ''}
                           </div>
                         </div>
                         <ChevronRight className="w-4 h-4 text-slate-600 shrink-0" />
@@ -308,15 +279,12 @@ export function DayDetailPanel({
               {data.milestones.length > 0 && (
                 <div>
                   {groupLabel(
-                    t("schedule.calendar.layer.milestone", "마일스톤"),
+                    t('schedule.calendar.layer.milestone', '마일스톤'),
                     data.milestones.length,
                   )}
                   <div className="flex flex-col gap-1">
                     {data.milestones.map((m) => {
-                      const msColor = resolveMilestoneColor(
-                        m.id,
-                        milestoneColorMap,
-                      ).hex;
+                      const msColor = resolveMilestoneColor(m.id, milestoneColorMap).hex;
                       return (
                         <button
                           key={m.id}
@@ -334,20 +302,14 @@ export function DayDetailPanel({
                               backgroundColor: withAlpha(msColor, 0.15),
                             }}
                           >
-                            <Flag
-                              className="w-3.5 h-3.5"
-                              style={{ color: msColor }}
-                            />
+                            <Flag className="w-3.5 h-3.5" style={{ color: msColor }} />
                           </span>
                           <div className="min-w-0 flex-1">
                             <div className="text-sm font-medium text-foreground truncate">
                               {m.title}
                             </div>
                             <div className="text-xs text-slate-500">
-                              {t(
-                                "schedule.calendar.detail.inPeriod",
-                                "기간 중",
-                              )}
+                              {t('schedule.calendar.detail.inPeriod', '기간 중')}
                             </div>
                           </div>
                           <span
@@ -366,10 +328,7 @@ export function DayDetailPanel({
               {/* ===== 이벤트 (TEAM) ===== */}
               {data.events.length > 0 && (
                 <div>
-                  {groupLabel(
-                    t("schedule.calendar.layer.event", "이벤트"),
-                    data.events.length,
-                  )}
+                  {groupLabel(t('schedule.calendar.layer.event', '이벤트'), data.events.length)}
                   <div className="flex flex-col gap-1">
                     {data.events.map((e) => {
                       const meta = calendarTypeMeta(e.event_type);
@@ -395,9 +354,7 @@ export function DayDetailPanel({
                             <div className="text-sm font-medium text-foreground truncate">
                               {e.title || meta.label}
                             </div>
-                            <div className="text-xs text-slate-500">
-                              {meta.label}
-                            </div>
+                            <div className="text-xs text-slate-500">{meta.label}</div>
                           </div>
                           <ChevronRight className="w-4 h-4 text-slate-600 shrink-0" />
                         </button>
@@ -410,10 +367,7 @@ export function DayDetailPanel({
               {/* ===== 부재 (MEMBER) ===== */}
               {data.absences.length > 0 && (
                 <div>
-                  {groupLabel(
-                    t("schedule.calendar.layer.absence", "부재"),
-                    data.absences.length,
-                  )}
+                  {groupLabel(t('schedule.calendar.layer.absence', '부재'), data.absences.length)}
                   <div className="flex flex-col gap-1">
                     {data.absences.map((e) => (
                       <button
@@ -431,7 +385,7 @@ export function DayDetailPanel({
                           />
                         ) : (
                           <span className="w-6 h-6 grid place-items-center rounded-full bg-sky-500/20 text-xs font-bold text-sky-300 shrink-0">
-                            {initialsOf(e.member?.name || "?")}
+                            {initialsOf(e.member?.name || '?')}
                           </span>
                         )}
                         <div className="min-w-0 flex-1">
@@ -439,10 +393,50 @@ export function DayDetailPanel({
                             {e.member?.name}
                           </div>
                           {e.title && (
-                            <div className="text-xs text-slate-500 truncate">
-                              {e.title}
-                            </div>
+                            <div className="text-xs text-slate-500 truncate">{e.title}</div>
                           )}
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-600 shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ===== 휴일근무 (MEMBER/HOLIDAY_WORK) ===== */}
+              {data.holidayWorks.length > 0 && (
+                <div>
+                  {groupLabel(
+                    t('schedule.calendar.layer.holidayWork', '휴일근무'),
+                    data.holidayWorks.length,
+                  )}
+                  <div className="flex flex-col gap-1">
+                    {data.holidayWorks.map((e) => (
+                      <button
+                        key={e.id}
+                        type="button"
+                        onClick={() => onEventClick(e)}
+                        className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl border border-transparent hover:border-foreground/[0.08] hover:bg-foreground/[0.04] transition-colors text-left"
+                      >
+                        <span className="w-1 self-stretch rounded-full bg-emerald-400/80 shrink-0" />
+                        {e.member?.profile_image ? (
+                          <img
+                            src={e.member.profile_image}
+                            alt=""
+                            className="w-6 h-6 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
+                          <span className="w-6 h-6 grid place-items-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-600 dark:text-emerald-300 shrink-0">
+                            {initialsOf(e.member?.name || '?')}
+                          </span>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-foreground truncate">
+                            {e.member?.name}
+                          </div>
+                          <div className="text-xs text-slate-500 truncate">
+                            🛠 {e.title || '휴일근무'}
+                          </div>
                         </div>
                         <ChevronRight className="w-4 h-4 text-slate-600 shrink-0" />
                       </button>
@@ -463,7 +457,7 @@ export function DayDetailPanel({
               className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all"
             >
               <Plus className="w-3.5 h-3.5" />
-              {t("schedule.calendar.detail.addForDay", "이 날 일정 추가")}
+              {t('schedule.calendar.detail.addForDay', '이 날 일정 추가')}
             </button>
           </div>
         )}
@@ -472,4 +466,4 @@ export function DayDetailPanel({
   );
 }
 
-DayDetailPanel.displayName = "DayDetailPanel";
+DayDetailPanel.displayName = 'DayDetailPanel';

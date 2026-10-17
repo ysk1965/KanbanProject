@@ -1,0 +1,62 @@
+# Dependabot — 주 1회(월요일 KST 오전) 생태계별로 묶음 PR. 메이저 업그레이드는 묶지 않고 개별 PR.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Capacitor 메이저는 네이티브 프로젝트 마이그레이션이 필요해 수동으로
+      - dependency-name: "@capacitor/*"
+        update-types: ["version-update:semver-major"]
+    labels: [dependencies, frontend]
+
+  - package-ecosystem: gradle
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 5
+    groups:
+      gradle-minor-patch:
+        update-types: [minor, patch]
+    labels: [dependencies, backend]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: [dependencies, ci]
+
+  - package-ecosystem: terraform
+    directory: /infrastructure/terraform/environments/dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    labels: [dependencies, infra]
+
+  - package-ecosystem: terraform
+    directory: /infrastructure/terraform/environments/prod
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    labels: [dependencies, infra]

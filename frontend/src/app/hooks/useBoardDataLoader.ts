@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Block,
   Feature,
@@ -14,11 +14,8 @@ import {
   BoardLimits,
   ChecklistItem,
   AiCredits,
-} from "../types";
-import {
-  BoardMember as ShareBoardMember,
-  MemberRole,
-} from "../components/ShareBoardModal";
+} from '../types';
+import { BoardMember as ShareBoardMember, MemberRole } from '../components/ShareBoardModal';
 import {
   boardService,
   blockService,
@@ -26,9 +23,9 @@ import {
   taskService,
   checklistService,
   memberService,
-} from "../utils/services";
-import { scheduleAPI } from "../utils/api";
-import { boardCache, BoardFullData } from "../utils/boardCache";
+} from '../utils/services';
+import { scheduleAPI } from '../utils/api';
+import { boardCache, BoardFullData } from '../utils/boardCache';
 
 // 마일스톤 선택 시 클라이언트 사이드 필터링 (추가 API 호출 제거)
 function parseChecklistBatch(batchChecklistData: any): {
@@ -48,9 +45,7 @@ function parseChecklistBatch(batchChecklistData: any): {
         due_date: item.due_date ?? null,
         done_date: item.done_date ?? null,
         completed_at: item.completed_at ?? null,
-        assignee: item.assignee
-          ? { id: item.assignee.id, name: item.assignee.name }
-          : null,
+        assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
       }));
     }
   });
@@ -80,17 +75,12 @@ export function useBoardDataLoader(boardId: string | undefined) {
   const [checklistDataMap, setChecklistDataMap] = useState<{
     [taskId: string]: ChecklistItem[];
   }>({});
-  const [scheduledTaskIds, setScheduledTaskIds] = useState<Set<string>>(
-    new Set(),
-  );
+  const [scheduledTaskIds, setScheduledTaskIds] = useState<Set<string>>(new Set());
   const [tierInfo, setTierInfo] = useState<BoardTierInfo | null>(null);
   const [boardLimits, setBoardLimits] = useState<BoardLimits | null>(null);
-  const [boardMembersData, setBoardMembersData] = useState<ShareBoardMember[]>(
-    [],
-  );
+  const [boardMembersData, setBoardMembersData] = useState<ShareBoardMember[]>([]);
   const [aiCredits, setAiCredits] = useState<AiCredits | null>(null);
-  const [kanbanSelectedMilestoneId, setKanbanSelectedMilestoneId] =
-    useState<string>("all");
+  const [kanbanSelectedMilestoneId, setKanbanSelectedMilestoneId] = useState<string>('all');
 
   // 재검증 시점에 사용자의 현재 마일스톤 선택을 비교하기 위한 최신값 ref
   const milestoneIdRef = useRef(kanbanSelectedMilestoneId);
@@ -116,6 +106,8 @@ export function useBoardDataLoader(boardId: string | undefined) {
         member_count: fullData.member_count,
         subscription: fullData.subscription,
         selected_milestone_id: fullData.selected_milestone_id,
+        ui_level: fullData.ui_level ?? null,
+        ui_options: fullData.ui_options ?? null,
         organization_id: fullData.organization_id || null,
         organization_name: fullData.organization_name || null,
         is_org_member_viewer: fullData.is_org_member_viewer || false,
@@ -154,9 +146,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
       // JIRA 미러 컬럼(jira_status_id)은 메인 보드에서 숨긴다(JIRA 뷰 탭 전용).
       if (blocksResult) {
         setBlocks(blocksResult.blocks.filter((b) => !b.jira_status_id));
-        setHiddenBlocks(
-          blocksResult.hiddenBlocks.filter((b) => !b.jira_status_id),
-        );
+        setHiddenBlocks(blocksResult.hiddenBlocks.filter((b) => !b.jira_status_id));
       } else {
         setBlocks(fullData.blocks.filter((b) => !b.jira_status_id));
         setHiddenBlocks([]);
@@ -181,19 +171,14 @@ export function useBoardDataLoader(boardId: string | undefined) {
   useEffect(() => {
     const loadBoardData = async () => {
       if (!boardId) {
-        navigate("/boards");
+        navigate('/boards');
         return;
       }
 
       const cached = boardCache.get(boardId);
       if (cached) {
         // 캐시 히트: 즉시 페인트 (스피너 없음), 이후 네트워크 로드로 조용히 보정
-        hydrate(
-          cached.fullData,
-          cached.blocksResult,
-          cached.checklistMap,
-          cached.scheduledTaskIds,
-        );
+        hydrate(cached.fullData, cached.blocksResult, cached.checklistMap, cached.scheduledTaskIds);
         setIsLoading(false);
       } else {
         setIsLoading(true);
@@ -203,8 +188,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
         const fullData = await boardService.getBoardFull(boardId);
 
         // 마일스톤 선택 시 블록도 필터링 (숨긴 블록 포함)
-        let blocksResult: { blocks: Block[]; hiddenBlocks: Block[] } | null =
-          null;
+        let blocksResult: { blocks: Block[]; hiddenBlocks: Block[] } | null = null;
         if (fullData.selected_milestone_id) {
           try {
             blocksResult = await blockService.getBlocksWithHidden(
@@ -228,12 +212,12 @@ export function useBoardDataLoader(boardId: string | undefined) {
                 .getBatchChecklists(boardId, taskIdsWithChecklist)
                 .then(parseChecklistBatch)
                 .catch((error) => {
-                  console.warn("Failed to load batch checklists:", error);
+                  console.warn('Failed to load batch checklists:', error);
                   return {} as { [taskId: string]: ChecklistItem[] };
                 })
             : Promise.resolve({} as { [taskId: string]: ChecklistItem[] }),
           scheduleAPI.getScheduledTaskIds(boardId).catch((error) => {
-            console.warn("Failed to load scheduled task ids:", error);
+            console.warn('Failed to load scheduled task ids:', error);
             return { task_ids: [] as string[] };
           }),
         ]);
@@ -248,25 +232,20 @@ export function useBoardDataLoader(boardId: string | undefined) {
         // 캐시 페인트 후 재검증인 경우: 사용자가 그 사이 마일스톤을 바꿨거나
         // 서버 스냅샷의 선택이 현재 상태와 다르면, 늦게 도착한 hydrate가
         // 사용자의 선택을 되돌리지 않도록 적용을 건너뛴다 (캐시는 위에서 갱신됨).
-        const serverMilestoneId = fullData.selected_milestone_id ?? "all";
+        const serverMilestoneId = fullData.selected_milestone_id ?? 'all';
         if (cached && milestoneIdRef.current !== serverMilestoneId) {
           return;
         }
 
-        hydrate(
-          fullData,
-          blocksResult,
-          batchChecklistMap,
-          scheduledData.task_ids,
-        );
+        hydrate(fullData, blocksResult, batchChecklistMap, scheduledData.task_ids);
       } catch (error) {
-        console.error("Failed to load board data:", error);
+        console.error('Failed to load board data:', error);
         boardCache.clear(boardId);
         if (cached) {
           // 캐시로 이미 정상 화면을 보여준 상태 — 재검증 실패로 강제 이탈하지 않음
-          console.warn("Board revalidation failed; keeping cached view");
+          console.warn('Board revalidation failed; keeping cached view');
         } else {
-          navigate("/boards", {
+          navigate('/boards', {
             state: { boardLoadFailed: boardId },
             replace: true,
           });
@@ -285,16 +264,13 @@ export function useBoardDataLoader(boardId: string | undefined) {
     async (milestoneId?: string) => {
       if (!boardId) return;
       try {
-        const [featuresData, tasksData, blockResult, allBlockResult] =
-          await Promise.all([
-            featureService.getFeatures(boardId),
-            taskService.getTasks(boardId),
-            blockService.getBlocksWithHidden(boardId, milestoneId),
-            // 독립 서브탭용 전체 블록. milestoneId 미선택 시 동일 캐시라 저렴.
-            milestoneId
-              ? blockService.getBlocksWithHidden(boardId, undefined)
-              : null,
-          ]);
+        const [featuresData, tasksData, blockResult, allBlockResult] = await Promise.all([
+          featureService.getFeatures(boardId),
+          taskService.getTasks(boardId),
+          blockService.getBlocksWithHidden(boardId, milestoneId),
+          // 독립 서브탭용 전체 블록. milestoneId 미선택 시 동일 캐시라 저렴.
+          milestoneId ? blockService.getBlocksWithHidden(boardId, undefined) : null,
+        ]);
         const taskIdsWithChecklist = tasksData
           .filter((t: Task) => (t.checklist_total ?? 0) > 0)
           .map((t: Task) => t.id);
@@ -305,12 +281,12 @@ export function useBoardDataLoader(boardId: string | undefined) {
                 .getBatchChecklists(boardId, taskIdsWithChecklist)
                 .then(parseChecklistBatch)
                 .catch((error) => {
-                  console.warn("Failed to load batch checklists:", error);
+                  console.warn('Failed to load batch checklists:', error);
                   return {} as { [taskId: string]: ChecklistItem[] };
                 })
             : Promise.resolve({} as { [taskId: string]: ChecklistItem[] }),
           scheduleAPI.getScheduledTaskIds(boardId).catch((error) => {
-            console.warn("Failed to load scheduled task ids:", error);
+            console.warn('Failed to load scheduled task ids:', error);
             return { task_ids: [] as string[] };
           }),
         ]);
@@ -319,15 +295,13 @@ export function useBoardDataLoader(boardId: string | undefined) {
         setAllFeatures(featuresData);
         setTasks(tasksData);
         setBlocks(blockResult.blocks.filter((b) => !b.jira_status_id));
-        setHiddenBlocks(
-          blockResult.hiddenBlocks.filter((b) => !b.jira_status_id),
-        );
+        setHiddenBlocks(blockResult.hiddenBlocks.filter((b) => !b.jira_status_id));
         // 이름 해석 풀 — 미러 블록 포함(위 setAllBlocks 주석 참고)
         setAllBlocks((allBlockResult ?? blockResult).blocks);
         setChecklistDataMap(batchChecklistMap);
         setScheduledTaskIds(new Set(scheduledData.task_ids));
       } catch (error) {
-        console.error("Failed to reload features and tasks:", error);
+        console.error('Failed to reload features and tasks:', error);
       }
     },
     [boardId],
@@ -351,7 +325,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
         })),
       );
     } catch (error) {
-      console.error("Failed to refresh members:", error);
+      console.error('Failed to refresh members:', error);
     }
   }, [boardId]);
 

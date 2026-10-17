@@ -40,6 +40,18 @@ public interface JiraIssueLinkRepository extends JpaRepository<JiraIssueLink, St
         + "AND l.writeBackDoneAt IS NULL AND l.jiraDeletedAt IS NULL")
     List<JiraIssueLink> findWriteBackCandidates(@Param("boardId") String boardId, @Param("type") JiraLinkTargetType type);
 
+    /** 마일스톤 스코프 뷰 — 해당 스코프 소속 Task 링크만. */
+    @Query("SELECT l FROM JiraIssueLink l WHERE l.board.id = :boardId AND l.targetType = :type AND l.scopeId = :scopeId")
+    List<JiraIssueLink> findByBoardIdAndTargetTypeAndScopeId(
+            @Param("boardId") String boardId,
+            @Param("type") JiraLinkTargetType type,
+            @Param("scopeId") String scopeId);
+
+    /** 스코프 해제/삭제 시 소속을 보드 기본(null)으로 되돌린다. */
+    @Modifying
+    @Query("UPDATE JiraIssueLink l SET l.scopeId = null WHERE l.scopeId = :scopeId")
+    int clearScope(@Param("scopeId") String scopeId);
+
     @Modifying
     @Query("DELETE FROM JiraIssueLink l WHERE l.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);

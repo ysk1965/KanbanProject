@@ -1,5 +1,6 @@
 import * as Y from 'yjs';
 import * as awarenessProtocol from 'y-protocols/awareness';
+import { collabWsUrl } from '../config/env';
 
 const MSG_SYNC_FULL = 0;
 const MSG_SYNC_UPDATE = 1;
@@ -39,6 +40,7 @@ export class CollabProvider {
   private autoSaveTimer: ReturnType<typeof setInterval> | null = null;
   private fullStatePersistTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
+  private static readonly CLOSE_POLICY_VIOLATION = 1008;
   private readOnly = false;
 
   private static readonly RECONNECT_BASE_DELAY = 1000;
@@ -57,13 +59,8 @@ export class CollabProvider {
     this.awareness = new awarenessProtocol.Awareness(doc);
     this.awareness.setLocalStateField('user', user);
 
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
-    const wsBase = baseUrl
-      .replace('/api/v1', '')
-      .replace('https://', 'wss://')
-      .replace('http://', 'ws://');
     const token = localStorage.getItem('access_token');
-    this.wsUrl = `${wsBase}/ws-collab/${noteId}?token=${token}`;
+    this.wsUrl = `${collabWsUrl(noteId)}?token=${token}`;
 
     this.doc.on('update', this.handleDocUpdate);
     this.awareness.on('update', this.handleAwarenessUpdate);
@@ -87,10 +84,7 @@ export class CollabProvider {
         this.startAutoSave();
       }
       // Broadcast local awareness so others know we joined
-      const update = awarenessProtocol.encodeAwarenessUpdate(
-        this.awareness,
-        [this.doc.clientID],
-      );
+      const update = awarenessProtocol.encodeAwarenessUpdate(this.awareness, [this.doc.clientID]);
       this.send(MSG_AWARENESS, update);
     };
 
@@ -131,12 +125,18 @@ export class CollabProvider {
       }
     };
 
-    this.ws.onclose = () => {
+    this.ws.onclose = (event) => {
       this.updateStatus('disconnected');
       this.stopAutoSave();
       // Fail any in-flight seed requests so an awaiting hydration doesn't hang;
       // it re-requests after the next reconnect + sync.
       this.flushSeedResolvers(false);
+      // 1008 (policy violation) = the server rejected this user for this note
+      // (no board/org access, invalid token). Reconnecting would just loop.
+      if (event.code === CollabProvider.CLOSE_POLICY_VIOLATION) {
+        this.shouldConnect = false;
+        return;
+      }
       if (this.shouldConnect) {
         this.scheduleReconnect();
       }
@@ -267,7 +267,11 @@ export class CollabProvider {
     this.scheduleFullStatePersist();
   };
 
-  private handleAwarenessUpdate = ({ added, updated, removed }: {
+  private handleAwarenessUpdate = ({
+    added,
+    updated,
+    removed,
+  }: {
     added: number[];
     updated: number[];
     removed: number[];

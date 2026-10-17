@@ -50,7 +50,6 @@ KanbanProject/
 │       │   ├── invite/           # 초대 링크
 │       │   ├── admin/            # 시스템 관리
 │       │   ├── personal/         # 개인 스페이스 (대시보드, 이벤트, 습관, 태스크)
-│       │   ├── diary/            # 다이어리 (AI, 음성)
 │       │   ├── customicon/       # 커스텀 아이콘 (OpenAI 이미지)
 │       │   ├── monitoring/       # 모니터링 (CloudWatch, OpenAI 빌링)
 │       │   └── ...               # activity, announcement, inquiry, milestone, tag, weight, system, test
@@ -433,7 +432,7 @@ if (!task) return null;
 ```
 Controller → Service (비즈니스 로직) → Repository (JPA)
                 └→ FacadeService (복합 로직: BoardFacadeService, ScheduleFacadeService)
-                └→ AIService (AI 기능: MeetingAI, NoteAI, ReportAI, DiaryAI, FeatureAI, ChecklistAI, CommentAI)
+                └→ AIService (AI 기능: MeetingAI, NoteAI, ReportAI, FeatureAI, ChecklistAI, CommentAI)
 ```
 
 ### Backend 스케줄러 (8개)

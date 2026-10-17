@@ -1,8 +1,14 @@
 import type { CSSProperties } from 'react';
 
 export const INSIGHT_CHART_COLORS = [
-  '#6366F1', '#2DD4BF', '#F59E0B', '#EF4444',
-  '#8B5CF6', '#EC4899', '#10B981', '#3B82F6',
+  '#6366F1',
+  '#2DD4BF',
+  '#F59E0B',
+  '#EF4444',
+  '#8B5CF6',
+  '#EC4899',
+  '#10B981',
+  '#3B82F6',
 ];
 
 export function formatMinutesToHours(minutes: number): string {

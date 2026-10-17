@@ -60,9 +60,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -224,35 +228,22 @@ public class BoardService {
     }
 
     public List<BoardResponse.Simple> getMyBoards(String userId) {
-        List<BoardResponse.Simple> result = new ArrayList<>();
+        // 1) 대상 보드와 역할을 먼저 모은다 (멤버 보드 → auto_board_access 조직 보드 순서 유지).
+        List<Board> boards = boardRepository.findByMemberId(userId);
+        List<String> memberBoardIds = boards.stream().map(Board::getId).toList();
+        Map<String, BoardMember> membershipMap = memberBoardIds.isEmpty() ? Map.of()
+                : boardMemberRepository.findByUserIdAndBoardIdIn(userId, memberBoardIds).stream()
+                        .collect(Collectors.toMap(bm -> bm.getBoard().getId(), Function.identity(), (a, b) -> a));
+
+        List<Board> targetBoards = new ArrayList<>();
+        Map<String, BoardRole> roleByBoardId = new HashMap<>();
         Set<String> addedBoardIds = new HashSet<>();
 
-        // 내가 멤버인 모든 보드 조회
-        List<Board> boards = boardRepository.findByMemberId(userId);
-
         for (Board board : boards) {
-            BoardMember membership = boardMemberRepository.findByBoardIdAndUserId(board.getId(), userId)
-                    .orElse(null);
+            BoardMember membership = membershipMap.get(board.getId());
             if (membership == null) continue;
-
-            boolean isStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, board.getId());
-            int memberCount = boardMemberRepository.countBillableMembers(board.getId());
-            Subscription subscription = subscriptionRepository.findByBoardId(board.getId()).orElse(null);
-
-            // 태스크 통계
-            int taskCount = taskRepository.countByBoardId(board.getId());
-            int completedTasks = taskRepository.countByBoardIdAndIsCompletedTrue(board.getId());
-
-            // 멤버 미리보기 (최대 10명)
-            List<BoardMember> previewMembers = boardMemberRepository.findTopMembersByBoardId(
-                    board.getId(), MEMBER_PREVIEW_LIMIT);
-            List<BoardResponse.MemberPreview> memberPreviews = previewMembers.stream()
-                    .map(BoardResponse.MemberPreview::of)
-                    .toList();
-
-            result.add(BoardResponse.Simple.of(
-                    board, membership.getRole(), isStarred, memberCount,
-                    taskCount, completedTasks, memberPreviews, subscription));
+            targetBoards.add(board);
+            roleByBoardId.put(board.getId(), membership.getRole());
             addedBoardIds.add(board.getId());
         }
 
@@ -264,27 +255,57 @@ public class BoardService {
             var org = orgMembership.getOrganization();
             if (!Boolean.TRUE.equals(org.getAutoBoardAccessEnabled())) continue;
 
-            List<Board> orgBoards = boardRepository.findByOrganizationId(org.getId());
-            for (Board board : orgBoards) {
-                if (addedBoardIds.contains(board.getId())) continue;
-
-                boolean isStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, board.getId());
-                int memberCount = boardMemberRepository.countBillableMembers(board.getId());
-                Subscription subscription = subscriptionRepository.findByBoardId(board.getId()).orElse(null);
-                int taskCount = taskRepository.countByBoardId(board.getId());
-                int completedTasks = taskRepository.countByBoardIdAndIsCompletedTrue(board.getId());
-
-                List<BoardMember> previewMembers = boardMemberRepository.findTopMembersByBoardId(
-                        board.getId(), MEMBER_PREVIEW_LIMIT);
-                List<BoardResponse.MemberPreview> memberPreviews = previewMembers.stream()
-                        .map(BoardResponse.MemberPreview::of)
-                        .toList();
-
-                result.add(BoardResponse.Simple.of(
-                        board, BoardRole.MEMBER, isStarred, memberCount,
-                        taskCount, completedTasks, memberPreviews, subscription));
-                addedBoardIds.add(board.getId());
+            for (Board board : boardRepository.findByOrganizationId(org.getId())) {
+                if (!addedBoardIds.add(board.getId())) continue;
+                targetBoards.add(board);
+                roleByBoardId.put(board.getId(), BoardRole.MEMBER);
             }
+        }
+
+        if (targetBoards.isEmpty()) {
+            return List.of();
+        }
+
+        // 2) 보드별로 7번씩 나가던 질의를 보드 묶음당 5번으로 — 별표/과금 멤버 수/구독/태스크 집계/멤버 미리보기.
+        List<String> boardIds = targetBoards.stream().map(Board::getId).toList();
+
+        Set<String> starredBoardIds = new HashSet<>(userBoardStarRepository.findStarredBoardIdsByUserId(userId));
+
+        Map<String, Integer> memberCountMap = boardMemberRepository.countBillableGroupedByBoardId(boardIds).stream()
+                .collect(Collectors.toMap(row -> (String) row[0], row -> ((Number) row[1]).intValue()));
+
+        Map<String, Subscription> subscriptionMap = subscriptionRepository.findByBoardIdIn(boardIds).stream()
+                .collect(Collectors.toMap(sub -> sub.getBoard().getId(), Function.identity(), (a, b) -> a));
+
+        Map<String, int[]> taskCountMap = new HashMap<>();
+        for (Object[] row : taskRepository.countTotalAndCompletedGroupedByBoardId(boardIds)) {
+            taskCountMap.put((String) row[0], new int[]{
+                    ((Number) row[1]).intValue(), ((Number) row[2]).intValue()});
+        }
+
+        Map<String, List<BoardResponse.MemberPreview>> memberPreviewMap = new HashMap<>();
+        for (BoardMember bm : boardMemberRepository.findByBoardIdInOrderByJoinedAt(boardIds)) {
+            List<BoardResponse.MemberPreview> previews =
+                    memberPreviewMap.computeIfAbsent(bm.getBoard().getId(), k -> new ArrayList<>());
+            if (previews.size() < MEMBER_PREVIEW_LIMIT) {
+                previews.add(BoardResponse.MemberPreview.of(bm));
+            }
+        }
+
+        // 3) 응답 조립 (형태는 기존과 동일)
+        List<BoardResponse.Simple> result = new ArrayList<>(targetBoards.size());
+        for (Board board : targetBoards) {
+            String boardId = board.getId();
+            int[] taskCounts = taskCountMap.getOrDefault(boardId, new int[]{0, 0});
+            result.add(BoardResponse.Simple.of(
+                    board,
+                    roleByBoardId.get(boardId),
+                    starredBoardIds.contains(boardId),
+                    memberCountMap.getOrDefault(boardId, 0),
+                    taskCounts[0],
+                    taskCounts[1],
+                    memberPreviewMap.getOrDefault(boardId, List.of()),
+                    subscriptionMap.get(boardId)));
         }
 
         return result;
@@ -460,6 +481,33 @@ public class BoardService {
         Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
 
         log.info("Board selected milestone updated: {} to {} by user: {}", boardId, milestoneId, userId);
+
+        return BoardResponse.Detail.of(board, membership.getRole(), isStarred, memberCount, subscription);
+    }
+
+    /**
+     * 화면 복잡도(레벨·옵션) 변경. 보드 단위 설정이라 같은 보드를 보는 팀원 화면이 함께 바뀐다 —
+     * 개인별로 갈리면 "그 카드 어디 있어요?"가 안 통한다.
+     *
+     * <p>데이터는 건드리지 않는다. 레벨을 내려도 마일스톤·스프린트 행은 그대로 남고 화면에서만 빠지므로
+     * 다시 올릴 때 복원 비용이 없다.
+     */
+    @Transactional
+    public BoardResponse.Detail updateUiConfig(String boardId, String userId, Integer uiLevel, String uiOptions) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        BoardMember membership = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_ACCESS_DENIED));
+
+        board.updateUiConfig(uiLevel, uiOptions);
+
+        boolean isStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
+        int memberCount = boardMemberRepository.countBillableMembers(boardId);
+        Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+
+        log.info("Board ui config updated: {} level={} options={} by user: {}",
+                boardId, board.getUiLevel(), board.getUiOptions(), userId);
 
         return BoardResponse.Detail.of(board, membership.getRole(), isStarred, memberCount, subscription);
     }

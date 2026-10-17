@@ -13,7 +13,11 @@ import java.util.Map;
 import java.util.UUID;
 
 @Entity
-@Table(name = "activity_log")
+@Table(name = "activity_log", indexes = {
+        @Index(name = "idx_activity_log_board_created", columnList = "board_id, created_at DESC"),
+        @Index(name = "idx_activity_log_board_target", columnList = "board_id, target_type, target_id"),
+        @Index(name = "idx_activity_log_created_at", columnList = "created_at")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

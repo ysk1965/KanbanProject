@@ -269,6 +269,16 @@ public class ReportSlackPublisher {
         return installationRepository.findActiveByOrganizationId(board.getOrganization().getId());
     }
 
+    /**
+     * 슬랙에 펼치는 하이라이트 수. AI는 중요도 순으로 최대 10개를 주는데(ReportAIService),
+     * 그걸 다 펼치면 이 블록 하나가 메시지 높이의 절반을 먹어 정작 행동을 유도하는
+     * 지연 롤업·버튼이 첫 화면 밖으로 밀린다. 앞쪽 몇 개만 남기고 나머지는 제목 옆
+     * 카운터(예: {@code 3/10})로만 알린다. 전체 목록은 "전체 보고서 보기"가 받는다.
+     * 주간은 한 주치를 요약하므로 일일보다 넉넉히 둔다.
+     */
+    private static final int DAILY_HIGHLIGHT_LIMIT = 3;
+    private static final int WEEKLY_HIGHLIGHT_LIMIT = 5;
+
     private List<Map<String, Object>> buildBlocks(ReportType reportType, ReportContent content,
                                                   ReportPeriod period, String shareToken, String boardId) {
         boolean weekly = reportType == ReportType.WEEKLY_INTEGRATED;
@@ -292,12 +302,18 @@ public class ReportSlackPublisher {
         }
 
         if (content.getHighlights() != null && !content.getHighlights().isEmpty()) {
-            String bullets = content.getHighlights().stream()
-                    .limit(10)
+            List<String> highlights = content.getHighlights();
+            int shown = Math.min(highlights.size(), weekly ? WEEKLY_HIGHLIGHT_LIMIT : DAILY_HIGHLIGHT_LIMIT);
+            String bullets = highlights.stream()
+                    .limit(shown)
                     .map(h -> "• " + h)
                     .collect(Collectors.joining("\n"));
-            String label = weekly ? "*📌 이번 주 핵심*\n" : "*📌 오늘의 핵심*\n";
-            blocks.add(section(label + bullets));
+            String label = weekly ? "*📌 이번 주 핵심*" : "*📌 오늘의 핵심*";
+            // 접힌 나머지는 건수로만 알린다. 전체 목록은 아래 "전체 보고서 보기" 버튼이 받는다.
+            String counter = highlights.size() > shown
+                    ? "  `" + shown + "/" + highlights.size() + "`"
+                    : "";
+            blocks.add(section(label + counter + "\n" + bullets));
         }
 
         appendSections(blocks, content);

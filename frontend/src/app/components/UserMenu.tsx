@@ -1,16 +1,10 @@
-import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import {
-  CreditCard,
-  LogOut,
-  Settings as SettingsIcon,
-  ChevronDown,
-  User,
-} from "lucide-react";
-import { getInitials, getAssigneeHex } from "../utils/assigneeColor";
-import { resolveFileUrl } from "../utils/api";
-import { useAuth } from "../contexts/AuthContext";
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { CreditCard, LogOut, Settings as SettingsIcon, ChevronDown, User } from 'lucide-react';
+import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
+import { resolveFileUrl } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface UserMenuProps {
   user: {
@@ -48,11 +42,11 @@ export function UserMenu({
     };
 
     if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
 
@@ -79,11 +73,9 @@ export function UserMenu({
             {getInitials(user.name)}
           </div>
         )}
-        <span className="text-sm text-foreground/80 hidden md:block">
-          {user.name}
-        </span>
+        <span className="text-sm text-foreground/80 hidden md:block">{user.name}</span>
         <ChevronDown
-          className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -101,25 +93,25 @@ export function UserMenu({
             {!hideMySpace && !isRestricted && (
               <button
                 onClick={() => {
-                  navigate("/my-board");
+                  navigate('/my-board');
                   setIsOpen(false);
                 }}
                 className="w-full px-4 py-2 flex items-center gap-3 hover:bg-foreground/5 transition-colors text-muted-foreground hover:text-foreground"
               >
                 <User className="h-4 w-4" />
-                <span>{t("dashboard.sidebar.myBoard", "My Space")}</span>
+                <span>{t('dashboard.sidebar.myBoard', 'My Space')}</span>
               </button>
             )}
 
             <button
               onClick={() => {
-                navigate("/settings");
+                navigate('/settings');
                 setIsOpen(false);
               }}
               className="w-full px-4 py-2 flex items-center gap-3 hover:bg-foreground/5 transition-colors text-muted-foreground hover:text-foreground"
             >
               <SettingsIcon className="h-4 w-4" />
-              <span>{t("user.settings")}</span>
+              <span>{t('user.settings')}</span>
             </button>
 
             {!hideBilling && (
@@ -131,7 +123,7 @@ export function UserMenu({
                 className="w-full px-4 py-2 flex items-center gap-3 hover:bg-foreground/5 transition-colors text-muted-foreground hover:text-foreground"
               >
                 <CreditCard className="h-4 w-4" />
-                <span>{t("user.subscription")}</span>
+                <span>{t('user.subscription')}</span>
               </button>
             )}
           </div>
@@ -146,7 +138,7 @@ export function UserMenu({
               className="w-full px-4 py-2 flex items-center gap-3 hover:bg-red-600/20 transition-colors text-red-400 hover:text-red-300"
             >
               <LogOut className="h-4 w-4" />
-              <span>{t("user.logout")}</span>
+              <span>{t('user.logout')}</span>
             </button>
           </div>
         </div>

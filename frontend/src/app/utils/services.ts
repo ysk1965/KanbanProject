@@ -12,6 +12,7 @@ import {
   activityAPI,
   pricingAPI,
   checklistAPI,
+  checklistPresetAPI,
   milestoneAPI,
   statisticsAPI,
   testDataAPI,
@@ -31,7 +32,13 @@ import {
   orgPhotoAPI,
   jobRoleAPI,
   contractorAPI,
-} from "./api";
+} from './api';
+import type {
+  NoteStatus,
+  NoteUpdateData,
+  NoteCommentCreateData,
+  NoteCommentUpdateAnchorData,
+} from './api';
 import {
   mockBoards,
   mockFeatures,
@@ -41,8 +48,9 @@ import {
   mockMembers,
   loadFromLocalStorage,
   saveToLocalStorage,
-} from "./mockData";
-import { nowUTC, getTodayDateString } from "./dateUtils";
+} from './mockData';
+import { nowUTC, getTodayDateString } from './dateUtils';
+import { isServerDownError } from './serverHealth';
 import type {
   Board,
   Feature,
@@ -56,6 +64,7 @@ import type {
   ActivityLog,
   PricingPlan,
   ChecklistItem,
+  ChecklistPreset,
   User,
   Milestone,
   BoardTierInfo,
@@ -73,10 +82,26 @@ import type {
   OkrKeyResult,
   OkrCheckIn,
   OkrTreeData,
-} from "../types";
+} from '../types';
 
-// API 호출 실패 시 목업 데이터 사용
-const USE_MOCK_ON_ERROR = true;
+// API 호출 실패 시 목업 데이터 사용 — 백엔드 없이 FE만 띄우는 로컬 개발 전용.
+// 프로덕션 빌드에서 목업으로 대체하면 가짜 "체험판" 보드가 실데이터인 척 보여서
+// 사용자에겐 데이터가 전부 날아간 것처럼 보인다 (2026-08-14 새벽 셧다운 때 실제 발생).
+const USE_MOCK_ON_ERROR = import.meta.env.DEV;
+
+/**
+ * 목업 폴백 허용 여부.
+ *
+ * 서버가 내려간 상태(네트워크 실패 · 502/503/504)에서 목업으로 대체하면
+ * 가짜 보드/태스크가 실데이터인 척 화면에 남는다(BE 배포 중 발생). 이때는
+ * 폴백하지 않고 에러를 그대로 올려서, App의 서버 가드가 점검 페이지를 띄우게 한다.
+ * 인증 실패(401)도 세션 만료 플로우(api.ts)가 처리해야 하므로 폴백하지 않는다.
+ */
+const canUseMock = (error: unknown): boolean => {
+  if (!USE_MOCK_ON_ERROR || isServerDownError(error)) return false;
+  const status = (error as { status?: number } | null | undefined)?.status;
+  return status !== 401;
+};
 
 // ========================================
 // Board Service
@@ -88,9 +113,9 @@ export const boardService = {
       const boards = await boardAPI.getBoards();
       return boards;
     } catch (error) {
-      console.warn("API failed, using mock data for boards", error);
-      if (USE_MOCK_ON_ERROR) {
-        return loadFromLocalStorage("kanban_boards", mockBoards);
+      console.warn('API failed, using mock data for boards', error);
+      if (canUseMock(error)) {
+        return loadFromLocalStorage('kanban_boards', mockBoards);
       }
       throw error;
     }
@@ -101,9 +126,9 @@ export const boardService = {
       const board = await boardAPI.getBoard(boardId);
       return board;
     } catch (error) {
-      console.warn("API failed, using mock data for board", error);
-      if (USE_MOCK_ON_ERROR) {
-        const boards = loadFromLocalStorage("kanban_boards", mockBoards);
+      console.warn('API failed, using mock data for board', error);
+      if (canUseMock(error)) {
+        const boards = loadFromLocalStorage('kanban_boards', mockBoards);
         const board = boards.find((b: Board) => b.id === boardId);
         if (board) return board;
       }
@@ -124,9 +149,9 @@ export const boardService = {
       });
       return board;
     } catch (error) {
-      console.warn("API failed, using mock data for create board", error);
-      if (USE_MOCK_ON_ERROR) {
-        const boards = loadFromLocalStorage("kanban_boards", mockBoards);
+      console.warn('API failed, using mock data for create board', error);
+      if (canUseMock(error)) {
+        const boards = loadFromLocalStorage('kanban_boards', mockBoards);
         const newBoard: Board = {
           id: `board-${Date.now()}`,
           name,
@@ -134,17 +159,15 @@ export const boardService = {
           is_starred: false,
           member_count: 1,
           subscription: {
-            status: "TRIAL",
+            status: 'TRIAL',
             plan: null,
-            trial_ends_at: new Date(
-              Date.now() + 3 * 24 * 60 * 60 * 1000,
-            ).toISOString(),
+            trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
             current_period_end: null,
           },
           created_at: nowUTC(),
         };
         const updatedBoards = [...boards, newBoard];
-        saveToLocalStorage("kanban_boards", updatedBoards);
+        saveToLocalStorage('kanban_boards', updatedBoards);
         return newBoard;
       }
       throw error;
@@ -165,9 +188,9 @@ export const boardService = {
       });
       return board;
     } catch (error) {
-      console.warn("API failed for update board", error);
-      if (USE_MOCK_ON_ERROR) {
-        const boards = loadFromLocalStorage("kanban_boards", mockBoards);
+      console.warn('API failed for update board', error);
+      if (canUseMock(error)) {
+        const boards = loadFromLocalStorage('kanban_boards', mockBoards);
         const updatedBoards = boards.map((b: Board) =>
           b.id === boardId
             ? {
@@ -178,29 +201,27 @@ export const boardService = {
               }
             : b,
         );
-        saveToLocalStorage("kanban_boards", updatedBoards);
+        saveToLocalStorage('kanban_boards', updatedBoards);
         return updatedBoards.find((b: Board) => b.id === boardId)!;
       }
       throw error;
     }
   },
 
-  toggleStar: async (
-    boardId: string,
-  ): Promise<{ board_id: string; is_starred: boolean }> => {
+  toggleStar: async (boardId: string): Promise<{ board_id: string; is_starred: boolean }> => {
     try {
       const result = await boardAPI.toggleStar(boardId);
       return result;
     } catch (error) {
-      console.warn("API failed, using mock data for toggle star", error);
-      if (USE_MOCK_ON_ERROR) {
-        const boards = loadFromLocalStorage("kanban_boards", mockBoards);
+      console.warn('API failed, using mock data for toggle star', error);
+      if (canUseMock(error)) {
+        const boards = loadFromLocalStorage('kanban_boards', mockBoards);
         const board = boards.find((b: Board) => b.id === boardId);
         const newStarred = !board?.is_starred;
         const updatedBoards = boards.map((b: Board) =>
           b.id === boardId ? { ...b, is_starred: newStarred } : b,
         );
-        saveToLocalStorage("kanban_boards", updatedBoards);
+        saveToLocalStorage('kanban_boards', updatedBoards);
         return { board_id: boardId, is_starred: newStarred };
       }
       throw error;
@@ -211,29 +232,23 @@ export const boardService = {
     try {
       await boardAPI.deleteBoard(boardId);
     } catch (error) {
-      console.warn("API failed, using mock data for delete board", error);
-      if (USE_MOCK_ON_ERROR) {
-        const boards = loadFromLocalStorage("kanban_boards", mockBoards);
+      console.warn('API failed, using mock data for delete board', error);
+      if (canUseMock(error)) {
+        const boards = loadFromLocalStorage('kanban_boards', mockBoards);
         const updatedBoards = boards.filter((b: Board) => b.id !== boardId);
-        saveToLocalStorage("kanban_boards", updatedBoards);
+        saveToLocalStorage('kanban_boards', updatedBoards);
         return;
       }
       throw error;
     }
   },
 
-  updateSelectedMilestone: async (
-    boardId: string,
-    milestoneId: string | null,
-  ): Promise<Board> => {
+  updateSelectedMilestone: async (boardId: string, milestoneId: string | null): Promise<Board> => {
     try {
-      const board = await boardAPI.updateSelectedMilestone(
-        boardId,
-        milestoneId,
-      );
+      const board = await boardAPI.updateSelectedMilestone(boardId, milestoneId);
       return board;
     } catch (error) {
-      console.warn("API failed for updateSelectedMilestone", error);
+      console.warn('API failed for updateSelectedMilestone', error);
       throw error;
     }
   },
@@ -243,16 +258,15 @@ export const boardService = {
       const tierInfo = await boardAPI.getBoardTier(boardId);
       return tierInfo;
     } catch (error) {
-      console.warn("API failed, using mock data for board tier", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using mock data for board tier', error);
+      if (canUseMock(error)) {
         return {
-          tier: "TRIAL",
-          trial_ends_at: new Date(
-            Date.now() + 3 * 24 * 60 * 60 * 1000,
-          ).toISOString(),
+          tier: 'TRIAL',
+          trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
           can_access_schedule: true,
           can_access_milestone: true,
           can_access_statistics: true,
+          can_access_slack: true,
         };
       }
       throw error;
@@ -264,8 +278,8 @@ export const boardService = {
       const limits = await boardAPI.getBoardLimits(boardId);
       return limits;
     } catch (error) {
-      console.warn("API failed, using mock data for board limits", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using mock data for board limits', error);
+      if (canUseMock(error)) {
         return {
           task_limit: null, // Premium에서는 무제한
           current_task_count: 0,
@@ -285,17 +299,11 @@ export const boardService = {
     return data;
   },
 
-  moveTask: async (
-    taskId: string,
-    data: { target_board_id: string; target_block_id: string },
-  ) => {
+  moveTask: async (taskId: string, data: { target_board_id: string; target_block_id: string }) => {
     await boardAPI.moveTask(taskId, data);
   },
 
-  copyTask: async (
-    taskId: string,
-    data: { target_board_id: string; target_block_id: string },
-  ) => {
+  copyTask: async (taskId: string, data: { target_board_id: string; target_block_id: string }) => {
     await boardAPI.copyTask(taskId, data);
   },
 };
@@ -305,18 +313,15 @@ export const boardService = {
 // ========================================
 
 export const blockService = {
-  getBlocks: async (
-    boardId: string,
-    milestoneId?: string,
-  ): Promise<Block[]> => {
+  getBlocks: async (boardId: string, milestoneId?: string): Promise<Block[]> => {
     try {
       const response = await blockAPI.getBlocks(boardId, milestoneId);
       // JIRA 미러 컬럼은 메인 보드에서 숨김(JIRA 뷰 탭 전용)
       return response.blocks.filter((b) => !b.jira_status_id);
     } catch (error) {
-      console.warn("API failed, using mock data for blocks", error);
-      if (USE_MOCK_ON_ERROR) {
-        return loadFromLocalStorage("kanban_blocks", mockBlocks);
+      console.warn('API failed, using mock data for blocks', error);
+      if (canUseMock(error)) {
+        return loadFromLocalStorage('kanban_blocks', mockBlocks);
       }
       throw error;
     }
@@ -331,15 +336,13 @@ export const blockService = {
       // JIRA 미러 컬럼은 메인 보드에서 숨김(JIRA 뷰 탭 전용)
       return {
         blocks: response.blocks.filter((b) => !b.jira_status_id),
-        hiddenBlocks: (response.hidden_blocks || []).filter(
-          (b) => !b.jira_status_id,
-        ),
+        hiddenBlocks: (response.hidden_blocks || []).filter((b) => !b.jira_status_id),
       };
     } catch (error) {
-      console.warn("API failed for getBlocksWithHidden", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed for getBlocksWithHidden', error);
+      if (canUseMock(error)) {
         return {
-          blocks: loadFromLocalStorage("kanban_blocks", mockBlocks),
+          blocks: loadFromLocalStorage('kanban_blocks', mockBlocks),
           hiddenBlocks: [],
         };
       }
@@ -355,23 +358,20 @@ export const blockService = {
       const block = await blockAPI.createBlock(boardId, data);
       return block;
     } catch (error) {
-      console.warn("API failed, using mock data for create block", error);
-      if (USE_MOCK_ON_ERROR) {
-        const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
-        const maxPosition = Math.max(
-          ...blocks.map((b: Block) => b.position),
-          0,
-        );
+      console.warn('API failed, using mock data for create block', error);
+      if (canUseMock(error)) {
+        const blocks = loadFromLocalStorage('kanban_blocks', mockBlocks);
+        const maxPosition = Math.max(...blocks.map((b: Block) => b.position), 0);
         const newBlock: Block = {
           id: `block-${Date.now()}`,
           name: data.name,
           color: data.color,
-          type: "CUSTOM",
+          type: 'CUSTOM',
           fixed_type: null,
           position: maxPosition + 1,
         };
         const updatedBlocks = [...blocks, newBlock];
-        saveToLocalStorage("kanban_blocks", updatedBlocks);
+        saveToLocalStorage('kanban_blocks', updatedBlocks);
         return newBlock;
       }
       throw error;
@@ -387,13 +387,11 @@ export const blockService = {
       const block = await blockAPI.updateBlock(boardId, blockId, data);
       return block;
     } catch (error) {
-      console.warn("API failed, using mock data for update block", error);
-      if (USE_MOCK_ON_ERROR) {
-        const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
-        const updatedBlocks = blocks.map((b: Block) =>
-          b.id === blockId ? { ...b, ...data } : b,
-        );
-        saveToLocalStorage("kanban_blocks", updatedBlocks);
+      console.warn('API failed, using mock data for update block', error);
+      if (canUseMock(error)) {
+        const blocks = loadFromLocalStorage('kanban_blocks', mockBlocks);
+        const updatedBlocks = blocks.map((b: Block) => (b.id === blockId ? { ...b, ...data } : b));
+        saveToLocalStorage('kanban_blocks', updatedBlocks);
         return updatedBlocks.find((b: Block) => b.id === blockId)!;
       }
       throw error;
@@ -404,35 +402,32 @@ export const blockService = {
     try {
       await blockAPI.deleteBlock(boardId, blockId);
     } catch (error) {
-      console.warn("API failed, using mock data for delete block", error);
-      if (USE_MOCK_ON_ERROR) {
-        const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
+      console.warn('API failed, using mock data for delete block', error);
+      if (canUseMock(error)) {
+        const blocks = loadFromLocalStorage('kanban_blocks', mockBlocks);
         const updatedBlocks = blocks.filter((b: Block) => b.id !== blockId);
-        saveToLocalStorage("kanban_blocks", updatedBlocks);
+        saveToLocalStorage('kanban_blocks', updatedBlocks);
         return;
       }
       throw error;
     }
   },
 
-  reorderBlocks: async (
-    boardId: string,
-    blockIds: string[],
-  ): Promise<Block[]> => {
+  reorderBlocks: async (boardId: string, blockIds: string[]): Promise<Block[]> => {
     try {
       const response = await blockAPI.reorderBlocks(boardId, blockIds);
       return response.blocks;
     } catch (error) {
-      console.warn("API failed, using mock data for reorder blocks", error);
-      if (USE_MOCK_ON_ERROR) {
-        const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
+      console.warn('API failed, using mock data for reorder blocks', error);
+      if (canUseMock(error)) {
+        const blocks = loadFromLocalStorage('kanban_blocks', mockBlocks);
         const updatedBlocks = blockIds
           .map((id, index) => {
             const block = blocks.find((b: Block) => b.id === id);
             return block ? { ...block, position: index } : null;
           })
           .filter(Boolean) as Block[];
-        saveToLocalStorage("kanban_blocks", updatedBlocks);
+        saveToLocalStorage('kanban_blocks', updatedBlocks);
         return updatedBlocks;
       }
       throw error;
@@ -445,17 +440,14 @@ export const blockService = {
 // ========================================
 
 export const featureService = {
-  getFeatures: async (
-    boardId: string,
-    milestoneId?: string,
-  ): Promise<Feature[]> => {
+  getFeatures: async (boardId: string, milestoneId?: string): Promise<Feature[]> => {
     try {
       const response = await featureAPI.getFeatures(boardId, milestoneId);
       return response.features;
     } catch (error) {
-      console.warn("API failed, using mock data for features", error);
-      if (USE_MOCK_ON_ERROR) {
-        return loadFromLocalStorage("kanban_features", mockFeatures);
+      console.warn('API failed, using mock data for features', error);
+      if (canUseMock(error)) {
+        return loadFromLocalStorage('kanban_features', mockFeatures);
       }
       throw error;
     }
@@ -466,10 +458,12 @@ export const featureService = {
       const feature = await featureAPI.getFeature(boardId, featureId);
       return feature;
     } catch (error) {
-      console.warn("API failed, using mock data for feature", error);
-      if (USE_MOCK_ON_ERROR) {
-        const features = loadFromLocalStorage("kanban_features", mockFeatures);
-        return features.find((f: Feature) => f.id === featureId);
+      console.warn('API failed, using mock data for feature', error);
+      if (canUseMock(error)) {
+        const features = loadFromLocalStorage('kanban_features', mockFeatures);
+        const found = features.find((f: Feature) => f.id === featureId);
+        if (!found) throw new Error(`Feature not found in mock data: ${featureId}`);
+        return found;
       }
       throw error;
     }
@@ -490,18 +484,18 @@ export const featureService = {
       const feature = await featureAPI.createFeature(boardId, data);
       return feature;
     } catch (error) {
-      console.warn("API failed, using mock data for create feature", error);
-      if (USE_MOCK_ON_ERROR) {
-        const features = loadFromLocalStorage("kanban_features", mockFeatures);
+      console.warn('API failed, using mock data for create feature', error);
+      if (canUseMock(error)) {
+        const features = loadFromLocalStorage('kanban_features', mockFeatures);
         const newFeature: Feature = {
           id: `feature-${Date.now()}`,
           title: data.title,
           description: data.description,
-          color: data.color || "#3B82F6",
+          color: data.color || '#3B82F6',
           assignee: null,
           start_date: data.start_date || null,
           due_date: data.due_date || null,
-          status: "ACTIVE",
+          status: 'ACTIVE',
           total_tasks: 0,
           completed_tasks: 0,
           progress_percentage: 0,
@@ -510,7 +504,7 @@ export const featureService = {
           created_at: nowUTC(),
         };
         const updatedFeatures = [...features, newFeature];
-        saveToLocalStorage("kanban_features", updatedFeatures);
+        saveToLocalStorage('kanban_features', updatedFeatures);
         return newFeature;
       }
       throw error;
@@ -533,13 +527,13 @@ export const featureService = {
       const feature = await featureAPI.updateFeature(boardId, featureId, data);
       return feature;
     } catch (error) {
-      console.warn("API failed, using mock data for update feature", error);
-      if (USE_MOCK_ON_ERROR) {
-        const features = loadFromLocalStorage("kanban_features", mockFeatures);
+      console.warn('API failed, using mock data for update feature', error);
+      if (canUseMock(error)) {
+        const features = loadFromLocalStorage('kanban_features', mockFeatures);
         const updatedFeatures = features.map((f: Feature) =>
           f.id === featureId ? { ...f, ...data } : f,
         );
-        saveToLocalStorage("kanban_features", updatedFeatures);
+        saveToLocalStorage('kanban_features', updatedFeatures);
         return updatedFeatures.find((f: Feature) => f.id === featureId)!;
       }
       throw error;
@@ -558,66 +552,53 @@ export const featureService = {
           : undefined;
       await featureAPI.deleteFeature(boardId, featureId, data);
     } catch (error) {
-      console.warn("API failed, using mock data for delete feature", error);
-      if (USE_MOCK_ON_ERROR) {
-        const features = loadFromLocalStorage("kanban_features", mockFeatures);
-        const updatedFeatures = features.filter(
-          (f: Feature) => f.id !== featureId,
-        );
-        saveToLocalStorage("kanban_features", updatedFeatures);
+      console.warn('API failed, using mock data for delete feature', error);
+      if (canUseMock(error)) {
+        const features = loadFromLocalStorage('kanban_features', mockFeatures);
+        const updatedFeatures = features.filter((f: Feature) => f.id !== featureId);
+        saveToLocalStorage('kanban_features', updatedFeatures);
         return;
       }
       throw error;
     }
   },
 
-  reorderFeatures: async (
-    boardId: string,
-    featureIds: string[],
-  ): Promise<Feature[]> => {
+  reorderFeatures: async (boardId: string, featureIds: string[]): Promise<Feature[]> => {
     try {
       const response = await featureAPI.reorderFeatures(boardId, featureIds);
       return response.features;
     } catch (error) {
-      console.warn("API failed, using mock data for reorder features", error);
-      if (USE_MOCK_ON_ERROR) {
-        const features = loadFromLocalStorage("kanban_features", mockFeatures);
+      console.warn('API failed, using mock data for reorder features', error);
+      if (canUseMock(error)) {
+        const features = loadFromLocalStorage('kanban_features', mockFeatures);
         const updatedFeatures = featureIds
           .map((id, index) => {
             const feature = features.find((f: Feature) => f.id === id);
             return feature ? { ...feature, position: index } : null;
           })
           .filter(Boolean) as Feature[];
-        saveToLocalStorage("kanban_features", updatedFeatures);
+        saveToLocalStorage('kanban_features', updatedFeatures);
         return updatedFeatures;
       }
       throw error;
     }
   },
 
-  addTag: async (
-    boardId: string,
-    featureId: string,
-    tagId: string,
-  ): Promise<Tag[]> => {
+  addTag: async (boardId: string, featureId: string, tagId: string): Promise<Tag[]> => {
     try {
       const tags = await featureAPI.addTag(boardId, featureId, tagId);
       return tags;
     } catch (error) {
-      console.warn("API failed for add tag to feature", error);
+      console.warn('API failed for add tag to feature', error);
       throw error;
     }
   },
 
-  removeTag: async (
-    boardId: string,
-    featureId: string,
-    tagId: string,
-  ): Promise<void> => {
+  removeTag: async (boardId: string, featureId: string, tagId: string): Promise<void> => {
     try {
       await featureAPI.removeTag(boardId, featureId, tagId);
     } catch (error) {
-      console.warn("API failed for remove tag from feature", error);
+      console.warn('API failed for remove tag from feature', error);
       throw error;
     }
   },
@@ -636,9 +617,9 @@ export const taskService = {
       const response = await taskAPI.getTasks(boardId, params);
       return response.tasks;
     } catch (error) {
-      console.warn("API failed, using mock data for tasks", error);
-      if (USE_MOCK_ON_ERROR) {
-        let tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
+      console.warn('API failed, using mock data for tasks', error);
+      if (canUseMock(error)) {
+        let tasks = loadFromLocalStorage('kanban_tasks', mockTasks);
         if (params?.block_id) {
           tasks = tasks.filter((t: Task) => t.block_id === params.block_id);
         }
@@ -656,19 +637,19 @@ export const taskService = {
       const task = await taskAPI.getTask(boardId, taskId);
       return task;
     } catch (error) {
-      console.warn("API failed, using mock data for task", error);
-      if (USE_MOCK_ON_ERROR) {
-        const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
-        return tasks.find((t: Task) => t.id === taskId);
+      console.warn('API failed, using mock data for task', error);
+      if (canUseMock(error)) {
+        const tasks = loadFromLocalStorage('kanban_tasks', mockTasks);
+        const found = tasks.find((t: Task) => t.id === taskId);
+        if (!found) throw new Error(`Task not found in mock data: ${taskId}`);
+        return found;
       }
       throw error;
     }
   },
 
   // 사람이 읽는 태스크 키(예: STORY-42) → { board_id, task_id }
-  resolveKey: async (
-    key: string,
-  ): Promise<{ board_id: string; task_id: string }> => {
+  resolveKey: async (key: string): Promise<{ board_id: string; task_id: string }> => {
     return taskAPI.resolveKey(key);
   },
 
@@ -689,34 +670,34 @@ export const taskService = {
       const task = await taskAPI.createTask(boardId, featureId, data);
       return task;
     } catch (error) {
-      console.warn("API failed, using mock data for create task", error);
-      if (USE_MOCK_ON_ERROR) {
-        const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
-        const features = loadFromLocalStorage("kanban_features", mockFeatures);
-        const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
+      console.warn('API failed, using mock data for create task', error);
+      if (canUseMock(error)) {
+        const tasks = loadFromLocalStorage('kanban_tasks', mockTasks);
+        const features = loadFromLocalStorage('kanban_features', mockFeatures);
+        const blocks = loadFromLocalStorage('kanban_blocks', mockBlocks);
         const feature = features.find((f: Feature) => f.id === featureId);
-        const taskBlock = blocks.find((b: Block) => b.fixed_type === "TASK");
+        const taskBlock = blocks.find((b: Block) => b.fixed_type === 'TASK');
 
         const newTask: Task = {
           id: `task-${Date.now()}`,
           feature_id: featureId,
-          feature_title: feature?.title || "",
-          feature_color: feature?.color || "#3B82F6",
-          block_id: taskBlock?.id || "task-block",
+          feature_title: feature?.title || '',
+          feature_color: feature?.color || '#3B82F6',
+          block_id: taskBlock?.id || 'task-block',
           title: data.title,
           description: data.description,
-          assignee: null,
           start_date: data.start_date || null,
           due_date: data.due_date || null,
+          baseline_start_date: null,
+          baseline_due_date: null,
           estimated_minutes: data.estimated_minutes || null,
           completed: false,
-          position: tasks.filter((t: Task) => t.feature_id === featureId)
-            .length,
+          position: tasks.filter((t: Task) => t.feature_id === featureId).length,
           tags: [],
           created_at: nowUTC(),
         };
         const updatedTasks = [...tasks, newTask];
-        saveToLocalStorage("kanban_tasks", updatedTasks);
+        saveToLocalStorage('kanban_tasks', updatedTasks);
         return newTask;
       }
       throw error;
@@ -740,13 +721,11 @@ export const taskService = {
       const task = await taskAPI.updateTask(boardId, taskId, data);
       return task;
     } catch (error) {
-      console.warn("API failed, using mock data for update task", error);
-      if (USE_MOCK_ON_ERROR) {
-        const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
-        const updatedTasks = tasks.map((t: Task) =>
-          t.id === taskId ? { ...t, ...data } : t,
-        );
-        saveToLocalStorage("kanban_tasks", updatedTasks);
+      console.warn('API failed, using mock data for update task', error);
+      if (canUseMock(error)) {
+        const tasks = loadFromLocalStorage('kanban_tasks', mockTasks);
+        const updatedTasks = tasks.map((t: Task) => (t.id === taskId ? { ...t, ...data } : t));
+        saveToLocalStorage('kanban_tasks', updatedTasks);
         return updatedTasks.find((t: Task) => t.id === taskId)!;
       }
       throw error;
@@ -757,11 +736,11 @@ export const taskService = {
     try {
       await taskAPI.deleteTask(boardId, taskId);
     } catch (error) {
-      console.warn("API failed, using mock data for delete task", error);
-      if (USE_MOCK_ON_ERROR) {
-        const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
+      console.warn('API failed, using mock data for delete task', error);
+      if (canUseMock(error)) {
+        const tasks = loadFromLocalStorage('kanban_tasks', mockTasks);
         const updatedTasks = tasks.filter((t: Task) => t.id !== taskId);
-        saveToLocalStorage("kanban_tasks", updatedTasks);
+        saveToLocalStorage('kanban_tasks', updatedTasks);
         return;
       }
       throw error;
@@ -781,11 +760,11 @@ export const taskService = {
       });
       return task;
     } catch (error) {
-      console.warn("API failed, using mock data for move task", error);
-      if (USE_MOCK_ON_ERROR) {
-        const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
-        const blocks = loadFromLocalStorage("kanban_blocks", mockBlocks);
-        const doneBlock = blocks.find((b: Block) => b.fixed_type === "DONE");
+      console.warn('API failed, using mock data for move task', error);
+      if (canUseMock(error)) {
+        const tasks = loadFromLocalStorage('kanban_tasks', mockTasks);
+        const blocks = loadFromLocalStorage('kanban_blocks', mockBlocks);
+        const doneBlock = blocks.find((b: Block) => b.fixed_type === 'DONE');
         const isCompleted = doneBlock?.id === targetBlockId;
 
         const updatedTasks = tasks.map((t: Task) =>
@@ -798,7 +777,7 @@ export const taskService = {
               }
             : t,
         );
-        saveToLocalStorage("kanban_tasks", updatedTasks);
+        saveToLocalStorage('kanban_tasks', updatedTasks);
         return updatedTasks.find((t: Task) => t.id === taskId)!;
       }
       throw error;
@@ -836,9 +815,9 @@ export const taskService = {
       const task = await taskAPI.updateTaskDates(boardId, taskId, data);
       return task;
     } catch (error) {
-      console.warn("API failed, using mock data for update task dates", error);
-      if (USE_MOCK_ON_ERROR) {
-        const tasks = loadFromLocalStorage("kanban_tasks", mockTasks);
+      console.warn('API failed, using mock data for update task dates', error);
+      if (canUseMock(error)) {
+        const tasks = loadFromLocalStorage('kanban_tasks', mockTasks);
         const updatedTasks = tasks.map((t: Task) =>
           t.id === taskId
             ? {
@@ -848,7 +827,7 @@ export const taskService = {
               }
             : t,
         );
-        saveToLocalStorage("kanban_tasks", updatedTasks);
+        saveToLocalStorage('kanban_tasks', updatedTasks);
         return updatedTasks.find((t: Task) => t.id === taskId)!;
       }
       throw error;
@@ -863,29 +842,21 @@ export const taskService = {
     await taskAPI.clearBaseline(boardId);
   },
 
-  addTag: async (
-    boardId: string,
-    taskId: string,
-    tagId: string,
-  ): Promise<Tag[]> => {
+  addTag: async (boardId: string, taskId: string, tagId: string): Promise<Tag[]> => {
     try {
       const tags = await taskAPI.addTag(boardId, taskId, tagId);
       return tags;
     } catch (error) {
-      console.warn("API failed for add tag to task", error);
+      console.warn('API failed for add tag to task', error);
       throw error;
     }
   },
 
-  removeTag: async (
-    boardId: string,
-    taskId: string,
-    tagId: string,
-  ): Promise<void> => {
+  removeTag: async (boardId: string, taskId: string, tagId: string): Promise<void> => {
     try {
       await taskAPI.removeTag(boardId, taskId, tagId);
     } catch (error) {
-      console.warn("API failed for remove tag from task", error);
+      console.warn('API failed for remove tag from task', error);
       throw error;
     }
   },
@@ -901,25 +872,22 @@ export const tagService = {
       const response = await tagAPI.getTags(boardId);
       return response.tags;
     } catch (error) {
-      console.warn("API failed, using mock data for tags", error);
-      if (USE_MOCK_ON_ERROR) {
-        return loadFromLocalStorage("kanban_tags", mockTags);
+      console.warn('API failed, using mock data for tags', error);
+      if (canUseMock(error)) {
+        return loadFromLocalStorage('kanban_tags', mockTags);
       }
       throw error;
     }
   },
 
-  createTag: async (
-    boardId: string,
-    data: { name: string; color: string },
-  ): Promise<Tag> => {
+  createTag: async (boardId: string, data: { name: string; color: string }): Promise<Tag> => {
     try {
       const tag = await tagAPI.createTag(boardId, data);
       return tag;
     } catch (error) {
-      console.warn("API failed, using mock data for create tag", error);
-      if (USE_MOCK_ON_ERROR) {
-        const tags = loadFromLocalStorage("kanban_tags", mockTags);
+      console.warn('API failed, using mock data for create tag', error);
+      if (canUseMock(error)) {
+        const tags = loadFromLocalStorage('kanban_tags', mockTags);
         const newTag: Tag = {
           id: `tag-${Date.now()}`,
           name: data.name,
@@ -927,7 +895,7 @@ export const tagService = {
           created_at: nowUTC(),
         };
         const updatedTags = [...tags, newTag];
-        saveToLocalStorage("kanban_tags", updatedTags);
+        saveToLocalStorage('kanban_tags', updatedTags);
         return newTag;
       }
       throw error;
@@ -943,13 +911,11 @@ export const tagService = {
       const tag = await tagAPI.updateTag(boardId, tagId, data);
       return tag;
     } catch (error) {
-      console.warn("API failed, using mock data for update tag", error);
-      if (USE_MOCK_ON_ERROR) {
-        const tags = loadFromLocalStorage("kanban_tags", mockTags);
-        const updatedTags = tags.map((t: Tag) =>
-          t.id === tagId ? { ...t, ...data } : t,
-        );
-        saveToLocalStorage("kanban_tags", updatedTags);
+      console.warn('API failed, using mock data for update tag', error);
+      if (canUseMock(error)) {
+        const tags = loadFromLocalStorage('kanban_tags', mockTags);
+        const updatedTags = tags.map((t: Tag) => (t.id === tagId ? { ...t, ...data } : t));
+        saveToLocalStorage('kanban_tags', updatedTags);
         return updatedTags.find((t: Tag) => t.id === tagId)!;
       }
       throw error;
@@ -960,11 +926,11 @@ export const tagService = {
     try {
       await tagAPI.deleteTag(boardId, tagId);
     } catch (error) {
-      console.warn("API failed, using mock data for delete tag", error);
-      if (USE_MOCK_ON_ERROR) {
-        const tags = loadFromLocalStorage("kanban_tags", mockTags);
+      console.warn('API failed, using mock data for delete tag', error);
+      if (canUseMock(error)) {
+        const tags = loadFromLocalStorage('kanban_tags', mockTags);
         const updatedTags = tags.filter((t: Tag) => t.id !== tagId);
-        saveToLocalStorage("kanban_tags", updatedTags);
+        saveToLocalStorage('kanban_tags', updatedTags);
         return;
       }
       throw error;
@@ -985,8 +951,8 @@ export const checklistService = {
       const checklist = await checklistAPI.getChecklist(boardId, taskId);
       return checklist;
     } catch (error) {
-      console.warn("API failed, using mock data for checklist", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using mock data for checklist', error);
+      if (canUseMock(error)) {
         return { total: 0, completed: 0, items: [] };
       }
       throw error;
@@ -1010,8 +976,8 @@ export const checklistService = {
       const response = await checklistAPI.getBatchChecklists(boardId, taskIds);
       return response;
     } catch (error) {
-      console.warn("API failed, using empty data for batch checklists", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using empty data for batch checklists', error);
+      if (canUseMock(error)) {
         return {};
       }
       throw error;
@@ -1027,7 +993,7 @@ export const checklistService = {
       const item = await checklistAPI.addItem(boardId, taskId, data);
       return item;
     } catch (error) {
-      console.warn("API failed for add checklist item", error);
+      console.warn('API failed for add checklist item', error);
       throw error;
     }
   },
@@ -1046,34 +1012,114 @@ export const checklistService = {
       const item = await checklistAPI.updateItem(boardId, taskId, itemId, data);
       return item;
     } catch (error) {
-      console.warn("API failed for update checklist item", error);
+      console.warn('API failed for update checklist item', error);
       throw error;
     }
   },
 
-  deleteItem: async (
-    boardId: string,
-    taskId: string,
-    itemId: string,
-  ): Promise<void> => {
+  deleteItem: async (boardId: string, taskId: string, itemId: string): Promise<void> => {
     try {
       await checklistAPI.deleteItem(boardId, taskId, itemId);
     } catch (error) {
-      console.warn("API failed for delete checklist item", error);
+      console.warn('API failed for delete checklist item', error);
       throw error;
     }
   },
 
-  toggleItem: async (
-    boardId: string,
-    taskId: string,
-    itemId: string,
-  ): Promise<ChecklistItem> => {
+  toggleItem: async (boardId: string, taskId: string, itemId: string): Promise<ChecklistItem> => {
     try {
       const item = await checklistAPI.toggleItem(boardId, taskId, itemId);
       return item;
     } catch (error) {
-      console.warn("API failed for toggle checklist item", error);
+      console.warn('API failed for toggle checklist item', error);
+      throw error;
+    }
+  },
+};
+
+// ========================================
+// Checklist Preset Service
+// ========================================
+
+export const checklistPresetService = {
+  getPresets: async (boardId: string): Promise<ChecklistPreset[]> => {
+    try {
+      const res = await checklistPresetAPI.getPresets(boardId);
+      return res.presets ?? [];
+    } catch (error) {
+      console.warn('API failed, using empty data for checklist presets', error);
+      if (canUseMock(error)) {
+        return [];
+      }
+      throw error;
+    }
+  },
+
+  createPreset: async (
+    boardId: string,
+    data: {
+      name: string;
+      items: { title: string; assignee_id?: string | null }[];
+    },
+  ): Promise<ChecklistPreset> => {
+    try {
+      const preset = await checklistPresetAPI.createPreset(boardId, data);
+      return preset;
+    } catch (error) {
+      console.warn('API failed for create checklist preset', error);
+      throw error;
+    }
+  },
+
+  updatePreset: async (
+    boardId: string,
+    presetId: string,
+    data: {
+      name: string;
+      items: { title: string; assignee_id?: string | null }[];
+    },
+  ): Promise<ChecklistPreset> => {
+    try {
+      const preset = await checklistPresetAPI.updatePreset(boardId, presetId, data);
+      return preset;
+    } catch (error) {
+      console.warn('API failed for update checklist preset', error);
+      throw error;
+    }
+  },
+
+  deletePreset: async (boardId: string, presetId: string): Promise<void> => {
+    try {
+      await checklistPresetAPI.deletePreset(boardId, presetId);
+    } catch (error) {
+      console.warn('API failed for delete checklist preset', error);
+      throw error;
+    }
+  },
+
+  applyPreset: async (
+    boardId: string,
+    taskId: string,
+    presetId: string,
+  ): Promise<{
+    created_count: number;
+    skipped_duplicates: number;
+    checklists: ChecklistItem[];
+  }> => {
+    try {
+      const res = await checklistPresetAPI.applyPreset(boardId, taskId, presetId);
+      return res;
+    } catch (error) {
+      console.warn('API failed for apply checklist preset', error);
+      throw error;
+    }
+  },
+
+  clearPreset: async (boardId: string, taskId: string): Promise<void> => {
+    try {
+      await checklistPresetAPI.clearPreset(boardId, taskId);
+    } catch (error) {
+      console.warn('API failed for clear checklist preset', error);
       throw error;
     }
   },
@@ -1091,9 +1137,9 @@ export const memberService = {
       const response = await memberAPI.getMembers(boardId);
       return response;
     } catch (error) {
-      console.warn("API failed, using mock data for members", error);
-      if (USE_MOCK_ON_ERROR) {
-        const members = loadFromLocalStorage("kanban_members", mockMembers);
+      console.warn('API failed, using mock data for members', error);
+      if (canUseMock(error)) {
+        const members = loadFromLocalStorage('kanban_members', mockMembers);
         return { total: members.length, billable: members.length, members };
       }
       throw error;
@@ -1103,15 +1149,15 @@ export const memberService = {
   inviteMember: async (
     boardId: string,
     email: string,
-    role: "ADMIN" | "MEMBER" | "VIEWER",
+    role: 'ADMIN' | 'MEMBER' | 'VIEWER',
   ): Promise<InviteResult> => {
     // 멤버 초대는 mock 폴백 없이 API 에러를 그대로 throw
     const result = await memberAPI.inviteMember(boardId, { email, role });
 
     // API 응답을 InviteResult 형식으로 변환
-    if (result.type === "DIRECT_ADD" && result.member) {
+    if (result.type === 'DIRECT_ADD' && result.member) {
       return {
-        type: "DIRECT_ADD",
+        type: 'DIRECT_ADD',
         member: {
           id: result.member.id,
           user: {
@@ -1127,7 +1173,7 @@ export const memberService = {
       };
     } else {
       return {
-        type: "EMAIL_SENT",
+        type: 'EMAIL_SENT',
         email: result.email,
         role: result.role,
       };
@@ -1137,42 +1183,34 @@ export const memberService = {
   updateMemberRole: async (
     boardId: string,
     memberId: string,
-    role: "ADMIN" | "MEMBER" | "VIEWER",
+    role: 'ADMIN' | 'MEMBER' | 'VIEWER',
   ): Promise<BoardMember> => {
     try {
       const member = await memberAPI.updateMemberRole(boardId, memberId, role);
       return member;
     } catch (error: any) {
       // 시트 부족(S005) 등 결제 관련 에러는 mock 폴백 없이 그대로 throw
-      if (error?.code === "S005") {
+      if (error?.code === 'S005') {
         throw error;
       }
-      console.warn("API failed, using mock data for update member role", error);
-      if (USE_MOCK_ON_ERROR) {
-        const members = loadFromLocalStorage("kanban_members", mockMembers);
+      console.warn('API failed, using mock data for update member role', error);
+      if (canUseMock(error)) {
+        const members = loadFromLocalStorage('kanban_members', mockMembers);
         const updatedMembers = members.map((m: BoardMember) =>
           m.id === memberId ? { ...m, role } : m,
         );
-        saveToLocalStorage("kanban_members", updatedMembers);
+        saveToLocalStorage('kanban_members', updatedMembers);
         return updatedMembers.find((m: BoardMember) => m.id === memberId)!;
       }
       throw error;
     }
   },
 
-  updateMemberColor: async (
-    boardId: string,
-    memberId: string,
-    assigneeColor: string | null,
-  ) => {
+  updateMemberColor: async (boardId: string, memberId: string, assigneeColor: string | null) => {
     return memberAPI.updateMemberColor(boardId, memberId, assigneeColor);
   },
 
-  updateMemberJobRole: async (
-    boardId: string,
-    memberId: string,
-    jobRoleId: string | null,
-  ) => {
+  updateMemberJobRole: async (boardId: string, memberId: string, jobRoleId: string | null) => {
     return memberAPI.updateMemberJobRole(boardId, memberId, jobRoleId);
   },
 
@@ -1194,13 +1232,11 @@ export const memberService = {
     try {
       await memberAPI.removeMember(boardId, memberId);
     } catch (error) {
-      console.warn("API failed, using mock data for remove member", error);
-      if (USE_MOCK_ON_ERROR) {
-        const members = loadFromLocalStorage("kanban_members", mockMembers);
-        const updatedMembers = members.filter(
-          (m: BoardMember) => m.id !== memberId,
-        );
-        saveToLocalStorage("kanban_members", updatedMembers);
+      console.warn('API failed, using mock data for remove member', error);
+      if (canUseMock(error)) {
+        const members = loadFromLocalStorage('kanban_members', mockMembers);
+        const updatedMembers = members.filter((m: BoardMember) => m.id !== memberId);
+        saveToLocalStorage('kanban_members', updatedMembers);
         return;
       }
       throw error;
@@ -1230,8 +1266,7 @@ export const jobRoleService = {
     roleId: string,
     payload: { name?: string; color?: string | null; icon?: string | null },
   ) => jobRoleAPI.update(boardId, roleId, payload),
-  remove: async (boardId: string, roleId: string) =>
-    jobRoleAPI.remove(boardId, roleId),
+  remove: async (boardId: string, roleId: string) => jobRoleAPI.remove(boardId, roleId),
   reorder: async (boardId: string, ids: string[]) => {
     const response = await jobRoleAPI.reorder(boardId, ids);
     return response.job_roles;
@@ -1293,11 +1328,8 @@ export const contractorService = {
       clear_end_date?: boolean;
     },
   ) => contractorAPI.updatePeriod(boardId, contractorId, periodId, payload),
-  deletePeriod: async (
-    boardId: string,
-    contractorId: string,
-    periodId: string,
-  ) => contractorAPI.deletePeriod(boardId, contractorId, periodId),
+  deletePeriod: async (boardId: string, contractorId: string, periodId: string) =>
+    contractorAPI.deletePeriod(boardId, contractorId, periodId),
 };
 
 // ========================================
@@ -1312,47 +1344,42 @@ const isApiError = (
   message: string;
   errors?: Record<string, string>;
 } => {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    "message" in error
-  );
+  return typeof error === 'object' && error !== null && 'code' in error && 'message' in error;
 };
 
 export const authService = {
   signup: async (email: string, password: string, name: string) => {
     try {
       const response = await authAPI.signup({ email, password, name });
-      localStorage.setItem("user", JSON.stringify(response.user));
+      localStorage.setItem('user', JSON.stringify(response.user));
       return response;
     } catch (error) {
       // API 에러(4xx)는 mock 사용 안함 - 에러 메시지 그대로 전달
       if (isApiError(error)) {
-        console.error("Signup validation error:", error);
+        console.error('Signup validation error:', error);
         // errors 필드에서 상세 메시지 추출
         if (error.errors && Object.keys(error.errors).length > 0) {
-          const errorMessages = Object.values(error.errors).join("\n");
+          const errorMessages = Object.values(error.errors).join('\n');
           throw new Error(errorMessages);
         }
         throw new Error(error.message);
       }
       // 네트워크 에러 등은 mock 사용
-      console.warn("API failed, using mock auth", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using mock auth', error);
+      if (canUseMock(error)) {
         const mockUser: User = {
           id: `user-${Date.now()}`,
           email,
           name,
           profile_image: null,
         };
-        localStorage.setItem("access_token", "mock-access-token");
-        localStorage.setItem("refresh_token", "mock-refresh-token");
-        localStorage.setItem("user", JSON.stringify(mockUser));
+        localStorage.setItem('access_token', 'mock-access-token');
+        localStorage.setItem('refresh_token', 'mock-refresh-token');
+        localStorage.setItem('user', JSON.stringify(mockUser));
         return {
-          access_token: "mock-access-token",
-          refresh_token: "mock-refresh-token",
-          token_type: "Bearer",
+          access_token: 'mock-access-token',
+          refresh_token: 'mock-refresh-token',
+          token_type: 'Bearer',
           user: mockUser,
         };
       }
@@ -1363,30 +1390,30 @@ export const authService = {
   login: async (email: string, password: string) => {
     try {
       const response = await authAPI.login({ email, password });
-      localStorage.setItem("user", JSON.stringify(response.user));
+      localStorage.setItem('user', JSON.stringify(response.user));
       return response;
     } catch (error) {
       // API 에러(4xx)는 mock 사용 안함 - 에러 메시지 그대로 전달
       if (isApiError(error)) {
-        console.error("Login error:", error);
+        console.error('Login error:', error);
         throw new Error(error.message);
       }
       // 네트워크 에러 등은 mock 사용
-      console.warn("API failed, using mock auth", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using mock auth', error);
+      if (canUseMock(error)) {
         const mockUser: User = {
-          id: "user-1",
+          id: 'user-1',
           email,
-          name: email.split("@")[0],
+          name: email.split('@')[0],
           profile_image: null,
         };
-        localStorage.setItem("access_token", "mock-access-token");
-        localStorage.setItem("refresh_token", "mock-refresh-token");
-        localStorage.setItem("user", JSON.stringify(mockUser));
+        localStorage.setItem('access_token', 'mock-access-token');
+        localStorage.setItem('refresh_token', 'mock-refresh-token');
+        localStorage.setItem('user', JSON.stringify(mockUser));
         return {
-          access_token: "mock-access-token",
-          refresh_token: "mock-refresh-token",
-          token_type: "Bearer",
+          access_token: 'mock-access-token',
+          refresh_token: 'mock-refresh-token',
+          token_type: 'Bearer',
           user: mockUser,
         };
       }
@@ -1400,12 +1427,12 @@ export const authService = {
       // 구글 로그인 사용자임을 표시
       const userWithProvider = {
         ...response.user,
-        provider: "google" as const,
+        provider: 'google' as const,
       };
-      localStorage.setItem("user", JSON.stringify(userWithProvider));
+      localStorage.setItem('user', JSON.stringify(userWithProvider));
       return { ...response, user: userWithProvider };
     } catch (error) {
-      console.warn("Google login failed", error);
+      console.warn('Google login failed', error);
       throw error;
     }
   },
@@ -1415,12 +1442,12 @@ export const authService = {
       const response = await authAPI.googleLoginWithIdToken(idToken);
       const userWithProvider = {
         ...response.user,
-        provider: "google" as const,
+        provider: 'google' as const,
       };
-      localStorage.setItem("user", JSON.stringify(userWithProvider));
+      localStorage.setItem('user', JSON.stringify(userWithProvider));
       return { ...response, user: userWithProvider };
     } catch (error) {
-      console.warn("Google login with id_token failed", error);
+      console.warn('Google login with id_token failed', error);
       throw error;
     }
   },
@@ -1429,15 +1456,15 @@ export const authService = {
     try {
       await authAPI.logout();
     } catch (error) {
-      console.warn("API failed for logout", error);
+      console.warn('API failed for logout', error);
     } finally {
       authAPI.clearTokens();
-      localStorage.removeItem("user");
+      localStorage.removeItem('user');
     }
   },
 
   getCurrentUser: (): User | null => {
-    const userStr = localStorage.getItem("user");
+    const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
   },
 
@@ -1490,17 +1517,17 @@ export const userService = {
   updateProfile: async (data: {
     name?: string;
     profileImage?: string;
-    theme?: "dark" | "light";
+    theme?: 'dark' | 'light';
   }) => {
     const response = await userAPI.updateProfile(data);
     // 로컬 스토리지의 사용자 정보도 업데이트
-    const userStr = localStorage.getItem("user");
+    const userStr = localStorage.getItem('user');
     if (userStr) {
       const user = JSON.parse(userStr);
       if (data.name) user.name = data.name;
       if (data.profileImage) user.profile_image = data.profileImage;
       if (data.theme) user.theme = data.theme;
-      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify(user));
     }
     return response;
   },
@@ -1508,11 +1535,11 @@ export const userService = {
   // 프로필 이미지 업로드
   uploadProfileImage: async (file: File) => {
     const response = await userAPI.uploadProfileImage(file);
-    const userStr = localStorage.getItem("user");
+    const userStr = localStorage.getItem('user');
     if (userStr) {
       const user = JSON.parse(userStr);
       user.profile_image = response.profile_image;
-      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify(user));
     }
     return response;
   },
@@ -1520,11 +1547,11 @@ export const userService = {
   // 프로필 이미지 삭제
   deleteProfileImage: async () => {
     const response = await userAPI.deleteProfileImage();
-    const userStr = localStorage.getItem("user");
+    const userStr = localStorage.getItem('user');
     if (userStr) {
       const user = JSON.parse(userStr);
-      user.profile_image = "";
-      localStorage.setItem("user", JSON.stringify(user));
+      user.profile_image = '';
+      localStorage.setItem('user', JSON.stringify(user));
     }
     return response;
   },
@@ -1539,7 +1566,7 @@ export const userService = {
     const response = await userAPI.deleteAccount();
     // 로컬 스토리지 정리
     authAPI.clearTokens();
-    localStorage.removeItem("user");
+    localStorage.removeItem('user');
     return response;
   },
 };
@@ -1554,9 +1581,9 @@ export const inviteLinkService = {
       const response = await inviteLinkAPI.getInviteLinks(boardId);
       return response.invites;
     } catch (error) {
-      console.warn("API failed, using mock data for invite links", error);
-      if (USE_MOCK_ON_ERROR) {
-        return loadFromLocalStorage("kanban_invite_links", []);
+      console.warn('API failed, using mock data for invite links', error);
+      if (canUseMock(error)) {
+        return loadFromLocalStorage('kanban_invite_links', []);
       }
       throw error;
     }
@@ -1565,7 +1592,7 @@ export const inviteLinkService = {
   createInviteLink: async (
     boardId: string,
     data: {
-      role: "ADMIN" | "MEMBER" | "VIEWER";
+      role: 'ADMIN' | 'MEMBER' | 'VIEWER';
       max_uses?: number | null;
       expires_in_hours?: number | null;
     },
@@ -1602,16 +1629,14 @@ export const subscriptionService = {
       const subscription = await subscriptionAPI.getSubscription(boardId);
       return subscription;
     } catch (error) {
-      console.warn("API failed, using mock data for subscription", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using mock data for subscription', error);
+      if (canUseMock(error)) {
         return {
-          status: "TRIAL",
+          status: 'TRIAL',
           plan: null,
           billing_cycle: null,
           price: null,
-          trial_ends_at: new Date(
-            Date.now() + 3 * 24 * 60 * 60 * 1000,
-          ).toISOString(),
+          trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
           current_period_end: null,
           billable_member_count: 1,
           member_limit: 999999,
@@ -1623,7 +1648,7 @@ export const subscriptionService = {
 
   changePlan: async (
     boardId: string,
-    billingCycle: "MONTHLY" | "YEARLY",
+    billingCycle: 'MONTHLY' | 'YEARLY',
   ): Promise<Subscription> => {
     try {
       const subscription = await subscriptionAPI.changePlan(boardId, {
@@ -1631,7 +1656,7 @@ export const subscriptionService = {
       });
       return subscription;
     } catch (error) {
-      console.warn("API failed for change plan", error);
+      console.warn('API failed for change plan', error);
       throw error;
     }
   },
@@ -1640,7 +1665,7 @@ export const subscriptionService = {
     try {
       await subscriptionAPI.cancelSubscription(boardId);
     } catch (error) {
-      console.warn("API failed for cancel subscription", error);
+      console.warn('API failed for cancel subscription', error);
       throw error;
     }
   },
@@ -1649,7 +1674,7 @@ export const subscriptionService = {
     try {
       await subscriptionAPI.undoCancellation(boardId);
     } catch (error) {
-      console.warn("API failed for undo cancellation", error);
+      console.warn('API failed for undo cancellation', error);
       throw error;
     }
   },
@@ -1665,8 +1690,8 @@ export const subscriptionService = {
       const pricing = await subscriptionAPI.getSeatPricing(boardId);
       return pricing;
     } catch (error) {
-      console.warn("API failed, using mock data for seat pricing", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using mock data for seat pricing', error);
+      if (canUseMock(error)) {
         return {
           price_per_seat: {
             monthly: 500, // $5.00 in cents
@@ -1687,7 +1712,7 @@ export const subscriptionService = {
   startSeatSubscription: async (
     boardId: string,
     data: {
-      billing_cycle: "MONTHLY" | "YEARLY";
+      billing_cycle: 'MONTHLY' | 'YEARLY';
       seat_count: number;
     },
   ): Promise<void> => {
@@ -1696,34 +1721,28 @@ export const subscriptionService = {
       billing_cycle: data.billing_cycle,
       seat_count: data.seat_count,
     });
-    // Redirect to Polar checkout
-    window.location.href = response.data.checkout_url;
+    // Redirect to Polar checkout (apiClient 는 응답 본문을 그대로 돌려준다)
+    window.location.href = response.checkout_url;
   },
 
   // 추가 시트 구매 (Polar Checkout 리다이렉트)
-  purchaseSeats: async (
-    boardId: string,
-    additionalSeats: number,
-  ): Promise<void> => {
+  purchaseSeats: async (boardId: string, additionalSeats: number): Promise<void> => {
     const response = await subscriptionAPI.createSeatCheckout({
       board_id: boardId,
       additional_seats: additionalSeats,
     });
-    // Redirect to Polar checkout
-    window.location.href = response.data.checkout_url;
+    // Redirect to Polar checkout (apiClient 는 응답 본문을 그대로 돌려준다)
+    window.location.href = response.checkout_url;
   },
 
   // AI 크레딧 구매 (Polar Checkout 리다이렉트)
-  purchaseCredits: async (
-    boardId: string,
-    creditAmount: number,
-  ): Promise<void> => {
+  purchaseCredits: async (boardId: string, creditAmount: number): Promise<void> => {
     const response = await subscriptionAPI.createCreditCheckout({
       board_id: boardId,
       credit_amount: creditAmount,
     });
-    // Redirect to Polar checkout
-    window.location.href = response.data.checkout_url;
+    // Redirect to Polar checkout (apiClient 는 응답 본문을 그대로 돌려준다)
+    window.location.href = response.checkout_url;
   },
 };
 
@@ -1744,10 +1763,10 @@ export const activityService = {
       const response = await activityAPI.getActivities(boardId, params);
       return response;
     } catch (error) {
-      console.warn("API failed, using mock data for activities", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using mock data for activities', error);
+      if (canUseMock(error)) {
         return {
-          activities: loadFromLocalStorage("kanban_activities", []),
+          activities: loadFromLocalStorage('kanban_activities', []),
           has_more: false,
           next_cursor: null,
         };
@@ -1771,13 +1790,13 @@ export const pricingService = {
       const response = await pricingAPI.getPlans();
       return response;
     } catch (error) {
-      console.warn("API failed, using mock data for pricing plans", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using mock data for pricing plans', error);
+      if (canUseMock(error)) {
         return {
           plans: [
             {
-              id: "team_10",
-              name: "팀 10",
+              id: 'team_10',
+              name: '팀 10',
               min_members: 4,
               max_members: 10,
               monthly_price: 29000,
@@ -1786,8 +1805,8 @@ export const pricingService = {
               discount_percentage: 16,
             },
             {
-              id: "team_25",
-              name: "팀 25",
+              id: 'team_25',
+              name: '팀 25',
               min_members: 11,
               max_members: 25,
               monthly_price: 69000,
@@ -1796,8 +1815,8 @@ export const pricingService = {
               discount_percentage: 20,
             },
             {
-              id: "team_50",
-              name: "팀 50",
+              id: 'team_50',
+              name: '팀 50',
               min_members: 26,
               max_members: 50,
               monthly_price: 129000,
@@ -1806,8 +1825,8 @@ export const pricingService = {
               discount_percentage: 23,
             },
           ],
-          currency: "KRW",
-          trial_days: "7",
+          currency: 'KRW',
+          trial_days: '7',
         };
       }
       throw error;
@@ -1835,18 +1854,15 @@ export const milestoneService = {
         // 목록 조회 시에는 features가 없을 수 있음 (상세 조회 시에만 포함)
       }));
     } catch (error) {
-      console.warn("API failed, using empty array for milestones", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using empty array for milestones', error);
+      if (canUseMock(error)) {
         return [];
       }
       throw error;
     }
   },
 
-  getMilestone: async (
-    boardId: string,
-    milestoneId: string,
-  ): Promise<Milestone> => {
+  getMilestone: async (boardId: string, milestoneId: string): Promise<Milestone> => {
     try {
       const m = await milestoneAPI.getMilestone(boardId, milestoneId);
       return {
@@ -1862,7 +1878,7 @@ export const milestoneService = {
         created_at: m.created_at,
       };
     } catch (error) {
-      console.warn("API failed for getMilestone", error);
+      console.warn('API failed for getMilestone', error);
       throw error;
     }
   },
@@ -1892,7 +1908,7 @@ export const milestoneService = {
         created_at: m.created_at,
       };
     } catch (error) {
-      console.warn("API failed for createMilestone", error);
+      console.warn('API failed for createMilestone', error);
       throw error;
     }
   },
@@ -1922,19 +1938,16 @@ export const milestoneService = {
         created_at: m.created_at,
       };
     } catch (error) {
-      console.warn("API failed for updateMilestone", error);
+      console.warn('API failed for updateMilestone', error);
       throw error;
     }
   },
 
-  deleteMilestone: async (
-    boardId: string,
-    milestoneId: string,
-  ): Promise<void> => {
+  deleteMilestone: async (boardId: string, milestoneId: string): Promise<void> => {
     try {
       await milestoneAPI.deleteMilestone(boardId, milestoneId);
     } catch (error) {
-      console.warn("API failed for deleteMilestone", error);
+      console.warn('API failed for deleteMilestone', error);
       throw error;
     }
   },
@@ -1945,11 +1958,7 @@ export const milestoneService = {
     featureIds: string[],
   ): Promise<Milestone> => {
     try {
-      const m = await milestoneAPI.addFeatures(
-        boardId,
-        milestoneId,
-        featureIds,
-      );
+      const m = await milestoneAPI.addFeatures(boardId, milestoneId, featureIds);
       return {
         id: m.id,
         title: m.title,
@@ -1963,35 +1972,28 @@ export const milestoneService = {
         created_at: m.created_at,
       };
     } catch (error) {
-      console.warn("API failed for addFeatures", error);
+      console.warn('API failed for addFeatures', error);
       throw error;
     }
   },
 
-  removeFeature: async (
-    boardId: string,
-    milestoneId: string,
-    featureId: string,
-  ): Promise<void> => {
+  removeFeature: async (boardId: string, milestoneId: string, featureId: string): Promise<void> => {
     try {
       await milestoneAPI.removeFeature(boardId, milestoneId, featureId);
     } catch (error) {
-      console.warn("API failed for removeFeature", error);
+      console.warn('API failed for removeFeature', error);
       throw error;
     }
   },
 
   // Milestone Allocation methods
-  getAllocations: async (
-    boardId: string,
-    milestoneId: string,
-  ): Promise<MilestoneAllocation[]> => {
+  getAllocations: async (boardId: string, milestoneId: string): Promise<MilestoneAllocation[]> => {
     try {
       const response = await milestoneAPI.getAllocations(boardId, milestoneId);
       return response.allocations;
     } catch (error) {
-      console.warn("API failed, returning empty allocations", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, returning empty allocations', error);
+      if (canUseMock(error)) {
         return [];
       }
       throw error;
@@ -2008,14 +2010,10 @@ export const milestoneService = {
     },
   ): Promise<MilestoneAllocation> => {
     try {
-      const allocation = await milestoneAPI.createAllocation(
-        boardId,
-        milestoneId,
-        data,
-      );
+      const allocation = await milestoneAPI.createAllocation(boardId, milestoneId, data);
       return allocation;
     } catch (error) {
-      console.warn("API failed for createAllocation", error);
+      console.warn('API failed for createAllocation', error);
       throw error;
     }
   },
@@ -2038,7 +2036,7 @@ export const milestoneService = {
       );
       return allocation;
     } catch (error) {
-      console.warn("API failed for updateAllocation", error);
+      console.warn('API failed for updateAllocation', error);
       throw error;
     }
   },
@@ -2051,7 +2049,7 @@ export const milestoneService = {
     try {
       await milestoneAPI.deleteAllocation(boardId, milestoneId, allocationId);
     } catch (error) {
-      console.warn("API failed for deleteAllocation", error);
+      console.warn('API failed for deleteAllocation', error);
       throw error;
     }
   },
@@ -2063,21 +2061,21 @@ export const milestoneService = {
 
 // 기본 가중치 레벨 (API 실패 시 사용)
 const DEFAULT_WEIGHT_LEVELS: WeightLevel[] = [
-  { id: "low", name: "Low", weight: 0.5, color: "#94A3B8", position: 0 },
+  { id: 'low', name: 'Low', weight: 0.5, color: '#94A3B8', position: 0 },
   {
-    id: "medium",
-    name: "Medium",
+    id: 'medium',
+    name: 'Medium',
     weight: 1.0,
-    color: "#6366F1",
+    color: '#6366F1',
     position: 1,
     is_default: true,
   },
-  { id: "high", name: "High", weight: 1.5, color: "#F59E0B", position: 2 },
+  { id: 'high', name: 'High', weight: 1.5, color: '#F59E0B', position: 2 },
   {
-    id: "critical",
-    name: "Critical",
+    id: 'critical',
+    name: 'Critical',
     weight: 2.0,
-    color: "#EF4444",
+    color: '#EF4444',
     position: 3,
   },
 ];
@@ -2150,8 +2148,8 @@ export const statisticsService = {
         daily_trend: response.daily_trend,
       };
     } catch (error) {
-      console.warn("API failed, using empty statistics", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using empty statistics', error);
+      if (canUseMock(error)) {
         return EMPTY_BOARD_STATISTICS;
       }
       throw error;
@@ -2164,14 +2162,11 @@ export const statisticsService = {
     filter?: { start_date?: string; end_date?: string },
   ): Promise<PersonalStatistics> => {
     try {
-      const response = await statisticsAPI.getPersonalStatistics(
-        boardId,
-        filter,
-      );
+      const response = await statisticsAPI.getPersonalStatistics(boardId, filter);
       return response;
     } catch (error) {
-      console.warn("API failed, using empty personal statistics", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using empty personal statistics', error);
+      if (canUseMock(error)) {
         return EMPTY_PERSONAL_STATISTICS;
       }
       throw error;
@@ -2188,12 +2183,12 @@ export const statisticsService = {
         default_level_id: response.default_level_id,
       };
     } catch (error) {
-      console.warn("API failed, using default weight levels", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using default weight levels', error);
+      if (canUseMock(error)) {
         return {
           board_id: boardId,
           levels: DEFAULT_WEIGHT_LEVELS,
-          default_level_id: "medium",
+          default_level_id: 'medium',
         };
       }
       throw error;
@@ -2204,7 +2199,7 @@ export const statisticsService = {
   updateWeightLevels: async (
     boardId: string,
     data: {
-      levels: Omit<WeightLevel, "id" | "is_default"> & { id?: string }[];
+      levels: (Omit<WeightLevel, 'id' | 'is_default'> & { id?: string })[];
       default_level_id?: string;
     },
   ): Promise<BoardWeightSettings> => {
@@ -2225,7 +2220,7 @@ export const statisticsService = {
         default_level_id: response.default_level_id,
       };
     } catch (error) {
-      console.warn("API failed for updateWeightLevels", error);
+      console.warn('API failed for updateWeightLevels', error);
       throw error;
     }
   },
@@ -2237,14 +2232,10 @@ export const statisticsService = {
     weightLevelId: string,
   ): Promise<{ task_id: string; weight_level_id: string }> => {
     try {
-      const response = await statisticsAPI.setTaskWeight(
-        boardId,
-        taskId,
-        weightLevelId,
-      );
+      const response = await statisticsAPI.setTaskWeight(boardId, taskId, weightLevelId);
       return response;
     } catch (error) {
-      console.warn("API failed for setTaskWeight", error);
+      console.warn('API failed for setTaskWeight', error);
       throw error;
     }
   },
@@ -2261,8 +2252,8 @@ export const statisticsService = {
         weight_level: response.weight_level,
       };
     } catch (error) {
-      console.warn("API failed, returning null weight level", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, returning null weight level', error);
+      if (canUseMock(error)) {
         return { task_id: taskId, weight_level: null };
       }
       throw error;
@@ -2326,8 +2317,8 @@ export const managementService = {
       });
       return response as ManagementStatistics;
     } catch (error) {
-      console.warn("API failed, using empty management statistics", error);
-      if (USE_MOCK_ON_ERROR) {
+      console.warn('API failed, using empty management statistics', error);
+      if (canUseMock(error)) {
         return EMPTY_MANAGEMENT_STATISTICS;
       }
       throw error;
@@ -2358,7 +2349,6 @@ import {
   SignupTrend,
   ActiveUserStats,
   ConversionStats,
-  DiaryStats,
   PersonalConversionStats,
   RetentionAnalysis,
   InactiveUserList,
@@ -2371,7 +2361,7 @@ import {
   AiKeyList,
   AiKeyStatus,
   AiKeyLogList,
-} from "./api";
+} from './api';
 
 export const adminService = {
   // 사용자 목록 조회
@@ -2393,7 +2383,7 @@ export const adminService = {
   // 사용자 정보 수정 (역할 변경)
   updateUser: async (
     userId: string,
-    data: { system_role?: "USER" | "TESTER" | "ADMIN" },
+    data: { system_role?: 'USER' | 'TESTER' | 'ADMIN' },
   ): Promise<AdminUserSummary> => {
     const response = await adminAPI.updateUser(userId, data);
     return response;
@@ -2406,10 +2396,7 @@ export const adminService = {
   },
 
   // 사용자 비활성화
-  deactivateUser: async (
-    userId: string,
-    reason?: string,
-  ): Promise<AdminUserSummary> => {
+  deactivateUser: async (userId: string, reason?: string): Promise<AdminUserSummary> => {
     return adminAPI.deactivateUser(userId, reason);
   },
 
@@ -2424,9 +2411,7 @@ export const adminService = {
   },
 
   // 비밀번호 리셋 메일 발송
-  sendPasswordResetEmail: async (
-    userId: string,
-  ): Promise<{ message: string }> => {
+  sendPasswordResetEmail: async (userId: string): Promise<{ message: string }> => {
     return adminAPI.sendPasswordResetEmail(userId);
   },
 
@@ -2449,10 +2434,7 @@ export const adminService = {
   },
 
   // 사용자를 보드에서 제거
-  removeUserFromBoard: async (
-    userId: string,
-    boardId: string,
-  ): Promise<void> => {
+  removeUserFromBoard: async (userId: string, boardId: string): Promise<void> => {
     await adminAPI.removeUserFromBoard(userId, boardId);
   },
 
@@ -2499,17 +2481,14 @@ export const adminService = {
   },
 
   // 보드 이름 변경
-  updateBoardName: async (
-    boardId: string,
-    name: string,
-  ): Promise<AdminBoardDetail> => {
+  updateBoardName: async (boardId: string, name: string): Promise<AdminBoardDetail> => {
     return adminAPI.updateBoardName(boardId, name);
   },
 
   // 보드 티어 변경
   updateBoardTier: async (
     boardId: string,
-    tier: "FREE" | "STANDARD" | "PREMIUM" | "ENTERPRISE",
+    tier: AdminBoardSummary['tier'],
   ): Promise<AdminBoardSummary> => {
     const response = await adminAPI.updateBoardTier(boardId, tier);
     return response;
@@ -2524,10 +2503,7 @@ export const adminService = {
   },
 
   // Trial 기간 연장
-  extendTrial: async (
-    boardId: string,
-    extendDays: number,
-  ): Promise<AdminBoardSummary> => {
+  extendTrial: async (boardId: string, extendDays: number): Promise<AdminBoardSummary> => {
     return adminAPI.extendTrial(boardId, extendDays);
   },
 
@@ -2535,16 +2511,13 @@ export const adminService = {
   updateMemberRole: async (
     boardId: string,
     memberId: string,
-    role: "ADMIN" | "MEMBER" | "VIEWER",
+    role: 'ADMIN' | 'MEMBER' | 'VIEWER',
   ): Promise<AdminBoardDetail> => {
     return adminAPI.updateMemberRole(boardId, memberId, role);
   },
 
   // 시트 수 변경
-  updateSeatCount: async (
-    boardId: string,
-    seatCount: number,
-  ): Promise<AdminBoardDetail> => {
+  updateSeatCount: async (boardId: string, seatCount: number): Promise<AdminBoardDetail> => {
     return adminAPI.updateSeatCount(boardId, seatCount);
   },
 
@@ -2586,22 +2559,13 @@ export const adminService = {
     return await adminAPI.getConversionStats(days);
   },
 
-  // Analytics: Diary 통계
-  getDiaryStats: async (days: number = 30): Promise<DiaryStats> => {
-    return await adminAPI.getDiaryStats(days);
-  },
-
   // Analytics: Personal → Team 전환 통계
-  getPersonalConversionStats: async (
-    days: number = 365,
-  ): Promise<PersonalConversionStats> => {
+  getPersonalConversionStats: async (days: number = 365): Promise<PersonalConversionStats> => {
     return await adminAPI.getPersonalConversionStats(days);
   },
 
   // Churn Analysis
-  getRetentionAnalysis: async (
-    weeks: number = 8,
-  ): Promise<RetentionAnalysis> => {
+  getRetentionAnalysis: async (weeks: number = 8): Promise<RetentionAnalysis> => {
     return await adminAPI.getRetentionAnalysis(weeks);
   },
   getInactiveUsers: async (
@@ -2611,9 +2575,7 @@ export const adminService = {
   ): Promise<InactiveUserList> => {
     return await adminAPI.getInactiveUsers(inactiveDays, page, size);
   },
-  getTrialDropoutAnalysis: async (
-    days: number = 90,
-  ): Promise<TrialDropoutAnalysis> => {
+  getTrialDropoutAnalysis: async (days: number = 90): Promise<TrialDropoutAnalysis> => {
     return await adminAPI.getTrialDropoutAnalysis(days);
   },
   getActivityTrends: async (days: number = 90): Promise<ActivityTrends> => {
@@ -2628,7 +2590,7 @@ export const adminService = {
   createAnnouncement: async (data: {
     title: string;
     content?: string;
-    type?: "POPUP" | "BANNER" | "NOTICE";
+    type?: 'POPUP' | 'BANNER' | 'NOTICE';
     is_active?: boolean;
     start_at?: string | null;
     end_at?: string | null;
@@ -2643,7 +2605,7 @@ export const adminService = {
     data: {
       title: string;
       content?: string;
-      type?: "POPUP" | "BANNER" | "NOTICE";
+      type?: 'POPUP' | 'BANNER' | 'NOTICE';
       is_active?: boolean;
       start_at?: string | null;
       end_at?: string | null;
@@ -2732,10 +2694,7 @@ export const adminService = {
   },
 
   // Trial 연장
-  extendOrgTrial: async (
-    orgId: string,
-    extendDays: number,
-  ): Promise<AdminOrgDetail> => {
+  extendOrgTrial: async (orgId: string, extendDays: number): Promise<AdminOrgDetail> => {
     return adminAPI.extendOrgTrial(orgId, extendDays);
   },
 
@@ -2763,9 +2722,7 @@ export const adminService = {
     return await adminAPI.getMonetizationStatus();
   },
 
-  setMonetizationEnabled: async (
-    enabled: boolean,
-  ): Promise<{ monetization_enabled: boolean }> => {
+  setMonetizationEnabled: async (enabled: boolean): Promise<{ monetization_enabled: boolean }> => {
     return await adminAPI.setMonetizationEnabled(enabled);
   },
 
@@ -2787,10 +2744,7 @@ export const adminService = {
     return await adminAPI.getAiKeys();
   },
 
-  rotateAiKey: async (
-    provider: AiKeyProvider,
-    apiKey: string,
-  ): Promise<AiKeyStatus> => {
+  rotateAiKey: async (provider: AiKeyProvider, apiKey: string): Promise<AiKeyStatus> => {
     return await adminAPI.rotateAiKey(provider, apiKey);
   },
 
@@ -2798,18 +2752,12 @@ export const adminService = {
     return await adminAPI.verifyAiKey(provider);
   },
 
-  getAiKeyLogs: async (
-    params: { page?: number; size?: number } = {},
-  ): Promise<AiKeyLogList> => {
+  getAiKeyLogs: async (params: { page?: number; size?: number } = {}): Promise<AiKeyLogList> => {
     return await adminAPI.getAiKeyLogs(params);
   },
 
   // 문의 관리
-  getInquiries: async (params: {
-    page?: number;
-    size?: number;
-    status?: string;
-  }) => {
+  getInquiries: async (params: { page?: number; size?: number; status?: string }) => {
     return await adminAPI.getInquiries(params);
   },
 
@@ -2841,11 +2789,7 @@ export const getMonetizationStatus = async (): Promise<{
 // ========================================
 
 export const inquiryService = {
-  createInquiry: async (data: {
-    title: string;
-    content: string;
-    fileKeys?: string[];
-  }) => {
+  createInquiry: async (data: { title: string; content: string; fileKeys?: string[] }) => {
     return await inquiryAPI.createInquiry(data);
   },
 
@@ -2903,7 +2847,7 @@ export const noteService = {
     boardId: string,
     data: {
       title: string;
-      type: "FOLDER" | "DOCUMENT" | "BOARD";
+      type: 'FOLDER' | 'DOCUMENT' | 'BOARD';
       parentId?: string | null;
       content?: string;
       tagIds?: string[];
@@ -2915,21 +2859,28 @@ export const noteService = {
   update: async (
     boardId: string,
     noteId: string,
-    data: {
-      title?: string;
-      content?: string;
-      tagIds?: string[];
-    },
+    data: NoteUpdateData,
     createVersion = true,
     discardDraft = true,
   ) => {
-    return await noteAPI.update(
-      boardId,
-      noteId,
-      data,
-      createVersion,
-      discardDraft,
-    );
+    return await noteAPI.update(boardId, noteId, data, createVersion, discardDraft);
+  },
+
+  search: async (boardId: string, q: string) => {
+    return await noteAPI.search(boardId, q);
+  },
+
+  updateStatus: async (boardId: string, noteId: string, status: NoteStatus | null) => {
+    return await noteAPI.updateStatus(boardId, noteId, status);
+  },
+
+  updateVersionNote: async (
+    boardId: string,
+    noteId: string,
+    versionId: string,
+    note: string | null,
+  ) => {
+    return await noteAPI.updateVersionNote(boardId, noteId, versionId, note);
   },
 
   delete: async (boardId: string, noteId: string) => {
@@ -2951,11 +2902,7 @@ export const noteService = {
     return await noteAPI.getVersions(boardId, noteId);
   },
 
-  getVersionDetail: async (
-    boardId: string,
-    noteId: string,
-    versionId: string,
-  ) => {
+  getVersionDetail: async (boardId: string, noteId: string, versionId: string) => {
     return await noteAPI.getVersionDetail(boardId, noteId, versionId);
   },
 
@@ -2965,12 +2912,7 @@ export const noteService = {
     versionId: string,
     liveSnapshot?: { current_title?: string; current_content?: string },
   ) => {
-    return await noteAPI.restoreVersion(
-      boardId,
-      noteId,
-      versionId,
-      liveSnapshot,
-    );
+    return await noteAPI.restoreVersion(boardId, noteId, versionId, liveSnapshot);
   },
 
   deleteVersion: async (boardId: string, noteId: string, versionId: string) => {
@@ -3023,23 +2965,14 @@ export const noteService = {
 // Note Comment Service
 // ========================================
 
-import { noteCommentAPI } from "./api";
+import { noteCommentAPI } from './api';
 
 export const noteCommentService = {
   getComments: async (boardId: string, noteId: string) => {
     return await noteCommentAPI.getComments(boardId, noteId);
   },
 
-  createComment: async (
-    boardId: string,
-    noteId: string,
-    data: {
-      content: string;
-      block_id?: string | null;
-      parent_id?: string | null;
-      mentions?: string[];
-    },
-  ) => {
+  createComment: async (boardId: string, noteId: string, data: NoteCommentCreateData) => {
     return await noteCommentAPI.createComment(boardId, noteId, data);
   },
 
@@ -3059,26 +2992,21 @@ export const noteCommentService = {
     return await noteCommentAPI.deleteComment(boardId, noteId, commentId);
   },
 
-  toggleResolved: async (
-    boardId: string,
-    noteId: string,
-    commentId: string,
-  ) => {
+  toggleResolved: async (boardId: string, noteId: string, commentId: string) => {
     return await noteCommentAPI.toggleResolved(boardId, noteId, commentId);
   },
 
-  toggleReaction: async (
+  updateAnchor: async (
     boardId: string,
     noteId: string,
     commentId: string,
-    emoji: string,
+    data: NoteCommentUpdateAnchorData,
   ) => {
-    return await noteCommentAPI.toggleReaction(
-      boardId,
-      noteId,
-      commentId,
-      emoji,
-    );
+    return await noteCommentAPI.updateAnchor(boardId, noteId, commentId, data);
+  },
+
+  toggleReaction: async (boardId: string, noteId: string, commentId: string, emoji: string) => {
+    return await noteCommentAPI.toggleReaction(boardId, noteId, commentId, emoji);
   },
 };
 
@@ -3086,12 +3014,7 @@ export const noteCommentService = {
 // Organization Note Service
 // ========================================
 
-import {
-  orgNoteAPI,
-  orgNoteCommentAPI,
-  myNoteAPI,
-  myNoteCommentAPI,
-} from "./api";
+import { orgNoteAPI, orgNoteCommentAPI, myNoteAPI, myNoteCommentAPI } from './api';
 
 export const orgNoteService = {
   getBoardNotes: async (orgId: string) => {
@@ -3110,7 +3033,7 @@ export const orgNoteService = {
     orgId: string,
     data: {
       title: string;
-      type: "FOLDER" | "DOCUMENT" | "BOARD";
+      type: 'FOLDER' | 'DOCUMENT' | 'BOARD';
       parentId?: string | null;
       content?: string;
       tagIds?: string[];
@@ -3121,17 +3044,25 @@ export const orgNoteService = {
   update: async (
     orgId: string,
     noteId: string,
-    data: { title?: string; content?: string; tagIds?: string[] },
+    data: NoteUpdateData,
     createVersion = true,
     discardDraft = true,
   ) => {
-    return await orgNoteAPI.update(
-      orgId,
-      noteId,
-      data,
-      createVersion,
-      discardDraft,
-    );
+    return await orgNoteAPI.update(orgId, noteId, data, createVersion, discardDraft);
+  },
+  search: async (orgId: string, q: string) => {
+    return await orgNoteAPI.search(orgId, q);
+  },
+  updateStatus: async (orgId: string, noteId: string, status: NoteStatus | null) => {
+    return await orgNoteAPI.updateStatus(orgId, noteId, status);
+  },
+  updateVersionNote: async (
+    orgId: string,
+    noteId: string,
+    versionId: string,
+    note: string | null,
+  ) => {
+    return await orgNoteAPI.updateVersionNote(orgId, noteId, versionId, note);
   },
   delete: async (orgId: string, noteId: string) => {
     return await orgNoteAPI.delete(orgId, noteId);
@@ -3146,11 +3077,7 @@ export const orgNoteService = {
   getVersions: async (orgId: string, noteId: string) => {
     return await orgNoteAPI.getVersions(orgId, noteId);
   },
-  getVersionDetail: async (
-    orgId: string,
-    noteId: string,
-    versionId: string,
-  ) => {
+  getVersionDetail: async (orgId: string, noteId: string, versionId: string) => {
     return await orgNoteAPI.getVersionDetail(orgId, noteId, versionId);
   },
   restoreVersion: async (
@@ -3159,12 +3086,7 @@ export const orgNoteService = {
     versionId: string,
     liveSnapshot?: { current_title?: string; current_content?: string },
   ) => {
-    return await orgNoteAPI.restoreVersion(
-      orgId,
-      noteId,
-      versionId,
-      liveSnapshot,
-    );
+    return await orgNoteAPI.restoreVersion(orgId, noteId, versionId, liveSnapshot);
   },
   deleteVersion: async (orgId: string, noteId: string, versionId: string) => {
     return await orgNoteAPI.deleteVersion(orgId, noteId, versionId);
@@ -3208,16 +3130,7 @@ export const orgNoteCommentService = {
   getComments: async (orgId: string, noteId: string) => {
     return await orgNoteCommentAPI.getComments(orgId, noteId);
   },
-  createComment: async (
-    orgId: string,
-    noteId: string,
-    data: {
-      content: string;
-      block_id?: string | null;
-      parent_id?: string | null;
-      mentions?: string[];
-    },
-  ) => {
+  createComment: async (orgId: string, noteId: string, data: NoteCommentCreateData) => {
     return await orgNoteCommentAPI.createComment(orgId, noteId, data);
   },
   updateComment: async (
@@ -3226,12 +3139,7 @@ export const orgNoteCommentService = {
     commentId: string,
     data: { content: string; mentions?: string[] },
   ) => {
-    return await orgNoteCommentAPI.updateComment(
-      orgId,
-      noteId,
-      commentId,
-      data,
-    );
+    return await orgNoteCommentAPI.updateComment(orgId, noteId, commentId, data);
   },
   deleteComment: async (orgId: string, noteId: string, commentId: string) => {
     return await orgNoteCommentAPI.deleteComment(orgId, noteId, commentId);
@@ -3239,18 +3147,16 @@ export const orgNoteCommentService = {
   toggleResolved: async (orgId: string, noteId: string, commentId: string) => {
     return await orgNoteCommentAPI.toggleResolved(orgId, noteId, commentId);
   },
-  toggleReaction: async (
+  updateAnchor: async (
     orgId: string,
     noteId: string,
     commentId: string,
-    emoji: string,
+    data: NoteCommentUpdateAnchorData,
   ) => {
-    return await orgNoteCommentAPI.toggleReaction(
-      orgId,
-      noteId,
-      commentId,
-      emoji,
-    );
+    return await orgNoteCommentAPI.updateAnchor(orgId, noteId, commentId, data);
+  },
+  toggleReaction: async (orgId: string, noteId: string, commentId: string, emoji: string) => {
+    return await orgNoteCommentAPI.toggleReaction(orgId, noteId, commentId, emoji);
   },
 };
 
@@ -3274,7 +3180,7 @@ export const myNoteService = {
     scopeId: string,
     data: {
       title: string;
-      type: "FOLDER" | "DOCUMENT" | "BOARD";
+      type: 'FOLDER' | 'DOCUMENT' | 'BOARD';
       parentId?: string | null;
       content?: string;
       tagIds?: string[];
@@ -3285,17 +3191,25 @@ export const myNoteService = {
   update: async (
     scopeId: string,
     noteId: string,
-    data: { title?: string; content?: string; tagIds?: string[] },
+    data: NoteUpdateData,
     createVersion = true,
     discardDraft = true,
   ) => {
-    return await myNoteAPI.update(
-      scopeId,
-      noteId,
-      data,
-      createVersion,
-      discardDraft,
-    );
+    return await myNoteAPI.update(scopeId, noteId, data, createVersion, discardDraft);
+  },
+  search: async (scopeId: string, q: string) => {
+    return await myNoteAPI.search(scopeId, q);
+  },
+  updateStatus: async (scopeId: string, noteId: string, status: NoteStatus | null) => {
+    return await myNoteAPI.updateStatus(scopeId, noteId, status);
+  },
+  updateVersionNote: async (
+    scopeId: string,
+    noteId: string,
+    versionId: string,
+    note: string | null,
+  ) => {
+    return await myNoteAPI.updateVersionNote(scopeId, noteId, versionId, note);
   },
   delete: async (scopeId: string, noteId: string) => {
     return await myNoteAPI.delete(scopeId, noteId);
@@ -3310,11 +3224,7 @@ export const myNoteService = {
   getVersions: async (scopeId: string, noteId: string) => {
     return await myNoteAPI.getVersions(scopeId, noteId);
   },
-  getVersionDetail: async (
-    scopeId: string,
-    noteId: string,
-    versionId: string,
-  ) => {
+  getVersionDetail: async (scopeId: string, noteId: string, versionId: string) => {
     return await myNoteAPI.getVersionDetail(scopeId, noteId, versionId);
   },
   restoreVersion: async (
@@ -3323,12 +3233,7 @@ export const myNoteService = {
     versionId: string,
     liveSnapshot?: { current_title?: string; current_content?: string },
   ) => {
-    return await myNoteAPI.restoreVersion(
-      scopeId,
-      noteId,
-      versionId,
-      liveSnapshot,
-    );
+    return await myNoteAPI.restoreVersion(scopeId, noteId, versionId, liveSnapshot);
   },
   deleteVersion: async (scopeId: string, noteId: string, versionId: string) => {
     return await myNoteAPI.deleteVersion(scopeId, noteId, versionId);
@@ -3372,16 +3277,7 @@ export const myNoteCommentService = {
   getComments: async (scopeId: string, noteId: string) => {
     return await myNoteCommentAPI.getComments(scopeId, noteId);
   },
-  createComment: async (
-    scopeId: string,
-    noteId: string,
-    data: {
-      content: string;
-      block_id?: string | null;
-      parent_id?: string | null;
-      mentions?: string[];
-    },
-  ) => {
+  createComment: async (scopeId: string, noteId: string, data: NoteCommentCreateData) => {
     return await myNoteCommentAPI.createComment(scopeId, noteId, data);
   },
   updateComment: async (
@@ -3390,35 +3286,24 @@ export const myNoteCommentService = {
     commentId: string,
     data: { content: string; mentions?: string[] },
   ) => {
-    return await myNoteCommentAPI.updateComment(
-      scopeId,
-      noteId,
-      commentId,
-      data,
-    );
+    return await myNoteCommentAPI.updateComment(scopeId, noteId, commentId, data);
   },
   deleteComment: async (scopeId: string, noteId: string, commentId: string) => {
     return await myNoteCommentAPI.deleteComment(scopeId, noteId, commentId);
   },
-  toggleResolved: async (
-    scopeId: string,
-    noteId: string,
-    commentId: string,
-  ) => {
+  toggleResolved: async (scopeId: string, noteId: string, commentId: string) => {
     return await myNoteCommentAPI.toggleResolved(scopeId, noteId, commentId);
   },
-  toggleReaction: async (
+  updateAnchor: async (
     scopeId: string,
     noteId: string,
     commentId: string,
-    emoji: string,
+    data: NoteCommentUpdateAnchorData,
   ) => {
-    return await myNoteCommentAPI.toggleReaction(
-      scopeId,
-      noteId,
-      commentId,
-      emoji,
-    );
+    return await myNoteCommentAPI.updateAnchor(scopeId, noteId, commentId, data);
+  },
+  toggleReaction: async (scopeId: string, noteId: string, commentId: string, emoji: string) => {
+    return await myNoteCommentAPI.toggleReaction(scopeId, noteId, commentId, emoji);
   },
 };
 
@@ -3427,51 +3312,39 @@ export const myNoteCommentService = {
 // ========================================
 
 export const monitoringService = {
-  getDashboard: async () => {
-    const response = await apiClient.get("/admin/monitoring/dashboard");
-    return response.data || response;
+  getDashboard: async (): Promise<MonitoringDashboard> => {
+    return apiClient.get<MonitoringDashboard>('/admin/monitoring/dashboard');
   },
 
-  getApiMetricHistory: async (hours: number = 24) => {
-    const response = await apiClient.get(
-      `/admin/monitoring/api-metrics/history?hours=${hours}`,
-    );
-    return (response.data || response).snapshots || [];
+  getApiMetricHistory: async (hours: number = 24): Promise<MonitoringApiMetricSnapshot[]> => {
+    const response = await apiClient.get<{
+      snapshots?: MonitoringApiMetricSnapshot[];
+    }>(`/admin/monitoring/api-metrics/history?hours=${hours}`);
+    return response.snapshots || [];
   },
 
-  getAlertConfig: async () => {
-    const response = await apiClient.get("/admin/monitoring/alert-config");
-    return response.data || response;
+  getAlertConfig: async (): Promise<MonitoringAlertConfig> => {
+    return apiClient.get<MonitoringAlertConfig>('/admin/monitoring/alert-config');
   },
 
   updateAlertConfig: async (config: {
     slack_webhook_url: string;
     enabled: boolean;
     alert_email_recipients?: string[];
-  }) => {
-    const response = await apiClient.put(
-      "/admin/monitoring/alert-config",
-      config,
-    );
-    return response.data || response;
+  }): Promise<MonitoringAlertConfig> => {
+    return apiClient.put<MonitoringAlertConfig>('/admin/monitoring/alert-config', config);
   },
 
   sendTestAlert: async () => {
-    await apiClient.post("/admin/monitoring/alert-test");
+    await apiClient.post('/admin/monitoring/alert-test');
   },
 
-  getAiUsage: async (days: number = 30) => {
-    const response = await apiClient.get(
-      `/admin/monitoring/ai-usage?days=${days}`,
-    );
-    return response.data || response;
+  getAiUsage: async (days: number = 30): Promise<MonitoringAiUsageMetrics> => {
+    return apiClient.get<MonitoringAiUsageMetrics>(`/admin/monitoring/ai-usage?days=${days}`);
   },
 
-  getOpenAIBilling: async (days: number = 30) => {
-    const response = await apiClient.get(
-      `/admin/monitoring/openai-billing?days=${days}`,
-    );
-    return response.data || response;
+  getOpenAIBilling: async (days: number = 30): Promise<OpenAIBilling> => {
+    return apiClient.get<OpenAIBilling>(`/admin/monitoring/openai-billing?days=${days}`);
   },
 };
 
@@ -3485,13 +3358,17 @@ import type {
   AiCreditPurchaseResult,
   AiCreditPurchaseHistory,
   AiCreditUsageHistory,
-} from "../types";
+  MonitoringDashboard,
+  MonitoringAlertConfig,
+  MonitoringApiMetricSnapshot,
+  MonitoringAiUsageMetrics,
+  OpenAIBilling,
+} from '../types';
 
 export const aiCreditService = {
   // 크레딧 조회
   getCredits: async (boardId: string): Promise<AiCredits> => {
-    const response = await apiClient.get(`/boards/${boardId}/ai-credits`);
-    return response.data || response;
+    return apiClient.get<AiCredits>(`/boards/${boardId}/ai-credits`);
   },
 
   // 크레딧 구매
@@ -3499,30 +3376,19 @@ export const aiCreditService = {
     boardId: string,
     data: AiCreditPurchaseRequest,
   ): Promise<AiCreditPurchaseResult> => {
-    const response = await apiClient.post(
-      `/boards/${boardId}/ai-credits/purchase`,
-      data,
-    );
-    return response.data || response;
+    return apiClient.post<AiCreditPurchaseResult>(`/boards/${boardId}/ai-credits/purchase`, data);
   },
 
-  // 구매 이력 조회
+  // 구매 이력 조회 (백엔드는 List<PurchaseHistory> 를 그대로 반환)
   getPurchases: async (boardId: string): Promise<AiCreditPurchaseHistory[]> => {
-    const response = await apiClient.get(
-      `/boards/${boardId}/ai-credits/purchases`,
-    );
-    return (response.data || response).purchases || response.data || response;
+    return apiClient.get<AiCreditPurchaseHistory[]>(`/boards/${boardId}/ai-credits/purchases`);
   },
 
   // AI 사용 내역 조회
-  getUsageHistory: async (
-    boardId: string,
-    days: number = 30,
-  ): Promise<AiCreditUsageHistory[]> => {
-    const response = await apiClient.get(
+  getUsageHistory: async (boardId: string, days: number = 30): Promise<AiCreditUsageHistory[]> => {
+    return apiClient.get<AiCreditUsageHistory[]>(
       `/boards/${boardId}/ai-credits/usage?days=${days}`,
     );
-    return response.data || response;
   },
 };
 
@@ -3530,27 +3396,15 @@ export const aiCreditService = {
 // Task Dependency Service
 // ========================================
 
-import { taskDependencyAPI, personalEventAPI, diaryAPI } from "./api";
-import type {
-  TaskDependency,
-  PersonalEvent,
-  DiaryDetail,
-  DiarySimple,
-  DiaryAiReply,
-  DiaryVoiceReply,
-  DiaryVoiceSettings,
-} from "../types";
+import { taskDependencyAPI, personalEventAPI } from './api';
+import type { TaskDependency, PersonalEvent } from '../types';
 
 export const taskDependencyService = {
   getByBoard: async (boardId: string) => {
     return taskDependencyAPI.getByBoard(boardId);
   },
 
-  create: async (
-    boardId: string,
-    predecessorId: string,
-    successorId: string,
-  ) => {
+  create: async (boardId: string, predecessorId: string, successorId: string) => {
     return taskDependencyAPI.create(boardId, {
       predecessor_id: predecessorId,
       successor_id: successorId,
@@ -3567,10 +3421,7 @@ export const taskDependencyService = {
 // ========================================
 
 export const personalEventService = {
-  getByDate: async (
-    date: string,
-    eventType?: string,
-  ): Promise<PersonalEvent[]> => {
+  getByDate: async (date: string, eventType?: string): Promise<PersonalEvent[]> => {
     return personalEventAPI.getByDate(date, eventType);
   },
 
@@ -3624,103 +3475,65 @@ export const personalEventService = {
   },
 };
 
-// ========================================
-// Diary Service
-// ========================================
+// ─── Personal Feature Docs (마이 스페이스 「기능」 탭) ───
+// 기획서: docs/Design/myspace-features-timetable.html §06
+// 기능마다 문서 여러 개 + 추천 용어(terms). 계약 타입: components/personal/features/types.ts
 
-export const diaryService = {
-  getByDate: async (date: string): Promise<DiaryDetail | null> => {
-    return diaryAPI.getByDate(date);
+import type {
+  PersonalFeatureDoc,
+  PersonalFeatureDocSummary,
+  PersonalFeatureTerm,
+} from '../components/personal/features/types';
+
+const featureBase = (featureKey: string) => `/personal/features/${encodeURIComponent(featureKey)}`;
+
+export const personalFeatureAPI = {
+  listDocs: async (featureKey: string): Promise<PersonalFeatureDocSummary[]> => {
+    return apiClient.get(`${featureBase(featureKey)}/docs`);
   },
 
-  getById: async (diaryId: string): Promise<DiaryDetail> => {
-    return diaryAPI.getById(diaryId);
+  getDoc: async <C = unknown>(featureKey: string, id: string): Promise<PersonalFeatureDoc<C>> => {
+    return apiClient.get(`${featureBase(featureKey)}/docs/${id}`);
   },
 
-  getList: async (year: number, month: number): Promise<DiarySimple[]> => {
-    return diaryAPI.getList(year, month);
+  createDoc: async <C = unknown>(
+    featureKey: string,
+    body: { title: string; content: C; schema_ver: number },
+  ): Promise<PersonalFeatureDoc<C>> => {
+    return apiClient.post(`${featureBase(featureKey)}/docs`, body);
   },
 
-  create: async (
-    diaryDate: string,
-    language?: string,
-  ): Promise<DiaryDetail> => {
-    return diaryAPI.create(diaryDate, language);
+  updateDoc: async <C = unknown>(
+    featureKey: string,
+    id: string,
+    body: { title?: string; content?: C },
+  ): Promise<PersonalFeatureDoc<C>> => {
+    return apiClient.patch(`${featureBase(featureKey)}/docs/${id}`, body);
   },
 
-  sendMessage: async (
-    diaryId: string,
-    content: string,
-    language?: string,
-  ): Promise<DiaryAiReply> => {
-    return diaryAPI.sendMessage(diaryId, content, language);
+  duplicateDoc: async <C = unknown>(
+    featureKey: string,
+    id: string,
+  ): Promise<PersonalFeatureDoc<C>> => {
+    return apiClient.post(`${featureBase(featureKey)}/docs/${id}/duplicate`);
   },
 
-  complete: async (
-    diaryId: string,
-    data: {
-      title?: string;
-      content?: string;
-      mood?: string;
-    },
-    language?: string,
-  ): Promise<DiaryDetail> => {
-    return diaryAPI.complete(diaryId, data, language);
+  deleteDoc: async (featureKey: string, id: string): Promise<void> => {
+    return apiClient.delete(`${featureBase(featureKey)}/docs/${id}`);
   },
 
-  reopen: async (diaryId: string): Promise<DiaryDetail> => {
-    return diaryAPI.reopen(diaryId);
+  /** 추천 용어. field(열 이름)를 주면 그 열의 것만. */
+  listTerms: async (featureKey: string, field?: string): Promise<PersonalFeatureTerm[]> => {
+    const query = field ? `?field=${encodeURIComponent(field)}` : '';
+    return apiClient.get(`${featureBase(featureKey)}/terms${query}`);
   },
 
-  reset: async (diaryId: string, language?: string): Promise<DiaryDetail> => {
-    return diaryAPI.reset(diaryId, language);
+  /** 추천 항목의 ✕ — 서버 기억 삭제 */
+  forgetTerm: async (featureKey: string, field: string, value: string): Promise<void> => {
+    return apiClient.delete(
+      `${featureBase(featureKey)}/terms?field=${encodeURIComponent(field)}&value=${encodeURIComponent(value)}`,
+    );
   },
-
-  update: async (
-    diaryId: string,
-    data: {
-      title?: string;
-      content?: string;
-      mood?: string;
-    },
-  ): Promise<DiaryDetail> => {
-    return diaryAPI.update(diaryId, data);
-  },
-
-  delete: async (diaryId: string): Promise<void> => {
-    return diaryAPI.delete(diaryId);
-  },
-
-  sendVoiceMessage: async (
-    diaryId: string,
-    audioBlob: Blob,
-    language?: string,
-  ): Promise<DiaryVoiceReply> => {
-    return diaryAPI.sendVoiceMessage(diaryId, audioBlob, language);
-  },
-
-  getVoiceSettings: async (): Promise<DiaryVoiceSettings> => {
-    return diaryAPI.getVoiceSettings();
-  },
-
-  updateVoiceSettings: async (
-    data: Partial<DiaryVoiceSettings>,
-  ): Promise<DiaryVoiceSettings> => {
-    return diaryAPI.updateVoiceSettings(data);
-  },
-
-  // Personal AI Credits
-  getPersonalCredits: async (): Promise<AiCredits> => {
-    return diaryAPI.getPersonalCredits();
-  },
-
-  purchasePersonalCredits: async (
-    data: AiCreditPurchaseRequest,
-  ): Promise<AiCreditPurchaseResult> => {
-    return diaryAPI.purchasePersonalCredits(data);
-  },
-
-  getWorkContext: diaryAPI.getWorkContext,
 };
 
 // ─── Personal Task Service (v9.0) ───
@@ -3820,8 +3633,7 @@ export const organizationService = {
   // Member History
   getMemberHistory: organizationAPI.getMemberHistory,
   createMemberHistory: organizationAPI.createMemberHistory,
-  updateMemberHistoryDescription:
-    organizationAPI.updateMemberHistoryDescription,
+  updateMemberHistoryDescription: organizationAPI.updateMemberHistoryDescription,
   deleteMemberHistory: organizationAPI.deleteMemberHistory,
 
   // Boards
@@ -3950,8 +3762,7 @@ export const anniversaryService = {
 
 export const okrService = {
   // Cycles
-  getCycles: (orgId: string) =>
-    apiClient.get<OkrCycle[]>(`/organizations/${orgId}/okr/cycles`),
+  getCycles: (orgId: string) => apiClient.get<OkrCycle[]>(`/organizations/${orgId}/okr/cycles`),
   createCycle: (
     orgId: string,
     data: {
@@ -3971,19 +3782,13 @@ export const okrService = {
       end_date?: string;
       status?: string;
     },
-  ) =>
-    apiClient.put<OkrCycle>(
-      `/organizations/${orgId}/okr/cycles/${cycleId}`,
-      data,
-    ),
+  ) => apiClient.put<OkrCycle>(`/organizations/${orgId}/okr/cycles/${cycleId}`, data),
   deleteCycle: (orgId: string, cycleId: string) =>
     apiClient.delete<void>(`/organizations/${orgId}/okr/cycles/${cycleId}`),
 
   // Tree (full tree query)
   getTree: (orgId: string, cycleId: string) =>
-    apiClient.get<OkrTreeData>(
-      `/organizations/${orgId}/okr/cycles/${cycleId}/tree`,
-    ),
+    apiClient.get<OkrTreeData>(`/organizations/${orgId}/okr/cycles/${cycleId}/tree`),
 
   // Objectives
   createObjective: (
@@ -3998,10 +3803,7 @@ export const okrService = {
       parent_objective_id?: string;
     },
   ) =>
-    apiClient.post<OkrObjective>(
-      `/organizations/${orgId}/okr/cycles/${cycleId}/objectives`,
-      data,
-    ),
+    apiClient.post<OkrObjective>(`/organizations/${orgId}/okr/cycles/${cycleId}/objectives`, data),
   updateObjective: (
     orgId: string,
     objectiveId: string,
@@ -4013,15 +3815,9 @@ export const okrService = {
       owner_id?: string;
       parent_objective_id?: string;
     },
-  ) =>
-    apiClient.put<OkrObjective>(
-      `/organizations/${orgId}/okr/objectives/${objectiveId}`,
-      data,
-    ),
+  ) => apiClient.put<OkrObjective>(`/organizations/${orgId}/okr/objectives/${objectiveId}`, data),
   deleteObjective: (orgId: string, objectiveId: string) =>
-    apiClient.delete<void>(
-      `/organizations/${orgId}/okr/objectives/${objectiveId}`,
-    ),
+    apiClient.delete<void>(`/organizations/${orgId}/okr/objectives/${objectiveId}`),
 
   // Key Results
   createKeyResult: (
@@ -4058,19 +3854,13 @@ export const okrService = {
       weight?: number;
       linked_board_id?: string;
     },
-  ) =>
-    apiClient.put<OkrKeyResult>(
-      `/organizations/${orgId}/okr/key-results/${krId}`,
-      data,
-    ),
+  ) => apiClient.put<OkrKeyResult>(`/organizations/${orgId}/okr/key-results/${krId}`, data),
   deleteKeyResult: (orgId: string, krId: string) =>
     apiClient.delete<void>(`/organizations/${orgId}/okr/key-results/${krId}`),
 
   // Check-ins
   getCheckIns: (orgId: string, krId: string) =>
-    apiClient.get<OkrCheckIn[]>(
-      `/organizations/${orgId}/okr/key-results/${krId}/checkins`,
-    ),
+    apiClient.get<OkrCheckIn[]>(`/organizations/${orgId}/okr/key-results/${krId}/checkins`),
   createCheckIn: (
     orgId: string,
     krId: string,
@@ -4079,11 +3869,7 @@ export const okrService = {
       confidence: string;
       note?: string;
     },
-  ) =>
-    apiClient.post<OkrCheckIn>(
-      `/organizations/${orgId}/okr/key-results/${krId}/checkins`,
-      data,
-    ),
+  ) => apiClient.post<OkrCheckIn>(`/organizations/${orgId}/okr/key-results/${krId}/checkins`, data),
 };
 
 // ─── Org Subscription Service ───
@@ -4133,10 +3919,14 @@ export const orgPhotoService = {
   listShareLinks: orgPhotoAPI.listShareLinks,
   issueShareLink: orgPhotoAPI.issueShareLink,
   revokeShareLink: orgPhotoAPI.revokeShareLink,
+  uploadShareLinkOgImage: orgPhotoAPI.uploadShareLinkOgImage,
+  deleteShareLinkOgImage: orgPhotoAPI.deleteShareLinkOgImage,
 
   // Photo CRUD
   getPhotos: orgPhotoAPI.getPhotos,
   uploadPhotos: orgPhotoAPI.uploadPhotos,
+  presignPhotoUpload: orgPhotoAPI.presignPhotoUpload,
+  confirmPhotoUpload: orgPhotoAPI.confirmPhotoUpload,
   updatePhoto: orgPhotoAPI.updatePhoto,
   deletePhotos: orgPhotoAPI.deletePhotos,
 
@@ -4148,7 +3938,7 @@ export const orgPhotoService = {
 // ========================================
 // Storage Service (마이스페이스 개인 파일 보관함)
 // ========================================
-import { myStorageAPI } from "./api";
+import { myStorageAPI } from './api';
 
 export const myStorageService = {
   getFolders: myStorageAPI.getFolders,
@@ -4175,16 +3965,7 @@ export const myStorageService = {
   permanentDeleteFolder: myStorageAPI.permanentDeleteFolder,
   emptyTrash: myStorageAPI.emptyTrash,
 
-  /** 인증 다운로드 후 브라우저 저장 트리거 */
-  downloadAndSave: async (fileId: string, filename: string): Promise<void> => {
-    const blob = await myStorageAPI.downloadFile(fileId);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  },
+  /** presigned GET 으로 브라우저 직접 다운로드 (미지원 시 프록시 폴백) */
+  getDownloadUrl: myStorageAPI.getDownloadUrl,
+  downloadAndSave: myStorageAPI.downloadAndSave,
 };

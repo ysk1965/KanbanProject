@@ -1,9 +1,11 @@
 package com.kanban.global.scheduler;
 
+import com.kanban.domain.photo.service.PhotoDirectUploadService;
 import com.kanban.global.service.FileUploadService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -23,6 +25,7 @@ import java.time.temporal.ChronoUnit;
 public class TempFileCleanupScheduler {
 
     private final FileUploadService fileUploadService;
+    private final PhotoDirectUploadService photoDirectUploadService;
 
     @Value("${spring.servlet.multipart.location:/var/tmp/spring-multipart}")
     private String multipartLocation;
@@ -38,10 +41,21 @@ public class TempFileCleanupScheduler {
     }
 
     @Scheduled(fixedRate = 1800000) // 30분
+    @SchedulerLock(name = "TempFileCleanupScheduler.cleanup", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     public void cleanup() {
         log.debug("Running temp file cleanup...");
         fileUploadService.cleanupExpiredTemp();
         cleanupMultipartTemp();
+        cleanupPhotoUploadIntents();
+    }
+
+    /** presign 만 받고 confirm 되지 않은 사진첩 업로드의 S3 객체 정리 */
+    private void cleanupPhotoUploadIntents() {
+        try {
+            photoDirectUploadService.cleanupExpiredIntents();
+        } catch (Exception e) {
+            log.warn("Photo upload intent cleanup failed: {}", e.getMessage());
+        }
     }
 
     private void cleanupMultipartTemp() {

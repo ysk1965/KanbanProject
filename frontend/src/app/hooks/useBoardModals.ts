@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Block } from "../types";
-import { MemberRole } from "../components/ShareBoardModal";
-import { UpgradeTrigger } from "../components/UpgradeModal";
+import { useState } from 'react';
+import { Block } from '../types';
+import { MemberRole } from '../components/ShareBoardModal';
+import { UpgradeTrigger } from '../components/UpgradeModal';
 
 export interface SeatPurchaseModalState {
   open: boolean;
@@ -27,7 +27,7 @@ export interface OrgSeatLimitModalState {
 
 export interface AlertModalState {
   open: boolean;
-  type: "premium" | "permission";
+  type: 'premium' | 'permission';
 }
 
 /**
@@ -46,28 +46,21 @@ export function useBoardModals() {
   const [isContractorManagerOpen, setIsContractorManagerOpen] = useState(false);
   const [isTrashOpen, setIsTrashOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
-  const [isPremiumBenefitsModalOpen, setIsPremiumBenefitsModalOpen] =
-    useState(false);
+  const [isPremiumBenefitsModalOpen, setIsPremiumBenefitsModalOpen] = useState(false);
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [isActivityLogModalOpen, setIsActivityLogModalOpen] = useState(false);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
-  const [isMilestoneOnboardingOpen, setIsMilestoneOnboardingOpen] =
-    useState(false);
+  const [isMilestoneOnboardingOpen, setIsMilestoneOnboardingOpen] = useState(false);
 
   // Tier & Limits 모달 상태
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [upgradeTrigger, setUpgradeTrigger] =
-    useState<UpgradeTrigger>("task_limit");
-  const [seatPurchaseModal, setSeatPurchaseModal] =
-    useState<SeatPurchaseModalState | null>(null);
-  const [orgSeatLimitModal, setOrgSeatLimitModal] =
-    useState<OrgSeatLimitModalState | null>(null);
+  const [upgradeTrigger, setUpgradeTrigger] = useState<UpgradeTrigger>('trial_ending');
+  const [seatPurchaseModal, setSeatPurchaseModal] = useState<SeatPurchaseModalState | null>(null);
+  const [orgSeatLimitModal, setOrgSeatLimitModal] = useState<OrgSeatLimitModalState | null>(null);
 
   // AI Credits 모달 상태
   const [showCreditModal, setShowCreditModal] = useState(false);
-  const [creditModalMode, setCreditModalMode] = useState<
-    "purchase" | "exhausted"
-  >("purchase");
+  const [creditModalMode, setCreditModalMode] = useState<'purchase' | 'exhausted'>('purchase');
 
   // Quick Add Task 모달 상태
   const [quickAddBlockId, setQuickAddBlockId] = useState<string | null>(null);
@@ -79,7 +72,7 @@ export function useBoardModals() {
   // Alert Modal 상태
   const [alertModal, setAlertModal] = useState<AlertModalState>({
     open: false,
-    type: "premium",
+    type: 'premium',
   });
 
   // 키보드 단축키 비활성화 판단용 파생값

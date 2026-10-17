@@ -216,6 +216,7 @@ public class OrgPhotoResponse {
         private String tabId;
         private String tabName;
         private String title;
+        private String ogImageUrl;
         private LocalDateTime expiresAt;
         private LocalDateTime revokedAt;
         private LocalDateTime lastAccessedAt;
@@ -240,6 +241,7 @@ public class OrgPhotoResponse {
                     .tabId(link.getTab() != null ? link.getTab().getId() : null)
                     .tabName(link.getTab() != null ? link.getTab().getName() : null)
                     .title(link.getTitle())
+                    .ogImageUrl(link.getOgImageUrl())
                     .expiresAt(link.getExpiresAt())
                     .revokedAt(link.getRevokedAt())
                     .lastAccessedAt(link.getLastAccessedAt())
@@ -277,5 +279,59 @@ public class OrgPhotoResponse {
                     .profileImageUrl(user.getProfileImage())
                     .build();
         }
+    }
+
+    // ==================== Direct (presigned) Upload ====================
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class UploadPresignResult {
+        /** "presigned" = S3 직접 PUT, "direct" = presign 미지원(로컬) → 기존 multipart 업로드 사용 */
+        private String mode;
+        private List<PresignItem> items;
+        private List<UploadRejected> rejected;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class PresignItem {
+        private String clientId;
+        private String s3Key;
+        private String uploadUrl;
+        private String thumbnailUploadUrl;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class UploadRejected {
+        private String clientId;
+        private String reason;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class UploadConfirmResult {
+        private List<ConfirmSucceeded> succeeded;
+        private List<ConfirmFailed> failed;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ConfirmSucceeded {
+        private String s3Key;
+        private PhotoDetail photo;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ConfirmFailed {
+        private String s3Key;
+        private String reason;
     }
 }

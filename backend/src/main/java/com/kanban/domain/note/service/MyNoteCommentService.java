@@ -88,6 +88,12 @@ public class MyNoteCommentService {
                 .mentions(mentionsStr)
                 .build();
 
+        NoteCommentRequest.Anchor anchor = request.getAnchor();
+        if (anchor != null && parent == null) {
+            comment.updateAnchor(anchor.getText(), anchor.getPrefix(), anchor.getSuffix(),
+                    anchor.getStart(), anchor.getEnd(), "ATTACHED");
+        }
+
         noteCommentRepository.save(comment);
 
         return NoteCommentResponse.Detail.of(comment, List.of());
@@ -131,6 +137,17 @@ public class MyNoteCommentService {
 
         comment.toggleResolved(user);
 
+        return NoteCommentResponse.Detail.of(comment, List.of());
+    }
+
+    @Transactional
+    public NoteCommentResponse.Detail updateAnchor(String commentId, String userId,
+                                                   NoteCommentRequest.UpdateAnchor request) {
+        NoteComment comment = getOwnedCommentOrThrow(commentId, userId);
+        if (!comment.isRootComment() || !comment.hasAnchor()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        NoteCommentService.applyAnchorUpdate(comment, request);
         return NoteCommentResponse.Detail.of(comment, List.of());
     }
 

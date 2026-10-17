@@ -2,6 +2,7 @@ package com.kanban.domain.integration.jira.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -25,6 +26,7 @@ public class JiraAutofixScheduler {
      * 돌아야 한다 — 끄는 순간 물고 있던 작업이 영원히 남는다.
      */
     @Scheduled(cron = "0 */5 * * * *")
+    @SchedulerLock(name = "JiraAutofixScheduler.sweepStale", lockAtMostFor = "4m", lockAtLeastFor = "30s")
     public void sweepStale() {
         try {
             queueService.sweepStaleDispatches();
@@ -43,6 +45,7 @@ public class JiraAutofixScheduler {
      * <p>한쪽이 예외로 죽어도 다른 쪽은 돌아야 하므로 try도 따로 잡는다.
      */
     @Scheduled(cron = "30 */5 * * * *")
+    @SchedulerLock(name = "JiraAutofixScheduler.alertOfflineRunners", lockAtMostFor = "4m", lockAtLeastFor = "30s")
     public void alertOfflineRunners() {
         try {
             queueService.alertOfflineRunners();
@@ -61,6 +64,7 @@ public class JiraAutofixScheduler {
      * <p>시각을 45초로 어긋나게 둔 것은 앞의 둘과 트랜잭션이 겹치지 않게 하기 위해서다.
      */
     @Scheduled(cron = "45 */5 * * * *")
+    @SchedulerLock(name = "JiraAutofixScheduler.alertContractDrift", lockAtMostFor = "4m", lockAtLeastFor = "30s")
     public void alertContractDrift() {
         try {
             queueService.alertContractDrift();

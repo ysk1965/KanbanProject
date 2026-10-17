@@ -1,14 +1,17 @@
 import {
+  Suspense,
   memo,
   useState,
   useMemo,
+  useEffect,
+  useCallback,
   Dispatch,
   SetStateAction,
   RefObject,
-} from "react";
-import { motion } from "framer-motion";
-import { Eye, Plus, GripVertical } from "lucide-react";
-import { useTranslation } from "react-i18next";
+} from 'react';
+import { motion } from 'framer-motion';
+import { Eye, Plus, GripVertical, Diamond, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   DndContext,
   DragOverlay,
@@ -19,29 +22,46 @@ import {
   useSensors,
   DragStartEvent,
   DragEndEvent,
-} from "@dnd-kit/core";
+} from '@dnd-kit/core';
 import {
   SortableContext,
   arrayMove,
   horizontalListSortingStrategy,
   sortableKeyboardCoordinates,
-} from "@dnd-kit/sortable";
-import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
-import { Feature, Task, Tag, Block, ChecklistItem } from "../types";
-import { KanbanBlock } from "../components/KanbanBlock";
-import { SprintBoard } from "../components/SprintBoard";
-import { KanbanFilterToolbar } from "../components/KanbanFilterToolbar";
-import { EmptyBoardGuide } from "../components/EmptyBoardGuide";
-import JoinRequestBanner from "../components/JoinRequestBanner";
-import { FilterOptions } from "../components/FilterModal";
-import { BoardMember as ShareBoardMember } from "../components/ShareBoardModal";
+} from '@dnd-kit/sortable';
+import { restrictToHorizontalAxis } from '@dnd-kit/modifiers';
+import { Feature, Task, Tag, Block, ChecklistItem } from '../types';
+import type { BoardFeatures } from '../hooks/useBoardFeatures';
+import { KanbanBlock } from '../components/KanbanBlock';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+// 스프린트/JIRA 보드(6,600줄)는 블록 보드 모드에서는 쓰이지 않으므로 전환 시에만 내려받는다.
+const SprintBoard = lazyWithRetry(
+  () =>
+    import('../components/SprintBoard').then((m) => ({
+      default: m.SprintBoard,
+    })),
+  'SprintBoard',
+);
+import { KanbanFilterToolbar } from '../components/KanbanFilterToolbar';
+import { EmptyBoardGuide } from '../components/EmptyBoardGuide';
+import JoinRequestBanner from '../components/JoinRequestBanner';
+import { FilterOptions } from '../components/FilterModal';
+import { BoardMember as ShareBoardMember } from '../components/ShareBoardModal';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
-import { blockService } from "../utils/services";
+} from '../components/ui/dropdown-menu';
+import { blockService } from '../utils/services';
+import { jiraAPI } from '../utils/api';
+
+/**
+ * 칸반 탭 안의 형제 화면. 셋 다 컬럼 축·데이터 스코프가 서로 달라 "뷰 전환"이 아니라
+ * 화면 전환이다 — 스프린트(스프린트 스코프) · 블록 보드(보드 스코프, 블록 관리)
+ * · JIRA(보드 스코프, 진행 단계 축).
+ */
+type BoardMode = 'sprint' | 'blocks' | 'jira';
 
 interface KanbanViewProps {
   boardId: string;
@@ -59,13 +79,26 @@ interface KanbanViewProps {
   hiddenBlocks: Block[];
   checklistDataMap: { [taskId: string]: ChecklistItem[] };
   memberColorMap: Record<string, string | null>;
+  /** 보드 화면 복잡도 — 레벨/옵션 게이팅. SprintBoard로 그대로 흘려보낸다. */
+  boardFeatures: BoardFeatures;
+  /** 구성원 전환이 꺼졌을 때 그 자리에 세울 유령 노드 (페이지가 정책을 소유). */
+  memberGhost?: React.ReactNode;
+  /** 리뷰 컬럼이 꺼졌을 때 그 자리에 세울 유령 컬럼. */
+  reviewGhost?: React.ReactNode;
   expandedChecklistTaskIds: Set<string>;
   scheduledTaskIds: Set<string>;
   recentlyCompletedTaskIds: Set<string>;
   cascadeFeatureId: string | null;
   selectedFeatureIds: string[] | null;
   selectedMilestoneId: string;
-  milestones: { id: string; title: string }[];
+  // start_date/end_date는 스프린트 분할(마일스톤 기간 N등분)에 필요해 SprintBoard로 넘긴다.
+  milestones: {
+    id: string;
+    title: string;
+    progress_percentage?: number;
+    start_date?: string;
+    end_date?: string;
+  }[];
   isAdminOrOwner: boolean;
   filterOptions: FilterOptions;
   canEdit: boolean;
@@ -111,6 +144,9 @@ export const KanbanView = memo(function KanbanView({
   hiddenBlocks,
   checklistDataMap,
   memberColorMap,
+  boardFeatures,
+  memberGhost,
+  reviewGhost,
   expandedChecklistTaskIds,
   scheduledTaskIds,
   recentlyCompletedTaskIds,
@@ -145,18 +181,18 @@ export const KanbanView = memo(function KanbanView({
 }: KanbanViewProps) {
   const { t } = useTranslation();
 
-  // 보드 모드: 블록 보드 ↔ 스프린트 (칸반 탭 내 토글, 보드별 유지)
+  // 보드 모드: 스프린트 ↔ 블록 보드 ↔ JIRA (칸반 탭 내 화면 선택, 보드별 유지)
   // 스프린트로 단일화하는 중 — 블록 보드는 제거하지 않고 관리자/오너에게만 남겨 둔다.
   // 블록 추가·이름 변경·삭제·숨김·순서(=JIRA 상태 매핑 키)를 다룰 수 있는 화면이 여기뿐이라
-  // 전면 제거는 이관 후에. 일반 멤버에게는 토글 자체가 보이지 않는다.
-  const [boardMode, setBoardModeState] = useState<"blocks" | "sprint">(() => {
-    if (typeof window === "undefined") return "sprint";
-    return (
-      (localStorage.getItem(`kanbanBoardMode:${boardId}`) as
-        "blocks" | "sprint" | null) ?? "sprint"
-    );
+  // 전면 제거는 이관 후에.
+  // JIRA는 원래 스프린트 안의 그룹 기준 토글(Feature/구성원 옆)에 있었지만, 스코프가
+  // 스프린트가 아니라 보드 전체고 컬럼 축·드롭 결과·주변 UI가 전부 달라 형제 화면으로 올렸다.
+  const [boardMode, setBoardModeState] = useState<BoardMode>(() => {
+    if (typeof window === 'undefined') return 'sprint';
+    const saved = localStorage.getItem(`kanbanBoardMode:${boardId}`);
+    return saved === 'blocks' || saved === 'jira' ? saved : 'sprint';
   });
-  const setBoardMode = (mode: "blocks" | "sprint") => {
+  const setBoardMode = (mode: BoardMode) => {
     setBoardModeState(mode);
     try {
       localStorage.setItem(`kanbanBoardMode:${boardId}`, mode);
@@ -164,9 +200,53 @@ export const KanbanView = memo(function KanbanView({
       /* noop */
     }
   };
+
+  // JIRA 연동 여부 — 화면 버튼 노출 판정용. SprintBoard도 자체로 상태를 읽지만,
+  // 블록 보드에 있는 동안엔 언마운트돼 있어 버튼이 사라진다. 그래서 여기서 따로 확인한다.
+  const [jiraConnected, setJiraConnected] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    jiraAPI
+      .getStatus(boardId)
+      .then((s) => {
+        if (alive) setJiraConnected(!!s?.connected);
+      })
+      .catch(() => {
+        /* 미연동/권한없음 → JIRA 화면 버튼 숨김 */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [boardId]);
+
+  // 새로 유입된 JIRA 이슈 수 — SprintBoard가 올려 준다. 블록 보드로 넘어가면 갱신이 멈추므로
+  // 마지막 값을 유지한다(0으로 지우면 "새 이슈 없음"으로 잘못 읽힌다).
+  const [jiraFresh, setJiraFresh] = useState(0);
+  // SprintBoard의 리포트 effect 의존성에 들어가므로 참조가 고정돼야 한다(무한 루프 방지).
+  const handleJiraFreshChange = useCallback((fresh: number) => {
+    setJiraFresh(fresh);
+  }, []);
+
+  // JIRA 화면은 연동(jiraConnected)과 옵션(has("jira")) 둘 다 있어야 선다 —
+  // 연동은 "쓸 수 있나", 옵션은 "지금 쓰기로 했나"로 축이 다르다.
+  const jiraVisible = jiraConnected && boardFeatures.has('jira');
+
   // 저장값이 아니라 이 값으로 렌더한다 — 예전에 blocks로 저장해 둔 일반 멤버가
   // 토글 없는 블록 보드에 갇히지 않도록. 권한이 뒤늦게 도착해도 자동으로 맞춰진다.
-  const effectiveBoardMode = isAdminOrOwner ? boardMode : "sprint";
+  // JIRA도 같은 이유로 연동이 끊기거나 옵션이 꺼지면 스프린트로 되돌린다.
+  const effectiveBoardMode: BoardMode =
+    boardMode === 'blocks'
+      ? isAdminOrOwner
+        ? 'blocks'
+        : 'sprint'
+      : boardMode === 'jira'
+        ? jiraVisible
+          ? 'jira'
+          : 'sprint'
+        : 'sprint';
+
+  // 화면 선택 줄 노출 조건 — 블록 보드는 관리자 전용이지만 JIRA는 뷰어 이상이면 볼 수 있다.
+  const showBoardModeBar = isAdminOrOwner || jiraVisible;
 
   // @dnd-kit 블록 드래그 상태
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
@@ -180,31 +260,23 @@ export const KanbanView = memo(function KanbanView({
 
   // SortableContext 대상 블록 (FEATURE/TASK 고정 블록 제외)
   const sortableBlocks = useMemo(
-    () =>
-      sortedBlocks.filter(
-        (b) => b.fixed_type !== "FEATURE" && b.fixed_type !== "TASK",
-      ),
+    () => sortedBlocks.filter((b) => b.fixed_type !== 'FEATURE' && b.fixed_type !== 'TASK'),
     [sortedBlocks],
   );
 
   // Feature 칩 선택에 따른 태스크 필터링 여부
-  const showFeatureLabel =
-    selectedFeatureIds === null || selectedFeatureIds.length !== 1;
+  const showFeatureLabel = selectedFeatureIds === null || selectedFeatureIds.length !== 1;
 
   // 블록별 태스크 맵 캐시 (KanbanBlock 메모이제이션용)
   const blockTasksMap = useMemo(() => {
     const map: Record<string, Task[]> = {};
     sortedBlocks.forEach((block) => {
-      if (block.fixed_type === "FEATURE") return;
-      let blockTasks = filteredTasks.filter(
-        (task) => task.block_id === block.id,
-      );
+      if (block.fixed_type === 'FEATURE') return;
+      let blockTasks = filteredTasks.filter((task) => task.block_id === block.id);
       if (selectedFeatureIds !== null) {
-        blockTasks = blockTasks.filter((task) =>
-          selectedFeatureIds.includes(task.feature_id),
-        );
+        blockTasks = blockTasks.filter((task) => selectedFeatureIds.includes(task.feature_id));
       }
-      if (block.fixed_type === "TASK" && scheduledTaskIds.size > 0) {
+      if (block.fixed_type === 'TASK' && scheduledTaskIds.size > 0) {
         blockTasks = [...blockTasks].sort((a, b) => {
           const aScheduled = scheduledTaskIds.has(a.id) ? 0 : 1;
           const bScheduled = scheduledTaskIds.has(b.id) ? 0 : 1;
@@ -254,11 +326,11 @@ export const KanbanView = memo(function KanbanView({
           }
         }
         blockService.reorderBlocks(boardId, reorderIds).catch((error) => {
-          console.error("Failed to reorder blocks:", error);
+          console.error('Failed to reorder blocks:', error);
         });
       })
       .catch((error) => {
-        console.error("Failed to load all blocks for reorder:", error);
+        console.error('Failed to load all blocks for reorder:', error);
       });
   };
 
@@ -280,7 +352,7 @@ export const KanbanView = memo(function KanbanView({
     const newOrder = arrayMove(sortableBlocks, oldIndex, newIndex);
     // FEATURE + TASK 블록을 앞에 유지
     const fixedBlocks = sortedBlocks.filter(
-      (b) => b.fixed_type === "FEATURE" || b.fixed_type === "TASK",
+      (b) => b.fixed_type === 'FEATURE' || b.fixed_type === 'TASK',
     );
     const fullOrder = [...fixedBlocks, ...newOrder];
 
@@ -294,11 +366,9 @@ export const KanbanView = memo(function KanbanView({
     persistBlockReorder(fullOrder);
   };
 
-  const activeBlock = activeBlockId
-    ? sortedBlocks.find((b) => b.id === activeBlockId)
-    : null;
+  const activeBlock = activeBlockId ? sortedBlocks.find((b) => b.id === activeBlockId) : null;
 
-  const taskBlock = sortedBlocks.find((b) => b.fixed_type === "TASK");
+  const taskBlock = sortedBlocks.find((b) => b.fixed_type === 'TASK');
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-bridge-dark">
@@ -316,15 +386,12 @@ export const KanbanView = memo(function KanbanView({
                   <Eye className="h-7 w-7 text-bridge-accent" />
                 </div>
                 <h2 className="font-jakarta text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-3">
-                  {t(
-                    "board.joinRequest.emptyBoardTitle",
-                    "아직 콘텐츠가 없는 보드입니다",
-                  )}
+                  {t('board.joinRequest.emptyBoardTitle', '아직 콘텐츠가 없는 보드입니다')}
                 </h2>
                 <p className="text-slate-400 font-normal text-sm md:text-base leading-relaxed mb-8">
                   {t(
-                    "board.joinRequest.emptyBoardDesc",
-                    "이 보드에 참가하면 Feature를 만들고 편집할 수 있습니다. 상단 배너에서 참가 신청을 해보세요.",
+                    'board.joinRequest.emptyBoardDesc',
+                    '이 보드에 참가하면 Feature를 만들고 편집할 수 있습니다. 상단 배너에서 참가 신청을 해보세요.',
                   )}
                 </p>
                 {boardId && (
@@ -354,58 +421,112 @@ export const KanbanView = memo(function KanbanView({
             boardId={boardId}
             canEdit={canEdit}
           />
-          {/* 블록 보드 ↔ 스프린트 모드 토글 — 관리자/오너 전용(블록 관리 진입점 보존) */}
-          {isAdminOrOwner && (
-            <div className="shrink-0 flex items-center gap-1 px-4 md:px-6 pt-1 pb-2">
+          {/* 화면 선택 — 스프린트 | 블록 보드 | JIRA.
+              블록 보드는 관리자 전용(블록 관리 진입점 보존), JIRA는 연동된 보드에서 뷰어 이상. */}
+          {showBoardModeBar && (
+            <div
+              className="shrink-0 flex items-center gap-1 px-4 md:px-6 pt-1 pb-2"
+              role="tablist"
+              aria-label="보드 화면"
+            >
               <button
-                onClick={() => setBoardMode("sprint")}
+                type="button"
+                role="tab"
+                aria-selected={effectiveBoardMode === 'sprint'}
+                onClick={() => setBoardMode('sprint')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                  effectiveBoardMode === "sprint"
-                    ? "bg-bridge-accent/15 text-bridge-accent"
-                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                  effectiveBoardMode === 'sprint'
+                    ? 'bg-bridge-accent/15 text-bridge-accent'
+                    : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
                 }`}
               >
                 스프린트
               </button>
-              <button
-                onClick={() => setBoardMode("blocks")}
-                title="블록(상태 열) 관리용 화면입니다. 관리자에게만 보입니다."
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                  effectiveBoardMode === "blocks"
-                    ? "bg-bridge-accent/15 text-bridge-accent"
-                    : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
-                }`}
-              >
-                블록 보드
-              </button>
+              {isAdminOrOwner && (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={effectiveBoardMode === 'blocks'}
+                  onClick={() => setBoardMode('blocks')}
+                  title="블록(상태 열) 관리용 화면입니다. 관리자에게만 보입니다."
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                    effectiveBoardMode === 'blocks'
+                      ? 'bg-bridge-accent/15 text-bridge-accent'
+                      : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
+                  }`}
+                >
+                  블록 보드
+                </button>
+              )}
+              {jiraVisible && (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={effectiveBoardMode === 'jira'}
+                  onClick={() => setBoardMode('jira')}
+                  title={
+                    jiraFresh > 0
+                      ? `새로 들어온 JIRA 이슈 ${jiraFresh}건`
+                      : '연동된 JIRA 이슈를 진행 단계별로 봅니다. 보드 전체가 대상입니다.'
+                  }
+                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                    effectiveBoardMode === 'jira'
+                      ? 'bg-bridge-accent/15 text-bridge-accent'
+                      : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
+                  }`}
+                >
+                  <Diamond className="w-3 h-3" />
+                  JIRA
+                  {jiraFresh > 0 && (
+                    <span
+                      className="ml-0.5 min-w-[1.15rem] px-1 py-[1px] rounded-full text-xs font-bold tabular-nums text-center bg-bridge-accent/15 text-bridge-accent"
+                      aria-label={`새 이슈 ${jiraFresh}건`}
+                    >
+                      {jiraFresh > 99 ? '99+' : jiraFresh}
+                    </span>
+                  )}
+                </button>
+              )}
             </div>
           )}
 
-          {effectiveBoardMode === "sprint" ? (
+          {effectiveBoardMode !== 'blocks' ? (
             <div className="flex-1 min-h-0">
-              <SprintBoard
-                boardId={boardId}
-                milestones={milestones}
-                canEdit={canEdit}
-                isAdminOrOwner={isAdminOrOwner}
-                onOpenChecklistItem={onOpenChecklistItem}
-                onOpenFeature={(featureId) => {
-                  const feature = features.find((f) => f.id === featureId);
-                  if (feature) onFeatureClick(feature);
-                }}
-                onCreateFeature={onCreateFeature}
-                milestoneId={
-                  selectedMilestoneId !== "all" &&
-                  selectedMilestoneId !== "none"
-                    ? selectedMilestoneId
-                    : undefined
+              <Suspense
+                fallback={
+                  <div className="h-full flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+                  </div>
                 }
-                filterOptions={filterOptions}
-                featureTagsMap={featureTagsMap}
-                taskTagsMap={taskTagsMap}
-                memberOrder={boardMembersData.map((m) => m.userId)}
-                memberColorMap={memberColorMap}
-              />
+              >
+                <SprintBoard
+                  boardId={boardId}
+                  milestones={milestones}
+                  canEdit={canEdit}
+                  isAdminOrOwner={isAdminOrOwner}
+                  jiraView={effectiveBoardMode === 'jira'}
+                  onJiraFreshChange={handleJiraFreshChange}
+                  onOpenChecklistItem={onOpenChecklistItem}
+                  onOpenFeature={(featureId) => {
+                    const feature = features.find((f) => f.id === featureId);
+                    if (feature) onFeatureClick(feature);
+                  }}
+                  onCreateFeature={onCreateFeature}
+                  milestoneId={
+                    selectedMilestoneId !== 'all' && selectedMilestoneId !== 'none'
+                      ? selectedMilestoneId
+                      : undefined
+                  }
+                  filterOptions={filterOptions}
+                  featureTagsMap={featureTagsMap}
+                  taskTagsMap={taskTagsMap}
+                  memberOrder={boardMembersData.map((m) => m.userId)}
+                  memberColorMap={memberColorMap}
+                  features={boardFeatures}
+                  memberGhost={memberGhost}
+                  reviewGhost={reviewGhost}
+                />
+              </Suspense>
             </div>
           ) : (
             /* 칸반 보드 */
@@ -496,8 +617,7 @@ export const KanbanView = memo(function KanbanView({
                         onToggleProgressBar={onToggleProgressBar}
                         onHideBlock={onHideBlock}
                         selectedMilestoneId={
-                          selectedMilestoneId !== "all" &&
-                          selectedMilestoneId !== "none"
+                          selectedMilestoneId !== 'all' && selectedMilestoneId !== 'none'
                             ? selectedMilestoneId
                             : undefined
                         }
@@ -526,9 +646,7 @@ export const KanbanView = memo(function KanbanView({
                             style={{ backgroundColor: activeBlock.color }}
                           />
                         )}
-                        <h3 className="font-bold text-sm text-foreground">
-                          {activeBlock.name}
-                        </h3>
+                        <h3 className="font-bold text-sm text-foreground">{activeBlock.name}</h3>
                         <span className="text-xs font-medium text-zinc-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">
                           {(blockTasksMap[activeBlock.id] || []).length}
                         </span>

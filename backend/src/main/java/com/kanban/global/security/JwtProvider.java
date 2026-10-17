@@ -148,6 +148,9 @@ public class JwtProvider {
             return false;
         } catch (ExpiredJwtException e) {
             return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            // 만료가 아니라 형식/서명이 깨진 토큰 — "만료 아님"으로 답한다
+            return false;
         }
     }
 

@@ -16,6 +16,9 @@ import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
+import com.kanban.domain.integration.jira.JiraIssueLink;
+import com.kanban.domain.integration.jira.JiraIssueLinkRepository;
+import com.kanban.domain.integration.jira.JiraLinkTargetType;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneFeature;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
@@ -84,6 +87,7 @@ public class TaskService {
     private final NotificationRepository notificationRepository;
     private final FileUploadService fileUploadService;
     private final WebSocketEventService webSocketEventService;
+    private final JiraIssueLinkRepository jiraIssueLinkRepository;
     private final EntityManager entityManager;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
@@ -122,7 +126,27 @@ public class TaskService {
         Map<String, List<Tag>> taskTagsMap = getTaskTagsMap(tasks);
         ChecklistMaps checklistMaps = getChecklistMaps(tasks);
 
-        return TaskResponse.ListResponse.of(tasks, taskTagsMap, checklistMaps.countMap, checklistMaps.assigneesMap);
+        return TaskResponse.ListResponse.of(tasks, taskTagsMap, checklistMaps.countMap, checklistMaps.assigneesMap,
+                getJiraIssueKeyMap(boardId));
+    }
+
+    /**
+     * 보드의 살아있는 JIRA Task 링크 → {taskId: 이슈키}. JIRA에서 지워진 링크는 제외한다
+     * (더 이상 pull이 돌지 않으므로 그 카드는 다시 BRIDGE 소유로 본다).
+     */
+    private Map<String, String> getJiraIssueKeyMap(String boardId) {
+        if (boardId == null) return Map.of();
+        return jiraIssueLinkRepository.findByBoardIdAndTargetType(boardId, JiraLinkTargetType.TASK).stream()
+                .filter(l -> l.getJiraDeletedAt() == null)
+                .collect(Collectors.toMap(JiraIssueLink::getTargetId, JiraIssueLink::getJiraIssueKey, (a, b) -> a));
+    }
+
+    /** 이 Task를 JIRA가 소유하고 있으면 이슈키, 아니면 null. */
+    private String jiraIssueKeyOf(String taskId) {
+        return jiraIssueLinkRepository.findByTargetTypeAndTargetId(JiraLinkTargetType.TASK, taskId)
+                .filter(l -> l.getJiraDeletedAt() == null)
+                .map(JiraIssueLink::getJiraIssueKey)
+                .orElse(null);
     }
 
     public TaskResponse.Detail getTask(String boardId, String taskId, String userId) {
@@ -140,7 +164,7 @@ public class TaskService {
                 .map(TaskTag::getTag)
                 .toList();
 
-        return TaskResponse.Detail.of(task, tags);
+        return TaskResponse.Detail.of(task, tags, jiraIssueKeyOf(taskId));
     }
 
     /**
@@ -269,9 +293,12 @@ public class TaskService {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
 
+        // JIRA가 채우는 설명은 BRIDGE에서 덮어쓰지 않는다 — 어차피 다음 pull이 원본으로 되돌리고,
+        // 그 전에 실수로 지우면 되돌릴 길이 없다. 나머지 필드는 그대로 편집 가능.
+        String jiraIssueKey = jiraIssueKeyOf(taskId);
         task.updateInfo(
                 request.getTitle(),
-                request.getDescription(),
+                jiraIssueKey != null ? null : request.getDescription(),
                 request.getStartDate(),
                 request.getDueDate(),
                 request.getEstimatedMinutes()
@@ -284,6 +311,13 @@ public class TaskService {
                     ? null
                     : resolveAndLinkMilestone(task.getBoard(), task.getFeature(), request.getMilestoneId());
             task.assignMilestone(milestone);
+            // 스프린트는 마일스톤에 종속 — 다른 마일스톤으로 옮겨지면 이전 스프린트 소속은
+            // 더 이상 유효하지 않으므로 백로그로 되돌린다(새 마일스톤에서 담을지는 별도 선택).
+            if (task.getSprint() != null
+                    && (milestone == null
+                            || !task.getSprint().getMilestone().getId().equals(milestone.getId()))) {
+                task.removeFromSprint();
+            }
             // 옛 마일스톤에 이 피처의 태스크가 하나도 남지 않으면 비게 된 피처-마일스톤 링크 정리
             if (oldMilestone != null && !oldMilestone.equals(milestone)) {
                 cleanupEmptyMilestoneLink(task.getFeature(), oldMilestone);
@@ -301,7 +335,7 @@ public class TaskService {
 
         log.info("Task updated: {} by user: {}", taskId, userId);
 
-        TaskResponse.Detail response = TaskResponse.Detail.of(task, tags);
+        TaskResponse.Detail response = TaskResponse.Detail.of(task, tags, jiraIssueKey);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASK_UPDATED, userId, updater.getName(), response);
         return response;
     }
@@ -492,7 +526,7 @@ public class TaskService {
 
         log.info("Task moved: {} from block {} to block {} by user: {}", taskId, oldBlockId, targetBlock.getId(), userId);
 
-        TaskResponse.Detail response = TaskResponse.Detail.of(task, tags);
+        TaskResponse.Detail response = TaskResponse.Detail.of(task, tags, jiraIssueKeyOf(taskId));
         if (user == null) {
             user = userRepository.findById(userId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -531,7 +565,7 @@ public class TaskService {
             List<Tag> tags = taskTagRepository.findByTaskId(taskId).stream()
                     .map(TaskTag::getTag)
                     .toList();
-            return TaskResponse.Detail.of(task, tags);
+            return TaskResponse.Detail.of(task, tags, jiraIssueKeyOf(taskId));
         }
 
         Feature oldFeature = task.getFeature();
@@ -569,7 +603,7 @@ public class TaskService {
         log.info("Task moved to feature: {} from feature {} to feature {} by user: {}",
                 taskId, oldFeatureTitle, targetFeature.getTitle(), userId);
 
-        return TaskResponse.Detail.of(task, tags);
+        return TaskResponse.Detail.of(task, tags, jiraIssueKeyOf(taskId));
     }
 
     @Transactional
@@ -629,7 +663,7 @@ public class TaskService {
         log.info("Task dates updated: {} (start: {}, end: {}) by user: {}",
                 taskId, request.getStartDate(), request.getEndDate(), userId);
 
-        return TaskResponse.Detail.of(task, tags);
+        return TaskResponse.Detail.of(task, tags, jiraIssueKeyOf(taskId));
     }
 
     private Map<String, List<Tag>> getTaskTagsMap(List<Task> tasks) {

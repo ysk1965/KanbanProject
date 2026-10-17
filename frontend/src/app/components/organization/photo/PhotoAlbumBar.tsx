@@ -51,14 +51,9 @@ function SortableAlbumTab({
   onSelectAlbum: (id: string) => void;
   onOpenMenu: (albumId: string, el: HTMLSpanElement) => void;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: album.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: album.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -86,11 +81,13 @@ function SortableAlbumTab({
         }`}
       >
         {album.name}
-        <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
-          activeAlbumId === album.id
-            ? 'bg-bridge-accent/20 text-bridge-accent'
-            : 'bg-foreground/10 text-slate-500'
-        }`}>
+        <span
+          className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+            activeAlbumId === album.id
+              ? 'bg-bridge-accent/20 text-bridge-accent'
+              : 'bg-foreground/10 text-slate-500'
+          }`}
+        >
           {album.photo_count}
         </span>
         {isAdmin && (
@@ -132,15 +129,18 @@ export function PhotoAlbumBar({
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
   );
 
-  const openMenu = useCallback((albumId: string, triggerEl: HTMLSpanElement) => {
-    if (menuAlbumId === albumId) {
-      setMenuAlbumId(null);
-      return;
-    }
-    const rect = triggerEl.getBoundingClientRect();
-    setMenuPos({ top: rect.bottom + 4, left: rect.left });
-    setMenuAlbumId(albumId);
-  }, [menuAlbumId]);
+  const openMenu = useCallback(
+    (albumId: string, triggerEl: HTMLSpanElement) => {
+      if (menuAlbumId === albumId) {
+        setMenuAlbumId(null);
+        return;
+      }
+      const rect = triggerEl.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 4, left: rect.left });
+      setMenuAlbumId(albumId);
+    },
+    [menuAlbumId],
+  );
 
   // Close menu on outside click or scroll
   useEffect(() => {
@@ -166,18 +166,21 @@ export function PhotoAlbumBar({
     setMenuAlbumId(null);
   }, []);
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    setActiveId(null);
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveId(null);
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
 
-    const oldIndex = albums.findIndex((a) => a.id === active.id);
-    const newIndex = albums.findIndex((a) => a.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
+      const oldIndex = albums.findIndex((a) => a.id === active.id);
+      const newIndex = albums.findIndex((a) => a.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
 
-    const reordered = arrayMove(albums, oldIndex, newIndex);
-    onReorderAlbums?.(reordered);
-  }, [albums, onReorderAlbums]);
+      const reordered = arrayMove(albums, oldIndex, newIndex);
+      onReorderAlbums?.(reordered);
+    },
+    [albums, onReorderAlbums],
+  );
 
   const activeAlbum = activeId ? albums.find((a) => a.id === activeId) : null;
 
@@ -210,11 +213,13 @@ export function PhotoAlbumBar({
       >
         <Images size={14} />
         {t('photoGallery.allPhotos', 'All')}
-        <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
-          activeAlbumId === null
-            ? 'bg-bridge-accent/20 text-bridge-accent'
-            : 'bg-foreground/10 text-slate-500'
-        }`}>
+        <span
+          className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+            activeAlbumId === null
+              ? 'bg-bridge-accent/20 text-bridge-accent'
+              : 'bg-foreground/10 text-slate-500'
+          }`}
+        >
           {totalCount}
         </span>
       </button>
@@ -253,11 +258,13 @@ export function PhotoAlbumBar({
               }`}
             >
               {album.name}
-              <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
-                activeAlbumId === album.id
-                  ? 'bg-bridge-accent/20 text-bridge-accent'
-                  : 'bg-foreground/10 text-slate-500'
-              }`}>
+              <span
+                className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                  activeAlbumId === album.id
+                    ? 'bg-bridge-accent/20 text-bridge-accent'
+                    : 'bg-foreground/10 text-slate-500'
+                }`}
+              >
                 {album.photo_count}
               </span>
             </button>
@@ -278,48 +285,55 @@ export function PhotoAlbumBar({
       )}
 
       {/* Context menu — rendered via portal to avoid overflow clipping */}
-      {menuAlbum && menuPos && createPortal(
-        <div
-          ref={menuRef}
-          className="fixed z-50 min-w-[140px] bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-2xl overflow-hidden"
-          style={{ top: menuPos.top, left: menuPos.left }}
-        >
-          <button
-            onClick={() => {
-              setMenuAlbumId(null);
-              onShareAlbum(menuAlbum);
-            }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-foreground/5 transition-colors"
+      {menuAlbum &&
+        menuPos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="fixed z-50 min-w-[140px] bg-bridge-obsidian border border-foreground/[0.08] rounded-xl shadow-2xl overflow-hidden"
+            style={{ top: menuPos.top, left: menuPos.left }}
           >
-            <Share2 size={13} className={menuAlbum.is_shared ? 'text-bridge-accent' : 'text-slate-400'} />
-            {t('photoGallery.shareAlbum', 'Share')}
-            {menuAlbum.is_shared && (
-              <span className="ml-auto text-xs font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">ON</span>
-            )}
-          </button>
-          <button
-            onClick={() => {
-              setMenuAlbumId(null);
-              onEditAlbum(menuAlbum);
-            }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-foreground/5 transition-colors"
-          >
-            <Edit3 size={13} className="text-slate-400" />
-            {t('photoGallery.editAlbum', 'Edit')}
-          </button>
-          <button
-            onClick={() => {
-              setMenuAlbumId(null);
-              onDeleteAlbum(menuAlbum);
-            }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-500 hover:bg-red-500/10 transition-colors"
-          >
-            <Trash2 size={13} />
-            {t('photoGallery.deleteAlbum', 'Delete')}
-          </button>
-        </div>,
-        document.body,
-      )}
+            <button
+              onClick={() => {
+                setMenuAlbumId(null);
+                onShareAlbum(menuAlbum);
+              }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-foreground/5 transition-colors"
+            >
+              <Share2
+                size={13}
+                className={menuAlbum.is_shared ? 'text-bridge-accent' : 'text-slate-400'}
+              />
+              {t('photoGallery.shareAlbum', 'Share')}
+              {menuAlbum.is_shared && (
+                <span className="ml-auto text-xs font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                  ON
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setMenuAlbumId(null);
+                onEditAlbum(menuAlbum);
+              }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-foreground/5 transition-colors"
+            >
+              <Edit3 size={13} className="text-slate-400" />
+              {t('photoGallery.editAlbum', 'Edit')}
+            </button>
+            <button
+              onClick={() => {
+                setMenuAlbumId(null);
+                onDeleteAlbum(menuAlbum);
+              }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-500 hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 size={13} />
+              {t('photoGallery.deleteAlbum', 'Delete')}
+            </button>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

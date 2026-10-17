@@ -1,14 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Plus,
-  Briefcase,
-  Clock,
-  Pencil,
-  Trash2,
-  X,
-  Check,
-} from 'lucide-react';
+import type { TFunction } from 'i18next';
+import { Plus, Briefcase, Clock, Pencil, Trash2, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { organizationService } from '../../../utils/services';
 import type {
@@ -41,10 +34,7 @@ function formatHistoryDate(dateStr: string): string {
   return `${y}.${m.padStart(2, '0')}`;
 }
 
-function formatDuration(
-  months: number | null,
-  t: (key: string, opts?: Record<string, unknown>) => string,
-): string {
+function formatDuration(months: number | null, t: TFunction): string {
   if (months === null || months === undefined) return '';
   if (months < 1) {
     return t('organization.members.detail.history.durationLessThanMonth', '1개월 미만');
@@ -245,131 +235,123 @@ export function MemberHistoryTab({
 
               {/* Department */}
               {deptOn && (
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
-                  {t('organization.members.detail.history.department', '부서')}
-                </label>
-                <select
-                  value={addForm.department_id}
-                  onChange={(e) =>
-                    setAddForm((f) => ({ ...f, department_id: e.target.value }))
-                  }
-                  className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
+                    {t('organization.members.detail.history.department', '부서')}
+                  </label>
+                  <select
+                    value={addForm.department_id}
+                    onChange={(e) => setAddForm((f) => ({ ...f, department_id: e.target.value }))}
+                    className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
                     rounded-lg py-1.5 px-3 text-xs text-slate-900 dark:text-white
                     focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                >
-                  <option value="">-</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  >
+                    <option value="">-</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
 
               {/* Position + Title row */}
               {(posOn || titleOn) && (
-              <div className="grid grid-cols-2 gap-3">
-                {posOn && (
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
-                    {t('organization.members.detail.history.position', '직책')}
-                  </label>
-                  <select
-                    value={addForm.position_id}
-                    onChange={(e) =>
-                      setAddForm((f) => ({ ...f, position_id: e.target.value }))
-                    }
-                    className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
+                <div className="grid grid-cols-2 gap-3">
+                  {posOn && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
+                        {t('organization.members.detail.history.position', '직책')}
+                      </label>
+                      <select
+                        value={addForm.position_id}
+                        onChange={(e) => setAddForm((f) => ({ ...f, position_id: e.target.value }))}
+                        className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
                       rounded-lg py-1.5 px-3 text-xs text-slate-900 dark:text-white
                       focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                  >
-                    <option value="">-</option>
-                    {positions.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                )}
-                {titleOn && (
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
-                    {t('organization.members.detail.history.titleLabel', '직위')}
-                  </label>
-                  <select
-                    value={addForm.title_id}
-                    onChange={(e) =>
-                      setAddForm((f) => ({ ...f, title_id: e.target.value }))
-                    }
-                    className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
+                      >
+                        <option value="">-</option>
+                        {positions.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {titleOn && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
+                        {t('organization.members.detail.history.titleLabel', '직위')}
+                      </label>
+                      <select
+                        value={addForm.title_id}
+                        onChange={(e) => setAddForm((f) => ({ ...f, title_id: e.target.value }))}
+                        className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
                       rounded-lg py-1.5 px-3 text-xs text-slate-900 dark:text-white
                       focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                  >
-                    <option value="">-</option>
-                    {titles.map((t2) => (
-                      <option key={t2.id} value={t2.id}>
-                        {t2.name}
-                      </option>
-                    ))}
-                  </select>
+                      >
+                        <option value="">-</option>
+                        {titles.map((t2) => (
+                          <option key={t2.id} value={t2.id}>
+                            {t2.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
-                )}
-              </div>
               )}
 
               {/* Grade + JobGroup row */}
               {(gradeOn || jgOn) && (
-              <div className="grid grid-cols-2 gap-3">
-                {gradeOn && (
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
-                    {t('organization.members.detail.history.grade', '직급')}
-                  </label>
-                  <select
-                    value={addForm.grade_id}
-                    onChange={(e) =>
-                      setAddForm((f) => ({ ...f, grade_id: e.target.value }))
-                    }
-                    className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
+                <div className="grid grid-cols-2 gap-3">
+                  {gradeOn && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
+                        {t('organization.members.detail.history.grade', '직급')}
+                      </label>
+                      <select
+                        value={addForm.grade_id}
+                        onChange={(e) => setAddForm((f) => ({ ...f, grade_id: e.target.value }))}
+                        className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
                       rounded-lg py-1.5 px-3 text-xs text-slate-900 dark:text-white
                       focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                  >
-                    <option value="">-</option>
-                    {grades.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                )}
-                {jgOn && (
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
-                    {t('organization.members.detail.history.jobGroup', '직군')}
-                  </label>
-                  <select
-                    value={addForm.job_group_id}
-                    onChange={(e) =>
-                      setAddForm((f) => ({ ...f, job_group_id: e.target.value }))
-                    }
-                    className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
+                      >
+                        <option value="">-</option>
+                        {grades.map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {jgOn && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-slate-500 w-16 shrink-0">
+                        {t('organization.members.detail.history.jobGroup', '직군')}
+                      </label>
+                      <select
+                        value={addForm.job_group_id}
+                        onChange={(e) =>
+                          setAddForm((f) => ({ ...f, job_group_id: e.target.value }))
+                        }
+                        className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
                       rounded-lg py-1.5 px-3 text-xs text-slate-900 dark:text-white
                       focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                  >
-                    <option value="">-</option>
-                    {jobGroups.map((jg) => (
-                      <option key={jg.id} value={jg.id}>
-                        {jg.name}
-                      </option>
-                    ))}
-                  </select>
+                      >
+                        <option value="">-</option>
+                        {jobGroups.map((jg) => (
+                          <option key={jg.id} value={jg.id}>
+                            {jg.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
-                )}
-              </div>
               )}
 
               {/* Job Title */}
@@ -380,9 +362,7 @@ export function MemberHistoryTab({
                 <input
                   type="text"
                   value={addForm.job_title}
-                  onChange={(e) =>
-                    setAddForm((f) => ({ ...f, job_title: e.target.value }))
-                  }
+                  onChange={(e) => setAddForm((f) => ({ ...f, job_title: e.target.value }))}
                   placeholder={t(
                     'organization.members.detail.history.jobTitlePlaceholder',
                     '예: Senior Engineer',
@@ -401,9 +381,7 @@ export function MemberHistoryTab({
                 </label>
                 <textarea
                   value={addForm.description}
-                  onChange={(e) =>
-                    setAddForm((f) => ({ ...f, description: e.target.value }))
-                  }
+                  onChange={(e) => setAddForm((f) => ({ ...f, description: e.target.value }))}
                   placeholder={t(
                     'organization.members.detail.history.descriptionPlaceholder',
                     '직무 경험을 기록해보세요',
@@ -431,9 +409,7 @@ export function MemberHistoryTab({
                   className="px-4 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg
                     hover:bg-bridge-accent/90 disabled:opacity-50 transition-all"
                 >
-                  {saving
-                    ? t('common.saving', '저장 중...')
-                    : t('common.save', '저장')}
+                  {saving ? t('common.saving', '저장 중...') : t('common.save', '저장')}
                 </button>
               </div>
             </div>
@@ -487,9 +463,11 @@ export function MemberHistoryTab({
                 <div className="flex flex-col items-center shrink-0 pt-1">
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0
-                      ${!item.effective_end_date
-                        ? 'bg-bridge-accent/20'
-                        : 'bg-black/[0.04] dark:bg-white/[0.06]'}`}
+                      ${
+                        !item.effective_end_date
+                          ? 'bg-bridge-accent/20'
+                          : 'bg-black/[0.04] dark:bg-white/[0.06]'
+                      }`}
                   >
                     <Briefcase
                       className={`w-4 h-4 ${!item.effective_end_date ? 'text-bridge-accent' : 'text-slate-400'}`}
@@ -539,9 +517,7 @@ export function MemberHistoryTab({
                   <p className="text-xs text-slate-500 mb-3">
                     {rangeLabel}
                     {durationLabel && (
-                      <span className="ml-1.5 text-slate-400">
-                        ({durationLabel})
-                      </span>
+                      <span className="ml-1.5 text-slate-400">({durationLabel})</span>
                     )}
                   </p>
 
@@ -591,7 +567,8 @@ export function MemberHistoryTab({
                         </p>
                       ) : (
                         <p className="text-xs text-slate-400 dark:text-slate-600 italic">
-                          - {t(
+                          -{' '}
+                          {t(
                             'organization.members.detail.history.noDescription',
                             '직무 경험을 작성해 주세요.',
                           )}
@@ -618,7 +595,10 @@ export function MemberHistoryTab({
                             {deleteConfirmId === item.id ? (
                               <div className="flex items-center gap-1.5">
                                 <span className="text-xs text-red-500">
-                                  {t('organization.members.detail.history.deleteConfirm', '삭제하시겠습니까?')}
+                                  {t(
+                                    'organization.members.detail.history.deleteConfirm',
+                                    '삭제하시겠습니까?',
+                                  )}
                                 </span>
                                 <button
                                   onClick={() => handleDelete(item.id)}

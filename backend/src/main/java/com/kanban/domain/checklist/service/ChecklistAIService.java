@@ -2,7 +2,6 @@ package com.kanban.domain.checklist.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.activity.ActivityAction;
 import com.kanban.domain.activity.TargetType;
 import com.kanban.domain.activity.service.ActivityService;
@@ -14,15 +13,12 @@ import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.checklist.dto.ChecklistAIRequest;
 import com.kanban.domain.checklist.dto.ChecklistAIResponse;
 import com.kanban.domain.feature.Feature;
-import com.kanban.domain.monitoring.entity.AiUsageLog;
-import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
-import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
-import com.kanban.global.config.AIProvider;
-import com.kanban.global.config.AIResponse;
+import com.kanban.global.ai.AiInvocationRequest;
+import com.kanban.global.ai.AiInvocationTemplate;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
@@ -32,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,16 +39,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ChecklistAIService {
 
-    private final AIProvider aiProvider;
-    private final ObjectMapper objectMapper;
+    private final AiInvocationTemplate aiInvocationTemplate;
+    private final TransactionTemplate transactionTemplate;
     private final TaskRepository taskRepository;
     private final ChecklistItemRepository checklistItemRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final ActivityService activityService;
-    private final AiUsageLogRepository aiUsageLogRepository;
-    private final AiCreditService aiCreditService;
     private final WebSocketEventService webSocketEventService;
 
     @Value("${ai.provider:claude}")
@@ -82,54 +77,54 @@ public class ChecklistAIService {
             Map.entry("pt-BR", "Portuguese (Brazil)")
     );
 
-    @Transactional
+    /**
+     * 트랜잭션 밖에서 실행된다 — 입력 읽기는 {@code transactionTemplate}으로 짧게 묶고, LLM 호출은
+     * {@link AiInvocationTemplate}이 트랜잭션 없이 수행한다(크레딧 차감·사용량 로그는 각자 짧은 트랜잭션).
+     */
     public ChecklistAIResponse.ChecklistDecomposition generateChecklistSuggestions(
             String boardId, String taskId, String userId, String language) {
 
-        aiCreditService.consumeCredit(boardId, userId, "CHECKLIST_DECOMPOSE", 1);
-        boardService.checkMemberOrAbove(boardId, userId);
+        // 1. 입력 읽기 (tx) — 프롬프트에 들어갈 값은 여기서 전부 문자열로 뽑아둔다 (Task.feature는 LAZY)
+        PromptInput input = transactionTemplate.execute(status -> {
+            boardService.checkMemberOrAbove(boardId, userId);
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+            Task task = taskRepository.findById(taskId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
 
-        if (!task.getBoard().getId().equals(boardId)) {
-            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-        }
+            if (!task.getBoard().getId().equals(boardId)) {
+                throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+            }
 
-        Feature feature = task.getFeature();
-        String taskTitle = task.getTitle();
-        String taskDescription = task.getDescription();
+            Feature feature = task.getFeature();
+            String taskTitle = task.getTitle();
+            String taskDescription = task.getDescription();
 
-        if ((taskTitle == null || taskTitle.isBlank())) {
-            throw new BusinessException(ErrorCode.AI_CHECKLIST_CONTENT_EMPTY);
-        }
+            if ((taskTitle == null || taskTitle.isBlank())) {
+                throw new BusinessException(ErrorCode.AI_CHECKLIST_CONTENT_EMPTY);
+            }
 
-        List<ChecklistItem> existingItems = checklistItemRepository.findByTaskIdOrderByPositionAsc(taskId);
-        String existingContext = buildExistingChecklistContext(existingItems);
+            List<ChecklistItem> existingItems = checklistItemRepository.findByTaskIdOrderByPositionAsc(taskId);
+            String existingContext = buildExistingChecklistContext(existingItems);
 
-        String systemPrompt = buildSystemPrompt(language);
-        String userPrompt = buildUserPrompt(
-                feature.getTitle(), feature.getDescription(),
-                taskTitle, taskDescription, existingContext);
+            return new PromptInput(
+                    taskTitle,
+                    buildSystemPrompt(language),
+                    buildUserPrompt(feature.getTitle(), feature.getDescription(),
+                            taskTitle, taskDescription, existingContext));
+        });
 
+        // 2. 크레딧 차감 → AI 호출 → 사용량 로그 → 파싱 (트랜잭션 없음)
         log.info("Generating AI checklist suggestions for task: {} in board: {}", taskId, boardId);
-        String model = getModel();
-        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS);
+        AiInvocationRequest request = AiInvocationRequest.builder()
+                .boardId(boardId).userId(userId)
+                .featureType("CHECKLIST_DECOMPOSE").creditCost(1)
+                .systemPrompt(input.systemPrompt()).userPrompt(input.userPrompt())
+                .model(getModel()).maxTokens(MAX_TOKENS)
+                .build();
+        return aiInvocationTemplate.invoke(request, content -> parseAIResponse(content, taskId, input.taskTitle()));
+    }
 
-        try {
-            aiUsageLogRepository.save(AiUsageLog.builder()
-                    .boardId(boardId).userId(userId)
-                    .featureType("CHECKLIST_DECOMPOSE").provider(provider.toUpperCase())
-                    .model(model)
-                    .inputTokens(aiResult.inputTokens())
-                    .outputTokens(aiResult.outputTokens())
-                    .estimatedCostUsd(AiUsageLog.calculateCost(model, aiResult.inputTokens(), aiResult.outputTokens()))
-                    .build());
-        } catch (Exception e) {
-            log.debug("Failed to save AI usage log: {}", e.getMessage());
-        }
-
-        return parseAIResponse(aiResult.content(), taskId, taskTitle);
+    private record PromptInput(String taskTitle, String systemPrompt, String userPrompt) {
     }
 
     @Transactional
@@ -259,8 +254,7 @@ public class ChecklistAIService {
 
     private ChecklistAIResponse.ChecklistDecomposition parseAIResponse(String aiResponse, String taskId, String taskTitle) {
         try {
-            String json = extractJson(aiResponse);
-            JsonNode root = objectMapper.readTree(json);
+            JsonNode root = aiInvocationTemplate.readJsonTree(aiResponse);
 
             List<ChecklistAIResponse.ItemSuggestion> items = new ArrayList<>();
             JsonNode itemsNode = root.get("items");
@@ -286,27 +280,6 @@ public class ChecklistAIService {
             log.error("Failed to parse AI response for task: {}", taskId, e);
             throw new BusinessException(ErrorCode.AI_CHECKLIST_DECOMPOSE_FAILED);
         }
-    }
-
-    private String extractJson(String response) {
-        if (response == null) return "{}";
-        String trimmed = response.trim();
-
-        if (trimmed.startsWith("```")) {
-            int firstNewline = trimmed.indexOf('\n');
-            int lastFence = trimmed.lastIndexOf("```");
-            if (firstNewline > 0 && lastFence > firstNewline) {
-                trimmed = trimmed.substring(firstNewline + 1, lastFence).trim();
-            }
-        }
-
-        int start = trimmed.indexOf('{');
-        int end = trimmed.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            return trimmed.substring(start, end + 1);
-        }
-
-        return trimmed;
     }
 
     private String getTextOrNull(JsonNode node, String field) {

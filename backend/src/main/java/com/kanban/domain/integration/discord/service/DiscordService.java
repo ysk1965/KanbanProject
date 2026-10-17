@@ -58,7 +58,8 @@ public class DiscordService {
     @Value("${discord.bot-permissions:2048}")
     private String botPermissions;
 
-    @Value("${jwt.secret:your-super-secret-jwt-key-that-should-be-at-least-256-bits-long}")
+    // JwtProvider와 동일 키를 쓴다. 기본값을 두면 JwtProvider의 prod 안전 검사를 우회하므로 기본값 없이 필수 주입.
+    @Value("${jwt.secret}")
     private String jwtSecret;
 
     @Value("${app.frontend-url}")

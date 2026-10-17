@@ -311,14 +311,6 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getConversionStats(days));
     }
 
-    @GetMapping("/statistics/diary")
-    public ResponseEntity<AdminResponse.DiaryStats> getDiaryStats(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(defaultValue = "30") @Min(1) @Max(365) int days) {
-        verifyAdminAccess(principal);
-        return ResponseEntity.ok(adminService.getDiaryStats(days));
-    }
-
     @GetMapping("/statistics/personal-conversion")
     public ResponseEntity<AdminResponse.PersonalConversionStats> getPersonalConversionStats(
             @AuthenticationPrincipal UserPrincipal principal,

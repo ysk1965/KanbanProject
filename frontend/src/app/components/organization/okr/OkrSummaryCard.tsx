@@ -1,8 +1,8 @@
-import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
-import { Target, BarChart3, Clock } from "lucide-react";
-import type { OkrTreeData } from "../../../types";
-import { OkrProgressBar } from "./OkrProgressBar";
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+import { Target, BarChart3, Clock } from 'lucide-react';
+import type { OkrTreeData } from '../../../types';
+import { OkrProgressBar } from './OkrProgressBar';
 
 interface OkrSummaryCardProps {
   treeData: OkrTreeData;
@@ -15,21 +15,21 @@ export function OkrSummaryCard({ treeData, daysRemaining }: OkrSummaryCardProps)
   const stats = [
     {
       icon: Target,
-      label: t("okr.objective", "Objective"),
+      label: t('okr.objective', 'Objective'),
       value: treeData.total_objectives,
-      color: "text-bridge-accent",
+      color: 'text-bridge-accent',
     },
     {
       icon: BarChart3,
-      label: t("okr.keyResult", "Key Result"),
+      label: t('okr.keyResult', 'Key Result'),
       value: treeData.total_key_results,
-      color: "text-bridge-secondary",
+      color: 'text-bridge-secondary',
     },
     {
       icon: Clock,
-      label: t("okr.daysRemaining", { days: daysRemaining }),
+      label: t('okr.daysRemaining', { days: daysRemaining }),
       value: null,
-      color: "text-slate-400",
+      color: 'text-slate-400',
     },
   ];
 
@@ -44,7 +44,7 @@ export function OkrSummaryCard({ treeData, daysRemaining }: OkrSummaryCardProps)
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
-              {t("okr.overallProgress", "Overall Progress")}
+              {t('okr.overallProgress', 'Overall Progress')}
             </span>
             <span className="text-sm font-bold text-foreground">
               {Math.round(treeData.overall_progress)}%

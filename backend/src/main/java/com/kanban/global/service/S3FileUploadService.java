@@ -12,12 +12,16 @@ import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import org.springframework.http.ContentDisposition;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -194,6 +198,30 @@ public class S3FileUploadService implements FileUploadService {
     }
 
     @Override
+    public String presignDownload(String key, String filename, String contentType) {
+        String disposition = ContentDisposition.attachment()
+                .filename(filename != null && !filename.isBlank() ? filename : "download", StandardCharsets.UTF_8)
+                .build()
+                .toString();
+        String effectiveType = contentType != null && !contentType.isBlank()
+                ? contentType : "application/octet-stream";
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(10))
+                .getObjectRequest(GetObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(key)
+                        .responseContentDisposition(disposition)
+                        .responseContentType(effectiveType)
+                        .build())
+                .build();
+
+        PresignedGetObjectRequest presigned = s3Presigner.presignGetObject(presignRequest);
+        log.debug("Presigned download URL generated: {}", key);
+        return presigned.url().toString();
+    }
+
+    @Override
     public PresignResult presignUpload(String fileName, String contentType, long fileSize) {
         // 검증
         if (!allowedTypes.contains(contentType)) {
@@ -245,6 +273,21 @@ public class S3FileUploadService implements FileUploadService {
         PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(presignRequest);
         log.info("Presigned URL (direct-to-key) generated: {}", key);
         return new PresignResult(key, presigned.url().toString(), "presigned");
+    }
+
+    @Override
+    public byte[] readHeadBytes(String key, int length) {
+        try {
+            return s3Client.getObjectAsBytes(GetObjectRequest.builder()
+                    .bucket(bucketName).key(key)
+                    .range("bytes=0-" + (length - 1))
+                    .build()).asByteArray();
+        } catch (NoSuchKeyException e) {
+            return null;
+        } catch (Exception e) {
+            log.warn("Failed to read head bytes: {}", key, e);
+            return null;
+        }
     }
 
     @Override
@@ -322,6 +365,31 @@ public class S3FileUploadService implements FileUploadService {
         } catch (Exception e) {
             log.warn("Failed to delete from S3: {}", key, e);
         }
+    }
+
+    @Override
+    public void deleteAll(java.util.Collection<String> keys) {
+        List<String> distinct = keys.stream().filter(k -> k != null && !k.isBlank()).distinct().toList();
+        int deleted = 0;
+        for (int i = 0; i < distinct.size(); i += 1000) {
+            List<ObjectIdentifier> chunk = distinct.subList(i, Math.min(i + 1000, distinct.size())).stream()
+                    .map(k -> ObjectIdentifier.builder().key(k).build())
+                    .toList();
+            try {
+                DeleteObjectsResponse res = s3Client.deleteObjects(DeleteObjectsRequest.builder()
+                        .bucket(bucketName)
+                        .delete(Delete.builder().objects(chunk).quiet(true).build())
+                        .build());
+                deleted += chunk.size() - res.errors().size();
+                if (res.hasErrors() && !res.errors().isEmpty()) {
+                    log.warn("S3 batch delete partial failure: {} errors (first: {} {})", res.errors().size(),
+                            res.errors().get(0).key(), res.errors().get(0).message());
+                }
+            } catch (Exception e) {
+                log.warn("S3 batch delete failed for chunk starting at {}", i, e);
+            }
+        }
+        log.info("Files batch-deleted from S3: {}/{}", deleted, distinct.size());
     }
 
     @Override

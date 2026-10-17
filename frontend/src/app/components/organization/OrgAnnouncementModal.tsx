@@ -23,11 +23,13 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
   const [saving, setSaving] = useState(false);
 
   // Image upload state
-  const [uploadedFiles, setUploadedFiles] = useState<Array<{
-    tempKey: string;
-    previewUrl: string;
-    fileName: string;
-  }>>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<
+    Array<{
+      tempKey: string;
+      previewUrl: string;
+      fileName: string;
+    }>
+  >([]);
   const [existingAttachments, setExistingAttachments] = useState<OrgAnnouncementAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,13 +57,17 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
     }
     setUploading(true);
     try {
-      const newFiles = [];
+      const newFiles: typeof uploadedFiles = [];
       for (const file of Array.from(files)) {
         if (!file.type.startsWith('image/')) continue;
         const result = await fileAPI.smartUpload(file);
-        newFiles.push({ tempKey: result.tempKey, previewUrl: result.previewUrl, fileName: file.name });
+        newFiles.push({
+          tempKey: result.tempKey,
+          previewUrl: result.previewUrl,
+          fileName: file.name,
+        });
       }
-      setUploadedFiles(prev => [...prev, ...newFiles]);
+      setUploadedFiles((prev) => [...prev, ...newFiles]);
     } catch {
       toast.error(t('common.error', 'Upload failed'));
     } finally {
@@ -79,15 +85,15 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
         await orgAnnouncementService.update(orgId, editing.id, {
           title: title.trim(),
           content: content.trim() || undefined,
-          keep_attachment_ids: existingAttachments.map(a => a.id),
-          new_file_keys: uploadedFiles.length > 0 ? uploadedFiles.map(f => f.tempKey) : undefined,
+          keep_attachment_ids: existingAttachments.map((a) => a.id),
+          new_file_keys: uploadedFiles.length > 0 ? uploadedFiles.map((f) => f.tempKey) : undefined,
         });
       } else {
         await orgAnnouncementService.create(orgId, {
           title: title.trim(),
           content: content.trim() || undefined,
           is_pinned: isPinned,
-          file_keys: uploadedFiles.length > 0 ? uploadedFiles.map(f => f.tempKey) : undefined,
+          file_keys: uploadedFiles.length > 0 ? uploadedFiles.map((f) => f.tempKey) : undefined,
         });
       }
       onSaved();
@@ -125,7 +131,7 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
             </label>
             <input
               value={title}
-              onChange={e => setTitle(e.target.value)}
+              onChange={(e) => setTitle(e.target.value)}
               placeholder={t('organization.announcement.titlePlaceholder', 'Announcement title')}
               maxLength={200}
               className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3
@@ -140,7 +146,7 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
             </label>
             <textarea
               value={content}
-              onChange={e => setContent(e.target.value)}
+              onChange={(e) => setContent(e.target.value)}
               placeholder={t('organization.announcement.contentPlaceholder', 'Details (optional)')}
               rows={4}
               className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3
@@ -163,11 +169,20 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
             {/* Preview grid */}
             {(existingAttachments.length > 0 || uploadedFiles.length > 0) && (
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-2">
-                {existingAttachments.map(att => (
-                  <div key={att.id} className="relative group aspect-square rounded-lg overflow-hidden border border-foreground/10">
-                    <img src={resolveFileUrl(att.url)} className="w-full h-full object-cover" alt={att.file_name} />
+                {existingAttachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="relative group aspect-square rounded-lg overflow-hidden border border-foreground/10"
+                  >
+                    <img
+                      src={resolveFileUrl(att.url)}
+                      className="w-full h-full object-cover"
+                      alt={att.file_name}
+                    />
                     <button
-                      onClick={() => setExistingAttachments(prev => prev.filter(a => a.id !== att.id))}
+                      onClick={() =>
+                        setExistingAttachments((prev) => prev.filter((a) => a.id !== att.id))
+                      }
                       className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <X size={10} />
@@ -175,10 +190,17 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
                   </div>
                 ))}
                 {uploadedFiles.map((file, idx) => (
-                  <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-foreground/10">
-                    <img src={file.previewUrl} className="w-full h-full object-cover" alt={file.fileName} />
+                  <div
+                    key={idx}
+                    className="relative group aspect-square rounded-lg overflow-hidden border border-foreground/10"
+                  >
+                    <img
+                      src={file.previewUrl}
+                      className="w-full h-full object-cover"
+                      alt={file.fileName}
+                    />
                     <button
-                      onClick={() => setUploadedFiles(prev => prev.filter((_, i) => i !== idx))}
+                      onClick={() => setUploadedFiles((prev) => prev.filter((_, i) => i !== idx))}
                       className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <X size={10} />
@@ -196,7 +218,11 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
                 className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5
                   px-3 py-2 rounded-xl border border-dashed border-foreground/10 transition-all w-full justify-center"
               >
-                {uploading ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
+                {uploading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <ImagePlus size={14} />
+                )}
                 {t('organization.announcement.addImage', 'Add Image')}
               </button>
             )}
@@ -206,7 +232,7 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
               accept="image/*"
               multiple
               className="hidden"
-              onChange={e => e.target.files && handleFileUpload(e.target.files)}
+              onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
             />
           </div>
 
@@ -215,7 +241,7 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
               <input
                 type="checkbox"
                 checked={isPinned}
-                onChange={e => setIsPinned(e.target.checked)}
+                onChange={(e) => setIsPinned(e.target.checked)}
                 className="w-4 h-4 rounded border-foreground/20 text-bridge-accent focus:ring-bridge-accent/30"
               />
               <Pin size={12} className="text-slate-400" />
@@ -230,16 +256,23 @@ export function OrgAnnouncementModal({ open, onClose, orgId, editing, onSaved }:
         <div className="flex items-center justify-between px-5 pb-4 pt-3 border-t border-foreground/[0.08]">
           <span className="text-xs text-slate-600">Esc {t('common.close', 'Close')}</span>
           <div className="flex items-center gap-2">
-            <button onClick={onClose}
-              className="px-4 py-1.5 rounded-lg text-xs text-slate-400 hover:bg-foreground/5 transition-colors">
+            <button
+              onClick={onClose}
+              className="px-4 py-1.5 rounded-lg text-xs text-slate-400 hover:bg-foreground/5 transition-colors"
+            >
               {t('common.cancel', 'Cancel')}
             </button>
-            <button onClick={handleSubmit} disabled={!title.trim() || saving || uploading}
+            <button
+              onClick={handleSubmit}
+              disabled={!title.trim() || saving || uploading}
               className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent
-                hover:bg-bridge-accent/90 disabled:opacity-50 transition-all">
-              {saving ? '...' : editing
-                ? t('common.save', 'Save')
-                : t('organization.announcement.post', 'Post')}
+                hover:bg-bridge-accent/90 disabled:opacity-50 transition-all"
+            >
+              {saving
+                ? '...'
+                : editing
+                  ? t('common.save', 'Save')
+                  : t('organization.announcement.post', 'Post')}
             </button>
           </div>
         </div>

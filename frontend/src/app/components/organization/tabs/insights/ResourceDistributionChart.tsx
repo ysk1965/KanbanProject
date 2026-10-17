@@ -12,7 +12,13 @@ import {
   Cell,
 } from 'recharts';
 import type { OrgBoardResourceResponse } from '../../../../types';
-import { INSIGHT_CHART_COLORS, formatMinutesToHours, CHART_TOOLTIP_STYLE, CHART_GRID_STROKE, CHART_AXIS_FILL } from './insightsUtils';
+import {
+  INSIGHT_CHART_COLORS,
+  formatMinutesToHours,
+  CHART_TOOLTIP_STYLE,
+  CHART_GRID_STROKE,
+  CHART_AXIS_FILL,
+} from './insightsUtils';
 
 interface ResourceDistributionChartProps {
   data: OrgBoardResourceResponse | null;
@@ -27,7 +33,14 @@ interface TreemapContentProps {
   index?: number;
 }
 
-function CustomTreemapContent({ x = 0, y = 0, width = 0, height = 0, name = '', index = 0 }: TreemapContentProps) {
+function CustomTreemapContent({
+  x = 0,
+  y = 0,
+  width = 0,
+  height = 0,
+  name = '',
+  index = 0,
+}: TreemapContentProps) {
   if (width < 40 || height < 30) return null;
   return (
     <g>
@@ -70,7 +83,8 @@ export function ResourceDistributionChart({ data }: ResourceDistributionChartPro
   }, [data]);
 
   const { weeklyData, boardNames } = useMemo(() => {
-    if (!data?.resource_distribution?.weekly_trend) return { weeklyData: [], boardNames: [] as string[] };
+    if (!data?.resource_distribution?.weekly_trend)
+      return { weeklyData: [], boardNames: [] as string[] };
 
     const names = new Set<string>();
     data.resource_distribution.weekly_trend.forEach((w) => {
@@ -85,7 +99,7 @@ export function ResourceDistributionChart({ data }: ResourceDistributionChartPro
       };
       boardNamesList.forEach((name) => {
         const board = w.boards.find((b) => b.board_name === name);
-        entry[name] = board ? Math.round(board.work_minutes / 60 * 10) / 10 : 0;
+        entry[name] = board ? Math.round((board.work_minutes / 60) * 10) / 10 : 0;
       });
       return entry;
     });
@@ -123,7 +137,10 @@ export function ResourceDistributionChart({ data }: ResourceDistributionChartPro
           <div className="flex flex-wrap gap-3 mt-3">
             {treemapData.map((b, i) => (
               <div key={i} className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length] }} />
+                <div
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length] }}
+                />
                 <span className="text-xs text-slate-400">{b.name}</span>
               </div>
             ))}
@@ -169,7 +186,10 @@ export function ResourceDistributionChart({ data }: ResourceDistributionChartPro
           <div className="flex flex-wrap gap-3 mt-3">
             {boardNames.map((name, i) => (
               <div key={name} className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length] }} />
+                <div
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: INSIGHT_CHART_COLORS[i % INSIGHT_CHART_COLORS.length] }}
+                />
                 <span className="text-xs text-slate-400">{name}</span>
               </div>
             ))}

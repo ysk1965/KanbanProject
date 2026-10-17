@@ -43,7 +43,7 @@ function formatDisplay(value: string): string {
 }
 
 function snapMinute(minute: number, step: number): number {
-  return Math.round(minute / step) * step % 60;
+  return (Math.round(minute / step) * step) % 60;
 }
 
 function scrollToSelected(container: HTMLDivElement | null) {
@@ -74,26 +74,27 @@ export function TimePicker({
     [minuteStep],
   );
 
-  const { period: selectedPeriod, hour12: selectedHour, minute: rawMinute } = useMemo(() => {
+  const {
+    period: selectedPeriod,
+    hour12: selectedHour,
+    minute: rawMinute,
+  } = useMemo(() => {
     if (!value) return { period: 'AM' as Period, hour12: 9, minute: 0 };
     return parse24h(value);
   }, [value]);
 
   const selectedMinute = snapMinute(rawMinute, minuteStep);
 
-  const handleOpenChange = useCallback(
-    (isOpen: boolean) => {
-      setOpen(isOpen);
-      if (isOpen) {
-        requestAnimationFrame(() => {
-          scrollToSelected(periodRef.current);
-          scrollToSelected(hourRef.current);
-          scrollToSelected(minuteRef.current);
-        });
-      }
-    },
-    [],
-  );
+  const handleOpenChange = useCallback((isOpen: boolean) => {
+    setOpen(isOpen);
+    if (isOpen) {
+      requestAnimationFrame(() => {
+        scrollToSelected(periodRef.current);
+        scrollToSelected(hourRef.current);
+        scrollToSelected(minuteRef.current);
+      });
+    }
+  }, []);
 
   const handlePeriodChange = (p: Period) => {
     onChange(to24h(p, selectedHour, selectedMinute));

@@ -1,5 +1,18 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Folder, CreditCard, BarChart3, Megaphone, Shield, ArrowLeft, MessageSquare, Activity, Building2, UserMinus } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Users,
+  Folder,
+  CreditCard,
+  BarChart3,
+  Megaphone,
+  Shield,
+  ArrowLeft,
+  MessageSquare,
+  Activity,
+  Building2,
+  UserMinus,
+} from 'lucide-react';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,7 +46,7 @@ export function AdminPage() {
   const { t } = useTranslation();
   const { monetizationEnabled } = useAuth();
 
-  const filteredNavItems = navItems.filter(item => {
+  const filteredNavItems = navItems.filter((item) => {
     if (item.path === 'subscriptions' && !monetizationEnabled) return false;
     return true;
   });

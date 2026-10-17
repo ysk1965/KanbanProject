@@ -1,20 +1,22 @@
-import { useTranslation } from "react-i18next";
-import { LayoutGrid, Flag, Network, Lock, LayoutDashboard } from "lucide-react";
+import { useTranslation } from 'react-i18next';
+import { LayoutGrid, Flag, Network, Lock, LayoutDashboard } from 'lucide-react';
 
 type ViewMode =
-  | "dashboard"
-  | "kanban"
-  | "gantt"
-  | "schedule"
-  | "calendar"
-  | "milestone"
-  | "meeting"
-  | "notes"
-  | "statistics"
-  | "ai_report"
-  | "list"
-  | "mindmap"
-  | "minikanban";
+  | 'dashboard'
+  | 'kanban'
+  | 'gantt'
+  | 'schedule'
+  | 'calendar'
+  | 'milestone'
+  | 'meeting'
+  | 'library'
+  | 'report'
+  | 'ld_upscale'
+  | 'statistics'
+  | 'ai_report'
+  | 'list'
+  | 'mindmap'
+  | 'minikanban';
 
 interface BoardSubTabsProps {
   /** 현재 활성화된 뷰 모드 */
@@ -23,6 +25,12 @@ interface BoardSubTabsProps {
   onViewModeChange: (mode: ViewMode) => void;
   /** 마일스톤 접근 권한 (프리미엄 기능) */
   canAccessMilestone: boolean;
+  /**
+   * 단계(마일스톤) 레이어를 화면에 세우는가 — 보드 레벨 3에서만 true.
+   * 권한(canAccessMilestone)과 다른 축이다: 권한은 "쓸 수 있나", 이건 "지금 쓰기로 했나".
+   * 미지정이면 켜진 것으로 본다 — 값을 모를 때 화면이 줄어드는 쪽이 더 나쁘다.
+   */
+  showMilestone?: boolean;
 }
 
 interface TabItem {
@@ -36,34 +44,34 @@ interface TabItem {
 
 const TABS: TabItem[] = [
   {
-    mode: "dashboard",
+    mode: 'dashboard',
     icon: LayoutDashboard,
-    labelKey: "kanban.viewBoardDashboard",
-    labelFallback: "대시보드",
+    labelKey: 'kanban.viewBoardDashboard',
+    labelFallback: '대시보드',
     isPremium: false,
     checkAccess: () => true,
   },
   {
-    mode: "kanban",
+    mode: 'kanban',
     icon: LayoutGrid,
-    labelKey: "kanban.viewBoardKanban",
-    labelFallback: "칸반",
+    labelKey: 'kanban.viewBoardKanban',
+    labelFallback: '칸반',
     isPremium: false,
     checkAccess: () => true,
   },
   {
-    mode: "milestone",
+    mode: 'milestone',
     icon: Flag,
-    labelKey: "kanban.viewBoardMilestone",
-    labelFallback: "마일스톤",
+    labelKey: 'kanban.viewBoardMilestone',
+    labelFallback: '마일스톤',
     isPremium: true,
     checkAccess: (canAccessMilestone) => canAccessMilestone,
   },
   {
-    mode: "mindmap",
+    mode: 'mindmap',
     icon: Network,
-    labelKey: "kanban.viewBoardMindMap",
-    labelFallback: "마인드맵",
+    labelKey: 'kanban.viewBoardMindMap',
+    labelFallback: '마인드맵',
     isPremium: false,
     checkAccess: () => true,
   },
@@ -78,32 +86,28 @@ export function BoardSubTabs({
   viewMode,
   onViewModeChange,
   canAccessMilestone,
+  showMilestone = true,
 }: BoardSubTabsProps) {
   const { t } = useTranslation();
+
+  // 레벨 1·2에서는 단계 탭 자체를 내린다. 잠금 아이콘으로 남기지 않는 이유:
+  // 잠금은 "돈 내면 열림"이고 여기는 "아직 안 쓰기로 함"이라 뜻이 다르다.
+  const visibleTabs = showMilestone ? TABS : TABS.filter((tab) => tab.mode !== 'milestone');
 
   return (
     <div className="flex items-center justify-center py-1.5">
       <div
         className="flex items-center gap-1 bg-foreground/5 rounded-lg p-0.5"
         role="tablist"
-        aria-label={t("kanban.viewBoard", "보드 서브뷰")}
+        aria-label={t('kanban.viewBoard', '보드 서브뷰')}
       >
-        {TABS.map(
-          ({
-            mode,
-            icon: Icon,
-            labelKey,
-            labelFallback,
-            isPremium,
-            checkAccess,
-          }) => {
+        {visibleTabs.map(
+          ({ mode, icon: Icon, labelKey, labelFallback, isPremium, checkAccess }) => {
             // 칸반 탭은 보드 표현 뷰(리스트/간트/캘린더/미니 칸반 포함) 전체에서 활성 유지.
             // 대시보드·마일스톤·마인드맵 탭은 각 뷰일 때만 활성.
             const isActive =
-              mode === "kanban"
-                ? viewMode !== "dashboard" &&
-                  viewMode !== "milestone" &&
-                  viewMode !== "mindmap"
+              mode === 'kanban'
+                ? viewMode !== 'dashboard' && viewMode !== 'milestone' && viewMode !== 'mindmap'
                 : viewMode === mode;
             const hasAccess = checkAccess(canAccessMilestone);
             const label = t(labelKey, labelFallback);
@@ -115,24 +119,20 @@ export function BoardSubTabs({
                 aria-selected={isActive}
                 aria-label={
                   isPremium && !hasAccess
-                    ? `${label} (${t("common.premiumRequired", "프리미엄 필요")})`
+                    ? `${label} (${t('common.premiumRequired', '프리미엄 필요')})`
                     : label
                 }
                 onClick={() => onViewModeChange(mode)}
                 className={
                   isActive
-                    ? "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-foreground/10 text-foreground transition-colors"
-                    : "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
+                    ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-foreground/10 text-foreground transition-colors'
+                    : 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors'
                 }
               >
                 <Icon size={14} aria-hidden="true" />
                 <span>{label}</span>
                 {isPremium && !hasAccess && (
-                  <Lock
-                    size={10}
-                    className="text-slate-500"
-                    aria-hidden="true"
-                  />
+                  <Lock size={10} className="text-slate-500" aria-hidden="true" />
                 )}
               </button>
             );
@@ -143,4 +143,4 @@ export function BoardSubTabs({
   );
 }
 
-BoardSubTabs.displayName = "BoardSubTabs";
+BoardSubTabs.displayName = 'BoardSubTabs';

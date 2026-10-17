@@ -5,6 +5,7 @@ import com.kanban.domain.board.BoardCustomEmoji;
 import com.kanban.domain.board.BoardCustomEmojiRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.comment.CommentAttachment;
@@ -112,7 +113,30 @@ public class CommentService {
 
         List<Comment> comments = commentRepository.findByTaskIdWithAuthorAndReactions(taskId);
         Map<String, String> customEmojiUrlMap = buildCustomEmojiUrlMap(boardId);
-        return CommentResponse.ListResponse.of(comments, customEmojiUrlMap, fileUploadService::resolveUrl);
+        return CommentResponse.ListResponse.of(comments, customEmojiUrlMap, fileUploadService::resolveUrl,
+                buildChecklistRefMap(comments));
+    }
+
+    /**
+     * 댓글들이 가리키는 체크리스트 항목의 제목을 한 번에 조회한다.
+     * 삭제된 항목도 포함한다 — 항목을 휴지통에 넣어도 그 대화는 태스크 댓글 목록에 계속 남는다.
+     */
+    private Map<String, CommentResponse.ChecklistRef> buildChecklistRefMap(List<Comment> comments) {
+        List<String> itemIds = comments.stream()
+                .map(Comment::getChecklistItemId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (itemIds.isEmpty()) return Map.of();
+
+        Map<String, CommentResponse.ChecklistRef> refs = new HashMap<>();
+        for (Object[] row : checklistItemRepository.findTitlesByIdsIncludingDeleted(itemIds)) {
+            refs.put((String) row[0], CommentResponse.ChecklistRef.builder()
+                    .title((String) row[1])
+                    .deleted(Boolean.TRUE.equals(row[2]))
+                    .build());
+        }
+        return refs;
     }
 
     /**
@@ -154,6 +178,20 @@ public class CommentService {
                     .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
         }
 
+        // 체크리스트 항목 댓글이면 그 항목이 이 태스크의 것인지 반드시 확인한다.
+        // 검증을 빼면 다른 태스크의 항목에 댓글을 꽂는 경로가 열린다.
+        ChecklistItem checklistItem = null;
+        String checklistItemId = request.getChecklistItemId();
+        if (checklistItemId != null && !checklistItemId.isBlank()) {
+            checklistItem = checklistItemRepository.findById(checklistItemId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
+            if (!checklistItem.getTask().getId().equals(taskId)) {
+                throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
+            }
+        } else {
+            checklistItemId = null;
+        }
+
         Comment comment = Comment.builder()
                 .task(task)
                 .board(board)
@@ -161,6 +199,7 @@ public class CommentService {
                 .content(content)
                 .mentions(mentionsStr)
                 .parent(parentComment)
+                .checklistItemId(checklistItemId)
                 .build();
 
         commentRepository.save(comment);
@@ -189,8 +228,16 @@ public class CommentService {
             if (task.getCreatedBy() != null) {
                 taskRelatedUserIdSet.add(task.getCreatedBy().getId());
             }
-            // 체크리스트 배정자들
-            taskRelatedUserIdSet.addAll(checklistItemRepository.findDistinctAssigneeIdsByTaskId(taskId));
+            if (checklistItem != null) {
+                // 항목 댓글은 그 항목 담당자에게만 간다. 태스크의 전체 담당자에게 뿌리면
+                // 20줄짜리 체크리스트에서 알림이 20배가 된다 — 상관없는 줄의 대화까지 전부 받는다.
+                if (checklistItem.getAssignee() != null) {
+                    taskRelatedUserIdSet.add(checklistItem.getAssignee().getId());
+                }
+            } else {
+                // 태스크 댓글: 지금까지처럼 체크리스트 배정자 전원
+                taskRelatedUserIdSet.addAll(checklistItemRepository.findDistinctAssigneeIdsByTaskId(taskId));
+            }
             List<String> taskRelatedUserIds = new ArrayList<>(taskRelatedUserIdSet);
 
             if (!taskRelatedUserIds.isEmpty()) {
@@ -206,7 +253,14 @@ public class CommentService {
         log.info("Comment created: {} on task: {} by user: {} with {} attachments",
                 comment.getId(), taskId, userId, comment.getAttachments().size());
 
-        CommentResponse.Detail response = CommentResponse.Detail.of(comment, Map.of(), fileUploadService::resolveUrl);
+        // 항목 제목을 응답에 실어 보낸다. 이 응답이 그대로 WebSocket 페이로드가 되므로,
+        // 다른 사람 화면도 재조회 없이 "체크리스트 · 제목" 칩을 그릴 수 있어야 한다.
+        Map<String, CommentResponse.ChecklistRef> refs = checklistItem != null
+                ? Map.of(checklistItem.getId(), CommentResponse.ChecklistRef.builder()
+                        .title(checklistItem.getTitle()).deleted(false).build())
+                : Map.of();
+
+        CommentResponse.Detail response = CommentResponse.Detail.of(comment, Map.of(), fileUploadService::resolveUrl, refs);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_CREATED, userId, user.getName(), response);
 
         // JIRA 연동 카드면 댓글을 JIRA 코멘트로 push (커밋 후 비동기). core→jira 역의존 회피용 이벤트.
@@ -263,7 +317,9 @@ public class CommentService {
         log.info("Comment updated: {} by user: {} (attachments: {})",
                 commentId, userId, comment.getAttachments().size());
 
-        CommentResponse.Detail response = CommentResponse.Detail.of(comment, Map.of(), fileUploadService::resolveUrl);
+        // 수정 응답도 WS 페이로드로 나간다 — 칩이 사라지지 않도록 항목 제목을 다시 실어 준다.
+        CommentResponse.Detail response = CommentResponse.Detail.of(comment, Map.of(),
+                fileUploadService::resolveUrl, buildChecklistRefMap(List.of(comment)));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_UPDATED, userId, user.getName(), response);
@@ -289,13 +345,21 @@ public class CommentService {
             fileUploadService.delete(attachment.getS3Key());
         }
 
+        String checklistItemId = comment.getChecklistItemId();
         commentRepository.delete(comment);
         log.info("Comment deleted: {} by user: {}", commentId, userId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         String taskId = comment.getTask().getId();
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_DELETED, userId, user.getName(), Map.of("id", commentId, "task_id", taskId));
+
+        // 항목 id를 함께 보낸다 — 받는 쪽이 어느 체크리스트 행의 댓글 수를 줄여야 하는지 알아야 한다.
+        // (Map.of는 null 값을 허용하지 않아 HashMap을 쓴다)
+        Map<String, Object> deletePayload = new HashMap<>();
+        deletePayload.put("id", commentId);
+        deletePayload.put("task_id", taskId);
+        deletePayload.put("checklist_item_id", checklistItemId);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_DELETED, userId, user.getName(), deletePayload);
 
         // JIRA로 연동된 댓글이면 JIRA 코멘트도 삭제 (커밋 후 비동기).
         eventPublisher.publishEvent(new CommentDeletedEvent(boardId, taskId, commentId));

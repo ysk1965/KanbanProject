@@ -43,6 +43,15 @@ public class NoteController {
         return ResponseEntity.ok(list);
     }
 
+    /** 제목·본문 전문 검색. q 가 2자 미만이면 빈 목록. 최대 30건, 최근 수정순. */
+    @GetMapping("/search")
+    public ResponseEntity<List<NoteResponse.SearchResult>> searchNotes(
+            @PathVariable String boardId,
+            @RequestParam(name = "q", required = false) String q,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(noteService.searchNotes(boardId, principal.getUserId(), q));
+    }
+
     @GetMapping("/{noteId}")
     public ResponseEntity<NoteResponse.Detail> getNoteDetail(
             @PathVariable String boardId,
@@ -91,6 +100,17 @@ public class NoteController {
             @Valid @RequestBody NoteRequest.Move request) {
         NoteResponse.Detail moved = noteService.moveNote(boardId, noteId, principal.getUserId(), request);
         return ResponseEntity.ok(moved);
+    }
+
+    /** 페이지 상태 변경. body: { "status": "DRAFT" | "IN_REVIEW" | "DONE" | null } */
+    @PutMapping("/{noteId}/status")
+    public ResponseEntity<NoteResponse.Detail> updateStatus(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody NoteRequest.Status request) {
+        return ResponseEntity.ok(noteService.updateStatus(
+                boardId, noteId, principal.getUserId(), request != null ? request.getStatus() : null));
     }
 
     // ===== Trash =====
@@ -157,6 +177,18 @@ public class NoteController {
             @RequestBody(required = false) @Valid NoteRequest.RestoreVersion request) {
         NoteResponse.Detail restored = noteService.restoreVersion(boardId, noteId, versionId, principal.getUserId(), request);
         return ResponseEntity.ok(restored);
+    }
+
+    /** 버전 메모 수정. body: { "note": "..." } (null/공백 = 삭제) */
+    @PatchMapping("/{noteId}/versions/{versionId}/note")
+    public ResponseEntity<NoteResponse.VersionInfo> updateVersionNote(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @PathVariable String versionId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody NoteRequest.VersionNote request) {
+        return ResponseEntity.ok(noteService.updateVersionNote(
+                boardId, noteId, versionId, principal.getUserId(), request.getNote()));
     }
 
     @DeleteMapping("/{noteId}/versions/{versionId}")

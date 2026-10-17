@@ -11,6 +11,9 @@
     "addImage": "छवि",
     "addVideo": "वीडियो",
     "empty": "शुरू करने के लिए ऊपर की पट्टी से नोड जोड़ें",
+    "selectedCount": "{{count}} चयनित",
+    "scaleDown": "चयन छोटा करें",
+    "scaleUp": "चयन बड़ा करें",
     "emptyReadOnly": "यह फ़्लो खाली है",
     "dropHere": "यहाँ छवि या वीडियो छोड़ें",
     "mediaUploadFailed": "मीडिया अपलोड विफल। कृपया फ़ाइल का आकार या प्रारूप जाँचें।",
@@ -105,7 +108,7 @@
       },
       "personal": {
         "title": "Personal Productivity Hub",
-        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+        "desc": "Eisenhower Matrix task board and habit tracker with streaks — your personal growth toolkit lives right next to your team workspace."
       }
     },
     "myspace": {
@@ -116,8 +119,7 @@
       "tabs": {
         "overview": "Overview",
         "matrix": "Matrix",
-        "habits": "Habits",
-        "diary": "AI Diary"
+        "habits": "Habits"
       },
       "matrix": {
         "title": "Eisenhower Matrix",
@@ -126,10 +128,6 @@
       "habits": {
         "title": "Habit Tracker",
         "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
-      },
-      "diary": {
-        "title": "AI Diary",
-        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
       },
       "calendar": {
         "title": "Personal Calendar",
@@ -210,11 +208,7 @@
       },
       "subtitle": "डैशबोर्ड और चार्ट से परे। AI आपके टास्क, टाइम ब्लॉक, चेकलिस्ट और कमेंट का विश्लेषण करके ऐसे इनसाइट्स तैयार करता है जो इंसान चूक सकते हैं।",
       "titleLine1": "AI आपकी टीम का",
-      "titleLine2": "full context",
-      "diary": {
-        "title": "AI Conversational Diary",
-        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
-      }
+      "titleLine2": "full context"
     },
     "pricing": {
       "badge": "PREMIUM 3 दिन मुफ़्त ट्रायल",
@@ -369,7 +363,7 @@
     "searchPlaceholder": "प्रोजेक्ट खोजें...",
     "logout": "लॉग आउट",
     "mySpace": "मेरा स्पेस",
-    "mySpaceDesc": "व्यक्तिगत शेड्यूल & AI डायरी",
+    "mySpaceDesc": "व्यक्तिगत शेड्यूल & आदतें",
     "mySpaceSetup": "अपना निजी स्पेस बनाएं",
     "mySpaceCreate": "बनाएं",
     "mySpaceIntroTitle": "मेरा स्पेस",
@@ -380,8 +374,6 @@
     "mySpaceIntroHabitDesc": "दैनिक आदतों को ट्रैक करें और लगातार बढ़ें",
     "mySpaceIntroEventTitle": "Events",
     "mySpaceIntroEventDesc": "शेड्यूल और इवेंट्स को एक नज़र में प्रबंधित करें",
-    "mySpaceIntroDiaryTitle": "AI Diary",
-    "mySpaceIntroDiaryDesc": "AI की मदद से व्यक्तिगत डायरी लिखें",
     "mySpaceIntroStart": "शुरू करें",
     "mySpaceIntroClose": "बंद करें",
     "yourProjects": "मेरे प्रोजेक्ट",
@@ -874,7 +866,9 @@
     "breakTime": "ब्रेक टाइम",
     "breakTimeDesc": "ब्रेक टाइम कार्य घंटों से बाहर है",
     "effectiveHours": "प्रभावी:",
-    "excludingBreak": "({{hours}} घंटे ब्रेक को छोड़कर)"
+    "excludingBreak": "({{hours}} घंटे ब्रेक को छोड़कर)",
+    "unplaceNotChecklist": "केवल चेकलिस्ट से जुड़े ब्लॉक ही अनिर्धारित में भेजे जा सकते हैं।",
+    "unplaceFailed": "अनिर्धारित में नहीं भेजा जा सका।"
   },
   "dailySummary": {
     "summaryButton": "सारांश",
@@ -1172,6 +1166,20 @@
     "progress": "रखरखाव प्रगति {{percent}}%",
     "dateFormat": "MMM d, HH:mm"
   },
+  "serverDown": {
+    "title": "सर्वर से कनेक्ट नहीं हो पा रहा",
+    "subtitle": "सर्वर अपडेट हो रहा है या अस्थायी रूप से प्रतिक्रिया नहीं दे रहा। ठीक होते ही अपने आप फिर से जुड़ जाएगा।",
+    "offlineTitle": "आप ऑफ़लाइन हैं",
+    "offlineSubtitle": "अपना नेटवर्क कनेक्शन जाँचें। ऑनलाइन आते ही हम अपने आप दोबारा कोशिश करेंगे।",
+    "elapsed": "डिस्कनेक्ट",
+    "statusLabel": "सर्वर स्थिति",
+    "statusUnreachable": "कोई प्रतिक्रिया नहीं",
+    "statusOffline": "नेटवर्क बंद",
+    "checking": "जाँच हो रही है...",
+    "checkNow": "अभी दोबारा कोशिश करें",
+    "autoRefresh": "हर 5 सेकंड में अपने आप दोबारा जुड़ता है",
+    "hint": "बिना सेव किए बदलाव खो सकते हैं। सर्वर वापस आते ही यह स्क्रीन अपने आप बंद हो जाएगी।"
+  },
   "nightShutdown": {
     "title": "संचालन समय के बाहर",
     "subtitle": "सर्वर रखरखाव प्रतिदिन 03:30 से 08:30 (KST) तक चलता है",
@@ -1379,6 +1387,7 @@
     "changeStatus": "स्थिति बदलें",
     "description": "विवरण",
     "noDescription": "कोई विवरण नहीं",
+    "jiraDescriptionLocked": "यह विवरण JIRA द्वारा प्रबंधित है. इसे JIRA इशू में संपादित करें.",
     "period": "अवधि",
     "startDateTbd": "प्रारंभ तिथि निर्धारित नहीं",
     "endDateTbd": "समाप्ति तिथि निर्धारित नहीं",
@@ -1464,7 +1473,7 @@
     },
     "moveChecklistToTaskTitle": "चेकलिस्ट आइटम ले जाएं",
     "moveCompletedSection": "पूर्ण",
-    "moveChecklistToTaskDesc": "ले जाने के लिए Task चुनें।",
+    "moveChecklistToTaskDesc": "ले जाने के लिए Task चुनें या नया बनाएं।",
     "deleteChecklistTitle": "चेकलिस्ट आइटम हटाएं?",
     "deleteChecklistDesc": "हटाए गए आइटम पुनर्प्राप्त नहीं किए जा सकते।",
     "date": "तारीख",
@@ -1522,7 +1531,8 @@
     "aiDecisions": "निर्णय",
     "aiOpenQuestions": "अनसुलझे प्रश्न",
     "aiActionItems": "कार्य आइटम",
-    "checklist": "चेकलिस्ट"
+    "checklist": "चेकलिस्ट",
+    "download": "डाउनलोड"
   },
   "mentionGroup": {
     "create": "मेंशन ग्रुप बनाएं",
@@ -1685,7 +1695,6 @@
       "personalBoards": "व्यक्तिगत बोर्ड",
       "adoptionRate": "अपनाने की दर",
       "activePersonalBoards": "सक्रिय (30 दिन)",
-      "totalDiaryEntries": "डायरी प्रविष्टियाँ",
       "boardTypeDistribution": "बोर्ड प्रकार वितरण"
     },
     "analytics": {
@@ -1721,11 +1730,6 @@
       "totalPersonalBoards": "कुल Personal Board",
       "adoptionRateLabel": "अपनाने की दर",
       "pbCreated": "PB बनाए गए",
-      "diaryEngagement": "डायरी सहभागिता",
-      "totalDiaryEntries": "कुल प्रविष्टियाँ",
-      "diaryCompletionRate": "पूर्णता दर",
-      "diaryActiveUsers": "सक्रिय उपयोगकर्ता",
-      "diaryEntries": "डायरी प्रविष्टियाँ",
       "pbConversion": "Personal Board रूपांतरण",
       "personalOnly": "केवल Personal",
       "personalAndTeam": "Personal + Team",
@@ -1992,8 +1996,6 @@
       "seatCountUpdateSuccess": "सीट संख्या {{count}} में अपडेट की गई।",
       "updateSeatCount": "सीट संख्या अपडेट करें",
       "personalActivity": "व्यक्तिगत गतिविधि",
-      "diaryEntries": "डायरी",
-      "completionRate": "{{rate}}% पूर्ण",
       "events": "कार्यक्रम",
       "lastActivity": "अंतिम गतिविधि"
     },
@@ -2350,7 +2352,8 @@
     "nextDay": "अगला दिन",
     "custom": "कस्टम ब्लॉक",
     "orgScheduleLabel": "{{boardName}}",
-    "orgScheduleReadOnly": "केवल पढ़ने के लिए (अन्य बोर्ड)"
+    "orgScheduleReadOnly": "केवल पढ़ने के लिए (अन्य बोर्ड)",
+    "willUnplace": "अनिर्धारित में भेजें"
   },
   "scheduleDetail": {
     "title": "टाइम Block विवरण",
@@ -2376,7 +2379,9 @@
     "editCustom": "ब्लॉक संपादित करें",
     "titlePlaceholder": "शेड्यूल नाम दर्ज करें",
     "viewMeeting": "मीटिंग विवरण देखें",
-    "escClose": "Esc से बंद करें"
+    "escClose": "Esc से बंद करें",
+    "unplace": "अनिर्धारित में भेजें",
+    "unplaceHint": "इस दिन के टाइम ब्लॉक हटाकर तिथियाँ भी हटा देता है"
   },
   "emptyBoard": {
     "heading": "अपने बोर्ड के साथ शुरू करें",
@@ -3164,7 +3169,76 @@
       "schedule": "शेड्यूल",
       "calendar": "कैलेंडर",
       "notes": "नोट्स",
-      "diary": "AI डायरी"
+      "features": "फ़ीचर"
+    },
+    "features": {
+      "timetable": "समय सारणी",
+      "timetable_new": "नई समय सारणी",
+      "timetable_default_title": "नई समय सारणी",
+      "songlist": "गीत सूची",
+      "attendance": "उपस्थिति",
+      "soon": "जल्द आ रहा है",
+      "soon_toast": "जल्द उपलब्ध होगा",
+      "empty_title": "अपनी पहली समय सारणी बनाएँ",
+      "empty_desc": "रिहर्सल और आराधना क्रम को तालिका में सजाएँ और PDF निर्यात करें",
+      "saved_ago": "सहेजा गया",
+      "saving": "सहेजा जा रहा है…",
+      "duplicate": "डुप्लिकेट",
+      "export_pdf": "PDF निर्यात",
+      "delete": "हटाएँ",
+      "delete_confirm_title": "यह समय सारणी हटाएँ?",
+      "delete_confirm_desc": "हटाने के बाद वापस नहीं लाया जा सकता",
+      "untitled": "शीर्षकहीन",
+      "timetable_editor": {
+        "add_column": "कॉलम जोड़ें",
+        "add_day": "तारीख़ जोड़ें",
+        "add_row": "पंक्ति जोड़ें",
+        "auto_merge": "समान मान स्वतः मिलाएँ",
+        "auto_merge_none": "लगातार समान मान वाले सेल नहीं हैं",
+        "auto_merge_title": "एक ही कॉलम में लगातार समान मान (समान रंग) वाले सेल एक साथ मिलाएँ",
+        "auto_merged": "{{count}} जगह मिलाई गईं। हर एक को “अलग करें” से वापस किया जा सकता है",
+        "cell_color": "सेल रंग",
+        "color_default": "डिफ़ॉल्ट",
+        "column_deleted": "कॉलम हटाया गया",
+        "date": "तारीख़",
+        "delete_column": "कॉलम हटाएँ",
+        "delete_day": "तारीख़ हटाएँ",
+        "delete_day_title": "तारीख़ ब्लॉक हटाएँ",
+        "delete_row": "पंक्ति हटाएँ",
+        "hint_idle": "पहले सेल चुनें, फिर रंग · मिलाने की सीमा के लिए खींचें या Shift+क्लिक",
+        "hint_selected": "रंग बदलें, या सीमा चुनकर मिलाने के लिए खींचें / Shift+क्लिक",
+        "merge": "सेल मिलाएँ",
+        "merge_same_column_only": "मिलाना केवल एक ही कॉलम में संभव है",
+        "merged_rows": "{{count}} पंक्तियाँ मिलाई गईं। “अलग करें” से वापस होंगी",
+        "move_left": "कॉलम बाएँ ले जाएँ",
+        "move_right": "कॉलम दाएँ ले जाएँ",
+        "new_column": "नया कॉलम",
+        "no_date": "तारीख़ नहीं",
+        "pick_cell_first": "पहले रंग देने वाला सेल चुनें",
+        "stat": "{{days}} दिन · {{rows}} पंक्तियाँ · {{cols}} कॉलम · {{merged}} मिलान",
+        "term_forgotten": "“{{value}}” को स्मृति से हटाया गया",
+        "time_hint_filled": "पिछली पंक्ति के समाप्ति समय से आगे भरा गया",
+        "time_inverted": "समाप्ति समय आरंभ से पहले है",
+        "unmerge": "अलग करें",
+        "unmerged": "अलग किया गया। छिपे मान वैसे ही वापस आ गए",
+        "weekdays": "रवि,सोम,मंगल,बुध,गुरु,शुक्र,शनि",
+        "time_cascaded": "नीचे की {{count}} पंक्तियों का समय साथ में खिसकाया गया",
+        "insert_row_below": "नीचे पंक्ति जोड़ें",
+        "drag_row": "पंक्ति का क्रम बदलने के लिए खींचें",
+        "move_row_merged": "पहले मर्ज की गई पंक्तियों को अलग करें",
+        "pasted_grid": "{{rows}}×{{cols}} सेल पेस्ट किए गए",
+        "time_overlap": "ऊपर की पंक्ति से समय टकरा रहा है",
+        "sum_hours": "{{h}} घंटे",
+        "sum_minutes": "{{m}} मिनट",
+        "sum_hours_minutes": "{{h}} घंटे {{m}} मिनट",
+        "sum_breaks": "विराम {{d}}",
+        "undo": "पूर्ववत करें",
+        "redo": "फिर से करें",
+        "copy_image": "छवि के रूप में कॉपी करें",
+        "copy_image_done": "छवि क्लिपबोर्ड पर कॉपी हो गई",
+        "copy_image_saved": "क्लिपबोर्ड उपलब्ध नहीं, फ़ाइल के रूप में सहेजा गया",
+        "copy_image_failed": "छवि नहीं बन सकी"
+      }
     },
     "overview": {
       "noEvents": "आज कोई कार्यक्रम नहीं",
@@ -3254,11 +3328,6 @@
       "checkInConfirm": "\"{{name}}\" को पूरा करें?",
       "checkInStreak": "{{count}} दिन की लगातार स्ट्रीक होगी!",
       "checkInComplete": "पूरा करें"
-    },
-    "diary": {
-      "completionSuggestion": "लगता है आज हमने काफ़ी बातें की हैं। इसे डायरी में लिखें? ✨",
-      "continueChat": "और बात करें",
-      "dayCutoffHint": "सुबह 5 बजे से पहले की प्रविष्टियाँ पिछले दिन की मानी जाती हैं"
     },
     "schedule": {
       "overlapWarning": "{{count}} इवेंट के साथ ओवरलैप",
@@ -4080,6 +4149,11 @@
     "deleteAlbumConfirm": "एल्बम हटाएं?",
     "deleteAlbumWarning": "इस एल्बम को हटाने से उसमें मौजूद सभी फ़ोटो भी हट जाएंगी।",
     "deleteAlbumButton": "हटाएं",
+    "deletingAlbum": "हटाया जा रहा है...",
+    "uploadedPhotos": "इस एल्बम की फ़ोटो",
+    "confirmDeletePhoto": "हटाने के लिए फिर से टैप करें",
+    "confirmDeleteShort": "हटाएं?",
+    "deletePhoto": "फ़ोटो हटाएं",
     "deletePhotosConfirm": "फ़ोटो हटाएं?",
     "deletePhotosWarning": "चुनी हुई {{count}} फ़ोटो हटा दी जाएंगी।",
     "photoDeleted": "फ़ोटो हटाई गई",
@@ -4162,7 +4236,24 @@
       "7d": "7 दिन",
       "30d": "30 दिन",
       "never": "स्थायी"
-    }
+    },
+    "removeSelected": "हटाएँ",
+    "moreSelected": "+{{count}} और",
+    "failUnsupported": "असमर्थित फ़ॉर्मेट",
+    "failTooLarge": "30MB से अधिक",
+    "failNetwork": "नेटवर्क त्रुटि",
+    "failGeneric": "अपलोड विफल",
+    "queueUploading": "{{total}} में से {{done}} अपलोड हुईं",
+    "queueDone": "{{count}} फ़ोटो अपलोड हुईं",
+    "queueKeepsRunning": "यह विंडो बंद करने पर भी अपलोड जारी रहेगा",
+    "queueFailedCount": "{{count}} विफल",
+    "queueAllDone": "सभी फ़ोटो एल्बम में हैं",
+    "retryFailed": "विफल {{count}} फिर से आज़माएँ",
+    "showFailures": "विवरण",
+    "filesSkipped": "{{count}} फ़ाइलें छोड़ी गईं (असमर्थित फ़ॉर्मेट या 30MB से अधिक)",
+    "uploadStarted": "{{count}} फ़ोटो अपलोड हो रही हैं। आप यह विंडो बंद कर सकते हैं।",
+    "clearAll": "सभी हटाएँ",
+    "addToQueue": "अपलोड में {{count}} जोड़ें"
   },
   "listViewGroupBy": "समूह",
   "listViewSortBy": "क्रमबद्ध करें",
@@ -4185,11 +4276,13 @@
     "filterMyTasks": "केवल मेरे कार्य दिखाएं",
     "toggleExpand": "विस्तार/संक्षिप्त टॉगल",
     "focusSearch": "खोज फ़ोकस",
+    "viewDashboard": "डैशबोर्ड दृश्य",
     "viewKanban": "कानबन दृश्य",
     "viewList": "सूची दृश्य",
     "viewGantt": "गैंट दृश्य",
     "viewCalendar": "कैलेंडर दृश्य",
     "viewMilestone": "माइलस्टोन दृश्य",
+    "viewMindmap": "माइंड मैप दृश्य",
     "addFeature": "Feature जोड़ें",
     "addBlock": "ब्लॉक जोड़ें",
     "resetFilters": "सभी फ़िल्टर रीसेट करें",
@@ -4264,5 +4357,53 @@
     "noSearchResults": "कोई खोज परिणाम नहीं",
     "clearSearch": "खोज साफ़ करें",
     "excludeFeature": "माइंड मैप से हटाएं"
+  },
+  "checklistDetail": {
+    "open": "विवरण खोलें",
+    "title": "आइटम विवरण",
+    "info": "आइटम जानकारी",
+    "gallery": "छवियाँ {{count}}",
+    "galleryHint": "टिप्पणियों से",
+    "noImages": "टिप्पणियों में डाली गई छवियाँ यहाँ दिखेंगी",
+    "comments": "टिप्पणियाँ {{count}}",
+    "placeholder": "इस आइटम पर टिप्पणी करें…",
+    "empty": "अभी कोई बातचीत नहीं",
+    "emptyHint": "पहली टिप्पणी छोड़ें",
+    "backToTask": "टास्क की सभी टिप्पणियाँ देखें",
+    "deletedBanner": "यह आइटम हटा दिया गया · केवल पढ़ें",
+    "chip": "चेकलिस्ट · {{title}}",
+    "unknownItem": "हटाया गया आइटम"
+  },
+  "inAppBrowser": {
+    "bannerText": "{{app}} के अंदर फ़ोटो सेव नहीं हो सकतीं। यह पेज Safari या Chrome में खोलें।",
+    "openButton": "ब्राउज़र में खोलें",
+    "howButton": "कैसे खोलें",
+    "guideTitle": "बाहरी ब्राउज़र में खोलें",
+    "guideBody": "{{app}} के अंदर फ़ोटो सेव नहीं हो सकतीं। सेव करने के लिए यह पेज Safari या Chrome में खोलें।",
+    "manualSteps": "स्क्रीन के ऊपर या नीचे ··· या शेयर मेन्यू पर टैप करें, फिर 'Safari में खोलें' (बाहरी ब्राउज़र में खोलें) चुनें।",
+    "copyHint": "अगर ऐसा मेन्यू नहीं है, तो लिंक कॉपी करके Safari के एड्रेस बार में पेस्ट करें।",
+    "copyHintAuto": "अगर ब्राउज़र नहीं खुलता, तो लिंक कॉपी करके Safari या Chrome में पेस्ट करें।",
+    "copyLink": "लिंक कॉपी करें",
+    "copied": "कॉपी हो गया",
+    "apps": {
+      "kakaotalk": "KakaoTalk",
+      "line": "LINE",
+      "naver": "NAVER ऐप",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "band": "BAND",
+      "daum": "Daum ऐप",
+      "webview": "इस ऐप"
+    }
+  },
+  "photoSave": {
+    "preparing": "फ़ोटो तैयार हो रही हैं {{current}}/{{total}}",
+    "ready": "{{count}} फ़ोटो सेव करने के लिए तैयार",
+    "saveButton": "फ़ोटो में सेव करें",
+    "hint": "शेयर शीट में 'इमेज सेव करें' पर टैप करके फ़ोटो ऐप में सेव करें।",
+    "done": "{{count}} फ़ोटो सेव हुईं",
+    "cancelled": "सेव करना रद्द किया गया",
+    "chunk": "बैच {{current}}/{{total}}",
+    "failed": "{{count}} फ़ोटो लोड नहीं हो सकीं"
   }
 }

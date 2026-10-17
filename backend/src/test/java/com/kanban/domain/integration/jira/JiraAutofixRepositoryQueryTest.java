@@ -1,13 +1,13 @@
 package com.kanban.domain.integration.jira;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 자동수정 저장소의 {@code @Query} JPQL이 실제로 파싱되는지 확인한다.
@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 필드명·타입·조인 경로가 어긋나면 여기서 터진다.
  */
 @DataJpaTest
-@ActiveProfiles("local")
+@ActiveProfiles("test")
 @DisplayName("자동수정 저장소 JPQL 파싱")
 class JiraAutofixRepositoryQueryTest {
 
@@ -44,7 +44,8 @@ class JiraAutofixRepositoryQueryTest {
         assertThat(jobRepository.findByBoardId(BOARD_ID, PageRequest.of(0, 10))).isEmpty();
         assertThat(jobRepository.countQueued(BOARD_ID)).isZero();
         assertThat(jobRepository.countQueuedManual(BOARD_ID)).isZero();
-        assertThat(jobRepository.findCallbackTargetsByJobKey(BOARD_ID, "QASA-1")).isEmpty();
+        assertThat(jobRepository.findCallbackTargetsByJobKey(BOARD_ID, "QASA-1"))
+                .isEmpty();
         // 다시 담기가 대체 표시(superseded_at)를 이 가드에 끼워 넣었다 — 필드명이 어긋나면 기동이 죽는다
         assertThat(jobRepository.existsActiveForIssue(BOARD_ID, "QASA-1")).isFalse();
     }

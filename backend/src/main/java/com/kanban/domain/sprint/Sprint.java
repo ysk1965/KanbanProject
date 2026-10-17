@@ -6,12 +6,14 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * 마일스톤 안의 스프린트. Sprint + In Review + Done 3컬럼을 하나로 묶는 "현재 스프린트" 프레임의 메타.
- * 실제 카드는 별도 테이블이 아니라 {@code checklist_items.sprint_id/sprint_stage}로 표현된다.
+ * 마일스톤을 N등분한 스프린트 버킷.
+ *
+ * <p>닫고 여는 라이프사이클이 없다 — 마일스톤 기간을 나눈 구간이며, 지남/진행중/예정은
+ * 오늘 날짜에서 파생된다({@link #stateOn}). 태스크는 어느 버킷에든 담기고 언제든 옮길 수 있다.
+ * 나누지 않은 마일스톤은 전체 기간을 덮는 스프린트 1개로 표현된다.
  */
 @Entity
 @Table(name = "sprints", indexes = {
@@ -38,39 +40,17 @@ public class Sprint extends BaseTimeEntity {
     @Builder.Default
     private Integer sequenceNo = 1;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    @Builder.Default
-    private SprintStatus status = SprintStatus.ACTIVE;
-
     @Column(name = "start_date")
     private LocalDate startDate;
 
     @Column(name = "end_date")
     private LocalDate endDate;
 
-    /** 종료 시 동결된 완료 카드 수 */
-    @Column(name = "completed_count", nullable = false)
-    @Builder.Default
-    private Integer completedCount = 0;
-
-    /** 종료 시 동결된 전체 카드 수 */
-    @Column(name = "total_count", nullable = false)
-    @Builder.Default
-    private Integer totalCount = 0;
-
-    @Column(name = "archived_at")
-    private LocalDateTime archivedAt;
-
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
             this.id = UUID.randomUUID().toString();
         }
-    }
-
-    public boolean isActive() {
-        return this.status == SprintStatus.ACTIVE;
     }
 
     public void rename(String name) {
@@ -84,17 +64,18 @@ public class Sprint extends BaseTimeEntity {
         this.endDate = endDate;
     }
 
-    /** 종료 시 완료율 동결 (Phase 2 라이프사이클에서 사용) */
-    public void archive(int completedCount, int totalCount, LocalDateTime when) {
-        this.status = SprintStatus.ARCHIVED;
-        this.completedCount = completedCount;
-        this.totalCount = totalCount;
-        this.archivedAt = when;
+    public void updateSequence(int sequenceNo) {
+        this.sequenceNo = sequenceNo;
     }
 
-    /** 종료 취소 / 재활성화 */
-    public void reactivate() {
-        this.status = SprintStatus.ACTIVE;
-        this.archivedAt = null;
+    /** 오늘 기준 파생 상태. 기간이 비어 있으면 진행중으로 본다(나누기 전 단일 스프린트 보호). */
+    public SprintState stateOn(LocalDate today) {
+        if (endDate != null && today.isAfter(endDate)) {
+            return SprintState.PAST;
+        }
+        if (startDate != null && today.isBefore(startDate)) {
+            return SprintState.FUTURE;
+        }
+        return SprintState.CURRENT;
     }
 }

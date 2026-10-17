@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { FileText, Tag as TagIcon, Loader2 } from 'lucide-react';
 import { noteService } from '../../utils/services';
 import { formatDate } from '../../utils/dateUtils';
+import { NoteStatusChip } from './NoteTreeSidebar';
 import type { NoteListItem, NoteTagInfo } from '../../utils/api';
 
 interface NoteListViewProps {
@@ -13,7 +14,13 @@ interface NoteListViewProps {
   tags: NoteTagInfo[];
 }
 
-export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, tags }: NoteListViewProps) {
+export function NoteListView({
+  boardId,
+  selectedNoteId,
+  searchQuery,
+  onSelect,
+  tags,
+}: NoteListViewProps) {
   const { t } = useTranslation();
   const [items, setItems] = useState<NoteListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,11 +41,12 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
     loadList();
   }, [loadList]);
 
-  const filteredItems = items.filter(item => {
-    const matchesSearch = !searchQuery ||
+  const filteredItems = items.filter((item) => {
+    const matchesSearch =
+      !searchQuery ||
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.tags?.some(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesTag = !filterTagId || item.tags?.some(t => t.id === filterTagId);
+      item.tags?.some((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesTag = !filterTagId || item.tags?.some((t) => t.id === filterTagId);
     return matchesSearch && matchesTag;
   });
 
@@ -58,21 +66,25 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
           <button
             onClick={() => setFilterTagId(null)}
             className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
-              !filterTagId ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
+              !filterTagId
+                ? 'bg-bridge-accent/20 text-bridge-accent'
+                : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             {t('notes.allTags', '전체')}
           </button>
-          {tags.map(tag => (
+          {tags.map((tag) => (
             <button
               key={tag.id}
               onClick={() => setFilterTagId(filterTagId === tag.id ? null : tag.id)}
               className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
-                filterTagId === tag.id
-                  ? 'text-white'
-                  : 'text-slate-400 hover:text-foreground'
+                filterTagId === tag.id ? 'text-white' : 'text-slate-400 hover:text-foreground'
               }`}
-              style={filterTagId === tag.id ? { backgroundColor: `${tag.color}30`, color: tag.color } : {}}
+              style={
+                filterTagId === tag.id
+                  ? { backgroundColor: `${tag.color}30`, color: tag.color }
+                  : {}
+              }
             >
               {tag.name}
             </button>
@@ -83,10 +95,12 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
       {/* List items */}
       {filteredItems.length === 0 ? (
         <div className="text-center text-slate-500 text-xs py-8">
-          {searchQuery || filterTagId ? '검색 결과가 없습니다' : '문서가 없습니다'}
+          {searchQuery || filterTagId
+            ? t('notes.search.noResults', '검색 결과 없음')
+            : t('notes.emptyList', '문서가 없습니다')}
         </div>
       ) : (
-        filteredItems.map(item => (
+        filteredItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onSelect(item.id)}
@@ -99,6 +113,7 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
             <div className="flex items-center gap-2">
               <FileText size={12} className="flex-shrink-0 text-slate-400" />
               <span className="text-xs font-medium truncate flex-1">{item.title}</span>
+              <NoteStatusChip status={item.status} />
               <span className="text-xs text-slate-500 flex-shrink-0">
                 {formatDate(item.updated_at)}
               </span>
@@ -108,7 +123,7 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
                 {item.parent_title && (
                   <span className="text-xs text-slate-500 truncate">{item.parent_title}</span>
                 )}
-                {item.tags.map(tag => (
+                {item.tags.map((tag) => (
                   <span
                     key={tag.id}
                     className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-xs"

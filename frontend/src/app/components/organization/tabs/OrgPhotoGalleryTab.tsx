@@ -16,7 +16,14 @@ import {
 import { toast } from 'sonner';
 import { orgPhotoService } from '../../../utils/services';
 import { isNative } from '../../../utils/platform';
-import { saveToDevice, downloadPhoto, downloadPhotosBatch, getDownloadedIds, markAsDownloaded, markManyAsDownloaded } from '../../../utils/nativeDownload';
+import {
+  saveToDevice,
+  downloadPhoto,
+  downloadPhotosBatch,
+  getDownloadedIds,
+  markAsDownloaded,
+  markManyAsDownloaded,
+} from '../../../utils/nativeDownload';
 import type { BatchDownloadProgress } from '../../../utils/nativeDownload';
 import { MotionModal } from '../../ui/MotionModal';
 import { IconButton } from '../../ui/IconButton';
@@ -26,8 +33,14 @@ import { PhotoLightbox } from '../photo/PhotoLightbox';
 import { PhotoUploadModal } from '../photo/PhotoUploadModal';
 import { AlbumCreateModal } from '../photo/AlbumCreateModal';
 import { AlbumShareManagerModal } from '../photo/AlbumShareManagerModal';
+import { PhotoUploadProgress } from '../photo/PhotoUploadProgress';
+import {
+  getOrgPhotoUploadQueue,
+  usePhotoUploadConfirmed,
+} from '../../../hooks/usePhotoUploadQueue';
+import { usePhotoSaver } from '../../../hooks/usePhotoSaver';
+import { PhotoSavePanel } from '../photo/PhotoSavePanel';
 import type { OrgPhotoTab, OrgPhoto, OrgPhotoPage } from '../../../types';
-
 
 interface OrgPhotoGalleryTabProps {
   orgId: string;
@@ -75,6 +88,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
   const [showAlbumModal, setShowAlbumModal] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<OrgPhotoTab | null>(null);
   const [showDeleteAlbumConfirm, setShowDeleteAlbumConfirm] = useState<OrgPhotoTab | null>(null);
+  const [deletingAlbum, setDeletingAlbum] = useState(false);
   const [showDeletePhotosConfirm, setShowDeletePhotosConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [shareAlbum, setShareAlbum] = useState<OrgPhotoTab | null>(null);
@@ -170,9 +184,32 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
     });
   }, []);
 
+  // iOS web: fetch first, then save from a second tap (share sheet needs a fresh tap)
+  const handleSaved = useCallback((ids: string[]) => {
+    setDownloadedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+  }, []);
+  const photoSaver = usePhotoSaver(handleSaved);
+  const startPhotoSave = photoSaver.start;
+
   // Download single photo
   const handleDownloadSingle = useCallback(
     async (photo: OrgPhoto) => {
+      if (
+        startPhotoSave([
+          {
+            id: photo.id,
+            url: photo.url,
+            filename: photo.original_filename,
+            size: photo.file_size,
+          },
+        ])
+      ) {
+        return;
+      }
       try {
         await downloadPhoto(photo.url, photo.original_filename, photo.id);
         setDownloadedIds((prev) => new Set(prev).add(photo.id));
@@ -184,7 +221,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
         toast.error(t('photoGallery.downloadError', 'Failed to download'));
       }
     },
-    [t],
+    [t, startPhotoSave],
   );
 
   // Cancel batch download
@@ -196,11 +233,24 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
   // Batch download (Web Share on mobile, individual on desktop/native)
   const handleBatchDownload = useCallback(async () => {
     if (selectedIds.size === 0) return;
+    const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
+    if (
+      startPhotoSave(
+        selectedPhotos.map((p) => ({
+          id: p.id,
+          url: p.url,
+          filename: p.original_filename,
+          size: p.file_size,
+        })),
+      )
+    ) {
+      return;
+    }
+
     const abortController = new AbortController();
     batchAbortRef.current = abortController;
 
     try {
-      const selectedPhotos = photos.filter((p) => selectedIds.has(p.id));
       const batchItems = selectedPhotos.map((p) => ({
         url: p.url,
         filename: p.original_filename,
@@ -245,7 +295,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
       setTimeout(() => setBatchProgress(null), 1500);
       batchAbortRef.current = null;
     }
-  }, [selectedIds, photos, t]);
+  }, [selectedIds, photos, t, startPhotoSave]);
 
   // Delete selected photos
   const handleDeleteSelected = useCallback(async () => {
@@ -291,6 +341,8 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
   // Delete album
   const handleDeleteAlbum = useCallback(
     async (album: OrgPhotoTab) => {
+      if (deletingAlbum) return;
+      setDeletingAlbum(true);
       try {
         await orgPhotoService.deleteTab(orgId, album.id);
         toast.success(t('photoGallery.albumDeleted', 'Album deleted'));
@@ -303,9 +355,11 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
       } catch (error) {
         console.warn('Failed to delete album:', error);
         toast.error(t('photoGallery.albumDeleteError', 'Failed to delete album'));
+      } finally {
+        setDeletingAlbum(false);
       }
     },
-    [orgId, activeAlbumId, t, fetchAlbums, fetchPhotos],
+    [orgId, activeAlbumId, deletingAlbum, t, fetchAlbums, fetchPhotos],
   );
 
   // Upload complete handler
@@ -313,6 +367,23 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
     fetchPhotos();
     fetchAlbums();
   }, [fetchPhotos, fetchAlbums]);
+
+  // 백그라운드 업로드 큐 — confirm 묶음(최대 50장)이 들어올 때마다 목록 갱신 (1.5초 디바운스)
+  const uploadQueue = getOrgPhotoUploadQueue(orgId);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  usePhotoUploadConfirmed(uploadQueue, () => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
+      handleUploadComplete();
+    }, 1500);
+  });
+  useEffect(
+    () => () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    },
+    [],
+  );
 
   // Album saved handler
   const handleAlbumSaved = useCallback(() => {
@@ -331,7 +402,10 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
       const prevAlbums = albums;
       setAlbums(reorderedAlbums);
       try {
-        await orgPhotoService.reorderTabs(orgId, reorderedAlbums.map((a) => a.id));
+        await orgPhotoService.reorderTabs(
+          orgId,
+          reorderedAlbums.map((a) => a.id),
+        );
       } catch (error) {
         console.warn('Failed to reorder albums:', error);
         setAlbums(prevAlbums);
@@ -355,10 +429,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
       {albumsLoading ? (
         <div className="flex items-center gap-2 py-3">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-8 w-20 bg-foreground/5 rounded-lg animate-pulse"
-            />
+            <div key={i} className="h-8 w-20 bg-foreground/5 rounded-lg animate-pulse" />
           ))}
         </div>
       ) : (
@@ -444,13 +515,12 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
                     'photoGallery.emptyAdminDescription',
                     'Upload photos to share with your organization members.',
                   )
-                : t(
-                    'photoGallery.emptyDescription',
-                    'Photos uploaded by admins will appear here.',
-                  )}
+                : t('photoGallery.emptyDescription', 'Photos uploaded by admins will appear here.')}
             </p>
             <p className="text-xs text-slate-500 mb-6">
-              {t('photoGallery.uploadFormats', 'JPG, PNG, WebP, GIF - max {{max}} files', { max: 1000 })}
+              {t('photoGallery.uploadFormats', 'JPG, PNG, WebP, GIF - max {{max}} files', {
+                max: 1000,
+              })}
             </p>
             {isAdmin && (
               <button
@@ -491,6 +561,12 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
         onNavigate={setLightboxPhoto}
         onDownload={handleDownloadSingle}
         onDelete={handleDeleteFromLightbox}
+      />
+
+      <PhotoSavePanel
+        state={photoSaver.state}
+        onSave={photoSaver.saveNow}
+        onCancel={photoSaver.cancel}
       />
 
       {/* Batch download progress bar */}
@@ -538,9 +614,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
                 <div className="h-1.5 bg-foreground/[0.06] rounded-full overflow-hidden">
                   <motion.div
                     className={`h-full rounded-full ${
-                      batchProgress.phase === 'cancelled'
-                        ? 'bg-slate-400'
-                        : 'bg-bridge-accent'
+                      batchProgress.phase === 'cancelled' ? 'bg-slate-400' : 'bg-bridge-accent'
                     }`}
                     initial={{ width: 0 }}
                     animate={{
@@ -620,6 +694,9 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
         onUploadComplete={handleUploadComplete}
       />
 
+      {/* Background upload progress */}
+      <PhotoUploadProgress queue={uploadQueue} floating />
+
       {/* Album Create/Edit Modal */}
       <AlbumCreateModal
         open={showAlbumModal}
@@ -635,7 +712,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
       {/* Delete Album Confirmation */}
       <MotionModal
         open={!!showDeleteAlbumConfirm}
-        onClose={() => setShowDeleteAlbumConfirm(null)}
+        onClose={() => !deletingAlbum && setShowDeleteAlbumConfirm(null)}
         className="sm:max-w-sm"
       >
         <div className="h-1 bg-gradient-to-r from-amber-500 to-red-500 rounded-t-2xl" />
@@ -660,8 +737,7 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
                 {showDeleteAlbumConfirm.name}
               </span>
               <span className="text-xs text-slate-500 ml-2">
-                {showDeleteAlbumConfirm.photo_count}{' '}
-                {t('photoGallery.photosUnit', 'photos')}
+                {showDeleteAlbumConfirm.photo_count} {t('photoGallery.photosUnit', 'photos')}
               </span>
             </div>
           )}
@@ -671,17 +747,20 @@ export function OrgPhotoGalleryTab({ orgId, myRole }: OrgPhotoGalleryTabProps) {
           <div className="flex gap-2">
             <button
               onClick={() => setShowDeleteAlbumConfirm(null)}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
+              disabled={deletingAlbum}
+              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t('common.cancel', 'Cancel')}
             </button>
             <button
-              onClick={() =>
-                showDeleteAlbumConfirm && handleDeleteAlbum(showDeleteAlbumConfirm)
-              }
-              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors"
+              onClick={() => showDeleteAlbumConfirm && handleDeleteAlbum(showDeleteAlbumConfirm)}
+              disabled={deletingAlbum}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {t('photoGallery.deleteAlbumButton', 'Delete')}
+              {deletingAlbum && <Loader2 className="w-4 h-4 animate-spin" />}
+              {deletingAlbum
+                ? t('photoGallery.deletingAlbum', 'Deleting...')
+                : t('photoGallery.deleteAlbumButton', 'Delete')}
             </button>
           </div>
         </div>

@@ -5,19 +5,34 @@ spring:
   profiles:
     active: local
 
+  # 무중단 배포: 인스턴스 교체 시 진행 중인 요청을 마치고 종료 (server.shutdown: graceful과 세트)
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
   # JPA
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: update
-    show-sql: true
+    # SQL 로그는 local 프로파일에서만 켠다 (dev 가 base 를 상속해 운영 로그가 쿼리로 넘치던 문제).
+    show-sql: false
     defer-datasource-initialization: true
     properties:
       hibernate:
-        format_sql: true
         default_batch_fetch_size: 100
         jdbc:
           time_zone: UTC
+          # 같은 엔티티 INSERT/UPDATE 를 50개씩 묶어 왕복 횟수를 줄인다 (order_* 가 있어야 묶인다).
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
+  # @Scheduled 스레드 풀 — 기본 1개라 긴 작업(모니터링/JIRA 폴링)이 다른 스케줄을 밀어냈다.
+  task:
+    scheduling:
+      pool:
+        size: 6
+      thread-name-prefix: sched-
 
   sql:
     init:
@@ -32,6 +47,7 @@ spring:
 # Server
 server:
   port: 8080
+  shutdown: graceful
 
 # JWT
 jwt:
@@ -86,6 +102,13 @@ management:
     mail:
       enabled: false
 
+# Sentry (백엔드 에러 리포팅) — DSN 이 비어 있으면 SDK 가 비활성(no-op)이다. DSN 은 환경변수로만 주입한다.
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SPRING_PROFILES_ACTIVE:local}
+  traces-sample-rate: 0.1
+  send-default-pii: false
+
 # Multipart
 spring.servlet.multipart:
   max-file-size: 110MB
@@ -107,7 +130,6 @@ ai:
       personal: ${CLAUDE_MODEL_PERSONAL:claude-haiku-4-5-20251001}
       standup: ${CLAUDE_MODEL_STANDUP:claude-haiku-4-5-20251001}
       meeting: ${CLAUDE_MODEL_MEETING:claude-haiku-4-5-20251001}
-      diary: ${CLAUDE_MODEL_DIARY:claude-haiku-4-5-20251001}
       # MILKYWAY 커밋 플랜 — ai.provider 값과 무관하게 항상 Claude로 호출된다.
       # 비용을 줄이려면 CLAUDE_MODEL_COMMIT_PLAN=claude-haiku-4-5 로 교체.
       commit-plan: ${CLAUDE_MODEL_COMMIT_PLAN:claude-opus-4-8}
@@ -121,7 +143,6 @@ ai:
       personal: ${OPENAI_MODEL_PERSONAL:gpt-4o-mini}
       standup: ${OPENAI_MODEL_STANDUP:gpt-4o-mini}
       meeting: ${OPENAI_MODEL_MEETING:gpt-4o-mini}
-      diary: ${OPENAI_MODEL_DIARY:gpt-4o-mini}
   credit:
     reset-cron: "0 0 0 * * *"  # 매일 자정 UTC
 
@@ -265,6 +286,18 @@ app:
   storage:
     # presigned 대용량 업로드 상한 (기본 2GB). direct(multipart) 경로는 app.file 제한을 따른다.
     max-file-size: ${STORAGE_MAX_FILE_SIZE:2147483648}
+    preview:
+      # 문서(docx/pptx/hwp) → PDF 미리보기. soffice 는 .platform/hooks/prebuild/02_install_libreoffice.sh 가 설치한다.
+      enabled: ${STORAGE_PREVIEW_ENABLED:true}
+      soffice-path: ${SOFFICE_PATH:/usr/bin/soffice}
+      # 대형 피치덱(100MB+)도 변환되도록 5분 / 200MB. 초과분은 TOO_LARGE 로 응답해 프론트가 사유를 표시한다.
+      timeout-seconds: ${STORAGE_PREVIEW_TIMEOUT:300}
+      max-source-bytes: ${STORAGE_PREVIEW_MAX_SOURCE:209715200}   # 200MB
+      # 이보다 오래 PENDING 이면 워커가 사라진 고아로 보고 NONE 으로 되돌린다. 0 = timeout-seconds × 5 (25분).
+      stale-seconds: ${STORAGE_PREVIEW_STALE_SECONDS:0}
+      stale-sweep-ms: ${STORAGE_PREVIEW_STALE_SWEEP_MS:600000}      # 고아 점검 주기 10분
+      # 변환 작업 디렉터리. EB(AL2023)의 /tmp 는 tmpfs(RAM)라 디스크인 /var/tmp 를 쓴다. 비우면 java.io.tmpdir.
+      work-dir: ${STORAGE_PREVIEW_WORK_DIR:/var/tmp/docpreview}
     quota:
       # 사용자 구독 티어별 스토리지 용량 한도 (바이트)
       base-bytes: ${STORAGE_QUOTA_BASE:1073741824}       # 1GB (체험)
@@ -291,8 +324,10 @@ spring:
 
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: true
     properties:
       hibernate:
+        format_sql: true
         # 로컬 전용: 트랜잭션당 쿼리 수/세션 통계 로깅 (성능 측정용)
         generate_statistics: true
 
@@ -391,7 +426,8 @@ spring:
 
 app:
   websocket:
-    broker-type: simple
+    # prod는 최대 2 인스턴스 → Redis 브릿지 필수 (simple이면 다른 인스턴스 이벤트 유실)
+    broker-type: ${WS_BROKER_TYPE:redis}
   file:
     s3-enabled: true
     s3-bucket: ${S3_BUCKET}

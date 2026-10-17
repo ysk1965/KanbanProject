@@ -37,6 +37,14 @@ public class TaskRequest {
             create.dueDate = dueDate;
             return create;
         }
+
+        /** 제목 + 마일스톤만으로 조립 (체크리스트 이동 중 인라인 Task 생성 등). */
+        public static Create withMilestone(String title, String milestoneId) {
+            Create create = new Create();
+            create.title = title;
+            create.milestoneId = milestoneId;
+            return create;
+        }
     }
 
     @Getter

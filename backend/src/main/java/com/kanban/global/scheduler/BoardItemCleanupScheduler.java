@@ -11,6 +11,7 @@ import com.kanban.domain.task.service.TaskService;
 import com.kanban.domain.trash.service.TrashService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -35,6 +36,7 @@ public class BoardItemCleanupScheduler {
     private final ChecklistService checklistService;
 
     @Scheduled(cron = "0 30 4 * * *")
+    @SchedulerLock(name = "BoardItemCleanupScheduler.cleanupExpiredItems", lockAtMostFor = "30m", lockAtLeastFor = "5m")
     public void cleanupExpiredItems() {
         LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusDays(TrashService.RETENTION_DAYS);
 

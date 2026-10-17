@@ -1,22 +1,22 @@
-import { motion } from "framer-motion";
+import { motion } from 'framer-motion';
 
 interface OkrProgressBarProps {
   progress: number;
-  size?: "sm" | "md" | "lg";
+  size?: 'sm' | 'md' | 'lg';
   className?: string;
   animated?: boolean;
 }
 
 const sizeMap = {
-  sm: "h-1",
-  md: "h-1.5",
-  lg: "h-2",
+  sm: 'h-1',
+  md: 'h-1.5',
+  lg: 'h-2',
 };
 
 export function OkrProgressBar({
   progress,
-  size = "md",
-  className = "",
+  size = 'md',
+  className = '',
   animated = true,
 }: OkrProgressBarProps) {
   const clampedProgress = Math.min(100, Math.max(0, progress));
@@ -30,7 +30,7 @@ export function OkrProgressBar({
           className="h-full rounded-full bg-bridge-accent"
           initial={{ width: 0 }}
           animate={{ width: `${clampedProgress}%` }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
         />
       ) : (
         <div

@@ -1,7 +1,7 @@
-import { Pin } from "lucide-react";
-import { useTranslation } from "react-i18next";
-import { differenceInCalendarDays, isValid, parseISO } from "date-fns";
-import type { DailyChecklistSource } from "../types";
+import { Pin } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { differenceInCalendarDays, isValid, parseISO } from 'date-fns';
+import type { DailyChecklistSource } from '../types';
 
 /**
  * "이 항목이 왜 오늘 목록에 있는가"를 한 눈에 보여주는 뱃지.
@@ -10,7 +10,7 @@ import type { DailyChecklistSource } from "../types";
  * 판정 로직을 여기 한 곳에 둔다.
  */
 
-export type DailyBadgeKind = "overdue" | "dday" | "range" | "pinned";
+export type DailyBadgeKind = 'overdue' | 'dday' | 'range' | 'pinned';
 
 export interface DailyBadgeInput {
   source?: DailyChecklistSource;
@@ -34,14 +34,11 @@ const toDate = (value?: string | null) => {
 
 const shortDate = (value?: string | null) => {
   const parsed = toDate(value);
-  return parsed ? `${parsed.getMonth() + 1}/${parsed.getDate()}` : "";
+  return parsed ? `${parsed.getMonth() + 1}/${parsed.getDate()}` : '';
 };
 
 /** 항목과 기준 날짜로 뱃지 종류를 판정한다. 표시할 게 없으면 null. */
-export function resolveDailyBadge(
-  item: DailyBadgeInput,
-  referenceDate: string,
-): Resolved | null {
+export function resolveDailyBadge(item: DailyBadgeInput, referenceDate: string): Resolved | null {
   const ref = toDate(referenceDate);
   const due = toDate(item.due_date);
   const start = toDate(item.start_date);
@@ -49,18 +46,18 @@ export function resolveDailyBadge(
 
   if (due && !item.completed && differenceInCalendarDays(due, ref) < 0) {
     return {
-      kind: "overdue",
+      kind: 'overdue',
       days: Math.abs(differenceInCalendarDays(due, ref)),
     };
   }
   if (due && differenceInCalendarDays(due, ref) === 0) {
-    return { kind: "dday", days: 0 };
+    return { kind: 'dday', days: 0 };
   }
-  if (item.source === "PINNED" || (item.pinned && !start && !due)) {
-    return { kind: "pinned", days: 0 };
+  if (item.source === 'PINNED' || (item.pinned && !start && !due)) {
+    return { kind: 'pinned', days: 0 };
   }
   if (start && due) {
-    return { kind: "range", days: 0 };
+    return { kind: 'range', days: 0 };
   }
   return null;
 }
@@ -79,33 +76,29 @@ export function DailyChecklistBadge({ item, referenceDate, compact }: Props) {
   if (!resolved) return null;
 
   const base =
-    "inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 whitespace-nowrap";
+    'inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 whitespace-nowrap';
 
-  if (resolved.kind === "overdue") {
+  if (resolved.kind === 'overdue') {
     return (
-      <span
-        className={`${base} bg-rose-500/15 text-rose-600 dark:text-rose-400`}
-      >
-        {t("dailySchedule.badgeOverdue", { count: resolved.days })}
+      <span className={`${base} bg-rose-500/15 text-rose-600 dark:text-rose-400`}>
+        {t('dailySchedule.badgeOverdue', { count: resolved.days })}
       </span>
     );
   }
 
-  if (resolved.kind === "dday") {
+  if (resolved.kind === 'dday') {
     return (
-      <span
-        className={`${base} bg-amber-500/15 text-amber-600 dark:text-amber-400`}
-      >
-        {t("dailySchedule.badgeDDay")}
+      <span className={`${base} bg-amber-500/15 text-amber-600 dark:text-amber-400`}>
+        {t('dailySchedule.badgeDDay')}
       </span>
     );
   }
 
-  if (resolved.kind === "pinned") {
+  if (resolved.kind === 'pinned') {
     return (
       <span className={`${base} bg-slate-500/15 text-slate-400`}>
         <Pin className="w-3 h-3" />
-        {!compact && t("dailySchedule.badgePinned")}
+        {!compact && t('dailySchedule.badgePinned')}
       </span>
     );
   }

@@ -44,7 +44,12 @@ const BACKGROUNDS = [
   { value: 'white', label: 'White' },
 ];
 
-function OptionGroup({ label, options, value, onChange }: {
+function OptionGroup({
+  label,
+  options,
+  value,
+  onChange,
+}: {
   label: string;
   options: { value: string; label: string }[];
   value: string;
@@ -52,9 +57,7 @@ function OptionGroup({ label, options, value, onChange }: {
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
-        {label}
-      </label>
+      <label className="text-xs font-bold uppercase tracking-widest text-slate-400">{label}</label>
       <div className="flex flex-wrap gap-1.5">
         {options.map((opt) => (
           <button
@@ -62,9 +65,11 @@ function OptionGroup({ label, options, value, onChange }: {
             onClick={() => onChange(opt.value)}
             className={`
               px-3 py-1.5 text-xs rounded-lg transition-all
-              ${value === opt.value
-                ? 'bg-bridge-accent text-white'
-                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}
+              ${
+                value === opt.value
+                  ? 'bg-bridge-accent text-white'
+                  : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+              }
             `}
           >
             {opt.label}
@@ -87,9 +92,7 @@ export function StyleOptions({ options, onChange, analysisResult }: StyleOptions
           Style Options
         </label>
         {analysisResult && (
-          <span className="text-xs text-bridge-accent">
-            Auto-detected from reference
-          </span>
+          <span className="text-xs text-bridge-accent">Auto-detected from reference</span>
         )}
       </div>
 

@@ -19,6 +19,7 @@ public class NoteResponse {
         private String parentId;
         private String type;
         private String title;
+        private String status;
         private int position;
         private int depth;
         private List<TagInfo> tags;
@@ -34,6 +35,7 @@ public class NoteResponse {
                     .parentId(note.getParent() != null ? note.getParent().getId() : null)
                     .type(note.getType().name())
                     .title(note.getTitle())
+                    .status(statusName(note))
                     .position(note.getPosition())
                     .depth(note.getDepth())
                     .tags(tags)
@@ -47,13 +49,14 @@ public class NoteResponse {
     }
 
     @Getter
-    @Builder
+    @Builder(toBuilder = true)
     @AllArgsConstructor
     public static class Detail {
         private String id;
         private String parentId;
         private String type;
         private String title;
+        private String status;
         private String content;
         private int position;
         private int depth;
@@ -71,6 +74,14 @@ public class NoteResponse {
         private boolean hasUnpublishedDraft;
         private int likeCount;
         private boolean liked;
+        /** 기여자: 최근 버전 작성자 → updated_by → created_by 순, id 기준 중복 제거, 최대 20명. */
+        @Builder.Default
+        private List<UserInfo> contributors = List.of();
+
+        /** 기여자 목록을 채운 사본을 돌려준다 (서비스 레이어에서 NoteContributorService 결과를 주입). */
+        public Detail withContributors(List<UserInfo> contributors) {
+            return toBuilder().contributors(contributors != null ? contributors : List.of()).build();
+        }
 
         public static Detail of(Note note, List<TagInfo> tags, int versionCount) {
             return of(note, tags, versionCount, false, 0, false);
@@ -87,6 +98,7 @@ public class NoteResponse {
                     .parentId(note.getParent() != null ? note.getParent().getId() : null)
                     .type(note.getType().name())
                     .title(note.getTitle())
+                    .status(statusName(note))
                     .content(note.getContent())
                     .position(note.getPosition())
                     .depth(note.getDepth())
@@ -150,6 +162,7 @@ public class NoteResponse {
     public static class ListItem {
         private String id;
         private String title;
+        private String status;
         private String parentId;
         private String parentTitle;
         private List<TagInfo> tags;
@@ -161,6 +174,7 @@ public class NoteResponse {
             return ListItem.builder()
                     .id(note.getId())
                     .title(note.getTitle())
+                    .status(statusName(note))
                     .parentId(note.getParent() != null ? note.getParent().getId() : null)
                     .parentTitle(parentTitle)
                     .tags(tags)
@@ -178,6 +192,8 @@ public class NoteResponse {
         private String id;
         private int versionNumber;
         private String title;
+        /** 버전 메모 (JSON: note). 없으면 null */
+        private String note;
         private UserInfo createdBy;
         private LocalDateTime createdAt;
 
@@ -186,6 +202,7 @@ public class NoteResponse {
                     .id(version.getId())
                     .versionNumber(version.getVersionNumber())
                     .title(version.getTitle())
+                    .note(version.getMemo())
                     .createdBy(UserInfo.of(version.getCreatedBy()))
                     .createdAt(version.getCreatedAt())
                     .build();
@@ -199,6 +216,8 @@ public class NoteResponse {
         private String id;
         private int versionNumber;
         private String title;
+        /** 버전 메모 (JSON: note). 없으면 null */
+        private String note;
         private String content;
         private UserInfo createdBy;
         private LocalDateTime createdAt;
@@ -208,6 +227,7 @@ public class NoteResponse {
                     .id(version.getId())
                     .versionNumber(version.getVersionNumber())
                     .title(version.getTitle())
+                    .note(version.getMemo())
                     .content(version.getContent())
                     .createdBy(UserInfo.of(version.getCreatedBy()))
                     .createdAt(version.getCreatedAt())
@@ -284,6 +304,44 @@ public class NoteResponse {
                     .createdAt(note.getCreatedAt())
                     .build();
         }
+    }
+
+    /** GET .../notes/search 응답 항목 */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class SearchResult {
+        private String id;
+        private String title;
+        private String type;
+        private String parentId;
+        private String parentTitle;
+        private String status;
+        /** 첫 매치 주변 ~140자 평문 스니펫. 제목만 매치했거나 평문이 없으면 앞 140자 또는 null */
+        private String excerpt;
+        /** "title" | "content" */
+        private String matchIn;
+        private LocalDateTime updatedAt;
+        private UserInfo updatedBy;
+
+        public static SearchResult of(Note note, String excerpt, String matchIn) {
+            return SearchResult.builder()
+                    .id(note.getId())
+                    .title(note.getTitle())
+                    .type(note.getType().name())
+                    .parentId(note.getParent() != null ? note.getParent().getId() : null)
+                    .parentTitle(note.getParent() != null ? note.getParent().getTitle() : null)
+                    .status(statusName(note))
+                    .excerpt(excerpt)
+                    .matchIn(matchIn)
+                    .updatedAt(note.getUpdatedAt())
+                    .updatedBy(UserInfo.of(note.getUpdatedBy()))
+                    .build();
+        }
+    }
+
+    static String statusName(Note note) {
+        return note.getStatus() != null ? note.getStatus().name() : null;
     }
 
     @Getter

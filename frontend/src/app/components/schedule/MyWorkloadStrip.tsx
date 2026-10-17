@@ -1,27 +1,16 @@
-import {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  useLayoutEffect,
-  useRef,
-} from "react";
-import { useTranslation } from "react-i18next";
-import { Loader2, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
-import {
-  boardChecklistAPI,
-  AssigneeItemResponse,
-  AssigneeGroupResponse,
-} from "../../utils/api";
-import { getTodayDateString } from "../../utils/dateUtils";
-import { getAssigneeHex, getInitials } from "../../utils/assigneeColor";
+import { useState, useEffect, useMemo, useCallback, useLayoutEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Loader2, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { boardChecklistAPI, AssigneeItemResponse, AssigneeGroupResponse } from '../../utils/api';
+import { getTodayDateString } from '../../utils/dateUtils';
+import { getAssigneeHex, getInitials } from '../../utils/assigneeColor';
 import {
   diffDays,
   addDaysToDate,
   parseDate,
   computeBarLanes,
   BarRange,
-} from "../../utils/workloadBar";
+} from '../../utils/workloadBar';
 
 interface MyWorkloadStripProps {
   boardId: string;
@@ -41,7 +30,7 @@ const BAR_H = 20;
 const LANE_GAP = 4;
 const TOP_OFFSET = 20; // 주 라벨 영역
 const MIN_BAR_PX = 10;
-const DEFAULT_FEATURE_COLOR = "#6366F1";
+const DEFAULT_FEATURE_COLOR = '#6366F1';
 
 /** "yyyy-MM-dd" → "M/D" */
 function shortLabel(dateStr: string): string {
@@ -68,13 +57,11 @@ export function MyWorkloadStrip({
   const storageKey = `workloadStripOpen_${boardId}`;
 
   const [open, setOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return window.localStorage.getItem(storageKey) !== "false";
+    if (typeof window === 'undefined') return true;
+    return window.localStorage.getItem(storageKey) !== 'false';
   });
   const [items, setItems] = useState<AssigneeItemResponse[]>([]);
-  const [assignee, setAssignee] = useState<
-    AssigneeGroupResponse["assignee"] | null
-  >(null);
+  const [assignee, setAssignee] = useState<AssigneeGroupResponse['assignee'] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
@@ -87,10 +74,7 @@ export function MyWorkloadStrip({
     const weekday = parseDate(assignedDate).getDay(); // 0=Sun
     return addDaysToDate(assignedDate, -weekday - 7);
   }, [assignedDate]);
-  const fetchEnd = useMemo(
-    () => addDaysToDate(rangeStart, FETCH_DAYS - 1),
-    [rangeStart],
-  );
+  const fetchEnd = useMemo(() => addDaysToDate(rangeStart, FETCH_DAYS - 1), [rangeStart]);
 
   const toggleOpen = useCallback(() => {
     setOpen((prev) => {
@@ -194,12 +178,7 @@ export function MyWorkloadStrip({
   const addIdx = diffDays(rangeStart, assignedDate);
 
   // ─── 콘텐츠 총 일수: 데이터에 딱 맞게 (필요할 때만 스크롤) ───
-  const contentDays = Math.max(
-    VISIBLE_DAYS,
-    maxEndIdx + 3,
-    addIdx + 3,
-    todayIdx + 3,
-  );
+  const contentDays = Math.max(VISIBLE_DAYS, maxEndIdx + 3, addIdx + 3, todayIdx + 3);
   const contentWidth = contentDays * dayWidth;
   const weekCount = Math.ceil(contentDays / 7);
   const trackHeight = TOP_OFFSET + laneCount * (BAR_H + LANE_GAP);
@@ -216,7 +195,7 @@ export function MyWorkloadStrip({
   // 에러 시 조용히 숨김 (모달 본문 흐름 방해 X)
   if (hasError) return null;
 
-  const displayName = assignee?.name ?? "";
+  const displayName = assignee?.name ?? '';
   const barCount = placedBars.length;
 
   return (
@@ -246,25 +225,17 @@ export function MyWorkloadStrip({
                 </div>
               ))}
             <span className="text-xs font-bold uppercase tracking-widest text-bridge-accent">
-              {t("dailyChecklist.workloadTitle")}
+              {t('dailyChecklist.workloadTitle')}
             </span>
-            {displayName && (
-              <span className="text-xs text-slate-400 truncate">
-                {displayName}
-              </span>
-            )}
+            {displayName && <span className="text-xs text-slate-400 truncate">{displayName}</span>}
             {!isLoading && barCount > 0 && (
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-foreground/5 text-slate-400 whitespace-nowrap">
-                {t("dailyChecklist.workloadActive", { count: barCount })}
+                {t('dailyChecklist.workloadActive', { count: barCount })}
               </span>
             )}
           </div>
           <span className="text-slate-400 flex-shrink-0">
-            {open ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
+            {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </span>
         </button>
 
@@ -277,19 +248,16 @@ export function MyWorkloadStrip({
               </div>
             ) : barCount === 0 ? (
               <div className="flex items-center justify-center h-12 text-xs text-slate-500">
-                {t("dailyChecklist.workloadEmpty")}
+                {t('dailyChecklist.workloadEmpty')}
               </div>
             ) : (
               <>
                 {/* 가로 스크롤 타임라인 */}
-                <div
-                  ref={scrollRef}
-                  className="overflow-x-auto overflow-y-hidden custom-scrollbar"
-                >
+                <div ref={scrollRef} className="overflow-x-auto overflow-y-hidden custom-scrollbar">
                   <div
                     className="relative"
                     style={{
-                      width: contentWidth || "100%",
+                      width: contentWidth || '100%',
                       height: trackHeight,
                     }}
                   >
@@ -323,7 +291,7 @@ export function MyWorkloadStrip({
                       >
                         <div className="absolute top-0 bottom-0 border-l-[1.5px] border-bridge-secondary" />
                         <span className="absolute -top-0 left-1 text-xs font-medium px-1.5 py-px rounded bg-bridge-secondary text-bridge-dark whitespace-nowrap">
-                          {t("dailyChecklist.workloadToday")}
+                          {t('dailyChecklist.workloadToday')}
                         </span>
                       </div>
                     )}
@@ -336,7 +304,7 @@ export function MyWorkloadStrip({
                       >
                         <div className="absolute top-0 bottom-0 border-l-[1.5px] border-dashed border-bridge-accent" />
                         <span className="absolute -top-0 left-1 text-xs font-medium px-1.5 py-px rounded bg-bridge-accent text-white whitespace-nowrap">
-                          {t("dailyChecklist.workloadAddDate")}
+                          {t('dailyChecklist.workloadAddDate')}
                         </span>
                       </div>
                     )}
@@ -354,14 +322,12 @@ export function MyWorkloadStrip({
                         <div
                           key={b.item.id}
                           title={`${b.item.title}${
-                            b.item.feature ? ` · ${b.item.feature.title}` : ""
+                            b.item.feature ? ` · ${b.item.feature.title}` : ''
                           }`}
-                          onClick={
-                            onBarClick ? () => onBarClick(b.item.id) : undefined
-                          }
+                          onClick={onBarClick ? () => onBarClick(b.item.id) : undefined}
                           className={`absolute flex items-center px-1.5 rounded-md text-xs text-white overflow-hidden whitespace-nowrap transition-shadow ${
-                            onBarClick ? "cursor-pointer" : ""
-                          } ${overflowLeft ? "rounded-l-none" : ""}`}
+                            onBarClick ? 'cursor-pointer' : ''
+                          } ${overflowLeft ? 'rounded-l-none' : ''}`}
                           style={{
                             left,
                             width,
@@ -370,8 +336,8 @@ export function MyWorkloadStrip({
                             backgroundColor: b.color,
                             opacity: b.item.completed ? 0.5 : 1,
                             boxShadow: isSel
-                              ? "inset 0 0 0 1px rgba(255,255,255,.18), 0 0 0 1.5px var(--bridge-dark, #191f2d), 0 0 0 3px #fff"
-                              : "inset 0 0 0 1px rgba(255,255,255,.14)",
+                              ? 'inset 0 0 0 1px rgba(255,255,255,.18), 0 0 0 1.5px var(--bridge-dark, #191f2d), 0 0 0 3px #fff'
+                              : 'inset 0 0 0 1px rgba(255,255,255,.14)',
                           }}
                         >
                           {b.item.completed && (
@@ -388,15 +354,15 @@ export function MyWorkloadStrip({
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
                   <span className="flex items-center gap-1.5">
                     <i className="inline-block w-0.5 h-3 bg-bridge-secondary" />
-                    {t("dailyChecklist.workloadToday")}
+                    {t('dailyChecklist.workloadToday')}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <i className="inline-block w-0.5 h-3 bg-bridge-accent" />
-                    {t("dailyChecklist.workloadAddDate")}
+                    {t('dailyChecklist.workloadAddDate')}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <i className="inline-block w-3 h-3 rounded-sm border border-white/70" />
-                    {t("dailyChecklist.workloadSelected")}
+                    {t('dailyChecklist.workloadSelected')}
                   </span>
                 </div>
               </>

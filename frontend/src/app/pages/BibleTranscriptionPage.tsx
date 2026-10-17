@@ -1,17 +1,12 @@
-import { useState, useEffect, useRef } from "react";
-import { ChapterView } from "../components/bible/ChapterView";
-import { TypingInput } from "../components/bible/TypingInput";
-import { BibleReadingChart } from "../components/bible/BibleReadingChart";
-import { ChapterCompleteModal } from "../components/bible/ChapterCompleteModal";
-import { bibleBooks, Verse } from "../data/bibleData";
-import {
-  BookOpen,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Button } from "../components/ui/button";
+import { useState, useEffect, useRef } from 'react';
+import { ChapterView } from '../components/bible/ChapterView';
+import { TypingInput } from '../components/bible/TypingInput';
+import { BibleReadingChart } from '../components/bible/BibleReadingChart';
+import { ChapterCompleteModal } from '../components/bible/ChapterCompleteModal';
+import { bibleBooks, Verse } from '../data/bibleData';
+import { BookOpen, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Button } from '../components/ui/button';
 
 interface CompletedVerse {
   book: string;
@@ -31,44 +26,40 @@ export default function BibleTranscriptionPage() {
   const [selectedChapter, setSelectedChapter] = useState(1);
   const [currentVerseNumber, setCurrentVerseNumber] = useState(1);
   const [completedVerses, setCompletedVerses] = useState<CompletedVerse[]>([]);
-  const [completedChapters, setCompletedChapters] = useState<
-    CompletedChapter[]
-  >([]);
+  const [completedChapters, setCompletedChapters] = useState<CompletedChapter[]>([]);
   const [showChapterComplete, setShowChapterComplete] = useState(false);
   const [showReadingChart, setShowReadingChart] = useState(false);
-  const chapterButtonRefs = useRef<{ [key: number]: HTMLButtonElement | null }>(
-    {},
-  );
+  const chapterButtonRefs = useRef<{ [key: number]: HTMLButtonElement | null }>({});
 
   // 선택된 장이 변경되면 해당 버튼으로 스크롤
   useEffect(() => {
     const button = chapterButtonRefs.current[selectedChapter];
     if (button) {
       button.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "center",
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
       });
     }
   }, [selectedChapter]);
 
   // LocalStorage에서 진행 상황 불러오기
   useEffect(() => {
-    const savedVerses = localStorage.getItem("bible-transcription-progress");
+    const savedVerses = localStorage.getItem('bible-transcription-progress');
     if (savedVerses) {
       try {
         setCompletedVerses(JSON.parse(savedVerses));
       } catch (e) {
-        console.error("Failed to load progress", e);
+        console.error('Failed to load progress', e);
       }
     }
 
-    const savedChapters = localStorage.getItem("bible-completed-chapters");
+    const savedChapters = localStorage.getItem('bible-completed-chapters');
     if (savedChapters) {
       try {
         setCompletedChapters(JSON.parse(savedChapters));
       } catch (e) {
-        console.error("Failed to load chapters", e);
+        console.error('Failed to load chapters', e);
       }
     }
   }, []);
@@ -76,27 +67,17 @@ export default function BibleTranscriptionPage() {
   // 진행 상황 저장
   const saveProgress = (newCompleted: CompletedVerse[]) => {
     setCompletedVerses(newCompleted);
-    localStorage.setItem(
-      "bible-transcription-progress",
-      JSON.stringify(newCompleted),
-    );
+    localStorage.setItem('bible-transcription-progress', JSON.stringify(newCompleted));
   };
 
   const saveCompletedChapters = (newCompleted: CompletedChapter[]) => {
     setCompletedChapters(newCompleted);
-    localStorage.setItem(
-      "bible-completed-chapters",
-      JSON.stringify(newCompleted),
-    );
+    localStorage.setItem('bible-completed-chapters', JSON.stringify(newCompleted));
   };
 
   const currentBook = bibleBooks.find((book) => book.name === selectedBook);
-  const currentChapter = currentBook?.chapters.find(
-    (ch) => ch.chapter === selectedChapter,
-  );
-  const currentVerse = currentChapter?.verses.find(
-    (v) => v.verse === currentVerseNumber,
-  );
+  const currentChapter = currentBook?.chapters.find((ch) => ch.chapter === selectedChapter);
+  const currentVerse = currentChapter?.verses.find((v) => v.verse === currentVerseNumber);
 
   // 현재 장에서 완료된 절 번호들
   const completedVersesInChapter = completedVerses
@@ -105,9 +86,7 @@ export default function BibleTranscriptionPage() {
 
   // 장이 완성되었는지 체크
   const isChapterComplete = (book: string, chapter: number) => {
-    return completedChapters.some(
-      (c) => c.book === book && c.chapter === chapter,
-    );
+    return completedChapters.some((c) => c.book === book && c.chapter === chapter);
   };
 
   const handleComplete = () => {
@@ -121,9 +100,7 @@ export default function BibleTranscriptionPage() {
     // 이미 완료된 절이 아닌 경우에만 추가
     const alreadyCompleted = completedVerses.some(
       (v) =>
-        v.book === selectedBook &&
-        v.chapter === selectedChapter &&
-        v.verse === currentVerseNumber,
+        v.book === selectedBook && v.chapter === selectedChapter && v.verse === currentVerseNumber,
     );
 
     let updated = completedVerses;
@@ -134,9 +111,7 @@ export default function BibleTranscriptionPage() {
 
     // 다음 절로 이동
     if (currentChapter) {
-      const currentIndex = currentChapter.verses.findIndex(
-        (v) => v.verse === currentVerseNumber,
-      );
+      const currentIndex = currentChapter.verses.findIndex((v) => v.verse === currentVerseNumber);
       if (currentIndex < currentChapter.verses.length - 1) {
         setCurrentVerseNumber(currentChapter.verses[currentIndex + 1].verse);
       } else {
@@ -152,17 +127,11 @@ export default function BibleTranscriptionPage() {
     // 현재 장의 모든 절이 완료되었는지 확인
     const allVersesCompleted = currentChapter.verses.every((verse) =>
       allCompletedVerses.some(
-        (v) =>
-          v.book === selectedBook &&
-          v.chapter === selectedChapter &&
-          v.verse === verse.verse,
+        (v) => v.book === selectedBook && v.chapter === selectedChapter && v.verse === verse.verse,
       ),
     );
 
-    if (
-      allVersesCompleted &&
-      !isChapterComplete(selectedBook, selectedChapter)
-    ) {
+    if (allVersesCompleted && !isChapterComplete(selectedBook, selectedChapter)) {
       // 장 완성!
       const newChapter: CompletedChapter = {
         book: selectedBook,
@@ -194,9 +163,7 @@ export default function BibleTranscriptionPage() {
         setCurrentVerseNumber(firstIncompleteVerse);
       } else {
         // 다음 책으로
-        const currentBookIndex = bibleBooks.findIndex(
-          (b) => b.name === selectedBook,
-        );
+        const currentBookIndex = bibleBooks.findIndex((b) => b.name === selectedBook);
         if (currentBookIndex < bibleBooks.length - 1) {
           const nextBook = bibleBooks[currentBookIndex + 1];
           setSelectedBook(nextBook.name);
@@ -231,9 +198,7 @@ export default function BibleTranscriptionPage() {
 
   const handleChapterChange = (chapter: number) => {
     setSelectedChapter(chapter);
-    const newChapter = currentBook?.chapters.find(
-      (ch) => ch.chapter === chapter,
-    );
+    const newChapter = currentBook?.chapters.find((ch) => ch.chapter === chapter);
     if (newChapter) {
       // 완성되지 않은 첫 번째 절 찾기
       const firstIncompleteVerse = findFirstIncompleteVerse(
@@ -245,15 +210,10 @@ export default function BibleTranscriptionPage() {
     }
   };
 
-  const findFirstIncompleteVerse = (
-    book: string,
-    chapter: number,
-    verses: Verse[],
-  ) => {
+  const findFirstIncompleteVerse = (book: string, chapter: number, verses: Verse[]) => {
     for (const verse of verses) {
       const isCompleted = completedVerses.some(
-        (v) =>
-          v.book === book && v.chapter === chapter && v.verse === verse.verse,
+        (v) => v.book === book && v.chapter === chapter && v.verse === verse.verse,
       );
       if (!isCompleted) {
         return verse.verse;
@@ -266,13 +226,8 @@ export default function BibleTranscriptionPage() {
   const totalVersesInChapter = currentChapter?.verses.length || 0;
   const completedCount = completedVersesInChapter.length;
   const chapterProgress =
-    totalVersesInChapter > 0
-      ? (completedCount / totalVersesInChapter) * 100
-      : 0;
-  const isCurrentChapterComplete = isChapterComplete(
-    selectedBook,
-    selectedChapter,
-  );
+    totalVersesInChapter > 0 ? (completedCount / totalVersesInChapter) * 100 : 0;
+  const isCurrentChapterComplete = isChapterComplete(selectedBook, selectedChapter);
 
   // 이전/다음 장 존재 여부 확인
   const canGoPreviousChapter = () => {
@@ -282,9 +237,7 @@ export default function BibleTranscriptionPage() {
     );
     if (currentChapterIndex > 0) return true;
     // 이전 책이 있는지 확인
-    const currentBookIndex = bibleBooks.findIndex(
-      (b) => b.name === selectedBook,
-    );
+    const currentBookIndex = bibleBooks.findIndex((b) => b.name === selectedBook);
     return currentBookIndex > 0;
   };
 
@@ -295,9 +248,7 @@ export default function BibleTranscriptionPage() {
     );
     if (currentChapterIndex < currentBook.chapters.length - 1) return true;
     // 다음 책이 있는지 확인
-    const currentBookIndex = bibleBooks.findIndex(
-      (b) => b.name === selectedBook,
-    );
+    const currentBookIndex = bibleBooks.findIndex((b) => b.name === selectedBook);
     return currentBookIndex < bibleBooks.length - 1;
   };
 
@@ -319,9 +270,7 @@ export default function BibleTranscriptionPage() {
       setCurrentVerseNumber(firstIncompleteVerse);
     } else {
       // 이전 책의 마지막 장으로
-      const currentBookIndex = bibleBooks.findIndex(
-        (b) => b.name === selectedBook,
-      );
+      const currentBookIndex = bibleBooks.findIndex((b) => b.name === selectedBook);
       if (currentBookIndex > 0) {
         const prevBook = bibleBooks[currentBookIndex - 1];
         const lastChapter = prevBook.chapters[prevBook.chapters.length - 1];
@@ -355,9 +304,7 @@ export default function BibleTranscriptionPage() {
       setCurrentVerseNumber(firstIncompleteVerse);
     } else {
       // 다음 책의 첫 장으로
-      const currentBookIndex = bibleBooks.findIndex(
-        (b) => b.name === selectedBook,
-      );
+      const currentBookIndex = bibleBooks.findIndex((b) => b.name === selectedBook);
       if (currentBookIndex < bibleBooks.length - 1) {
         const nextBook = bibleBooks[currentBookIndex + 1];
         const firstChapter = nextBook.chapters[0];
@@ -380,9 +327,7 @@ export default function BibleTranscriptionPage() {
         <div className="text-center py-6">
           <div className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-2xl shadow-lg">
             <BookOpen className="w-8 h-8" />
-            <h1 className="text-2xl font-bold tracking-wide">
-              온라인 타자 성경 통독
-            </h1>
+            <h1 className="text-2xl font-bold tracking-wide">온라인 타자 성경 통독</h1>
           </div>
         </div>
 
@@ -392,9 +337,7 @@ export default function BibleTranscriptionPage() {
             {bibleBooks.length === 1 ? (
               // 성경이 하나뿐일 때 큰 제목으로 표시
               <div className="flex items-center justify-center py-2">
-                <h1 className="text-2xl font-bold text-gray-800">
-                  {bibleBooks[0].name}
-                </h1>
+                <h1 className="text-2xl font-bold text-gray-800">{bibleBooks[0].name}</h1>
                 {(() => {
                   const completedInBook = bibleBooks[0].chapters.filter((ch) =>
                     isChapterComplete(bibleBooks[0].name, ch.chapter),
@@ -414,14 +357,14 @@ export default function BibleTranscriptionPage() {
                   className={`grid w-full ${
                     (
                       {
-                        1: "grid-cols-1",
-                        2: "grid-cols-2",
-                        3: "grid-cols-3",
-                        4: "grid-cols-2 sm:grid-cols-4",
-                        5: "grid-cols-3 sm:grid-cols-5",
-                        6: "grid-cols-3 sm:grid-cols-6",
+                        1: 'grid-cols-1',
+                        2: 'grid-cols-2',
+                        3: 'grid-cols-3',
+                        4: 'grid-cols-2 sm:grid-cols-4',
+                        5: 'grid-cols-3 sm:grid-cols-5',
+                        6: 'grid-cols-3 sm:grid-cols-6',
                       } as Record<number, string>
-                    )[bibleBooks.length] ?? "grid-cols-3"
+                    )[bibleBooks.length] ?? 'grid-cols-3'
                   }`}
                 >
                   {bibleBooks.map((book) => {
@@ -430,11 +373,7 @@ export default function BibleTranscriptionPage() {
                     ).length;
                     const totalInBook = book.chapters.length;
                     return (
-                      <TabsTrigger
-                        key={book.name}
-                        value={book.name}
-                        className="relative"
-                      >
+                      <TabsTrigger key={book.name} value={book.name} className="relative">
                         {book.name}
                         {completedInBook > 0 && (
                           <span className="ml-2 text-xs text-green-600">
@@ -462,10 +401,7 @@ export default function BibleTranscriptionPage() {
         <div className="bg-white rounded-lg shadow-sm p-4">
           <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
             {currentBook?.chapters.map((chapter) => {
-              const completed = isChapterComplete(
-                selectedBook,
-                chapter.chapter,
-              );
+              const completed = isChapterComplete(selectedBook, chapter.chapter);
               const isSelected = selectedChapter === chapter.chapter;
               return (
                 <button
@@ -476,15 +412,14 @@ export default function BibleTranscriptionPage() {
                   onClick={() => handleChapterChange(chapter.chapter)}
                   className={`flex-shrink-0 px-6 py-3 rounded-lg font-medium transition-all border-2 ${
                     isSelected
-                      ? "bg-blue-500 text-white border-blue-600 shadow-md"
+                      ? 'bg-blue-500 text-white border-blue-600 shadow-md'
                       : completed
-                        ? "bg-green-50 text-green-700 border-green-300 hover:bg-green-100"
-                        : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                        ? 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
+                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    {chapter.chapter}장
-                    {completed && <CheckCircle2 className="w-4 h-4" />}
+                    {chapter.chapter}장{completed && <CheckCircle2 className="w-4 h-4" />}
                   </div>
                 </button>
               );
@@ -555,9 +490,7 @@ export default function BibleTranscriptionPage() {
               <div className="flex justify-center">
                 <CheckCircle2 className="w-16 h-16 text-green-600" />
               </div>
-              <h3 className="text-2xl font-bold text-green-800">
-                모두 완성된 장입니다
-              </h3>
+              <h3 className="text-2xl font-bold text-green-800">모두 완성된 장입니다</h3>
               <p className="text-green-700">
                 {selectedBook} {selectedChapter}장의 모든 절을 완성하셨습니다!
               </p>
@@ -583,24 +516,13 @@ export default function BibleTranscriptionPage() {
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-4xl max-h-[90dvh] overflow-y-auto custom-scrollbar mx-4">
               <div className="bg-white rounded-xl shadow-2xl">
                 <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
-                  <h2 className="text-2xl font-bold text-gray-800">
-                    성경 필사표
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowReadingChart(false)}
-                  >
-                    <span className="text-2xl text-gray-500 hover:text-gray-700">
-                      ×
-                    </span>
+                  <h2 className="text-2xl font-bold text-gray-800">성경 필사표</h2>
+                  <Button variant="ghost" size="icon" onClick={() => setShowReadingChart(false)}>
+                    <span className="text-2xl text-gray-500 hover:text-gray-700">×</span>
                   </Button>
                 </div>
                 <div className="p-6">
-                  <BibleReadingChart
-                    books={bibleBooks}
-                    completedChapters={completedChapters}
-                  />
+                  <BibleReadingChart books={bibleBooks} completedChapters={completedChapters} />
                 </div>
               </div>
             </div>

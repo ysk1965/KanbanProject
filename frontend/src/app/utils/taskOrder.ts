@@ -1,4 +1,4 @@
-import { Task } from "../types";
+import { Task } from '../types';
 
 /**
  * 피처(서브태스크 리스트) 내 태스크 표시 순서 비교자.

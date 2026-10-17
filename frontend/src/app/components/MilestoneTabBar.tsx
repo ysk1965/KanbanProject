@@ -1,9 +1,9 @@
-import { memo, useMemo } from "react";
-import { Flag, Pencil, Plus } from "lucide-react";
-import { format, parseISO } from "date-fns";
-import { useTranslation } from "react-i18next";
-import { Feature, Milestone } from "../types";
-import { getMilestoneColorByIndex } from "../utils/milestoneColor";
+import { memo, useMemo } from 'react';
+import { Flag, Pencil, Plus } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { useTranslation } from 'react-i18next';
+import { Feature, Milestone } from '../types';
+import { getMilestoneColorByIndex } from '../utils/milestoneColor';
 
 interface MilestoneTabBarProps {
   milestones: Milestone[];
@@ -37,30 +37,30 @@ export const MilestoneTabBar = memo(function MilestoneTabBar({
       <Flag size={13} className="text-bridge-secondary shrink-0" />
       <div className="flex items-center gap-1">
         <button
-          onClick={() => onSelect("all")}
+          onClick={() => onSelect('all')}
           className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-            selectedMilestoneId === "all"
-              ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-              : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+            selectedMilestoneId === 'all'
+              ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+              : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
           }`}
         >
-          {t("common.all")}
+          {t('common.all')}
         </button>
         {hasUnassignedFeatures && (
           <button
-            onClick={() => onSelect("none")}
+            onClick={() => onSelect('none')}
             className={`px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-              selectedMilestoneId === "none"
-                ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+              selectedMilestoneId === 'none'
+                ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
             }`}
           >
-            {t("kanban.unassigned", "미지정")}
+            {t('kanban.unassigned', '미지정')}
           </button>
         )}
         {milestones.map((milestone, index) => {
-          const startDate = format(parseISO(milestone.start_date), "M/d");
-          const endDate = format(parseISO(milestone.end_date), "M/d");
+          const startDate = format(parseISO(milestone.start_date), 'M/d');
+          const endDate = format(parseISO(milestone.end_date), 'M/d');
           const milestoneColor = getMilestoneColorByIndex(index).hex;
           return (
             <button
@@ -68,8 +68,8 @@ export const MilestoneTabBar = memo(function MilestoneTabBar({
               onClick={() => onSelect(milestone.id)}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                 selectedMilestoneId === milestone.id
-                  ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                  : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                  : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
               }`}
             >
               <span
@@ -78,7 +78,7 @@ export const MilestoneTabBar = memo(function MilestoneTabBar({
               />
               <span>{milestone.title}</span>
               <span
-                className={`text-xs font-normal ${selectedMilestoneId === milestone.id ? "text-white/70" : "text-zinc-500"}`}
+                className={`text-xs font-normal ${selectedMilestoneId === milestone.id ? 'text-white/70' : 'text-zinc-500'}`}
               >
                 {startDate} ~ {endDate}
               </span>
@@ -86,16 +86,14 @@ export const MilestoneTabBar = memo(function MilestoneTabBar({
           );
         })}
       </div>
-      {selectedMilestoneId !== "all" && selectedMilestoneId !== "none" && (
+      {selectedMilestoneId !== 'all' && selectedMilestoneId !== 'none' && (
         <button
           onClick={() => {
-            const milestone = milestones.find(
-              (m) => m.id === selectedMilestoneId,
-            );
+            const milestone = milestones.find((m) => m.id === selectedMilestoneId);
             if (milestone) onOpenMilestone(milestone);
           }}
           className="p-1 text-zinc-400 hover:text-foreground transition-colors shrink-0"
-          title={t("kanban.editMilestone")}
+          title={t('kanban.editMilestone')}
         >
           <Pencil size={13} />
         </button>
@@ -104,8 +102,8 @@ export const MilestoneTabBar = memo(function MilestoneTabBar({
         onClick={() => onOpenMilestone()}
         className={`p-1 transition-colors shrink-0 ${
           !canAccessMilestone
-            ? "text-zinc-600 hover:text-zinc-500"
-            : "text-zinc-400 hover:text-foreground"
+            ? 'text-zinc-600 hover:text-zinc-500'
+            : 'text-zinc-400 hover:text-foreground'
         }`}
       >
         <Plus size={16} />

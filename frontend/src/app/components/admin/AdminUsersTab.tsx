@@ -1,6 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ChevronLeft, ChevronRight, Shield, User as UserIcon, Mail, Calendar, Check, Minus, Loader2 } from 'lucide-react';
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Shield,
+  User as UserIcon,
+  Mail,
+  Calendar,
+  Check,
+  Minus,
+  Loader2,
+} from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { UserListResponse } from '../../utils/api';
 import { AdminUserDetailModal } from './AdminUserDetailModal';
@@ -206,7 +217,7 @@ export function AdminUsersTab() {
           {/* Pagination */}
           <div className="flex items-center justify-between">
             <p className="text-slate-400 text-sm">
-              {t('admin.common.totalPeople', { count: users.total.toLocaleString() })}
+              {t('admin.common.totalPeople', { count: users.total })}
             </p>
             <div className="flex items-center gap-2">
               <button

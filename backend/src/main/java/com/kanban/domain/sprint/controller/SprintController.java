@@ -77,6 +77,18 @@ public class SprintController {
                 sprintService.addTask(boardId, sprintId, request.getTaskId(), userPrincipal.getUserId()));
     }
 
+    /** 주기 이름·기간 변경 — 레벨 1→2 승급 마법사가 기간을 정할 때 쓴다. */
+    @PatchMapping("/sprints/{sprintId}")
+    public ResponseEntity<SprintResponse.Board> updateSprint(
+            @PathVariable String boardId,
+            @PathVariable String sprintId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody SprintRequest.UpdateSprint request) {
+        return ResponseEntity.ok(sprintService.updateSprint(
+                boardId, sprintId, request.getName(),
+                request.getStartDate(), request.getEndDate(), principal.getUserId()));
+    }
+
     /** 태스크 빼기 (백로그로 복귀) */
     @DeleteMapping("/sprints/{sprintId}/tasks/{taskId}")
     public ResponseEntity<SprintResponse.Board> removeTask(
@@ -149,37 +161,52 @@ public class SprintController {
                 boardId, milestoneId, request.getColumnIds(), userPrincipal.getUserId()));
     }
 
-    /** 스프린트 종료 (완료율 동결 + 미완료 태스크 이월 + 다음 스프린트 생성/복귀) — 관리자 */
-    @PostMapping("/sprints/{sprintId}/close")
-    public ResponseEntity<SprintResponse.Board> closeSprint(
+    /**
+     * 스프린트 분할 생성/조정 — 마일스톤 기간을 count개 버킷으로 나눈다 (관리자).
+     * boundaries 생략 시 균등 분배. 종료/이월 라이프사이클의 대체 진입점.
+     */
+    @PutMapping("/milestones/{milestoneId}/sprint-split")
+    public ResponseEntity<SprintResponse.Board> splitSprints(
             @PathVariable String boardId,
-            @PathVariable String sprintId,
+            @PathVariable String milestoneId,
+            @Valid @RequestBody SprintRequest.Split request,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
-        return ResponseEntity.ok(sprintService.closeSprint(boardId, sprintId, userPrincipal.getUserId()));
+        return ResponseEntity.ok(sprintService.splitSprints(
+                boardId, milestoneId, request.getCount(), request.getBoundaries(),
+                request.getTaskDistribution(), userPrincipal.getUserId()));
     }
 
-    /** 아카이브 스프린트 재활성화 (수정 → 재동결용) — 관리자 */
-    @PostMapping("/sprints/{sprintId}/reactivate")
-    public ResponseEntity<SprintResponse.Board> reactivateSprint(
+    /**
+     * 지난 스프린트의 미완료를 다음 스프린트로 보내기 — 줄 단위 (관리자).
+     * 본문이 없으면 미완료 전부, 있으면 고른 줄(item_ids)·줄 없는 태스크(task_ids)만.
+     */
+    @PostMapping("/sprints/{sprintId}/push-unfinished")
+    public ResponseEntity<SprintResponse.Board> pushUnfinished(
             @PathVariable String boardId,
             @PathVariable String sprintId,
+            @RequestBody(required = false) SprintRequest.PushUnfinished request,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
-        return ResponseEntity.ok(sprintService.reactivateSprint(boardId, sprintId, userPrincipal.getUserId()));
+        return ResponseEntity.ok(sprintService.pushUnfinished(
+                boardId, sprintId,
+                request != null ? request.getItemIds() : null,
+                request != null ? request.getTaskIds() : null,
+                userPrincipal.getUserId()));
     }
 
-    /** 재활성화 취소 (원래 동결 기록 복원) — 관리자 */
-    @PostMapping("/sprints/{sprintId}/cancel-reactivation")
-    public ResponseEntity<SprintResponse.Board> cancelReactivation(
+    /** 체크리스트 줄을 태스크와 다른 스프린트로 보내기 / 되돌리기(sprint_id = null) — 멤버+ */
+    @PatchMapping("/checklist-items/sprint")
+    public ResponseEntity<SprintResponse.Board> setChecklistSprint(
             @PathVariable String boardId,
-            @PathVariable String sprintId,
+            @Valid @RequestBody SprintRequest.SetChecklistSprint request,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
-        return ResponseEntity.ok(sprintService.cancelReactivation(boardId, sprintId, userPrincipal.getUserId()));
+        return ResponseEntity.ok(sprintService.setChecklistSprint(
+                boardId, request.getItemIds(), request.getSprintId(), userPrincipal.getUserId()));
     }
 
-    /** 특정 스프린트에 담긴 태스크 카드 목록 (아카이브 열람용) */
+    /** 특정 스프린트에 담긴 태스크 카드 목록 (지난 스프린트 열람용) */
     @GetMapping("/sprints/{sprintId}/tasks")
     public ResponseEntity<List<SprintResponse.ItemCard>> getSprintTasks(
             @PathVariable String boardId,
@@ -187,15 +214,5 @@ public class SprintController {
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         return ResponseEntity.ok(sprintService.getSprintTasks(boardId, sprintId, userPrincipal.getUserId()));
-    }
-
-    /** 아카이브 태스크를 현재 스프린트로 재개 */
-    @PostMapping("/tasks/{taskId}/sprint-resume")
-    public ResponseEntity<SprintResponse.Board> resumeTask(
-            @PathVariable String boardId,
-            @PathVariable String taskId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
-        return ResponseEntity.ok(sprintService.resumeTask(boardId, taskId, userPrincipal.getUserId()));
     }
 }

@@ -42,6 +42,15 @@ public class OrgNoteController {
         return ResponseEntity.ok(orgNoteService.getBoardNotes(orgId, principal.getUserId()));
     }
 
+    /** 제목·본문 전문 검색. q 가 2자 미만이면 빈 목록. 최대 30건, 최근 수정순. */
+    @GetMapping("/search")
+    public ResponseEntity<List<NoteResponse.SearchResult>> searchNotes(
+            @PathVariable String orgId,
+            @RequestParam(name = "q", required = false) String q,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(orgNoteService.searchNotes(orgId, principal.getUserId(), q));
+    }
+
     @GetMapping("/{noteId}")
     public ResponseEntity<NoteResponse.Detail> getNoteDetail(
             @PathVariable String orgId,
@@ -87,6 +96,17 @@ public class OrgNoteController {
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody NoteRequest.Move request) {
         return ResponseEntity.ok(orgNoteService.moveNote(orgId, noteId, principal.getUserId(), request));
+    }
+
+    /** 페이지 상태 변경. body: { "status": "DRAFT" | "IN_REVIEW" | "DONE" | null } */
+    @PutMapping("/{noteId}/status")
+    public ResponseEntity<NoteResponse.Detail> updateStatus(
+            @PathVariable String orgId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody NoteRequest.Status request) {
+        return ResponseEntity.ok(orgNoteService.updateStatus(
+                orgId, noteId, principal.getUserId(), request != null ? request.getStatus() : null));
     }
 
     // ===== Trash =====
@@ -150,6 +170,18 @@ public class OrgNoteController {
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody(required = false) @Valid NoteRequest.RestoreVersion request) {
         return ResponseEntity.ok(orgNoteService.restoreVersion(orgId, noteId, versionId, principal.getUserId(), request));
+    }
+
+    /** 버전 메모 수정. body: { "note": "..." } (null/공백 = 삭제) */
+    @PatchMapping("/{noteId}/versions/{versionId}/note")
+    public ResponseEntity<NoteResponse.VersionInfo> updateVersionNote(
+            @PathVariable String orgId,
+            @PathVariable String noteId,
+            @PathVariable String versionId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody NoteRequest.VersionNote request) {
+        return ResponseEntity.ok(orgNoteService.updateVersionNote(
+                orgId, noteId, versionId, principal.getUserId(), request.getNote()));
     }
 
     @DeleteMapping("/{noteId}/versions/{versionId}")

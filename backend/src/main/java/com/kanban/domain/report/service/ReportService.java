@@ -31,7 +31,9 @@ import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -58,68 +60,103 @@ public class ReportService {
     private final MeetingRepository meetingRepository;
     private final ReportAIService reportAIService;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     private static final int MAX_COMMENTS = 30;
     private static final int MAX_COMMENT_LENGTH = 100;
     private static final int MAX_MEETING_MEMO_LENGTH = 200;
 
-    @Transactional
+    /**
+     * 보고서 생성. 클래스 기본 {@code @Transactional(readOnly)}를 <b>끄고</b>(NOT_SUPPORTED) 세 구간으로 나눈다 —
+     * 권한·데이터 수집(tx) → AI 호출(트랜잭션 없음, 60초까지 걸릴 수 있다) → 저장(tx).
+     * 크레딧 차감·사용량 로그는 {@link ReportAIService}가 각자 짧은 트랜잭션으로 처리하고, 실패 시 환불한다.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public ReportResponse.Detail generateReport(String boardId, String userId, ReportRequest.Generate request) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        validateReportAccess(board);
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-
         ReportType reportType = request.getReportType();
 
-        // Resolve target user for personal reports
-        String targetId = userId;
-        User targetUser = user;
-        if (reportType == ReportType.PERSONAL && request.getTargetUserId() != null
-                && !request.getTargetUserId().equals(userId)) {
-            // Admin/Owner can generate reports for other members
-            boardService.checkAdminOrAbove(boardId, userId);
-            boardService.checkMemberOrAbove(boardId, request.getTargetUserId());
-            targetId = request.getTargetUserId();
-            targetUser = userRepository.findById(targetId)
+        // 1. 권한 확인 + 기존 보고서 조회 + 데이터 수집 (tx)
+        GenerateInput input = transactionTemplate.execute(status -> {
+            Board board = boardRepository.findById(boardId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+            validateReportAccess(board);
+
+            User user = userRepository.findById(userId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        } else if (reportType == ReportType.TEAM) {
-            boardService.checkAdminOrAbove(boardId, userId);
-        } else {
-            boardService.checkMemberOrAbove(boardId, userId);
+
+            // Resolve target user for personal reports
+            String targetId = userId;
+            User targetUser = user;
+            if (reportType == ReportType.PERSONAL && request.getTargetUserId() != null
+                    && !request.getTargetUserId().equals(userId)) {
+                // Admin/Owner can generate reports for other members
+                boardService.checkAdminOrAbove(boardId, userId);
+                boardService.checkMemberOrAbove(boardId, request.getTargetUserId());
+                targetId = request.getTargetUserId();
+                targetUser = userRepository.findById(targetId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            } else if (reportType == ReportType.TEAM) {
+                boardService.checkAdminOrAbove(boardId, userId);
+            } else {
+                boardService.checkMemberOrAbove(boardId, userId);
+            }
+
+            // Check for existing report — Detail.from은 LAZY(generatedBy)를 읽으므로 트랜잭션 안에서
+            Optional<WeeklyReport> existing = findExistingReport(
+                    boardId, targetId, reportType, request.getPeriodStart(), request.getPeriodEnd());
+            if (existing.isPresent()) {
+                return GenerateInput.existing(ReportResponse.Detail.from(existing.get()));
+            }
+
+            // Gather data
+            String dataJson = gatherData(boardId, targetId, reportType,
+                    request.getPeriodStart(), request.getPeriodEnd(), board.getName());
+            return GenerateInput.fresh(targetId, targetUser.getName(), dataJson);
+        });
+
+        if (input.existingDetail() != null) {
+            return input.existingDetail();
         }
 
-        // Check for existing report
-        Optional<WeeklyReport> existing = findExistingReport(
-                boardId, targetId, reportType, request.getPeriodStart(), request.getPeriodEnd());
-        if (existing.isPresent()) {
-            return ReportResponse.Detail.from(existing.get());
+        // 2. AI 호출 (트랜잭션 없음)
+        String content = reportAIService.generateReport(reportType, input.dataJson(), request.getLanguage(), boardId, userId);
+
+        // 3. 저장 (tx)
+        return transactionTemplate.execute(status -> {
+            Board board = boardRepository.findById(boardId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+            WeeklyReport report = WeeklyReport.builder()
+                    .board(board)
+                    .generatedBy(user)
+                    .reportType(reportType)
+                    .targetUserId(reportType == ReportType.PERSONAL ? input.targetId() : null)
+                    .targetUserName(reportType == ReportType.PERSONAL ? input.targetUserName() : null)
+                    .periodStart(request.getPeriodStart())
+                    .periodEnd(request.getPeriodEnd())
+                    .content(content)
+                    .dataSnapshot(input.dataJson())
+                    .build();
+
+            reportRepository.save(report);
+            log.info("Generated {} report for board: {}, target: {}, by: {}", reportType, boardId, input.targetId(), userId);
+
+            return ReportResponse.Detail.from(report);
+        });
+    }
+
+    /** generateReport 1단계 결과 — 기존 보고서가 있으면 {@code existingDetail}만 채워진다 */
+    private record GenerateInput(ReportResponse.Detail existingDetail, String targetId,
+                                 String targetUserName, String dataJson) {
+        static GenerateInput existing(ReportResponse.Detail detail) {
+            return new GenerateInput(detail, null, null, null);
         }
 
-        // Gather data and generate
-        String dataJson = gatherData(boardId, targetId, reportType,
-                request.getPeriodStart(), request.getPeriodEnd(), board.getName());
-
-        String content = reportAIService.generateReport(reportType, dataJson, request.getLanguage(), boardId, userId);
-
-        WeeklyReport report = WeeklyReport.builder()
-                .board(board)
-                .generatedBy(user)
-                .reportType(reportType)
-                .targetUserId(reportType == ReportType.PERSONAL ? targetId : null)
-                .targetUserName(reportType == ReportType.PERSONAL ? targetUser.getName() : null)
-                .periodStart(request.getPeriodStart())
-                .periodEnd(request.getPeriodEnd())
-                .content(content)
-                .dataSnapshot(dataJson)
-                .build();
-
-        reportRepository.save(report);
-        log.info("Generated {} report for board: {}, target: {}, by: {}", reportType, boardId, targetId, userId);
-
-        return ReportResponse.Detail.from(report);
+        static GenerateInput fresh(String targetId, String targetUserName, String dataJson) {
+            return new GenerateInput(null, targetId, targetUserName, dataJson);
+        }
     }
 
     public ReportResponse.ListResponse getReports(String boardId, String userId,
@@ -182,46 +219,79 @@ public class ReportService {
         return ReportResponse.Detail.from(report);
     }
 
-    @Transactional
+    /**
+     * 보고서 재생성. {@link #generateReport}와 같은 3단계 분리 — 권한·데이터 수집(tx) → AI(트랜잭션 없음) → 갱신(tx).
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public ReportResponse.Detail regenerateReport(String boardId, String reportId, String userId, String language) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        validateReportAccess(board);
+        // 1. 권한 확인 + 데이터 수집 + 변경 여부 판단 (tx)
+        RegenerateInput input = transactionTemplate.execute(status -> {
+            Board board = boardRepository.findById(boardId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+            validateReportAccess(board);
 
-        WeeklyReport report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
+            WeeklyReport report = reportRepository.findById(reportId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
 
-        if (!report.getBoard().getId().equals(boardId)) {
-            throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
+            if (!report.getBoard().getId().equals(boardId)) {
+                throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
+            }
+
+            ReportType reportType = report.getReportType();
+            if (reportType == ReportType.TEAM) {
+                boardService.checkAdminOrAbove(boardId, userId);
+            } else if (report.getTargetUserId() != null && !report.getTargetUserId().equals(userId)) {
+                boardService.checkAdminOrAbove(boardId, userId);
+            } else {
+                boardService.checkMemberOrAbove(boardId, userId);
+            }
+
+            String dataUserId = report.getTargetUserId() != null ? report.getTargetUserId() : userId;
+            String dataJson = gatherData(boardId, dataUserId, reportType,
+                    report.getPeriodStart(), report.getPeriodEnd(), board.getName());
+
+            // Skip AI call if data hasn't changed since last generation
+            if (report.getDataSnapshot() != null && hashData(dataJson).equals(hashData(report.getDataSnapshot()))) {
+                log.info("Skipping AI call for report {} - data unchanged", reportId);
+                return RegenerateInput.unchanged(ReportResponse.Detail.from(report));
+            }
+
+            // 재생성자 존재 확인 — AI를 부르기 전에 걸러낸다
+            userRepository.findById(userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            return RegenerateInput.fresh(reportType, dataJson);
+        });
+
+        if (input.unchangedDetail() != null) {
+            return input.unchangedDetail();
         }
 
-        ReportType reportType = report.getReportType();
-        if (reportType == ReportType.TEAM) {
-            boardService.checkAdminOrAbove(boardId, userId);
-        } else if (report.getTargetUserId() != null && !report.getTargetUserId().equals(userId)) {
-            boardService.checkAdminOrAbove(boardId, userId);
-        } else {
-            boardService.checkMemberOrAbove(boardId, userId);
-        }
+        // 2. AI 호출 (트랜잭션 없음)
+        String content = reportAIService.generateReport(input.reportType(), input.dataJson(), language, boardId, userId);
 
-        String dataUserId = report.getTargetUserId() != null ? report.getTargetUserId() : userId;
-        String dataJson = gatherData(boardId, dataUserId, reportType,
-                report.getPeriodStart(), report.getPeriodEnd(), board.getName());
+        // 3. 갱신 (tx)
+        return transactionTemplate.execute(status -> {
+            WeeklyReport report = reportRepository.findById(reportId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
+            User regenerator = userRepository.findById(userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            report.updateContent(content, input.dataJson(), regenerator);
 
-        // Skip AI call if data hasn't changed since last generation
-        if (report.getDataSnapshot() != null && hashData(dataJson).equals(hashData(report.getDataSnapshot()))) {
-            log.info("Skipping AI call for report {} - data unchanged", reportId);
+            log.info("Regenerated {} report {} for board: {} by: {} (language: {})",
+                    input.reportType(), reportId, boardId, userId, language);
             return ReportResponse.Detail.from(report);
+        });
+    }
+
+    /** regenerateReport 1단계 결과 — 데이터가 그대로면 {@code unchangedDetail}만 채워진다 */
+    private record RegenerateInput(ReportResponse.Detail unchangedDetail, ReportType reportType, String dataJson) {
+        static RegenerateInput unchanged(ReportResponse.Detail detail) {
+            return new RegenerateInput(detail, null, null);
         }
 
-        User regenerator = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-
-        String content = reportAIService.generateReport(reportType, dataJson, language, boardId, userId);
-        report.updateContent(content, dataJson, regenerator);
-
-        log.info("Regenerated {} report {} for board: {} by: {} (language: {})", reportType, reportId, boardId, userId, language);
-        return ReportResponse.Detail.from(report);
+        static RegenerateInput fresh(ReportType reportType, String dataJson) {
+            return new RegenerateInput(null, reportType, dataJson);
+        }
     }
 
     private Optional<WeeklyReport> findExistingReport(String boardId, String userId,

@@ -5,6 +5,8 @@ import com.kanban.domain.storage.service.StorageService;
 import com.kanban.domain.storage.service.StoragePublicService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,8 +27,11 @@ public class PublicStorageController {
         return ResponseEntity.ok(publicService.getSharedFile(shareCode));
     }
 
+    /** presigned GET 이 가능하면 S3 로 302 리다이렉트, 아니면(로컬) 백엔드 스트리밍. */
     @GetMapping("/files/{shareCode}/download")
     public ResponseEntity<InputStreamResource> downloadSharedFile(@PathVariable String shareCode) {
+        String presigned = publicService.sharedFileDownloadUrl(shareCode);
+        if (presigned != null) return redirect(presigned);
         StorageService.DownloadResource resource = publicService.downloadSharedFile(shareCode);
         return MyStorageController.buildDownload(resource);
     }
@@ -40,7 +45,16 @@ public class PublicStorageController {
     @GetMapping("/folders/{shareCode}/files/{fileId}/download")
     public ResponseEntity<InputStreamResource> downloadSharedFolderFile(
             @PathVariable String shareCode, @PathVariable String fileId) {
+        String presigned = publicService.sharedFolderFileDownloadUrl(shareCode, fileId);
+        if (presigned != null) return redirect(presigned);
         StorageService.DownloadResource resource = publicService.downloadSharedFolderFile(shareCode, fileId);
         return MyStorageController.buildDownload(resource);
+    }
+
+    private static ResponseEntity<InputStreamResource> redirect(String url) {
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, url)
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .build();
     }
 }
