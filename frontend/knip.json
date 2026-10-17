@@ -3,10 +3,5 @@
   "entry": ["src/main.tsx", "index.html", "capacitor.config.ts"],
   "project": ["src/**/*.{ts,tsx}"],
   "ignore": ["android/**", "ios/**", "dist/**"],
-  "ignoreDependencies": [
-    "@capacitor/.*",
-    "@capacitor-community/.*",
-    "tw-animate-css",
-    "tailwindcss"
-  ]
+  "ignoreDependencies": ["@capacitor/.*", "@capacitor-community/.*", "tw-animate-css", "tailwindcss"]
 }
