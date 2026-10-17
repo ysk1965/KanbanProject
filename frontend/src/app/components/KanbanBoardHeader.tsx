@@ -12,7 +12,7 @@ import {
   BarChart3,
   MessageSquare,
   FolderOpen,
-  FileBarChart2,
+  Wrench,
   Building2,
   Keyboard,
   Trash2,
@@ -52,6 +52,7 @@ type ViewMode =
   | "meeting"
   | "library"
   | "report"
+  | "ld_upscale"
   | "statistics"
   | "ai_report"
   | "list"
@@ -204,7 +205,7 @@ export function KanbanBoardHeader({
       { key: "meeting", action: () => onViewModeChange("meeting") },
     ];
     tabs.push({ key: "library", action: () => onViewModeChange("library") });
-    tabs.push({ key: "report", action: () => onViewModeChange("report") });
+    tabs.push({ key: "feature", action: () => onViewModeChange("report") });
     if (!isRestricted && (isAdminOrOwner || (!isViewer && !isTester))) {
       tabs.push({
         key: "ai",
@@ -237,7 +238,7 @@ export function KanbanBoardHeader({
     if (viewMode === "schedule") return 1;
     if (viewMode === "meeting") return 2;
     if (viewMode === "library") return 3;
-    if (viewMode === "report") return 4;
+    if (viewMode === "report" || viewMode === "ld_upscale") return 4;
     if (viewMode === "statistics" || viewMode === "ai_report") {
       const tabs = getAvailableTabs();
       return tabs.findIndex((t) => t.key === "ai");
@@ -437,14 +438,14 @@ export function KanbanBoardHeader({
             <button
               onClick={() => onViewModeChange("report")}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                viewMode === "report"
+                viewMode === "report" || viewMode === "ld_upscale"
                   ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                   : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
               }`}
             >
-              <FileBarChart2 size={14} />
+              <Wrench size={14} />
               <span className="hidden md:inline">
-                {t("kanban.viewReport", "보고서")}
+                {t("kanban.viewTools", "도구")}
               </span>
             </button>
 

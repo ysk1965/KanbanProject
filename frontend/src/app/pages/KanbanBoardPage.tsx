@@ -20,7 +20,7 @@ import {
   LayoutGrid,
   FolderOpen,
   BarChart3,
-  FileBarChart2,
+  Puzzle,
   Lock,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
@@ -42,6 +42,7 @@ type ViewMode =
   | "meeting"
   | "library"
   | "report"
+  | "ld_upscale"
   | "statistics"
   | "ai_report"
   | "list"
@@ -104,6 +105,8 @@ import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { KanbanBlock } from "../components/KanbanBlock";
 import { MilestoneTabBar } from "../components/MilestoneTabBar";
 import { ScheduleSubTabBar } from "../components/ScheduleSubTabBar";
+import { FeatureSubTabBar } from "../components/FeatureSubTabBar";
+import { LdUpscalePanel } from "../components/tools/LdUpscalePanel";
 import { GanttView } from "../views/GanttView";
 import { KanbanView } from "../views/KanbanView";
 import { DashboardView } from "../views/DashboardView";
@@ -3111,6 +3114,13 @@ export function KanbanBoardPage() {
             onChange={handleScheduleSubTabChange}
           />
         )}
+        {/* 도구 탭 서브탭 바 (보고서 / LD 업스케일) */}
+        {(viewMode === "report" || viewMode === "ld_upscale") && (
+          <FeatureSubTabBar
+            activeTab={viewMode === "ld_upscale" ? "ld_upscale" : "report"}
+            onChange={(tab) => handleViewModeChange(tab)}
+          />
+        )}
         {(viewMode === "statistics" || viewMode === "ai_report") &&
           isAdminOrOwner &&
           !isViewer &&
@@ -3349,6 +3359,10 @@ export function KanbanBoardPage() {
               </div>
             </Suspense>
           </main>
+        ) : viewMode === "ld_upscale" ? (
+          <main className="flex-1 overflow-hidden">
+            <LdUpscalePanel />
+          </main>
         ) : viewMode === "statistics" ? (
           <main className="flex-1 overflow-hidden">
             <Suspense
@@ -3574,8 +3588,8 @@ export function KanbanBoardPage() {
             <MobileTabButton
               active={viewMode === "report"}
               onClick={() => handleViewModeChange("report")}
-              label={t("kanban.viewReport", "보고서")}
-              icon="report"
+              label={t("kanban.viewFeatures", "기능")}
+              icon="feature"
             />
             {!isRestricted && (isAdminOrOwner || (!isViewer && !isTester)) && (
               <MobileTabButton
@@ -3942,7 +3956,7 @@ function MobileTabButton({
   active: boolean;
   onClick: () => void;
   label: string;
-  icon: "kanban" | "schedule" | "meeting" | "library" | "report" | "ai";
+  icon: "kanban" | "schedule" | "meeting" | "library" | "feature" | "ai";
   locked?: boolean;
 }) {
   const iconMap = {
@@ -3950,7 +3964,7 @@ function MobileTabButton({
     schedule: <Calendar size={20} />,
     meeting: <Users size={20} />,
     library: <FolderOpen size={20} />,
-    report: <FileBarChart2 size={20} />,
+    feature: <Puzzle size={20} />,
     ai: <BarChart3 size={20} />,
   };
 
