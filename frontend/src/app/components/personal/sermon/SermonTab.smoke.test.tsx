@@ -7,9 +7,21 @@ import { MemoryRouter } from 'react-router-dom';
  * 서버는 없다고 가정한다 (목록 호출 실패 → 기기 저장만).
  */
 
+const authState = {
+  currentUser: { id: 'u-test', name: '테스트', email: 't@example.com' } as {
+    id: string;
+    name: string;
+    email: string;
+  } | null,
+  isAuthenticated: true,
+  isLoading: false,
+  logout: vi.fn(),
+  hideBilling: true,
+};
 vi.mock('../../../contexts/AuthContext', () => ({
-  useAuth: () => ({ currentUser: { id: 'u-test', name: '테스트' } }),
+  useAuth: () => authState,
 }));
+vi.mock('../../UserMenu', () => ({ UserMenu: () => <div data-testid="user-menu" /> }));
 
 vi.mock('../../../utils/services', () => ({
   personalFeatureAPI: {
@@ -141,5 +153,102 @@ describe('SermonTab smoke', () => {
     fireEvent.click(screen.getByRole('button', { name: '목록으로' }));
     expect(await screen.findByText('이번 주 적용, 1개 남았어요')).toBeInTheDocument();
     expect(screen.getByText('포도나무와 가지')).toBeInTheDocument();
+  });
+
+  it('로그인 없이(/sermonnote) 쓰면 서버를 부르지 않고 기기에만 저장하며, 로그인 안내가 보인다', async () => {
+    localStorage.clear();
+    const services = await import('../../../utils/services');
+    const listDocs = services.personalFeatureAPI.listDocs as unknown as ReturnType<typeof vi.fn>;
+    listDocs.mockClear();
+    authState.currentUser = null;
+    authState.isAuthenticated = false;
+
+    const { default: SermonTab } = await import('./SermonTab');
+    render(
+      <MemoryRouter initialEntries={['/sermonnote']}>
+        <SermonTab standalone />
+      </MemoryRouter>,
+    );
+
+    // 상단 띠의 로그인 버튼 + 기기 저장 안내
+    expect(await screen.findByText('로그인 없이도 이 기기에 저장돼요')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /로그인/ }).length).toBeGreaterThan(0);
+    expect(screen.getByText(/노트는 이 기기에만 저장돼요/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /새 설교 기록/ })[0]);
+    const title = await screen.findByLabelText('설교 제목');
+    fireEvent.change(title, { target: { value: '익명 노트' } });
+    // 편집기 저장 상태 줄
+    expect(
+      screen.getByText('이 기기에 저장됨 · 로그인하면 다른 기기와 맞춰져요'),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 800));
+    });
+    expect(listDocs).not.toHaveBeenCalled();
+    const raw = localStorage.getItem('sermon-notes-v1:anon');
+    expect(raw).toBeTruthy();
+    expect(JSON.parse(raw as string).notes[0].title).toBe('익명 노트');
+
+    // 목록으로 돌아오면 로그인 안내 줄
+    fireEvent.click(screen.getByRole('button', { name: '목록으로' }));
+    expect(await screen.findByText(/지금은 이 기기에만 저장되고 있어요/)).toBeInTheDocument();
+
+    authState.currentUser = { id: 'u-test', name: '테스트', email: 't@example.com' };
+    authState.isAuthenticated = true;
+  });
+
+  it('로그인하면 익명 노트가 그 계정으로 옮겨져 서버에 올라간다', async () => {
+    localStorage.clear();
+    localStorage.setItem(
+      'sermon-notes-v1:anon',
+      JSON.stringify({
+        notes: [
+          {
+            id: 'local-abc',
+            title: '로그인 전 메모',
+            preacher: '',
+            service: '주일 2부',
+            date: '2026-10-18',
+            refs: [],
+            body: '<p>은혜</p>',
+            thoughts: [],
+            elapsed: 0,
+            created_at: 1,
+            updated_at: 2,
+          },
+        ],
+        dirty: ['local-abc'],
+        deleted: [],
+        synced: [],
+      }),
+    );
+    const services = await import('../../../utils/services');
+    const createDoc = services.personalFeatureAPI.createDoc as unknown as ReturnType<typeof vi.fn>;
+    createDoc.mockClear();
+    createDoc.mockResolvedValueOnce({
+      id: 'srv-1',
+      feature_key: 'sermon',
+      title: '로그인 전 메모',
+      schema_ver: 1,
+      created_at: 'x',
+      updated_at: 'y',
+      content: {},
+    });
+    (
+      services.personalFeatureAPI.listDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce([]);
+
+    await renderTab();
+    // 익명 노트가 계정 저장소로 옮겨져 서버에 생성되고, 응답받은 서버 id 로 바뀐다
+    await waitFor(() => expect(createDoc).toHaveBeenCalledTimes(1));
+    expect(localStorage.getItem('sermon-notes-v1:anon')).toBeNull();
+    await waitFor(() => {
+      const cur = JSON.parse(localStorage.getItem('sermon-notes-v1:u-test') as string);
+      expect(cur.notes.some((n: { id: string }) => n.id === 'srv-1')).toBe(true);
+      expect(cur.dirty).toEqual([]);
+    });
+    expect(screen.getByText('로그인 전 메모')).toBeInTheDocument();
   });
 });

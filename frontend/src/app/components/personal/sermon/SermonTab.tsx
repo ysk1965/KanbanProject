@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Loader2, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../../contexts/AuthContext';
-import { SermonStore } from './sermonStore';
+import { UserMenu } from '../../UserMenu';
+import { ANONYMOUS_USER, SermonStore } from './sermonStore';
 import { SermonList } from './SermonList';
 import { SermonEditor } from './SermonEditor';
 import { applyStyle, loadStyle, persistStyle, type SermonStyle } from './sermonStyle';
@@ -12,9 +13,16 @@ import { loadBible } from './useBible';
 import './sermon.css';
 
 /**
- * 마이 스페이스 「설교 노트」 탭 루트.
- * 화면은 노트 목록과 설교 기록 화면 두 개. 딥링크: ?tab=sermon&note=<id>
+ * 설교 노트 루트. 두 곳에서 쓴다.
+ *  - 마이 스페이스 탭: ?tab=sermon&note=<id> (항상 로그인 상태)
+ *  - 독립 화면 /sermonnote: 로그인 없이도 기기 저장으로 쓰고, 상단 띠의 「로그인」으로 기존 로그인에 들어오면
+ *    그 사용자의 노트로 동기화된다. 로그인 전 노트는 로그인 직후 그 계정으로 옮겨진다.
  */
+
+interface SermonTabProps {
+  /** /sermonnote 독립 화면 — 상단 띠(브랜드·로그인/사용자 메뉴)를 그리고 tab 파라미터를 쓰지 않는다 */
+  standalone?: boolean;
+}
 
 const PARAM_TAB = 'tab';
 const PARAM_NOTE = 'note';
@@ -31,9 +39,82 @@ function ensureFont() {
   document.head.appendChild(link);
 }
 
-export default function SermonTab() {
-  const { currentUser } = useAuth();
-  const userId = currentUser?.id ?? 'anonymous';
+export default function SermonTab({ standalone = false }: SermonTabProps) {
+  const { currentUser, isAuthenticated, isLoading: authLoading, logout, hideBilling } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  // 인증 확인이 끝나기 전에는 저장소를 만들지 않는다 (익명 → 사용자로 두 번 띄우지 않기 위해)
+  const authReady = !authLoading;
+  const userId = isAuthenticated && currentUser?.id ? currentUser.id : ANONYMOUS_USER;
+  const anonymous = userId === ANONYMOUS_USER;
+
+  const goLogin = useCallback(() => {
+    const returnTo = encodeURIComponent(location.pathname + location.search);
+    navigate(`/login?returnTo=${returnTo}`);
+  }, [navigate, location.pathname, location.search]);
+
+  if (!authReady) {
+    return (
+      <div className="sermon-app">
+        <div
+          style={{ flex: 1, display: 'grid', placeItems: 'center' }}
+          role="status"
+          aria-label="불러오는 중"
+        >
+          <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--sn-accent)' }} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <SermonTabBody
+      key={userId}
+      userId={userId}
+      anonymous={anonymous}
+      standalone={standalone}
+      onLogin={anonymous ? goLogin : undefined}
+      strip={
+        standalone ? (
+          <header className="sn-strip">
+            <div className="sn-brand">
+              설교 노트 <small>개역한글</small>
+            </div>
+            <span className="sn-sp" />
+            {anonymous ? (
+              <>
+                <span className="sn-strip-hint">로그인 없이도 이 기기에 저장돼요</span>
+                <button type="button" className="sn-btn sn-primary" onClick={goLogin}>
+                  <LogIn className="sn-icon" aria-hidden />
+                  로그인
+                </button>
+              </>
+            ) : (
+              currentUser && (
+                <UserMenu
+                  user={{ ...currentUser, avatar: currentUser.profile_image || undefined }}
+                  onOpenSubscription={() => navigate('/boards')}
+                  onLogout={() => void logout()}
+                  hideBilling={hideBilling}
+                />
+              )
+            )}
+          </header>
+        ) : null
+      }
+    />
+  );
+}
+
+interface BodyProps {
+  userId: string;
+  anonymous: boolean;
+  standalone: boolean;
+  onLogin?: () => void;
+  strip: React.ReactNode;
+}
+
+function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -66,15 +147,15 @@ export default function SermonTab() {
     persistStyle(s);
   }, []);
 
-  // URL 동기화
+  // URL 동기화 (마이 스페이스에서는 tab=sermon 도 같이 적는다)
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
-    next.set(PARAM_TAB, 'sermon');
+    if (!standalone) next.set(PARAM_TAB, 'sermon');
     if (openId) next.set(PARAM_NOTE, openId);
     else next.delete(PARAM_NOTE);
     if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openId]);
+  }, [openId, standalone]);
 
   // 로컬 id 가 서버 id 로 바뀌면 열린 노트 id 도 따라간다
   useEffect(
@@ -116,9 +197,12 @@ export default function SermonTab() {
     [store],
   );
 
+  const editing = !!(openId && openNote);
+
   return (
     <div ref={rootRef} className="sermon-app">
-      {openId && openNote ? (
+      {!editing && strip}
+      {editing ? (
         <SermonEditor
           key={openNote.id}
           note={openNote}
@@ -129,6 +213,8 @@ export default function SermonTab() {
           onBack={() => setOpenId(null)}
           onDeleted={() => setOpenId(null)}
           initialAid={openAid}
+          canAttach={!anonymous}
+          onLogin={onLogin}
         />
       ) : openId && store.status.loading ? (
         <div
@@ -145,6 +231,7 @@ export default function SermonTab() {
           onOpen={handleOpen}
           onNew={handleNew}
           onToggleApply={handleToggleApply}
+          onLogin={onLogin}
         />
       )}
     </div>

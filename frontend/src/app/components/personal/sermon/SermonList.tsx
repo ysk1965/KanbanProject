@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Plus, Search } from 'lucide-react';
+import { Check, LogIn, Plus, Search, X } from 'lucide-react';
 import { compareRef, encRef, norm, refLong, refShort, type Ref } from './bibleRefs';
 import type { SyncStatus } from './sermonStore';
 import {
@@ -25,6 +25,18 @@ interface SermonListProps {
   onOpen: (id: string, aid?: string | null) => void;
   onNew: () => void;
   onToggleApply: (noteId: string, thoughtId: string) => void;
+  /** 로그인 전이면 기존 로그인으로 보낸다 (없으면 안내를 그리지 않음) */
+  onLogin?: () => void;
+}
+
+const NUDGE_KEY = 'sermon-login-nudge-until';
+const NUDGE_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
+function nudgeSnoozed(): boolean {
+  try {
+    return Number(localStorage.getItem(NUDGE_KEY) || 0) > Date.now();
+  } catch {
+    return false;
+  }
 }
 
 type Nav = 'all' | 'apply' | 'thoughts' | 'verses';
@@ -62,9 +74,26 @@ function Progress({ done, total }: { done: number; total: number }) {
   );
 }
 
-export function SermonList({ notes, status, onOpen, onNew, onToggleApply }: SermonListProps) {
+export function SermonList({
+  notes,
+  status,
+  onOpen,
+  onNew,
+  onToggleApply,
+  onLogin,
+}: SermonListProps) {
   const { bible } = useBible();
   const [nav, setNav] = useState<Nav>('all');
+  const [nudgeHidden, setNudgeHidden] = useState(() => nudgeSnoozed());
+  const showNudge = status.anonymous && !!onLogin && notes.length > 0 && !nudgeHidden;
+  const snoozeNudge = () => {
+    setNudgeHidden(true);
+    try {
+      localStorage.setItem(NUDGE_KEY, String(Date.now() + NUDGE_SNOOZE_MS));
+    } catch {
+      /* ignore */
+    }
+  };
   const [service, setService] = useState<string | null>(null);
   const [q, setQ] = useState('');
 
@@ -101,9 +130,11 @@ export function SermonList({ notes, status, onOpen, onNew, onToggleApply }: Serm
 
   const storeNote = !status.localOk
     ? '저장 공간을 쓸 수 없어 이 창을 닫으면 사라져요.'
-    : status.pending
-      ? `기기에 저장된 변경 ${status.pending}건은 연결되면 올라가요.`
-      : '노트는 기기에 먼저 저장되고, 다른 기기와 맞춰져요.';
+    : status.anonymous
+      ? '노트는 이 기기에만 저장돼요. 로그인하면 다른 기기와 맞춰지고 사진·영상도 붙일 수 있어요.'
+      : status.pending
+        ? `기기에 저장된 변경 ${status.pending}건은 연결되면 올라가요.`
+        : '노트는 기기에 먼저 저장되고, 다른 기기와 맞춰져요.';
 
   const applyRow = ({ n, t }: ApplyItem) => (
     <div key={`${n.id}|${t.id}`} className="sn-arow" data-checked={!!t.done}>
@@ -371,9 +402,39 @@ export function SermonList({ notes, status, onOpen, onNew, onToggleApply }: Serm
             ))}
           </div>
         )}
-        <div className="sn-store-note">{storeNote}</div>
+        <div className="sn-store-note">
+          {storeNote}
+          {status.anonymous && onLogin && (
+            <div>
+              <button type="button" className="sn-login-link" onClick={onLogin}>
+                <LogIn className="sn-icon" style={{ width: 14, height: 14 }} aria-hidden />
+                로그인
+              </button>
+            </div>
+          )}
+        </div>
       </nav>
       <main className="sn-list-main">
+        {showNudge && (
+          <div className="sn-nudge" role="status">
+            <div className="sn-nudge-text">
+              <b>지금은 이 기기에만 저장되고 있어요.</b> 로그인하면 다른 기기에서도 보이고,
+              사진·영상도 붙일 수 있어요. 적어 둔 노트는 그대로 옮겨져요.
+            </div>
+            <button type="button" className="sn-btn sn-primary" onClick={onLogin}>
+              <LogIn className="sn-icon" aria-hidden />
+              로그인
+            </button>
+            <button
+              type="button"
+              className="sn-x"
+              aria-label="일주일 동안 보지 않기"
+              onClick={snoozeNudge}
+            >
+              <X className="sn-icon" style={{ width: 16, height: 16 }} />
+            </button>
+          </div>
+        )}
         <div className="sn-toolbar">
           <label className="sn-search" htmlFor="sn-q">
             <Search className="sn-icon" style={{ color: 'var(--sn-muted)' }} aria-hidden />

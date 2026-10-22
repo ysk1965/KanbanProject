@@ -52,6 +52,9 @@ interface SermonEditorProps {
   onDeleted: () => void;
   /** 열면서 바로 이동할 연결 위치 */
   initialAid?: string | null;
+  /** 로그인 전이면 첨부 불가 */
+  canAttach: boolean;
+  onLogin?: () => void;
 }
 
 const SERVICE_OPTIONS = [
@@ -163,6 +166,8 @@ export function SermonEditor({
   onBack,
   onDeleted,
   initialAid,
+  canAttach,
+  onLogin,
 }: SermonEditorProps) {
   const { bible } = useBible();
   const noteRef = useRef<SermonNote>(note);
@@ -974,6 +979,8 @@ export function SermonEditor({
             stampNow={stampNow}
             narrow={narrow}
             width={!narrow && asideW ? asideW : undefined}
+            canAttach={canAttach}
+            onLogin={onLogin}
             onClose={() => setPanel(false)}
             inputRef={thoughtInputRef}
             onJump={onJump}

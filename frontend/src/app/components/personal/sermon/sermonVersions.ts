@@ -95,6 +95,23 @@ export function remapVersions(userId: string, fromId: string, toId: string) {
   writeAll(userId, all);
 }
 
+/** 로그인 직후 익명 사용자의 버전 기록을 계정으로 옮긴다 */
+export function adoptVersions(fromUser: string, toUser: string) {
+  const src = readAll(fromUser);
+  if (!Object.keys(src).length) return;
+  const dst = readAll(toUser);
+  for (const noteId in src) {
+    dst[noteId] = [...(src[noteId] || []), ...(dst[noteId] || [])].slice(0, LOCAL_KEEP);
+  }
+  if (writeAll(toUser, dst)) {
+    try {
+      localStorage.removeItem(key(fromUser));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export function dropVersions(userId: string, noteId: string) {
   const all = readAll(userId);
   if (!all[noteId]) return;

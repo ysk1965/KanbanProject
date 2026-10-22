@@ -255,6 +255,95 @@ html.light .sn-scope {
   font-weight: 500;
 }
 
+/* ---------- 독립 화면 상단 띠 ---------- */
+.sermon-app .sn-strip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 16px;
+  padding-top: calc(6px + env(safe-area-inset-top, 0px));
+  background: var(--sn-surface);
+  border-bottom: 1px solid var(--sn-line);
+}
+.sermon-app .sn-strip .sn-brand {
+  font-size: 18px;
+  padding: 0;
+}
+.sermon-app .sn-strip .sn-sp {
+  flex: 1;
+}
+.sermon-app .sn-strip .sn-btn {
+  min-height: 36px;
+}
+.sermon-app .sn-strip .sn-strip-hint {
+  font-size: 12px;
+  color: var(--sn-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 600px) {
+  .sermon-app .sn-strip .sn-strip-hint {
+    display: none;
+  }
+}
+
+/* 로그인 안내 줄 (로그인 전, 노트가 쌓이기 시작하면) */
+.sermon-app .sn-nudge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--sn-r-ctl);
+  background: var(--sn-surface-2);
+  font-size: 13px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-nudge .sn-nudge-text {
+  flex: 1;
+  min-width: 0;
+}
+.sermon-app .sn-nudge .sn-nudge-text b {
+  color: var(--sn-fg);
+  font-weight: 600;
+}
+.sermon-app .sn-nudge .sn-btn {
+  min-height: 34px;
+}
+.sermon-app .sn-nudge .sn-x {
+  border: 0;
+  background: transparent;
+  color: var(--sn-faint);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.sermon-app .sn-nudge .sn-x:hover {
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+}
+.sermon-app .sn-side .sn-login-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  padding: 4px 0 0;
+  color: var(--sn-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+@media (max-width: 760px) {
+  .sermon-app .sn-nudge {
+    flex-wrap: wrap;
+  }
+}
+
 /* ---------- list view ---------- */
 .sermon-app .sn-list {
   flex: 1;

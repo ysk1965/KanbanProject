@@ -138,10 +138,7 @@ const GalleryUploadPage = lazyWithRetry(
   () => import('./pages/GalleryUploadPage').then((m) => ({ default: m.GalleryUploadPage })),
   'GalleryUploadPage',
 );
-const BibleTranscriptionPage = lazyWithRetry(
-  () => import('./pages/BibleTranscriptionPage'),
-  'BibleTranscriptionPage',
-);
+const SermonNotePage = lazyWithRetry(() => import('./pages/SermonNotePage'), 'SermonNotePage');
 const RoulettePage = lazyWithRetry(() => import('./pages/RoulettePage'), 'RoulettePage');
 const CustomIconPage = lazyWithRetry(() => import('./pages/CustomIconPage'), 'CustomIconPage');
 const OrganizationPage = lazyWithRetry(
@@ -692,7 +689,8 @@ function AppRoutes() {
             <Route path="/announcements" element={<AnnouncementsPage />} />
 
             {/* 성경 필사 */}
-            <Route path="/bible" element={<BibleTranscriptionPage />} />
+            {/* 설교 노트 — 로그인 없이도 기기 저장으로 쓰고, 로그인하면 그 사용자로 동기화 */}
+            <Route path="/sermonnote" element={<SermonNotePage />} />
 
             {/* 커피 룰렛 */}
             <Route path="/roulette" element={<RoulettePage />} />
@@ -865,7 +863,16 @@ const MAINTENANCE_ALLOWED_PATHS = [
   '/shared/gallery',
   '/shared/upload',
   '/shared/gallery-upload',
+  '/sermonnote',
 ];
+
+/**
+ * 서버 없이도 돌아가야 하는 경로 — 기기 우선 저장을 전제로 만든 화면.
+ * 서버 무응답(배포 중·장애·오프라인)이어도 ServerDownPage 로 덮지 않고, 복구돼도 새로고침하지 않는다.
+ */
+const OFFLINE_CAPABLE_PATHS = ['/sermonnote'];
+const isOfflineCapablePath = (pathname: string) =>
+  OFFLINE_CAPABLE_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
 /** KST 03:30~08:30 야간 점검 시간대인지 */
 const isNightWindow = (): boolean => {
@@ -891,6 +898,9 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const outageRef = useRef(false);
   // 한 번이라도 앱을 정상 렌더한 뒤 끊겼는지 (복구 시 새로고침 여부 판단)
   const wasHealthyRef = useRef(false);
+  const offlineCapable = isOfflineCapablePath(location.pathname);
+  const offlineCapableRef = useRef(offlineCapable);
+  offlineCapableRef.current = offlineCapable;
 
   const checkMaintenance = useCallback(async () => {
     if (checkingRef.current) return;
@@ -900,7 +910,8 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
       const status = await fetchServerStatus<MaintenanceStatus>();
 
       // 세션 도중 끊겼다가 복구된 경우: 화면에 남은 데이터가 낡았으므로 다시 로드
-      if (outageRef.current && wasHealthyRef.current) {
+      // (기기 우선 화면은 예외 — 예배 중 와이파이가 흔들릴 때마다 새로고침되면 안 된다)
+      if (outageRef.current && wasHealthyRef.current && !offlineCapableRef.current) {
         window.location.reload();
         return;
       }
@@ -966,7 +977,8 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
     (path) => location.pathname === path || location.pathname.startsWith(path + '/'),
   );
 
-  const isBlocked = !!outage || (!!maintenanceStatus?.enabled && !isAllowedPath);
+  const isBlocked =
+    (!!outage && !offlineCapable) || (!!maintenanceStatus?.enabled && !isAllowedPath);
 
   // 정상 렌더에 도달한 시점을 기록 (복구 시 새로고침 판단용)
   useEffect(() => {
@@ -975,7 +987,8 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
     }
   }, [isChecking, isBlocked]);
 
-  if (isChecking) {
+  // 기기 우선 화면은 서버 확인을 기다리지 않는다 (오프라인이면 8초 타임아웃까지 스피너만 돈다)
+  if (isChecking && !offlineCapable) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
@@ -983,8 +996,8 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 서버 무응답은 로그인/공유 링크 포함 전 경로에서 막는다 (어차피 API가 없다)
-  if (outage) {
+  // 서버 무응답은 로그인/공유 링크 포함 전 경로에서 막는다 (어차피 API가 없다). 기기 우선 화면만 예외.
+  if (outage && !offlineCapable) {
     return (
       <ServerDownPage onRetry={checkMaintenance} isOffline={outage.offline} since={outage.since} />
     );

@@ -9,7 +9,7 @@ import {
   type SermonContent,
   type SermonNote,
 } from './sermonTypes';
-import { dropVersions, remapVersions } from './sermonVersions';
+import { adoptVersions, dropVersions, remapVersions } from './sermonVersions';
 
 /**
  * 설교 노트 저장소 — 기획서 §10 「저장과 동기화」.
@@ -22,7 +22,12 @@ import { dropVersions, remapVersions } from './sermonVersions';
  * 서버 id 가 없는 새 노트는 `local-` id 로 만들어 두고, 올라간 뒤 서버 id 로 바꾼다(remap 리스너로 열린 화면에 알림).
  */
 
+/** 로그인 전 사용자의 저장소 키. 로그인하면 이 키의 노트가 그 계정으로 옮겨진다 */
+export const ANONYMOUS_USER = 'anon';
+
 export interface SyncStatus {
+  /** 로그인 전 — 서버를 부르지 않고 이 기기에만 저장 */
+  anonymous: boolean;
   /** 아직 서버에 올리지 못한 변경 수 */
   pending: number;
   /** null = 아직 모름 */
@@ -72,7 +77,14 @@ export class SermonStore {
   /** 편집 중인 노트 — 서버 pull 이 덮어쓰지 않도록 */
   openId: string | null = null;
 
-  status: SyncStatus = { pending: 0, online: null, lastSync: 0, loading: true, localOk: true };
+  status: SyncStatus = {
+    anonymous: false,
+    pending: 0,
+    online: null,
+    lastSync: 0,
+    loading: true,
+    localOk: true,
+  };
 
   private onOnline = () => {
     this.backoff = BACKOFF_MIN;
@@ -82,7 +94,13 @@ export class SermonStore {
     this.setStatus({ online: false });
   };
 
-  constructor(private readonly userId: string) {}
+  constructor(private readonly userId: string) {
+    this.status.anonymous = userId === ANONYMOUS_USER;
+  }
+
+  get anonymous(): boolean {
+    return this.userId === ANONYMOUS_USER;
+  }
 
   // ───────── 구독 ─────────
 
@@ -108,7 +126,41 @@ export class SermonStore {
   // ───────── 로컬 저장 ─────────
 
   private get lsKey() {
-    return `sermon-notes-v1:${this.userId}`;
+    return SermonStore.keyFor(this.userId);
+  }
+
+  static keyFor(userId: string) {
+    return `sermon-notes-v1:${userId}`;
+  }
+
+  /**
+   * 로그인 직후: 로그인 전에 이 기기에 적어 둔(익명) 노트를 이 계정으로 옮긴다.
+   * 익명 노트는 전부 local- id 라 서버 문서로 새로 올라간다. 옮긴 뒤 익명 저장소는 비운다.
+   */
+  private adoptAnonymous(): number {
+    if (this.anonymous || !this.status.localOk) return 0;
+    let raw: string | null;
+    try {
+      raw = localStorage.getItem(SermonStore.keyFor(ANONYMOUS_USER));
+    } catch {
+      return 0;
+    }
+    if (!raw) return 0;
+    let moved = 0;
+    try {
+      const data = JSON.parse(raw) as Partial<PersistShape>;
+      (data.notes || []).forEach((n) => {
+        if (!n || !n.id || this.notes.has(n.id)) return;
+        this.notes.set(n.id, normalizeNote(n.id, n));
+        this.dirty.add(n.id);
+        moved++;
+      });
+      adoptVersions(ANONYMOUS_USER, this.userId);
+      localStorage.removeItem(SermonStore.keyFor(ANONYMOUS_USER));
+    } catch (e) {
+      console.warn('sermon: adopt anonymous failed', e);
+    }
+    return moved;
   }
 
   private loadLocal() {
@@ -152,6 +204,13 @@ export class SermonStore {
 
   async init() {
     this.loadLocal();
+    if (this.anonymous) {
+      // 로그인 전: 서버 없음. 기기 저장이 곧 저장이다
+      this.setStatus({ loading: false, online: null });
+      return;
+    }
+    const adopted = this.adoptAnonymous();
+    if (adopted) this.persistLocal();
     this.setStatus({ loading: true });
     window.addEventListener('online', this.onOnline);
     window.addEventListener('offline', this.onOffline);
@@ -262,6 +321,10 @@ export class SermonStore {
   }
 
   async flush() {
+    if (this.anonymous) {
+      this.setStatus({});
+      return;
+    }
     if (this.dirty.size === 0 && this.deleted.size === 0) {
       this.setStatus({});
       return;
@@ -367,8 +430,11 @@ function contentOf(n: SermonNote): SermonContent {
 /* ───────── 저장 상태 문구 ───────── */
 
 export function syncLabel(s: SyncStatus): { text: string; state: 'ok' | 'wait' | 'warn' } {
-  if (!s.localOk && s.pending) {
+  if (!s.localOk) {
     return { text: '저장 공간을 쓸 수 없어 창을 닫으면 사라져요', state: 'warn' };
+  }
+  if (s.anonymous) {
+    return { text: '이 기기에 저장됨 · 로그인하면 다른 기기와 맞춰져요', state: 'ok' };
   }
   if (s.pending) {
     return {

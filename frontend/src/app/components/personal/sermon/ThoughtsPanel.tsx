@@ -54,6 +54,9 @@ interface ThoughtsPanelProps {
   narrow: boolean;
   /** 데스크톱에서 분할선으로 정한 패널 폭(px) */
   width?: number;
+  /** 로그인 전에는 첨부를 올릴 곳이 없다 → 안내만 */
+  canAttach: boolean;
+  onLogin?: () => void;
   onClose: () => void;
   inputRef: RefObject<HTMLTextAreaElement>;
   onJump: (aid: string | null, label: string | null) => void;
@@ -209,7 +212,20 @@ function AnchorRow({
 
 export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>(
   function ThoughtsPanel(
-    { thoughts, updateThoughts, core, ptrTick, stampNow, narrow, width, onClose, inputRef, onJump },
+    {
+      thoughts,
+      updateThoughts,
+      core,
+      ptrTick,
+      stampNow,
+      narrow,
+      width,
+      canAttach,
+      onLogin,
+      onClose,
+      inputRef,
+      onJump,
+    },
     handleRef,
   ) {
     const [filter, setFilter] = useState<Filter>('전체');
@@ -291,7 +307,18 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
       }
     }, []);
 
+    const loginNudge = useCallback(() => {
+      toast('로그인하면 사진·영상을 첨부할 수 있어요', {
+        action: onLogin ? { label: '로그인', onClick: onLogin } : undefined,
+      });
+    }, [onLogin]);
+
     const pickFiles = (target: 'new' | 'edit') => {
+      if (!canAttach) {
+        loginNudge();
+
+        return;
+      }
       fileTarget.current = target;
       const f = fileRef.current;
       if (!f) return;
@@ -308,6 +335,10 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
       const fs = [...(e.clipboardData?.files || [])].filter((f) => /^image\//.test(f.type));
       if (!fs.length) return;
       e.preventDefault();
+      if (!canAttach) {
+        loginNudge();
+        return;
+      }
       fs.forEach((f) => void addFile(f, target));
     };
 
