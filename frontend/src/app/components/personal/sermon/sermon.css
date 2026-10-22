@@ -370,6 +370,7 @@ html.light .sn-scope {
   align-items: baseline;
   gap: 8px;
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 .sermon-app .sn-brand small {
   font-family: var(--sn-f-ui);
@@ -2392,7 +2393,7 @@ html.light .sn-scope {
   }
   .sermon-app .sn-side .sn-nav .sn-label,
   .sermon-app .sn-store-note,
-  .sermon-app .sn-brand small {
+  .sermon-app .sn-side .sn-brand {
     display: none;
   }
   .sermon-app .sn-nav button {
@@ -2454,6 +2455,12 @@ html.light .sn-scope {
   }
   .sermon-app .sn-vblock .sn-vh button.sn-act {
     padding: 0 6px;
+  }
+  /* 서식 바: 구절 넣기는 둘째 줄에 꽉 차게 (한 줄에 다 안 들어간다) */
+  .sermon-app .sn-versefield {
+    flex-basis: 100%;
+    max-width: none;
+    margin-left: 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {

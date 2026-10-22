@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 
@@ -13,6 +13,13 @@ const SermonTab = lazyWithRetry(
 );
 
 export default function SermonNotePage() {
+  useEffect(() => {
+    const prev = document.title;
+    document.title = '설교 노트';
+    return () => {
+      document.title = prev;
+    };
+  }, []);
   return (
     <div className="h-dvh flex flex-col overflow-hidden bg-bridge-dark">
       <Suspense

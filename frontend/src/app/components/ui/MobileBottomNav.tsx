@@ -58,6 +58,7 @@ const tabs: NavTab[] = [
 
 // Paths where bottom nav should be hidden
 const HIDDEN_PATHS = [
+  '/sermonnote', // 설교 노트 독립 화면 — 자체 서식 바가 하단에 있다
   '/login',
   '/landing',
   '/compare',
