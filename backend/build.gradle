@@ -40,37 +40,37 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
     // Rate Limiting
-    implementation 'com.bucket4j:bucket4j-core:8.0.1'
+    implementation 'com.bucket4j:bucket4j-core:8.10.1'
 
     // Redis Cache
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-cache'
 
     // JWT
-    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
-    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
-    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+    implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.13.0'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.13.0'
 
     // AWS S3
-    implementation 'software.amazon.awssdk:s3:2.25.0'
+    implementation 'software.amazon.awssdk:s3:2.56.0'
 
     // AWS CloudWatch
-    implementation 'software.amazon.awssdk:cloudwatch:2.25.0'
+    implementation 'software.amazon.awssdk:cloudwatch:2.56.0'
 
     // AWS SSM Parameter Store (GitHub App 개인키 등 EB 환경변수 4KB 한도를 넘는 비밀값 보관)
-    implementation 'software.amazon.awssdk:ssm:2.25.0'
+    implementation 'software.amazon.awssdk:ssm:2.56.0'
 
     // Image Thumbnail
-    implementation 'net.coobird:thumbnailator:0.4.20'
+    implementation 'net.coobird:thumbnailator:0.4.21'
 
     // FFmpeg (Video Thumbnail)
-    implementation 'net.bramp.ffmpeg:ffmpeg:0.8.0'
+    implementation 'net.bramp.ffmpeg:ffmpeg:0.9.2'
 
     // Google OAuth2
-    implementation 'com.google.api-client:google-api-client:2.2.0'
+    implementation 'com.google.api-client:google-api-client:2.9.1'
 
     // Firebase Admin (FCM Push Notifications)
-    implementation 'com.google.firebase:firebase-admin:9.3.0'
+    implementation 'com.google.firebase:firebase-admin:9.11.0'
 
     // Database
     runtimeOnly 'org.postgresql:postgresql'
@@ -85,12 +85,12 @@ dependencies {
     implementation 'org.springframework:spring-aspects'
 
     // ShedLock (스케줄러 분산 락 — 무중단 배포 겹침 구간/오토스케일 시 중복 실행 방지)
-    implementation 'net.javacrumbs.shedlock:shedlock-spring:7.7.0'
-    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.7.0'
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:7.10.1'
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.10.1'
 
     // Observability — 운영 JSON 로그(logstash encoder) + Sentry 에러 리포팅 (DSN 비우면 no-op)
     implementation 'net.logstash.logback:logstash-logback-encoder:9.0'
-    implementation 'io.sentry:sentry-spring-boot-starter-jakarta:8.60.0'
+    implementation 'io.sentry:sentry-spring-boot-starter-jakarta:8.61.0'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'
