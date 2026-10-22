@@ -240,6 +240,38 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
       media: PendingMedia[];
     } | null>(null);
     const [zoom, setZoom] = useState<string | null>(null);
+    // 폰 하단 시트: 반 높이 / 전체 높이, 손잡이를 끌어 닫기
+    const [sheet, setSheet] = useState<'half' | 'full'>('half');
+    const [dragging, setDragging] = useState(false);
+    const asideRef = useRef<HTMLElement>(null);
+    const dragStart = useRef<{ y: number; moved: boolean } | null>(null);
+    const justDragged = useRef(false);
+    const onHandleDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+      dragStart.current = { y: e.clientY, moved: false };
+      e.currentTarget.setPointerCapture(e.pointerId);
+      setDragging(true);
+    };
+    const onHandleMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+      const d = dragStart.current;
+      if (!d) return;
+      const dy = e.clientY - d.y;
+      if (Math.abs(dy) > 6) d.moved = true;
+      if (asideRef.current) asideRef.current.style.transform = `translateY(${Math.max(0, dy)}px)`;
+    };
+    const onHandleUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+      const d = dragStart.current;
+      dragStart.current = null;
+      setDragging(false);
+      if (asideRef.current) asideRef.current.style.transform = '';
+      if (!d) return;
+      const dy = e.clientY - d.y;
+      if (!d.moved) return; // 탭은 click 에서 토글한다
+      justDragged.current = true;
+      if (dy > 70)
+        onClose(); // 아래로 끌어 닫기
+      else if (dy < -40) setSheet('full');
+      else if (dy > 30) setSheet('half');
+    };
     const [showHint, setShowHint] = useState(() => hintCount() < 3);
     const fileRef = useRef<HTMLInputElement>(null);
     const editRef = useRef<HTMLTextAreaElement>(null);
@@ -468,6 +500,7 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
     // ───────── 입력창 포커스/블러 ─────────
     const onFocusInput = () => {
       setComposeOpen(true);
+      if (narrow) setSheet('full');
       core?.beginNew();
       const el = core?.ptrEl();
       el?.scrollIntoView({ block: narrow ? 'start' : 'nearest', behavior: 'smooth' });
@@ -491,7 +524,34 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
     const Xs = <X className="sn-icon" style={{ width: 15, height: 15 }} />;
 
     return (
-      <aside className="sn-aside" aria-label="내 생각" style={width ? { width } : undefined}>
+      <aside
+        ref={asideRef}
+        className="sn-aside"
+        aria-label="내 생각"
+        data-sheet={narrow ? sheet : undefined}
+        data-dragging={dragging}
+        style={width ? { width } : undefined}
+      >
+        {narrow && (
+          <button
+            type="button"
+            className="sn-sheet-handle"
+            aria-label={sheet === 'full' ? '패널 반만 보기' : '패널 크게 보기'}
+            onPointerDown={onHandleDown}
+            onPointerMove={onHandleMove}
+            onPointerUp={onHandleUp}
+            onPointerCancel={onHandleUp}
+            onClick={() => {
+              if (justDragged.current) {
+                justDragged.current = false;
+                return;
+              }
+              setSheet((s) => (s === 'full' ? 'half' : 'full')); // 탭: 반 ↔ 전체
+            }}
+          >
+            <i />
+          </button>
+        )}
         <div className="sn-ahead">
           <h2>내 생각</h2>
           <span className="sn-label">{thoughts.length}개</span>

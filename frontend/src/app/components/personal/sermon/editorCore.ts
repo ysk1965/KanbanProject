@@ -265,7 +265,7 @@ export class EditorCore {
       `<div class="sn-vh"><button type="button" class="sn-vtog" data-act="tog" aria-expanded="${!col}">${CHEV}<span>${esc(refLong(r))}</span></button>` +
       `<span class="sn-tr">개역한글</span><span class="sn-peek">${esc(peek)}</span>` +
       `<button type="button" class="sn-act sn-hide-sm" data-act="ctx">${ctx ? '문맥 접기' : '앞뒤 문맥'}</button>` +
-      `<button type="button" class="sn-act" data-act="copy">복사</button>` +
+      `<button type="button" class="sn-act sn-hide-sm" data-act="copy">복사</button>` +
       `<button type="button" class="sn-act" data-act="rm" aria-label="구절 삭제">삭제</button></div>` +
       `<div class="sn-vt">${verseHTML(r, ctx, getMarks(el))}</div>`;
   }

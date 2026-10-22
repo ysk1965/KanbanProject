@@ -14,29 +14,82 @@ let cache: BibleData | null = null;
 let pending: Promise<BibleData | null> | null = null;
 const listeners = new Set<() => void>();
 
+/* ───── IndexedDB 보관 — iOS 가 7일 미사용 시 서비스 워커 캐시를 비워도 본문은 남는다 ───── */
+const IDB_NAME = 'sermon-bible';
+const IDB_STORE = 'books';
+const IDB_KEY = 'krv';
+
+function openIdb(): Promise<IDBDatabase | null> {
+  return new Promise((resolve) => {
+    try {
+      if (typeof indexedDB === 'undefined') return resolve(null);
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+async function idbGet(): Promise<BibleData | null> {
+  const db = await openIdb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(IDB_KEY);
+      req.onsuccess = () =>
+        resolve(
+          Array.isArray(req.result) && req.result.length === 66 ? (req.result as BibleData) : null,
+        );
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+async function idbPut(data: BibleData) {
+  const db = await openIdb();
+  if (!db) return;
+  try {
+    db.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).put(data, IDB_KEY);
+  } catch {
+    /* 용량 부족 등 — 다음에 다시 받으면 된다 */
+  }
+}
+
 export function getBible(): BibleData | null {
   return cache;
 }
 
+function adopt(d: BibleData): BibleData {
+  cache = d;
+  setVerseCounts(d.map((b) => b.map((c) => c.length)));
+  listeners.forEach((fn) => fn());
+  return d;
+}
+
+/** IndexedDB → 네트워크(서비스 워커 캐시 포함) 순서로 받는다 */
 export function loadBible(): Promise<BibleData | null> {
   if (cache) return Promise.resolve(cache);
   if (pending) return pending;
-  pending = fetch(BIBLE_URL)
-    .then((r) => {
+  pending = (async () => {
+    const stored = await idbGet();
+    if (stored) return adopt(stored);
+    try {
+      const r = await fetch(BIBLE_URL);
       if (!r.ok) throw new Error(`bible ${r.status}`);
-      return r.json() as Promise<BibleData>;
-    })
-    .then((d) => {
-      cache = d;
-      setVerseCounts(d.map((b) => b.map((c) => c.length)));
-      listeners.forEach((fn) => fn());
-      return d;
-    })
-    .catch((e) => {
+      const d = (await r.json()) as BibleData;
+      void idbPut(d);
+      return adopt(d);
+    } catch (e) {
       console.error('Failed to load bible data:', e);
       pending = null;
       return null;
-    });
+    }
+  })();
   return pending;
 }
 

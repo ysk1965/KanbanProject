@@ -124,7 +124,9 @@ describe('SermonTab smoke', () => {
     fireEvent.click(screen.getByRole('button', { name: /설교 본문 추가/ }));
     const q = await screen.findByPlaceholderText('구절 입력');
     fireEvent.change(q, { target: { value: '요 15:5' } });
-    fireEvent.click(screen.getByRole('button', { name: '넣기' }));
+    // 폰용 머리와 바닥 두 곳에 「넣기」가 있다 (CSS 로 하나만 보임) — 바닥 쪽을 누른다
+    const inserts = screen.getAllByRole('button', { name: /^넣기$/ });
+    fireEvent.click(inserts[inserts.length - 1]);
     await waitFor(() => expect(screen.getByText('요한복음 15:5')).toBeInTheDocument());
     expect(screen.getAllByText(/나는 포도나무요/).length).toBeGreaterThan(0);
 

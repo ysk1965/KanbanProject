@@ -216,6 +216,8 @@ export function SermonEditor({
   const [topTitleShow, setTopTitleShow] = useState(false);
   const [mvClosed, setMvClosed] = useState<Set<string>>(() => new Set());
   const [dateShown, setDateShown] = useState(false);
+  /** 폰에서 키보드가 열렸을 때 보이는 뷰포트 (iOS Safari — 레이아웃 뷰포트가 줄지 않는다) */
+  const [kb, setKb] = useState<{ top: number; height: number } | null>(null);
 
   const editorElRef = useRef<HTMLDivElement>(null);
   const coreRef = useRef<EditorCore | null>(null);
@@ -361,6 +363,27 @@ export function SermonEditor({
     const fn = () => setNarrow(mq.matches);
     mq.addEventListener('change', fn);
     return () => mq.removeEventListener('change', fn);
+  }, []);
+
+  // 키보드: 보이는 뷰포트가 25% 이상 줄면 기록 화면을 그 높이에 고정 (서식 바가 키보드 위에 붙는다)
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const open = window.matchMedia(NARROW_MQ).matches && vv.height < window.innerHeight * 0.75;
+      setKb((prev) => {
+        if (!open) return prev ? null : prev;
+        const next = { top: Math.round(vv.offsetTop), height: Math.round(vv.height) };
+        return prev && prev.top === next.top && prev.height === next.height ? prev : next;
+      });
+    };
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
   }, []);
 
   // 큰 제목이 60% 이상 가려지면 상단 바에 제목
@@ -585,7 +608,13 @@ export function SermonEditor({
   const dockBtn = (e: React.MouseEvent) => e.preventDefault();
 
   return (
-    <section className="sn-edit" aria-label="설교 기록" data-panel={panelOpen ? 'open' : 'closed'}>
+    <section
+      className="sn-edit"
+      aria-label="설교 기록"
+      data-panel={panelOpen ? 'open' : 'closed'}
+      data-kb={kb ? '1' : undefined}
+      style={kb ? { top: kb.top, height: kb.height } : undefined}
+    >
       <header className="sn-topbar">
         <button
           type="button"
@@ -627,7 +656,12 @@ export function SermonEditor({
             {recState === 'run' ? '멈추기' : recState === 'pause' ? '이어서 기록' : '기록 시작'}
           </span>
         </button>
-        <button type="button" className="sn-btn sn-ghost" title="버전 기록" onClick={openVersions}>
+        <button
+          type="button"
+          className="sn-btn sn-ghost sn-hide-sm"
+          title="버전 기록"
+          onClick={openVersions}
+        >
           <History className="sn-icon" />
           <span className="sn-hide-sm">버전</span>
         </button>
@@ -661,6 +695,17 @@ export function SermonEditor({
           </button>
           {menuOpen && (
             <div className="sn-menu" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  openVersions();
+                }}
+              >
+                <History className="sn-icon" />
+                버전 기록
+              </button>
               <button
                 type="button"
                 role="menuitem"
@@ -930,7 +975,7 @@ export function SermonEditor({
             {!panelOpen && (
               <button
                 type="button"
-                className="sn-btn"
+                className="sn-btn sn-dock-thought"
                 onMouseDown={dockBtn}
                 onClick={() => {
                   setPanel(true);

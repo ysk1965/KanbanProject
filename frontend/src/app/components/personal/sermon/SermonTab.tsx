@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Loader2, LogIn } from 'lucide-react';
+import { Download, Loader2, LogIn, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../../contexts/AuthContext';
 import { UserMenu } from '../../UserMenu';
@@ -30,6 +30,66 @@ const FONT_ID = 'sermon-hahmlet-font';
 const FONT_HREF =
   'https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;500;600;700&display=swap';
 
+/* ───── 홈 화면 설치 안내 (독립 화면에서만) ───── */
+const INSTALL_HINT_KEY = 'sermon-install-hint-dismissed';
+const VISITS_KEY = 'sermon-visits';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+function isStandaloneDisplay(): boolean {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+function isIOS(): boolean {
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
+
+/** 안드로이드 크롬: beforeinstallprompt 를 받아 두었다가 버튼으로 띄운다. iOS: 두 번째 방문부터 안내 한 줄 */
+function useInstallHint(enabled: boolean) {
+  const [promptEvt, setPromptEvt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [iosHint, setIosHint] = useState(false);
+
+  useEffect(() => {
+    if (!enabled || isStandaloneDisplay()) return;
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      setPromptEvt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    try {
+      const visits = Number(localStorage.getItem(VISITS_KEY) || 0) + 1;
+      localStorage.setItem(VISITS_KEY, String(visits));
+      if (isIOS() && visits >= 2 && !localStorage.getItem(INSTALL_HINT_KEY)) setIosHint(true);
+    } catch {
+      /* ignore */
+    }
+    return () => window.removeEventListener('beforeinstallprompt', onPrompt);
+  }, [enabled]);
+
+  const install = useCallback(async () => {
+    if (!promptEvt) return;
+    await promptEvt.prompt();
+    setPromptEvt(null);
+  }, [promptEvt]);
+  const dismissIos = useCallback(() => {
+    setIosHint(false);
+    try {
+      localStorage.setItem(INSTALL_HINT_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  return { canInstall: !!promptEvt, install, iosHint, dismissIos };
+}
+
 function ensureFont() {
   if (document.getElementById(FONT_ID)) return;
   const link = document.createElement('link');
@@ -47,6 +107,8 @@ export default function SermonTab({ standalone = false }: SermonTabProps) {
   const authReady = !authLoading;
   const userId = isAuthenticated && currentUser?.id ? currentUser.id : ANONYMOUS_USER;
   const anonymous = userId === ANONYMOUS_USER;
+
+  const { canInstall, install, iosHint, dismissIos } = useInstallHint(standalone);
 
   const goLogin = useCallback(() => {
     const returnTo = encodeURIComponent(location.pathname + location.search);
@@ -76,30 +138,59 @@ export default function SermonTab({ standalone = false }: SermonTabProps) {
       onLogin={anonymous ? goLogin : undefined}
       strip={
         standalone ? (
-          <header className="sn-strip">
-            <div className="sn-brand">
-              설교 노트 <small>개역한글</small>
-            </div>
-            <span className="sn-sp" />
-            {anonymous ? (
-              <>
-                <span className="sn-strip-hint">로그인 없이도 이 기기에 저장돼요</span>
-                <button type="button" className="sn-btn sn-primary" onClick={goLogin}>
-                  <LogIn className="sn-icon" aria-hidden />
-                  로그인
+          <>
+            <header className="sn-strip">
+              <div className="sn-brand">
+                설교 노트 <small>개역한글</small>
+              </div>
+              <span className="sn-sp" />
+              {canInstall && (
+                <button
+                  type="button"
+                  className="sn-btn sn-ghost"
+                  onClick={() => void install()}
+                  title="홈 화면에 설치"
+                >
+                  <Download className="sn-icon" aria-hidden />
+                  설치
                 </button>
-              </>
-            ) : (
-              currentUser && (
-                <UserMenu
-                  user={{ ...currentUser, avatar: currentUser.profile_image || undefined }}
-                  onOpenSubscription={() => navigate('/boards')}
-                  onLogout={() => void logout()}
-                  hideBilling={hideBilling}
-                />
-              )
+              )}
+              {anonymous ? (
+                <>
+                  <span className="sn-strip-hint">로그인 없이도 이 기기에 저장돼요</span>
+                  <button type="button" className="sn-btn sn-primary" onClick={goLogin}>
+                    <LogIn className="sn-icon" aria-hidden />
+                    로그인
+                  </button>
+                </>
+              ) : (
+                currentUser && (
+                  <UserMenu
+                    user={{ ...currentUser, avatar: currentUser.profile_image || undefined }}
+                    onOpenSubscription={() => navigate('/boards')}
+                    onLogout={() => void logout()}
+                    hideBilling={hideBilling}
+                  />
+                )
+              )}
+            </header>
+            {iosHint && (
+              <div className="sn-install" role="status">
+                <div className="sn-install-text">
+                  <b>홈 화면에 추가하면 앱처럼 열려요.</b> Safari 아래 공유 버튼 → 「홈 화면에
+                  추가」
+                </div>
+                <button
+                  type="button"
+                  className="sn-x"
+                  aria-label="다시 보지 않기"
+                  onClick={dismissIos}
+                >
+                  <X className="sn-icon" style={{ width: 16, height: 16 }} />
+                </button>
+              </div>
             )}
-          </header>
+          </>
         ) : null
       }
     />

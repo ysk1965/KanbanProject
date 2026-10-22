@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import {
   BOOKS,
   OT_COUNT,
@@ -276,9 +276,25 @@ export function VersePicker({ open, target, recent, onClose, onInsert }: VersePi
       open={open}
       onClose={onClose}
       className="sn-picker"
+      overlayClassName="sn-overlay-picker"
       aria-label="성경구절 찾기"
       initialFocus="#sn-pq"
     >
+      {/* 폰(699px 이하)에서만 보이는 머리: 닫기 · 제목 · 넣기 */}
+      <div className="sn-pnarrow-head">
+        <button
+          type="button"
+          className="sn-btn sn-icon-only sn-ghost"
+          aria-label="닫기"
+          onClick={onClose}
+        >
+          <X className="sn-icon" />
+        </button>
+        <h2>구절 찾기</h2>
+        <button type="button" className="sn-insert-top" disabled={!sel} onClick={doInsert}>
+          넣기
+        </button>
+      </div>
       <div className="sn-ptabs" role="tablist">
         {(
           [

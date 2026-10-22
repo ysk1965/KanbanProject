@@ -11,6 +11,8 @@ interface SnOverlayProps {
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  /** 오버레이(배경) 자체에 붙일 클래스 — 폰 전체 화면 등 */
+  overlayClassName?: string;
   'aria-label'?: string;
   'aria-labelledby'?: string;
   role?: 'dialog' | 'alertdialog';
@@ -28,6 +30,7 @@ export function SnOverlay({
   onClose,
   children,
   className = '',
+  overlayClassName = '',
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
   role = 'dialog',
@@ -75,7 +78,7 @@ export function SnOverlay({
 
   return createPortal(
     <div
-      className="sn-scope sn-overlay"
+      className={`sn-scope sn-overlay ${overlayClassName}`}
       onMouseDown={(e) => {
         if (overlayClose && e.target === e.currentTarget) onClose();
       }}
