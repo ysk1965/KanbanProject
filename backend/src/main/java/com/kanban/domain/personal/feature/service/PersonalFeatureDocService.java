@@ -11,14 +11,13 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 「기능」 탭 문서 저장소.
@@ -32,7 +31,8 @@ import java.util.Set;
 public class PersonalFeatureDocService {
 
     /** 서버가 아는 기능. 새 기능은 여기 한 줄 + 프런트 레지스트리 한 줄. */
-    public static final Set<String> FEATURE_KEYS = Set.of(PersonalFeatureTermService.FEATURE_TIMETABLE);
+    public static final Set<String> FEATURE_KEYS =
+            Set.of(PersonalFeatureTermService.FEATURE_TIMETABLE, PersonalFeatureTermService.FEATURE_SERMON);
 
     /** content 직렬화 크기 상한 — 자동 저장이 800ms마다 오므로 너무 큰 문서는 애초에 막는다. */
     public static final int MAX_CONTENT_BYTES = 256 * 1024;
@@ -61,16 +61,13 @@ public class PersonalFeatureDocService {
     }
 
     @Transactional
-    public PersonalFeatureDocResponse.Detail create(String userId, String featureKey,
-                                                    PersonalFeatureDocRequest.Create request) {
+    public PersonalFeatureDocResponse.Detail create(
+            String userId, String featureKey, PersonalFeatureDocRequest.Create request) {
         validateFeatureKey(featureKey);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         ensureCapacity(userId, featureKey);
 
-        Map<String, Object> content = request.getContent() != null
-                ? request.getContent()
-                : new LinkedHashMap<>();
+        Map<String, Object> content = request.getContent() != null ? request.getContent() : new LinkedHashMap<>();
         validateContentSize(content);
 
         PersonalFeatureDoc doc = docRepository.save(PersonalFeatureDoc.builder()
@@ -86,8 +83,8 @@ public class PersonalFeatureDocService {
     }
 
     @Transactional
-    public PersonalFeatureDocResponse.Detail patch(String userId, String featureKey, String docId,
-                                                   PersonalFeatureDocRequest.Patch request) {
+    public PersonalFeatureDocResponse.Detail patch(
+            String userId, String featureKey, String docId, PersonalFeatureDocRequest.Patch request) {
         validateFeatureKey(featureKey);
         PersonalFeatureDoc doc = findDocAndVerifyOwner(userId, featureKey, docId);
 
@@ -138,7 +135,8 @@ public class PersonalFeatureDocService {
     // ───────────────── internal ─────────────────
 
     private PersonalFeatureDoc findDocAndVerifyOwner(String userId, String featureKey, String docId) {
-        PersonalFeatureDoc doc = docRepository.findById(docId)
+        PersonalFeatureDoc doc = docRepository
+                .findById(docId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PERSONAL_FEATURE_DOC_NOT_FOUND));
         if (!doc.getUser().getId().equals(userId)) {
             throw new BusinessException(ErrorCode.PERSONAL_ACCESS_DENIED);

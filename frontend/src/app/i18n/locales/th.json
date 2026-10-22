@@ -3169,7 +3169,8 @@
       "schedule": "กำหนดการ",
       "calendar": "ปฏิทิน",
       "notes": "บันทึก",
-      "features": "ฟีเจอร์"
+      "features": "ฟีเจอร์",
+      "sermon": "บันทึกคำเทศนา"
     },
     "features": {
       "timetable": "ตารางเวลา",

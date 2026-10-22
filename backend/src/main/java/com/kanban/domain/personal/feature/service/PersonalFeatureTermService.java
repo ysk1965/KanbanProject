@@ -3,11 +3,6 @@ package com.kanban.domain.personal.feature.service;
 import com.kanban.domain.personal.feature.PersonalFeatureTerm;
 import com.kanban.domain.personal.feature.PersonalFeatureTermRepository;
 import com.kanban.domain.personal.feature.dto.PersonalFeatureTermResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -15,6 +10,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 추천 용어 기억.
@@ -29,9 +28,12 @@ import java.util.Map;
 public class PersonalFeatureTermService {
 
     public static final String FEATURE_TIMETABLE = "timetable";
+    /** 설교 노트 — content.preacher / content.service 를 추천 용어로 기억한다. */
+    public static final String FEATURE_SERMON = "sermon";
 
     /** 열당 추천 최대 개수 — 프런트가 문서를 열 때 한 번에 받아 메모리에 둔다. */
     private static final int MAX_PER_FIELD = 300;
+
     private static final int FIELD_MAX_LENGTH = 60;
     private static final int VALUE_MAX_LENGTH = 300;
     private static final int COLOR_MAX_LENGTH = 16;
@@ -46,6 +48,7 @@ public class PersonalFeatureTermService {
         try {
             seen = switch (featureKey) {
                 case FEATURE_TIMETABLE -> extractTimetableTerms(content);
+                case FEATURE_SERMON -> extractSermonTerms(content);
                 default -> Map.of();
             };
         } catch (RuntimeException e) {
@@ -59,7 +62,8 @@ public class PersonalFeatureTermService {
         for (Map.Entry<TermKey, String> entry : seen.entrySet()) {
             TermKey key = entry.getKey();
             String color = blankToNull(entry.getValue());
-            termRepository.findByUserIdAndFeatureKeyAndFieldAndValue(userId, featureKey, key.field(), key.value())
+            termRepository
+                    .findByUserIdAndFeatureKeyAndFieldAndValue(userId, featureKey, key.field(), key.value())
                     .ifPresentOrElse(
                             term -> term.touch(color, now),
                             () -> termRepository.save(PersonalFeatureTerm.builder()
@@ -78,7 +82,8 @@ public class PersonalFeatureTermService {
     public List<PersonalFeatureTermResponse> list(String userId, String featureKey, String field) {
         if (field != null && !field.isBlank()) {
             return termRepository
-                    .findByUserIdAndFeatureKeyAndFieldOrderByUseCountDescLastUsedAtDesc(userId, featureKey, field.trim())
+                    .findByUserIdAndFeatureKeyAndFieldOrderByUseCountDescLastUsedAtDesc(
+                            userId, featureKey, field.trim())
                     .stream()
                     .limit(MAX_PER_FIELD)
                     .map(PersonalFeatureTermResponse::of)
@@ -86,8 +91,8 @@ public class PersonalFeatureTermService {
         }
         List<PersonalFeatureTermResponse> result = new ArrayList<>();
         Map<String, Integer> perField = new HashMap<>();
-        for (PersonalFeatureTerm term : termRepository
-                .findByUserIdAndFeatureKeyOrderByFieldAscUseCountDescLastUsedAtDesc(userId, featureKey)) {
+        for (PersonalFeatureTerm term :
+                termRepository.findByUserIdAndFeatureKeyOrderByFieldAscUseCountDescLastUsedAtDesc(userId, featureKey)) {
             int taken = perField.merge(term.getField(), 1, Integer::sum);
             if (taken > MAX_PER_FIELD) continue;
             result.add(PersonalFeatureTermResponse.of(term));
@@ -99,8 +104,7 @@ public class PersonalFeatureTermService {
     @Transactional
     public void forget(String userId, String featureKey, String field, String value) {
         if (field == null || value == null) return;
-        termRepository.deleteByUserIdAndFeatureKeyAndFieldAndValue(
-                userId, featureKey, field.trim(), normalize(value));
+        termRepository.deleteByUserIdAndFeatureKeyAndFieldAndValue(userId, featureKey, field.trim(), normalize(value));
     }
 
     // ───────────────── timetable 추출 ─────────────────
@@ -154,6 +158,21 @@ public class PersonalFeatureTermService {
         return seen;
     }
 
+    // ───────────────── sermon 추출 ─────────────────
+
+    /** 설교자·예배 이름만. 새 노트가 직전 값을 미리 채우고, 입력란 추천으로도 쓴다. */
+    private Map<TermKey, String> extractSermonTerms(Map<String, Object> content) {
+        Map<TermKey, String> seen = new LinkedHashMap<>();
+        for (String field : List.of("preacher", "service")) {
+            String raw = asString(content.get(field));
+            if (raw == null) continue;
+            String value = normalize(raw);
+            if (value.isEmpty() || value.length() > VALUE_MAX_LENGTH) continue;
+            seen.put(new TermKey(field, value), null);
+        }
+        return seen;
+    }
+
     // ───────────────── helpers ─────────────────
 
     private record TermKey(String field, String value) {}
@@ -163,9 +182,7 @@ public class PersonalFeatureTermService {
      * 두 줄로 쓴 비고를 그대로 추천해야 하기 때문. 프론트 timetableModel.normTerm 과 동일 규칙.
      */
     static String normalize(String s) {
-        return s.replace("\r\n", "\n").replace('\r', '\n')
-                .trim()
-                .replaceAll("[ \\t]+", " ");
+        return s.replace("\r\n", "\n").replace('\r', '\n').trim().replaceAll("[ \\t]+", " ");
     }
 
     private static String blankToNull(String s) {

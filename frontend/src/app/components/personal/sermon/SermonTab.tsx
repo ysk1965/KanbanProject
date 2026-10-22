@@ -1,0 +1,152 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '../../../contexts/AuthContext';
+import { SermonStore } from './sermonStore';
+import { SermonList } from './SermonList';
+import { SermonEditor } from './SermonEditor';
+import { applyStyle, loadStyle, persistStyle, type SermonStyle } from './sermonStyle';
+import { newNote, toggleApplyDone, type SermonNote } from './sermonTypes';
+import { loadBible } from './useBible';
+import './sermon.css';
+
+/**
+ * 마이 스페이스 「설교 노트」 탭 루트.
+ * 화면은 노트 목록과 설교 기록 화면 두 개. 딥링크: ?tab=sermon&note=<id>
+ */
+
+const PARAM_TAB = 'tab';
+const PARAM_NOTE = 'note';
+const FONT_ID = 'sermon-hahmlet-font';
+const FONT_HREF =
+  'https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;500;600;700&display=swap';
+
+function ensureFont() {
+  if (document.getElementById(FONT_ID)) return;
+  const link = document.createElement('link');
+  link.id = FONT_ID;
+  link.rel = 'stylesheet';
+  link.href = FONT_HREF;
+  document.head.appendChild(link);
+}
+
+export default function SermonTab() {
+  const { currentUser } = useAuth();
+  const userId = currentUser?.id ?? 'anonymous';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const store = useMemo(() => new SermonStore(userId), [userId]);
+  const [, setTick] = useState(0);
+  const [openId, setOpenId] = useState<string | null>(() => searchParams.get(PARAM_NOTE));
+  const [openAid, setOpenAid] = useState<string | null>(null);
+  const [style, setStyle] = useState<SermonStyle>(() => loadStyle());
+
+  // 저장소 기동 + 폰트 + 성경 데이터
+  useEffect(() => {
+    ensureFont();
+    void loadBible().then((d) => {
+      if (!d) toast('성경 본문을 불러오지 못했어요. 구절 주소는 그대로 쓸 수 있어요');
+    });
+    const unsub = store.subscribe(() => setTick((t) => t + 1));
+    void store.init();
+    return () => {
+      unsub();
+      store.dispose();
+    };
+  }, [store]);
+
+  // 서식 설정 → CSS 변수
+  useEffect(() => {
+    applyStyle(rootRef.current, style);
+  }, [style]);
+  const onStyleChange = useCallback((s: SermonStyle) => {
+    setStyle(s);
+    persistStyle(s);
+  }, []);
+
+  // URL 동기화
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    next.set(PARAM_TAB, 'sermon');
+    if (openId) next.set(PARAM_NOTE, openId);
+    else next.delete(PARAM_NOTE);
+    if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId]);
+
+  // 로컬 id 가 서버 id 로 바뀌면 열린 노트 id 도 따라간다
+  useEffect(
+    () =>
+      store.onRemap((from, to) => {
+        setOpenId((cur) => (cur === from ? to : cur));
+      }),
+    [store],
+  );
+
+  const notes = store.all();
+  const openNote: SermonNote | undefined = openId ? store.get(openId) : undefined;
+
+  // 딥링크 id 가 (동기화 후에도) 없으면 목록으로
+  useEffect(() => {
+    if (openId && !store.status.loading && !store.get(openId)) setOpenId(null);
+  }, [openId, store, store.status.loading, notes.length]);
+
+  const handleNew = useCallback(() => {
+    const n = store.save(newNote(store.all()[0]));
+    setOpenAid(null);
+    setOpenId(n.id);
+  }, [store]);
+
+  const handleOpen = useCallback((id: string, aid?: string | null) => {
+    setOpenAid(aid ?? null);
+    setOpenId(id);
+  }, []);
+
+  const handleToggleApply = useCallback(
+    (noteId: string, thoughtId: string) => {
+      const n = store.get(noteId);
+      if (!n) return;
+      const nn = toggleApplyDone(n, thoughtId);
+      store.save(nn);
+      const t = nn.thoughts.find((x) => x.id === thoughtId);
+      if (t?.done) toast('실천했어요');
+    },
+    [store],
+  );
+
+  return (
+    <div ref={rootRef} className="sermon-app">
+      {openId && openNote ? (
+        <SermonEditor
+          key={openNote.id}
+          note={openNote}
+          store={store}
+          userId={userId}
+          style={style}
+          onStyleChange={onStyleChange}
+          onBack={() => setOpenId(null)}
+          onDeleted={() => setOpenId(null)}
+          initialAid={openAid}
+        />
+      ) : openId && store.status.loading ? (
+        <div
+          style={{ flex: 1, display: 'grid', placeItems: 'center' }}
+          role="status"
+          aria-label="불러오는 중"
+        >
+          <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--sn-accent)' }} />
+        </div>
+      ) : (
+        <SermonList
+          notes={notes}
+          status={store.status}
+          onOpen={handleOpen}
+          onNew={handleNew}
+          onToggleApply={handleToggleApply}
+        />
+      )}
+    </div>
+  );
+}

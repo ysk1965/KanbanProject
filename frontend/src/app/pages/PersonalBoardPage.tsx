@@ -20,6 +20,7 @@ import {
   FileText,
   HardDrive,
   Blocks,
+  BookOpenText,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PersonalSchedule, type TabSwipeHandle } from '../components/personal/PersonalSchedule';
@@ -30,6 +31,7 @@ import { PersonalCalendar } from '../components/personal/PersonalCalendar';
 import { PersonalNotes } from '../components/personal/PersonalNotes';
 import { PersonalStorage } from '../components/personal/PersonalStorage';
 import { PersonalFeatures } from '../components/personal/PersonalFeatures';
+import { PersonalSermon } from '../components/personal/PersonalSermon';
 import { UserMenu } from '../components/UserMenu';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -37,7 +39,8 @@ import { personalTaskAPI, personalHabitAPI } from '../utils/api';
 import { PersonalTask, PersonalTaskPriority, HabitFrequency, HabitImportance } from '../types';
 import { getTodayDateString } from '../utils/dateUtils';
 
-type TabType = 'overview' | 'tasks' | 'schedule' | 'calendar' | 'notes' | 'storage' | 'features';
+type TabType =
+  'overview' | 'tasks' | 'schedule' | 'calendar' | 'notes' | 'storage' | 'features' | 'sermon';
 const TAB_ORDER: TabType[] = [
   'overview',
   'tasks',
@@ -46,6 +49,7 @@ const TAB_ORDER: TabType[] = [
   'notes',
   'storage',
   'features',
+  'sermon',
 ];
 
 export function PersonalBoardPage() {
@@ -98,6 +102,11 @@ export function PersonalBoardPage() {
       key: 'features' as TabType,
       label: t('personal.tabs.features', 'Features'),
       icon: Blocks,
+    },
+    {
+      key: 'sermon' as TabType,
+      label: t('personal.tabs.sermon', '설교 노트'),
+      icon: BookOpenText,
     },
   ];
 
@@ -355,6 +364,7 @@ export function PersonalBoardPage() {
             {activeTab === 'notes' && <PersonalNotes />}
             {activeTab === 'storage' && <PersonalStorage />}
             {activeTab === 'features' && <PersonalFeatures />}
+            {activeTab === 'sermon' && <PersonalSermon />}
           </motion.div>
         </AnimatePresence>
       </main>

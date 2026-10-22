@@ -3169,7 +3169,8 @@
       "schedule": "Agenda",
       "calendar": "Calendário",
       "notes": "Notas",
-      "features": "Recursos"
+      "features": "Recursos",
+      "sermon": "Notas de sermão"
     },
     "features": {
       "timetable": "Cronograma",

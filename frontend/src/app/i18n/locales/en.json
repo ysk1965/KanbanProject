@@ -3860,7 +3860,8 @@
       "calendar": "Calendar",
       "notes": "Notes",
       "storage": "Storage",
-      "features": "Features"
+      "features": "Features",
+      "sermon": "Sermon Notes"
     },
     "features": {
       "timetable": "Timetable",

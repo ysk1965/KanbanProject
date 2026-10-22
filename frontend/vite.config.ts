@@ -306,6 +306,16 @@ export default defineConfig({
             },
           },
           {
+            // 설교 노트 성경 본문(4.4MB) — 한 번 받으면 오프라인에서도 쓴다
+            urlPattern: /\/bible\/[^/]+\.json$/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "bible-cache",
+              expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
             urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
             handler: "CacheFirst",
             options: {

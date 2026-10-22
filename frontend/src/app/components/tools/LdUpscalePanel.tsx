@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
+  Columns2,
   Download,
   Loader2,
   Server,
   Trash2,
   UploadCloud,
-} from "lucide-react";
+} from 'lucide-react';
+import { LdCompareModal } from './LdCompareModal';
 
 /**
  * LD 일러 업스케일 — 사내 LAN 전용 목적 고정 엔드포인트를 호출한다.
@@ -21,16 +23,17 @@ import {
  * 축소 영역이 되고 mipmap 이 꺼져 있어 오히려 나빠진다.
  */
 
-const HOST_KEY = "ldUpscale.host";
-const DEFAULT_HOST = "http://192.168.2.73:8790";
+const HOST_KEY = 'ldUpscale.host';
+const DEFAULT_HOST = 'http://192.168.2.73:8790';
 const IMAGE_RECT = 1024; // BasePrefab_UI 의 Image rect 세로
 
-type JobStatus = "wait" | "run" | "done" | "fail";
+type JobStatus = 'wait' | 'run' | 'done' | 'fail';
 
 interface Job {
   id: string;
   name: string;
   file: File;
+  srcUrl: string;
   status: JobStatus;
   srcW?: number;
   srcH?: number;
@@ -62,7 +65,7 @@ async function readPngSize(file: File): Promise<{ w: number; h: number }> {
     const img = new Image();
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
-      img.onerror = () => reject(new Error("이미지를 읽을 수 없습니다"));
+      img.onerror = () => reject(new Error('이미지를 읽을 수 없습니다'));
       img.src = url;
     });
     return { w: img.naturalWidth, h: img.naturalHeight };
@@ -79,10 +82,11 @@ export function LdUpscalePanel() {
   const [running, setRunning] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const objectUrls = useRef<string[]>([]);
+  const [compareId, setCompareId] = useState<string | null>(null);
 
   const checkHealth = useCallback(async () => {
     try {
-      const res = await fetch(`${host.replace(/\/$/, "")}/health`);
+      const res = await fetch(`${host.replace(/\/$/, '')}/health`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setHealth({
@@ -122,11 +126,15 @@ export function LdUpscalePanel() {
     if (!files?.length) return;
     const added: Job[] = [];
     for (const file of Array.from(files)) {
+      // 비교 모달의 BEFORE 로 쓴다 — 결과 URL 과 함께 언마운트 때 되돌린다
+      const srcUrl = URL.createObjectURL(file);
+      objectUrls.current.push(srcUrl);
       const job: Job = {
         id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
         name: file.name,
         file,
-        status: "wait",
+        srcUrl,
+        status: 'wait',
       };
       try {
         const { w, h } = await readPngSize(file);
@@ -141,18 +149,16 @@ export function LdUpscalePanel() {
   }, []);
 
   const runAll = useCallback(async () => {
-    const base = host.replace(/\/$/, "");
+    const base = host.replace(/\/$/, '');
     setRunning(true);
     try {
       // GPU 가 하나라 서버가 요청을 직렬화한다 — 클라이언트도 한 건씩 보낸다
-      for (const job of jobs.filter((j) => j.status === "wait")) {
-        setJobs((prev) =>
-          prev.map((j) => (j.id === job.id ? { ...j, status: "run" } : j)),
-        );
+      for (const job of jobs.filter((j) => j.status === 'wait')) {
+        setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: 'run' } : j)));
         try {
           const res = await fetch(`${base}/ld/upscale`, {
-            method: "POST",
-            headers: { "Content-Type": "image/png" },
+            method: 'POST',
+            headers: { 'Content-Type': 'image/png' },
             body: job.file,
           });
           if (!res.ok) {
@@ -167,13 +173,11 @@ export function LdUpscalePanel() {
           const blob = await res.blob();
           const url = URL.createObjectURL(blob);
           objectUrls.current.push(url);
-          const outW = Number(res.headers.get("X-Result-Width")) || undefined;
-          const outH = Number(res.headers.get("X-Result-Height")) || undefined;
+          const outW = Number(res.headers.get('X-Result-Width')) || undefined;
+          const outH = Number(res.headers.get('X-Result-Height')) || undefined;
           setJobs((prev) =>
             prev.map((j) =>
-              j.id === job.id
-                ? { ...j, status: "done", resultUrl: url, outW, outH }
-                : j,
+              j.id === job.id ? { ...j, status: 'done', resultUrl: url, outW, outH } : j,
             ),
           );
         } catch (e) {
@@ -182,7 +186,7 @@ export function LdUpscalePanel() {
               j.id === job.id
                 ? {
                     ...j,
-                    status: "fail",
+                    status: 'fail',
                     error: e instanceof Error ? e.message : String(e),
                   }
                 : j,
@@ -198,9 +202,9 @@ export function LdUpscalePanel() {
 
   const downloadDone = useCallback(() => {
     jobs
-      .filter((j) => j.status === "done" && j.resultUrl)
+      .filter((j) => j.status === 'done' && j.resultUrl)
       .forEach((j) => {
-        const a = document.createElement("a");
+        const a = document.createElement('a');
         a.href = j.resultUrl as string;
         a.download = j.name;
         document.body.appendChild(a);
@@ -209,22 +213,20 @@ export function LdUpscalePanel() {
       });
   }, [jobs]);
 
-  const waiting = jobs.filter((j) => j.status === "wait").length;
-  const doneCount = jobs.filter((j) => j.status === "done").length;
+  const compareJob = jobs.find((j) => j.id === compareId && j.resultUrl);
+
+  const waiting = jobs.filter((j) => j.status === 'wait').length;
+  const doneCount = jobs.filter((j) => j.status === 'done').length;
 
   const statusChip = (job: Job) => {
     const map: Record<JobStatus, { label: string; cls: string }> = {
-      wait: { label: "대기", cls: "bg-foreground/10 text-slate-400" },
-      run: { label: "처리 중", cls: "bg-bridge-accent/15 text-bridge-accent" },
-      done: { label: "완료", cls: "bg-bridge-secondary/15 text-bridge-secondary" },
-      fail: { label: "실패", cls: "bg-red-500/15 text-red-400" },
+      wait: { label: '대기', cls: 'bg-foreground/10 text-slate-400' },
+      run: { label: '처리 중', cls: 'bg-bridge-accent/15 text-bridge-accent' },
+      done: { label: '완료', cls: 'bg-bridge-secondary/15 text-bridge-secondary' },
+      fail: { label: '실패', cls: 'bg-red-500/15 text-red-400' },
     };
     const { label, cls } = map[job.status];
-    return (
-      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${cls}`}>
-        {label}
-      </span>
-    );
+    return <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${cls}`}>{label}</span>;
   };
 
   return (
@@ -236,28 +238,22 @@ export function LdUpscalePanel() {
             <span
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-bold ${
                 ready
-                  ? "bg-bridge-secondary/15 text-bridge-secondary"
-                  : "bg-red-500/15 text-red-400"
+                  ? 'bg-bridge-secondary/15 text-bridge-secondary'
+                  : 'bg-red-500/15 text-red-400'
               }`}
             >
               <Server size={12} />
-              {ready
-                ? "연결됨"
-                : health?.reachable
-                  ? "준비 안 됨"
-                  : "연결 실패"}
+              {ready ? '연결됨' : health?.reachable ? '준비 안 됨' : '연결 실패'}
             </span>
             <span className="text-slate-500">
               호스트 <span className="text-foreground tabular-nums">{host}</span>
             </span>
             <span className="text-slate-500">
-              목표 세로{" "}
-              <span className="text-foreground tabular-nums">{targetHeight}</span>
+              목표 세로 <span className="text-foreground tabular-nums">{targetHeight}</span>
             </span>
             {health && !ready && (
               <span className="text-red-400">
-                {health.error ??
-                  `comfy=${health.comfy}, model=${health.model}`}
+                {health.error ?? `comfy=${health.comfy}, model=${health.model}`}
               </span>
             )}
             <button
@@ -268,11 +264,11 @@ export function LdUpscalePanel() {
             </button>
           </div>
           <p className="mt-2 text-[11px] text-slate-500">
-            사내 LAN 전용입니다. 다른 주소를 쓰려면{" "}
+            사내 LAN 전용입니다. 다른 주소를 쓰려면{' '}
             <button
               className="underline hover:text-foreground"
               onClick={() => {
-                const next = window.prompt("업스케일 서버 주소", host);
+                const next = window.prompt('업스케일 서버 주소', host);
                 if (!next) return;
                 try {
                   localStorage.setItem(HOST_KEY, next);
@@ -308,14 +304,12 @@ export function LdUpscalePanel() {
           disabled={!ready}
           className={`rounded-2xl border-[1.5px] border-dashed p-6 text-center transition-colors ${
             hot
-              ? "border-bridge-accent bg-bridge-accent/10"
-              : "border-foreground/[0.12] bg-foreground/[0.02] hover:border-bridge-accent"
-          } ${!ready ? "opacity-50 cursor-not-allowed" : ""}`}
+              ? 'border-bridge-accent bg-bridge-accent/10'
+              : 'border-foreground/[0.12] bg-foreground/[0.02] hover:border-bridge-accent'
+          } ${!ready ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <UploadCloud size={22} className="mx-auto mb-2 text-slate-400" />
-          <span className="block text-sm font-bold text-foreground">
-            LD 일러 PNG를 끌어다 놓기
-          </span>
+          <span className="block text-sm font-bold text-foreground">LD 일러 PNG를 끌어다 놓기</span>
           <span className="block text-xs text-slate-500 mt-0.5">
             또는 눌러서 선택 · 여러 장 가능 · 결과는 세로 {targetHeight}로 고정됩니다
           </span>
@@ -329,7 +323,7 @@ export function LdUpscalePanel() {
           hidden
           onChange={(e) => {
             addFiles(e.target.files);
-            e.target.value = "";
+            e.target.value = '';
           }}
         />
 
@@ -337,10 +331,10 @@ export function LdUpscalePanel() {
         <div className="flex gap-2.5 items-start rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-500">
           <AlertTriangle size={15} className="shrink-0 mt-0.5" />
           <span>
-            결과를 반영한 뒤 프리팹의 <b>Image scale</b>을{" "}
-            <b className="tabular-nums">{recommendedScale}</b>으로 맞춰야 합니다.
-            소스만 키우고 scale을 두면 확대율이 1.0 밑으로 떨어져 축소 영역이 되고,
-            mipmap이 꺼져 있어 오히려 나빠집니다.
+            결과를 반영한 뒤 프리팹의 <b>Image scale</b>을{' '}
+            <b className="tabular-nums">{recommendedScale}</b>으로 맞춰야 합니다. 소스만 키우고
+            scale을 두면 확대율이 1.0 밑으로 떨어져 축소 영역이 되고, mipmap이 꺼져 있어 오히려
+            나빠집니다.
           </span>
         </div>
 
@@ -363,16 +357,16 @@ export function LdUpscalePanel() {
                   {job.name}
                 </span>
                 <span className="tabular-nums text-slate-400">
-                  {job.srcW ? `${job.srcW}×${job.srcH}` : "—"}
+                  {job.srcW ? `${job.srcW}×${job.srcH}` : '—'}
                 </span>
                 <span className="tabular-nums text-slate-400">
-                  {job.outW ? `${job.outW}×${job.outH}` : "—"}
+                  {job.outW ? `${job.outW}×${job.outH}` : '—'}
                 </span>
                 <span className="tabular-nums text-slate-400">
-                  {job.status === "done" ? recommendedScale : "—"}
+                  {job.status === 'done' ? recommendedScale : '—'}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  {job.status === "run" && (
+                  {job.status === 'run' && (
                     <Loader2 size={12} className="animate-spin text-bridge-accent" />
                   )}
                   {statusChip(job)}
@@ -388,27 +382,36 @@ export function LdUpscalePanel() {
         )}
 
         {/* 결과 미리보기 */}
-        {jobs.some((j) => j.status === "done") && (
+        {jobs.some((j) => j.status === 'done') && (
           <section>
             <h2 className="text-xs font-bold text-foreground mb-2">결과 미리보기</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
               {jobs
-                .filter((j) => j.status === "done" && j.resultUrl)
+                .filter((j) => j.status === 'done' && j.resultUrl)
                 .map((j) => (
-                  <figure
+                  <button
                     key={j.id}
-                    className="m-0 rounded-xl border border-foreground/[0.08] overflow-hidden bg-bridge-obsidian"
+                    type="button"
+                    onClick={() => setCompareId(j.id)}
+                    aria-label={`${j.name} 전후 비교 열기`}
+                    className="group text-left rounded-xl border border-foreground/[0.08] hover:border-bridge-accent overflow-hidden bg-bridge-obsidian transition-colors focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                   >
-                    <img
-                      src={j.resultUrl}
-                      alt={`${j.name} 업스케일 결과`}
-                      className="block w-full h-auto"
-                      loading="lazy"
-                    />
-                    <figcaption className="px-2.5 py-1.5 text-[11px] text-slate-500 truncate border-t border-foreground/[0.08]">
+                    <span className="relative block">
+                      <img
+                        src={j.resultUrl}
+                        alt={`${j.name} 업스케일 결과`}
+                        className="block w-full h-auto"
+                        loading="lazy"
+                      />
+                      <span className="absolute right-2 bottom-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Columns2 size={12} />
+                        전후 비교
+                      </span>
+                    </span>
+                    <span className="block px-2.5 py-1.5 text-[11px] text-slate-500 truncate border-t border-foreground/[0.08]">
                       {j.name}
-                    </figcaption>
-                  </figure>
+                    </span>
+                  </button>
                 ))}
             </div>
           </section>
@@ -425,8 +428,7 @@ export function LdUpscalePanel() {
             disabled={running || jobs.length === 0}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-foreground/[0.08] text-xs font-bold text-slate-400 hover:text-foreground hover:border-bridge-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            <Trash2 size={13} />
-            큐 비우기
+            <Trash2 size={13} />큐 비우기
           </button>
           <button
             onClick={downloadDone}
@@ -446,6 +448,20 @@ export function LdUpscalePanel() {
           </button>
         </div>
       </div>
+
+      {compareJob && (
+        <LdCompareModal
+          open
+          onClose={() => setCompareId(null)}
+          name={compareJob.name}
+          beforeUrl={compareJob.srcUrl}
+          afterUrl={compareJob.resultUrl as string}
+          srcW={compareJob.srcW}
+          srcH={compareJob.srcH}
+          outW={compareJob.outW}
+          outH={compareJob.outH}
+        />
+      )}
     </div>
   );
 }

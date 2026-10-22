@@ -3169,7 +3169,8 @@
       "schedule": "Horario",
       "calendar": "Calendario",
       "notes": "Notas",
-      "features": "Funciones"
+      "features": "Funciones",
+      "sermon": "Notas de sermón"
     },
     "features": {
       "timetable": "Horario",
