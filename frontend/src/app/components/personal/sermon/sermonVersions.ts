@@ -112,6 +112,26 @@ export function adoptVersions(fromUser: string, toUser: string) {
   }
 }
 
+/** 기기 저장 공간이 찼을 때: 노트마다 최근 `keep` 개만 남긴다 */
+export function shrinkVersions(userId: string, keep = 2) {
+  const all = readAll(userId);
+  let changed = false;
+  for (const noteId in all) {
+    if ((all[noteId] || []).length > keep) {
+      all[noteId] = all[noteId].sort((a, b) => b.at - a.at).slice(0, keep);
+      changed = true;
+    }
+  }
+  if (!changed) return;
+  if (!writeAll(userId, all)) {
+    try {
+      localStorage.removeItem(key(userId));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export function dropVersions(userId: string, noteId: string) {
   const all = readAll(userId);
   if (!all[noteId]) return;

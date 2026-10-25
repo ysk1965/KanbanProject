@@ -7,11 +7,13 @@ import {
   audioDuration,
   audioPending,
   fmtDate,
+  galpiByWeek,
   mainRef,
   noteRefs,
   plainText,
   thisWeek,
   UNTITLED,
+  weekRangeLabel,
   type ApplyItem,
   type SermonNote,
 } from './sermonTypes';
@@ -24,6 +26,7 @@ function fmtMin(sec: number): string {
 import { firstVerseText, useBible } from './useBible';
 import { Mascot } from './Mascot';
 import { SermonHome } from './SermonHome';
+import { BibleReader } from './BibleReader';
 import type { MascotId } from './sermonLook';
 
 /**
@@ -36,6 +39,8 @@ interface SermonListProps {
   onOpen: (id: string, aid?: string | null) => void;
   onNew: () => void;
   onToggleApply: (noteId: string, thoughtId: string) => void;
+  /** 갈피 꽂기/빼기 (그 주의 중심 설교) */
+  onToggleGalpi: (noteId: string) => void;
   /** 로그인 전이면 기존 로그인으로 보낸다 (없으면 안내를 그리지 않음) */
   onLogin?: () => void;
   /** 꾸미기에서 고른 마스코트 */
@@ -54,7 +59,7 @@ function nudgeSnoozed(): boolean {
   }
 }
 
-type Nav = 'all' | 'apply' | 'thoughts' | 'verses';
+type Nav = 'all' | 'apply' | 'galpi' | 'thoughts' | 'verses' | 'bible';
 
 function matchQuery(n: SermonNote, q: string): boolean {
   if (!q) return true;
@@ -95,6 +100,7 @@ export function SermonList({
   onOpen,
   onNew,
   onToggleApply,
+  onToggleGalpi,
   onLogin,
   mascot = 'galpi',
   onOpenLook,
@@ -124,6 +130,11 @@ export function SermonList({
     notes.forEach((n) => noteRefs(n).forEach((r) => s.add(encRef(r))));
     return s.size;
   }, [notes]);
+  const galpi = useMemo(() => galpiByWeek(notes), [notes]);
+  const galpiWeeks = useMemo(
+    () => [...galpi.entries()].sort((a, b) => b[0].localeCompare(a[0])),
+    [galpi],
+  );
   const services = useMemo(
     () => [...new Set(notes.map((n) => n.service).filter(Boolean))].sort(),
     [notes],
@@ -141,17 +152,21 @@ export function SermonList({
       '이번 주 적용',
       week.length ? `${week.length - weekLeft.length}/${week.length}` : '0',
     ],
+    ['galpi', '갈피 모아보기', galpiWeeks.length],
     ['thoughts', '생각 모아보기', thoughtCount],
     ['verses', '구절 모아보기', refCount],
+    ['bible', '성경 읽기', ''],
   ];
 
   const storeNote = !status.localOk
     ? '저장 공간을 쓸 수 없어 이 창을 닫으면 사라져요.'
-    : status.anonymous
-      ? '노트는 이 기기에만 저장돼요. 로그인하면 다른 기기와 맞춰지고 사진·영상도 붙일 수 있어요.'
-      : status.pending
-        ? `기기에 저장된 변경 ${status.pending}건은 연결되면 올라가요.`
-        : '노트는 기기에 먼저 저장되고, 다른 기기와 맞춰져요.';
+    : status.localFull
+      ? '기기 저장 공간이 부족해 마지막 변경을 기기에 저장하지 못했어요. 연결되면 바로 올라가요.'
+      : status.anonymous
+        ? '노트는 이 기기에만 저장돼요. 로그인하면 다른 기기와 맞춰지고 사진·영상도 붙일 수 있어요.'
+        : status.pending
+          ? `기기에 저장된 변경 ${status.pending}건은 연결되면 올라가요.`
+          : '노트는 기기에 먼저 저장되고, 다른 기기와 맞춰져요.';
 
   const applyRow = ({ n, t }: ApplyItem) => (
     <div key={`${n.id}|${t.id}`} className="sn-arow" data-checked={!!t.done}>
@@ -180,7 +195,9 @@ export function SermonList({
   );
 
   let body: React.ReactNode;
-  if (!notes.length) {
+  if (nav === 'bible' && !service) {
+    body = <BibleReader notes={notes} onOpen={onOpen} mascot={mascot} />;
+  } else if (!notes.length) {
     body = (
       <div className="sn-empty">
         <Mascot kind={mascot} size={96} state="think" />
@@ -223,6 +240,45 @@ export function SermonList({
             <div className="sn-month">지난 설교에서 아직 남은 적용</div>
             <div className="sn-alist">{older.map(applyRow)}</div>
           </>
+        )}
+      </>
+    );
+  } else if (nav === 'galpi' && !service) {
+    body = (
+      <>
+        <div className="sn-apply-head">
+          <div>
+            <h2>갈피 모아보기</h2>
+            <p>주마다 갈피를 꽂은 그 주의 중심 설교예요. 지난 갈피도 여기 계속 남아요.</p>
+          </div>
+        </div>
+        {galpiWeeks.length ? (
+          <div className="sn-nlist">
+            {galpiWeeks.map(([w, n]) => {
+              const main = mainRef(n);
+              return (
+                <button key={w} type="button" className="sn-nrow" onClick={() => onOpen(n.id)}>
+                  <span className="sn-nd">{weekRangeLabel(w)}</span>
+                  <span className="sn-nm">
+                    <b>{n.title || UNTITLED}</b>
+                    <span className="sn-ns">
+                      {[fmtDate(n.date), n.preacher, n.service].filter(Boolean).join(' · ')}
+                    </span>
+                  </span>
+                  <span className="sn-nr">{main ? refShort(main) : ''}</span>
+                  <span className="sn-nt">
+                    {(n.thoughts || []).length ? `생각 ${(n.thoughts || []).length}` : ''}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="sn-empty">
+            <Mascot kind={mascot} size={80} state="think" />
+            아직 꽂은 갈피가 없어요.
+            <br />한 주를 붙들고 살 설교를 열고 ‘갈피 꽂기’를 눌러 보세요.
+          </div>
         )}
       </>
     );
@@ -310,6 +366,18 @@ export function SermonList({
     ) : (
       <div className="sn-empty">노트에 넣은 구절이 아직 없어요.</div>
     );
+  } else if (!query && !service) {
+    body = (
+      <SermonHome
+        notes={notes}
+        week={week}
+        mascot={mascot}
+        onOpen={onOpen}
+        onNew={onNew}
+        onToggleApply={onToggleApply}
+        onToggleGalpi={onToggleGalpi}
+      />
+    );
   } else if (!filtered.length) {
     body = <div className="sn-empty">‘{query}’에 맞는 노트가 없어요.</div>;
   } else {
@@ -322,19 +390,6 @@ export function SermonList({
     });
     body = (
       <>
-        {!query && !service && (
-          <>
-            <SermonHome
-              notes={notes}
-              week={week}
-              mascot={mascot}
-              onOpen={onOpen}
-              onNew={onNew}
-              onToggleApply={onToggleApply}
-            />
-            <h2 className="sn-all-h">모든 기록</h2>
-          </>
-        )}
         {groups.map((g) => {
           const [y, mm] = g.month.split('-');
           return (
@@ -392,7 +447,6 @@ export function SermonList({
     <section className="sn-list" aria-label="노트 목록">
       <nav className="sn-side" aria-label="노트 분류">
         <div className="sn-brand">
-          <Mascot kind={mascot} size={30} />
           설교 노트 <small>개역한글</small>
         </div>
         <button type="button" className="sn-btn sn-primary" onClick={onNew}>
@@ -473,20 +527,22 @@ export function SermonList({
             </button>
           </div>
         )}
-        <div className="sn-toolbar">
-          <label className="sn-search" htmlFor="sn-q">
-            <Search className="sn-icon" style={{ color: 'var(--sn-muted)' }} aria-hidden />
-            <span className="sn-sr">검색</span>
-            <input
-              id="sn-q"
-              type="search"
-              placeholder="제목, 설교자, 구절(예: 요 15), 내 생각 검색"
-              autoComplete="off"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </label>
-        </div>
+        {!(nav === 'bible' && !service) && (
+          <div className="sn-toolbar">
+            <label className="sn-search" htmlFor="sn-q">
+              <Search className="sn-icon" style={{ color: 'var(--sn-muted)' }} aria-hidden />
+              <span className="sn-sr">검색</span>
+              <input
+                id="sn-q"
+                type="search"
+                placeholder="제목, 설교자, 구절(예: 요 15), 내 생각 검색"
+                autoComplete="off"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </label>
+          </div>
+        )}
         <div>{body}</div>
       </main>
     </section>

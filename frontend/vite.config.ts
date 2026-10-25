@@ -100,6 +100,65 @@ function generateBrandedIndex(): Plugin {
 }
 
 // ---------------------------------------------------------------------------
+// 설교 노트 오프라인 precache
+// ---------------------------------------------------------------------------
+/**
+ * 설교 노트(/sermonnote)를 여는 데 필요한 JS 청크를 workbox additionalManifestEntries 에 넣는다.
+ * (vite-plugin-pwa 가 같은 배열에 includeAssets 항목도 넣으므로 배열은 갈아 끼우지 않고 내 항목만 바꾼다)
+ *
+ * JS 를 런타임 캐시로만 두면 배포 직후 새 index.html 만 precache 되고 그 HTML 이 가리키는
+ * 새 청크는 캐시에 없어, 예배당(오프라인)에서 열 때 흰 화면이 된다. 새 서비스워커가 설치될 때
+ * HTML 과 이 청크들을 함께 받아 두게 한다.
+ *
+ * 범위: 진입 청크의 정적 의존성 + 설교 노트 화면(pages/SermonNotePage, components/personal/sermon)
+ * 청크와 그 정적 의존성. 다른 페이지로 가는 동적 import 는 따라가지 않는다.
+ */
+const sermonPrecacheEntries: Array<{ url: string; revision: string | null }> = [];
+const SERMON_MODULE_RE = /\/(pages\/SermonNotePage|components\/personal\/sermon\/)/;
+
+function sermonPrecachePlugin(): Plugin {
+  return {
+    name: 'sermon-offline-precache',
+    apply: 'build',
+    generateBundle(_, bundle) {
+      const picked = new Set<string>();
+      const chunks = new Map<
+        string,
+        { imports: string[]; dynamicImports: string[]; mods: string[] }
+      >();
+      const roots: string[] = [];
+      for (const out of Object.values(bundle)) {
+        if (out.type !== 'chunk') continue;
+        const mods = Object.keys(out.modules);
+        chunks.set(out.fileName, {
+          imports: out.imports,
+          dynamicImports: out.dynamicImports,
+          mods,
+        });
+        if (out.isEntry || mods.some((m) => SERMON_MODULE_RE.test(m))) roots.push(out.fileName);
+      }
+      const isSermon = (f: string) => !!chunks.get(f)?.mods.some((m) => SERMON_MODULE_RE.test(m));
+      const queue = [...roots];
+      while (queue.length) {
+        const f = queue.pop()!;
+        if (picked.has(f)) continue;
+        picked.add(f);
+        const c = chunks.get(f);
+        if (!c) continue;
+        queue.push(...c.imports);
+        // 설교 노트 청크 안의 지연 로딩(SermonTab 등)만 따라간다
+        if (isSermon(f)) queue.push(...c.dynamicImports.filter(isSermon));
+      }
+      for (let i = sermonPrecacheEntries.length - 1; i >= 0; i--) {
+        if (sermonPrecacheEntries[i].url.endsWith('.js')) sermonPrecacheEntries.splice(i, 1);
+      }
+      // 파일명에 해시가 있어 revision 은 필요 없다
+      picked.forEach((url) => sermonPrecacheEntries.push({ url, revision: null }));
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // vendor 청크 배정
 // ---------------------------------------------------------------------------
 type ModuleInfoLike = { importers: readonly string[] } | null;
@@ -234,6 +293,7 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    sermonPrecachePlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: [
@@ -273,8 +333,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Precache only the entry HTML and core CSS — lazy chunks load on demand
+        // HTML·CSS + 설교 노트를 여는 데 필요한 JS(sermonPrecachePlugin 이 채움). 나머지 청크는 런타임 캐시
         globPatterns: ['**/*.html', '**/*.css'],
+        additionalManifestEntries: sermonPrecacheEntries,
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         // 설교 노트(/sermonnote)만 오프라인에서도 주소로 바로 열리게 — 나머지 경로는 기존처럼 네트워크
         navigateFallback: 'index.html',
@@ -317,6 +378,26 @@ export default defineConfig({
             options: {
               cacheName: 'image-cache',
               expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // 설교 노트 글꼴 CSS — 오프라인에서도 같은 글꼴로 보이게
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\//i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'google-fonts-css',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // 한글 웹폰트는 글자 범위별로 수십~수백 조각(woff2)으로 나뉜다 — 넉넉히 둔다
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\//i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-files',
+              expiration: { maxEntries: 600, maxAgeSeconds: 60 * 60 * 24 * 365 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },

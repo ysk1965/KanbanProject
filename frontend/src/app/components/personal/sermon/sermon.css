@@ -170,6 +170,8 @@ html[data-sn-ink='monopink'] .sn-scope {
   --sn-f-display: var(--sn-f-ui);
   --sn-f-serif: 'Hahmlet', 'Nanum Myeongjo', 'AppleMyungjo', serif;
   --sn-f-poster: 'Black Han Sans', var(--sn-f-ui);
+  /* 성경 읽기 「그날의 손글씨」 — 여백에 남은 내 생각 */
+  --sn-f-hand: 'Gaegu', 'Nanum Pen Script', var(--sn-f-ui);
   --sn-r-ctl: 12px;
   --sn-r-ovl: 24px;
   --sn-r-card: 30px;
@@ -3626,10 +3628,18 @@ html[data-keyboard-open] .sn-overlay {
 .sermon-app .sn-stickers {
   display: flex;
   gap: 22px;
-  flex-wrap: wrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 8px;
+  /* 회전·그림자·'이번 주' 꼬리표가 잘리지 않게 안쪽 여백 */
+  padding: 14px 8px 12px;
+  margin: -14px -8px 0;
 }
 .sermon-app .sn-badge {
   width: 164px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3779,12 +3789,6 @@ html[data-keyboard-open] .sn-overlay {
   border-radius: 50%;
   border: 2px dashed var(--sn-line-strong);
 }
-.sermon-app .sn-all-h {
-  margin: 34px 0 0;
-  font-size: 17px;
-  font-weight: 900;
-  letter-spacing: -0.045em;
-}
 .sermon-app .sn-look-btn {
   justify-content: flex-start;
   background: var(--sn-surface);
@@ -3815,7 +3819,7 @@ html[data-keyboard-open] .sn-overlay {
     padding: 18px 14px;
   }
   .sermon-app .sn-badge {
-    width: calc(50% - 11px);
+    width: 144px;
   }
   .sermon-app .sn-stkr {
     width: 132px;
@@ -4139,6 +4143,353 @@ html[data-keyboard-open] .sn-overlay {
     animation: none !important;
   }
   .sermon-app .sn-stkr {
+    transition: none;
+  }
+}
+
+/* =====================================================================
+   갈피 — 그 주의 중심 설교 (SermonHome · SermonEditor)
+   ===================================================================== */
+.sermon-app .sn-galpi-btn {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--sn-t2) 60%, transparent);
+  color: var(--sn-t2);
+}
+.sermon-app .sn-galpi-btn[aria-pressed='true'] {
+  border-style: solid;
+  background: color-mix(in srgb, var(--sn-g2) 30%, transparent);
+}
+.sermon-app .sn-galpi-btn[aria-pressed='true'] .sn-icon {
+  fill: currentColor;
+}
+.sermon-app .sn-new[data-galpi='true'] {
+  background: var(--sn-g2);
+  color: var(--sn-on-ink);
+}
+.sermon-app .sn-meta-galpi {
+  min-height: 32px;
+  margin-left: 6px;
+  font-size: 13px;
+}
+
+/* =====================================================================
+   성경 읽기 — 그날의 손글씨 (BibleReader)
+   평범한 성경 본문 + 설교에서 들은 구절에 펜 물결 밑줄, 여백(좁으면 구절 아래)에 그날 남긴 생각.
+   설교 본문 구절 = t2(분홍 계열), 설교 중 인용 = t1(보라 계열) 펜.
+   ===================================================================== */
+.sermon-app .sn-bible {
+  container-type: inline-size;
+  max-width: 1000px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sermon-app .sn-bible-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sermon-app .sn-bible-book {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: var(--sn-r-pill);
+  border: 1px solid var(--sn-line-strong);
+  background: var(--sn-bg);
+  font-weight: 700;
+  font-size: 15px;
+}
+.sermon-app .sn-bible-book[aria-expanded='true'] {
+  background: var(--sn-fg);
+  color: var(--sn-bg);
+  border-color: transparent;
+}
+.sermon-app .sn-bible-handtog[aria-pressed='true'] {
+  font-family: var(--sn-f-hand);
+  font-size: 16px;
+  font-weight: 700;
+}
+.sermon-app .sn-bpick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--sn-r-ovl);
+  background: var(--sn-bg);
+  border: 1px solid var(--sn-line);
+}
+.sermon-app .sn-bpick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.sermon-app .sn-bpick-book {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--sn-r-ctl);
+  border: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+  text-align: left;
+}
+.sermon-app .sn-bpick-book b {
+  font-size: 13px;
+}
+.sermon-app .sn-bpick-book span {
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-bpick-book[data-has='true'] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--sn-g2) 26%, var(--sn-surface));
+}
+.sermon-app .sn-bpick-book[data-has='true'] span {
+  font-family: var(--sn-f-hand);
+  font-size: 15px;
+  color: var(--sn-t2);
+}
+.sermon-app .sn-bpick-book[aria-current='true'] {
+  box-shadow: 0 0 0 2px var(--sn-t1);
+}
+.sermon-app .sn-bible-strip {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  scrollbar-width: thin;
+}
+.sermon-app .sn-bible-strip button {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 6px;
+  border-radius: var(--sn-r-pill);
+  border: 1px solid var(--sn-line);
+  background: var(--sn-bg);
+  font-size: 13px;
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sermon-app .sn-bible-strip button[data-has='true'] {
+  color: var(--sn-fg);
+  font-weight: 700;
+}
+.sermon-app .sn-bible-strip button[data-has='true']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 12px;
+  height: 3px;
+  margin-left: -6px;
+  border-radius: 3px;
+  background: var(--sn-t2);
+  transform: rotate(-6deg);
+}
+.sermon-app .sn-bible-strip button[aria-current='true'] {
+  background: var(--sn-fg);
+  color: var(--sn-bg);
+  border-color: transparent;
+}
+.sermon-app .sn-bible-strip button[aria-current='true']::after {
+  background: var(--sn-g2);
+}
+.sermon-app .sn-bible-page {
+  background: var(--sn-bg);
+  border: 1px solid var(--sn-line);
+  border-radius: var(--sn-r-card);
+  padding: 26px clamp(18px, 4cqi, 40px) 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sermon-app .sn-bible-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding-bottom: 14px;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed var(--sn-line-strong);
+  scroll-margin-top: 16px;
+}
+.sermon-app .sn-bible-title {
+  margin: 0;
+  font-family: var(--sn-f-poster);
+  font-weight: 400;
+  font-size: clamp(34px, 6cqi, 50px);
+  line-height: 1;
+  color: var(--sn-t1);
+  white-space: nowrap;
+}
+.sermon-app .sn-bible-title em {
+  font-style: normal;
+  color: var(--sn-t2);
+}
+.sermon-app .sn-bible-loading {
+  display: grid;
+  place-items: center;
+  padding: 60px 0;
+}
+.sermon-app .sn-bible-text {
+  display: flex;
+  flex-direction: column;
+}
+.sermon-app .sn-bv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px;
+  gap: 0 28px;
+  align-items: start;
+}
+.sermon-app .sn-bible[data-hand='false'] .sn-bv-row {
+  grid-template-columns: minmax(0, 46em);
+}
+.sermon-app .sn-bv {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 8px;
+  padding: 3px 0;
+  font-family: var(--sn-f-serif);
+  font-size: 17px;
+  line-height: 1.95;
+  color: var(--sn-fg);
+}
+.sermon-app .sn-bv-n {
+  font-family: var(--sn-f-ui);
+  font-size: 12px;
+  color: var(--sn-faint);
+  text-align: right;
+  padding-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.sermon-app .sn-bible[data-hand='true'] .sn-bv[data-mark] .sn-bv-t {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 7px;
+  text-decoration-skip-ink: none;
+  text-decoration-color: var(--sn-t1);
+}
+.sermon-app .sn-bible[data-hand='true'] .sn-bv[data-mark='main'] .sn-bv-t {
+  text-decoration-color: var(--sn-t2);
+}
+.sermon-app .sn-bible[data-hand='true'] .sn-bv[data-mark] .sn-bv-n {
+  color: var(--sn-fg);
+  font-weight: 700;
+}
+.sermon-app .sn-bv-hands {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0 8px;
+  min-width: 0;
+}
+.sermon-app .sn-bible-whole {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  padding: 0 0 10px;
+}
+.sermon-app .sn-hand {
+  --pen: var(--sn-t1);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  max-width: 100%;
+  padding: 4px 8px;
+  margin-left: -8px;
+  border: 0;
+  border-radius: var(--sn-r-ctl);
+  background: transparent;
+  text-align: left;
+  color: var(--pen);
+  transform: rotate(-1.2deg);
+  transition: background 0.15s;
+}
+.sermon-app .sn-hand[data-kind='main'] {
+  --pen: var(--sn-t2);
+}
+.sermon-app .sn-bv-hands .sn-hand:nth-child(even) {
+  transform: rotate(0.9deg);
+}
+.sermon-app .sn-hand:hover {
+  background: color-mix(in srgb, var(--pen) 10%, transparent);
+}
+.sermon-app .sn-hand-line {
+  font-family: var(--sn-f-hand);
+  font-size: 20px;
+  line-height: 1.22;
+  letter-spacing: -0.03em;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.sermon-app .sn-hand-date {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 0 6px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: 700;
+  transform: rotate(-4deg);
+}
+.sermon-app .sn-hand-more {
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.sermon-app .sn-hand-src {
+  font-family: var(--sn-f-ui);
+  font-size: 12px;
+  color: var(--sn-faint);
+}
+.sermon-app .sn-bible-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--sn-line-strong);
+}
+.sermon-app .sn-bible-nextmark {
+  font-family: var(--sn-f-hand);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--sn-t2);
+}
+.sermon-app .sn-bible-hint {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--sn-muted);
+}
+@container (max-width: 680px) {
+  .sermon-app .sn-bv-row,
+  .sermon-app .sn-bible[data-hand='false'] .sn-bv-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sermon-app .sn-bv {
+    font-size: 16px;
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+  .sermon-app .sn-bv-row .sn-bv-hands {
+    padding: 0 0 10px 30px;
+  }
+  .sermon-app .sn-hand-line {
+    font-size: 19px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app .sn-hand {
     transition: none;
   }
 }

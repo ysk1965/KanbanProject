@@ -8,9 +8,12 @@ import { ANONYMOUS_USER, SermonStore } from './sermonStore';
 import { SermonList } from './SermonList';
 import { SermonEditor } from './SermonEditor';
 import { applyStyle, loadStyle, persistStyle, type SermonStyle } from './sermonStyle';
-import { applyInk, loadLook, persistLook, type SermonLook } from './sermonLook';
+import { applyInk, loadLook, persistLook, type MascotId, type SermonLook } from './sermonLook';
+import { Mascot } from './Mascot';
 import { LookModal } from './LookModal';
-import { newNote, toggleApplyDone, type SermonNote } from './sermonTypes';
+import { esc, galpiRivals, newNote, toggleApplyDone, type SermonNote } from './sermonTypes';
+import { clearStart, readStart } from './share/shareModel';
+import { FirstSticker } from './share/FirstSticker';
 import { loadBible } from './useBible';
 import './sermon.css';
 
@@ -30,7 +33,7 @@ const PARAM_TAB = 'tab';
 const PARAM_NOTE = 'note';
 const FONT_ID = 'sermon-hahmlet-font';
 const FONT_HREF =
-  'https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;800;900&family=Black+Han+Sans&display=swap';
+  'https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;800;900&family=Black+Han+Sans&family=Gaegu:wght@400;700&display=swap';
 
 /* ───── 홈 화면 설치 안내 (독립 화면에서만) ───── */
 const INSTALL_HINT_KEY = 'sermon-install-hint-dismissed';
@@ -138,12 +141,13 @@ export default function SermonTab({ standalone = false }: SermonTabProps) {
       anonymous={anonymous}
       standalone={standalone}
       onLogin={anonymous ? goLogin : undefined}
-      strip={
+      strip={(mascot) =>
         standalone ? (
           <>
             <header className="sn-strip">
               <div className="sn-brand">
-                설교 노트 <small>개역한글</small>
+                <Mascot kind={mascot} size={28} />
+                갈피
               </div>
               <span className="sn-sp" />
               {canInstall && (
@@ -204,7 +208,8 @@ interface BodyProps {
   anonymous: boolean;
   standalone: boolean;
   onLogin?: () => void;
-  strip: React.ReactNode;
+  /** 상단 띠. 마스코트는 꾸미기 설정(look)을 따르므로 본문에서 받아 그린다 */
+  strip: (mascot: MascotId) => React.ReactNode;
 }
 
 function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyProps) {
@@ -259,6 +264,17 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openId, standalone]);
 
+  // 다른 기기 수정과 겹치면 그쪽 내용을 사본 노트로 남겼다고 알린다
+  useEffect(
+    () =>
+      store.onConflict((copy) => {
+        toast('다른 기기에서 고친 내용과 겹쳐서, 그쪽 내용을 사본 노트로 남겼어요', {
+          action: { label: '사본 보기', onClick: () => setOpenId(copy.id) },
+        });
+      }),
+    [store],
+  );
+
   // 로컬 id 가 서버 id 로 바뀌면 열린 노트 id 도 따라간다
   useEffect(
     () =>
@@ -299,11 +315,66 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
     [store],
   );
 
+  const handleToggleGalpi = useCallback(
+    (noteId: string) => {
+      const n = store.get(noteId);
+      if (!n) return;
+      if (n.bookmarked_at) {
+        store.save({ ...n, bookmarked_at: null });
+        toast('갈피를 뺐어요');
+        return;
+      }
+      const rivals = galpiRivals(store.all(), n);
+      rivals.forEach((r) => store.save({ ...r, bookmarked_at: null }));
+      store.save({ ...n, bookmarked_at: Date.now() });
+      toast(rivals.length ? '이 설교로 갈피를 옮겼어요' : '갈피를 꽂았어요');
+    },
+    [store],
+  );
+
+  // 공유받은 카드에서 「나도 기록하기」 → /sermonnote?start=1&… : 같은 설교 정보로 새 노트를 연다
+  // 첫 스티커는 노트 사본을 들고 있는다 (로그인 상태면 곧 서버 id 로 바뀌므로)
+  const [firstNote, setFirstNote] = useState<SermonNote | null>(null);
+  const startDone = useRef(false);
+  useEffect(() => {
+    if (startDone.current || store.status.loading) return;
+    const seed = readStart(searchParams);
+    if (!seed) return;
+    startDone.current = true;
+    const base = newNote(store.all()[0]);
+    const n = store.save(
+      seed.title || seed.refs.length
+        ? {
+            ...base,
+            title: seed.title,
+            preacher: seed.preacher,
+            service: seed.service || base.service,
+            date: seed.date || base.date,
+            refs: seed.refs,
+            body: seed.first ? `<p>${esc(seed.first)}</p>` : '',
+          }
+        : { ...base, body: seed.first ? `<p>${esc(seed.first)}</p>` : '' },
+    );
+    setOpenAid(null);
+    setOpenId(n.id);
+    if (seed.first) setFirstNote(n);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store, store.status.loading]);
+  // start 파라미터는 노트를 연 뒤(URL 동기화가 note 를 적은 다음)에 지운다 — 새로고침으로 또 만들지 않게
+  useEffect(() => {
+    if (startDone.current && openId && readStart(searchParams)) {
+      const next = clearStart(searchParams);
+      if (!standalone) next.set(PARAM_TAB, 'sermon');
+      next.set(PARAM_NOTE, openId);
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, openId, setSearchParams, standalone]);
+
   const editing = !!(openId && openNote);
 
   return (
     <div ref={rootRef} className="sermon-app">
-      {!editing && strip}
+      {!editing && strip(look.mascot)}
       {editing ? (
         <SermonEditor
           key={openNote.id}
@@ -334,11 +405,19 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
           onOpen={handleOpen}
           onNew={handleNew}
           onToggleApply={handleToggleApply}
+          onToggleGalpi={handleToggleGalpi}
           onLogin={onLogin}
           mascot={look.mascot}
           onOpenLook={() => setLookOpen(true)}
         />
       )}
+      <FirstSticker
+        open={!!firstNote}
+        note={firstNote}
+        mascot={look.mascot}
+        onLogin={onLogin}
+        onClose={() => setFirstNote(null)}
+      />
       <LookModal
         open={lookOpen}
         look={look}

@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
-import { Check, Plus } from 'lucide-react';
+import { Bookmark, Check, Plus } from 'lucide-react';
 import { BOOKS, PSALMS, refLong, type Ref } from './bibleRefs';
 import { Mascot } from './Mascot';
 import { mascotName, type MascotId } from './sermonLook';
 import {
   audioDuration,
+  galpiByWeek,
+  isGalpi,
   mainRef,
   todayString,
   UNTITLED,
@@ -15,7 +17,8 @@ import { firstVerseText } from './useBible';
 
 /**
  * 노트 목록의 첫 화면 「한 주 다이어리」.
- *  - 이번 주 설교 카드(표지형): 그림은 장 번호만이 아니라 항상 「책 이름 + 장」을 가리킨다
+ *  - 이번 주 설교 카드(표지형): 이번 주 갈피(그 주의 중심 설교)가 있으면 그 설교, 없으면 최근 설교.
+ *    그림은 장 번호만이 아니라 항상 「책 이름 + 장」을 가리킨다
  *  - 한 주 동안: 일~토 칸에 그날 들은 설교와 실천한 적용이 스티커로 붙는다
  *  - 모은 설교 스티커: 지난 설교가 칼선 도장 스티커로 쌓이고, 다음 주일 자리는 마스코트가 기다린다
  */
@@ -26,6 +29,7 @@ interface SermonHomeProps {
   onOpen: (id: string, aid?: string | null) => void;
   onNew: () => void;
   onToggleApply: (noteId: string, thoughtId: string) => void;
+  onToggleGalpi: (noteId: string) => void;
 }
 
 const DOW = '일월화수목금토';
@@ -74,7 +78,15 @@ function fmtMin(sec: number): string {
   return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`;
 }
 
-export function SermonHome({ notes, week, mascot, onOpen, onNew, onToggleApply }: SermonHomeProps) {
+export function SermonHome({
+  notes,
+  week,
+  mascot,
+  onOpen,
+  onNew,
+  onToggleApply,
+  onToggleGalpi,
+}: SermonHomeProps) {
   const today = todayString();
   const days = useMemo(() => weekDays(), []);
   const weekStart = ymd(days[0]);
@@ -82,7 +94,9 @@ export function SermonHome({ notes, week, mascot, onOpen, onNew, onToggleApply }
     () => [...notes].sort((a, b) => (b.date || '').localeCompare(a.date || '')),
     [notes],
   );
-  const hero = byDate[0];
+  const galpi = useMemo(() => galpiByWeek(notes), [notes]);
+  const weekGalpi = galpi.get(weekStart);
+  const hero = weekGalpi ?? byDate[0];
   const heroThisWeek = !!hero && (hero.date || '') >= weekStart && (hero.date || '') <= today;
   const ref = hero ? mainRef(hero) : null;
   const quote = ref ? firstVerseText(ref) : '';
@@ -96,13 +110,13 @@ export function SermonHome({ notes, week, mascot, onOpen, onNew, onToggleApply }
   const nextSunday = new Date(days[0]);
   nextSunday.setDate(days[0].getDate() + 7);
 
-  const stickers = byDate.slice(0, 6);
+  const stickers = byDate;
 
   return (
     <div className="sn-home">
       <div className="sn-home-top">
         {hero && (
-          <article className="sn-hc">
+          <article className="sn-hc" data-galpi={!!weekGalpi}>
             <span className="sn-tape" style={{ left: 44, ['--r' as string]: '-7deg' }} />
             <span className="sn-tape sn-c1" style={{ right: 150, ['--r' as string]: '5deg' }} />
             <span className="sn-hc-peek">
@@ -137,7 +151,7 @@ export function SermonHome({ notes, week, mascot, onOpen, onNew, onToggleApply }
             </button>
             <div className="sn-hc-body">
               <p className="sn-hc-run">
-                <b>{heroThisWeek ? '이번 주 설교' : '최근 설교'}</b>
+                <b>{weekGalpi ? '이번 주 갈피' : heroThisWeek ? '이번 주 설교' : '최근 설교'}</b>
                 <span>{hero.date ? hero.date.slice(5).replace('-', '.') : ''}</span>
                 {hero.service && <span>· {hero.service}</span>}
               </p>
@@ -157,6 +171,17 @@ export function SermonHome({ notes, week, mascot, onOpen, onNew, onToggleApply }
                 <button type="button" className="sn-btn sn-primary" onClick={() => onOpen(hero.id)}>
                   노트 열기
                 </button>
+                {heroThisWeek && (
+                  <button
+                    type="button"
+                    className="sn-btn sn-galpi-btn"
+                    aria-pressed={!!weekGalpi}
+                    onClick={() => onToggleGalpi(hero.id)}
+                  >
+                    <Bookmark className="sn-icon" aria-hidden />
+                    {weekGalpi ? '갈피 빼기' : '갈피 꽂기'}
+                  </button>
+                )}
                 <button type="button" className="sn-btn" onClick={onNew}>
                   <Plus className="sn-icon" aria-hidden />새 설교 기록
                 </button>
@@ -292,6 +317,7 @@ export function SermonHome({ notes, week, mascot, onOpen, onNew, onToggleApply }
         <div className="sn-stickers">
           {stickers.map((n, i) => {
             const r = mainRef(n);
+            const gp = isGalpi(n, galpi);
             const cur = n.id === hero?.id && heroThisWeek;
             const ab = i % 2 ? ['var(--sn-g1)', 'var(--sn-g2)'] : ['var(--sn-g2)', 'var(--sn-g1)'];
             const rot = [-6, 4, -2, 5, -4, 3][i % 6];
@@ -322,7 +348,13 @@ export function SermonHome({ notes, week, mascot, onOpen, onNew, onToggleApply }
                     <span className="sn-chn">{r ? r.c : n.date ? +n.date.slice(8) : '·'}</span>
                     {r && <span className="sn-vr">{verseRange(r)}</span>}
                   </span>
-                  {cur && <span className="sn-new">이번 주</span>}
+                  {gp ? (
+                    <span className="sn-new" data-galpi="true">
+                      갈피
+                    </span>
+                  ) : (
+                    cur && <span className="sn-new">이번 주</span>
+                  )}
                 </span>
                 <b className="sn-badge-t">{n.title || UNTITLED}</b>
                 <span className="sn-badge-m">

@@ -1,0 +1,828 @@
+/*
+ * 설교 카드 (공유 이미지). 부모(.snc-wrap) 폭 기준 cqw 단위.
+ * 잉크는 꾸미기의 밝은 값(--ink-g1/g2/t1/t2/paper)만 — 이미지라서 앱 테마와 무관하게 종이색으로 찍힌다.
+ */
+.snc-wrap {
+  container-type: inline-size;
+  width: 100%;
+}
+.snc {
+  --c-g1: var(--ink-g1, #c3b5f5);
+  --c-g2: var(--ink-g2, #ffb3d1);
+  --c-t1: var(--ink-t1, #5a45b8);
+  --c-t2: var(--ink-t2, #b8336f);
+  --c-paper: var(--ink-paper, #fcf8fb);
+  --c-ink: #2a2233;
+  --c-sub: #6f6479;
+  /* 마스코트가 카드 안에서도 밝은 잉크를 쓰도록 */
+  --sn-g1: var(--c-g1);
+  --sn-g2: var(--c-g2);
+  --sn-t1: var(--c-t1);
+  --sn-t2: var(--c-t2);
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  display: flex;
+  flex-direction: column;
+  gap: 3cqw;
+  padding: 6cqw;
+  overflow: hidden;
+  border-radius: 5cqw;
+  background: var(--c-paper);
+  color: var(--c-ink);
+  font-family:
+    'Noto Sans KR',
+    -apple-system,
+    'Apple SD Gothic Neo',
+    sans-serif;
+  line-height: 1.45;
+  text-align: left;
+  letter-spacing: 0;
+}
+.snc[data-fmt='story'] {
+  aspect-ratio: 9 / 16;
+  padding: 9cqw 6.5cqw 7cqw;
+}
+.snc > * {
+  flex-shrink: 0;
+}
+.snc * {
+  animation: none !important;
+  transition: none !important;
+}
+.snc mark {
+  color: inherit;
+}
+
+/* 하단 브랜드 */
+.snc-brand {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 2cqw;
+  padding-top: 2cqw;
+  font-size: 2.9cqw;
+  color: var(--c-sub);
+}
+.snc-brand b {
+  color: var(--c-ink);
+  font-weight: 900;
+  font-size: 3.3cqw;
+}
+.snc-brand .snc-brand-m {
+  width: 5cqw !important;
+  height: 5cqw !important;
+  --m-sz: 5cqw !important;
+}
+.snc-url {
+  margin-left: auto;
+  font-weight: 500;
+}
+
+/* ── 표지 ── */
+.snc-band {
+  position: relative;
+  flex: 1 1 40cqw;
+  min-height: 38cqw;
+  max-height: 82cqw;
+  display: flex;
+  align-items: flex-end;
+  padding: 5cqw;
+  overflow: hidden;
+  border-radius: 4cqw;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--c-g1) 35%, #fff),
+    color-mix(in srgb, var(--c-g2) 30%, #fff)
+  );
+}
+.snc-disc {
+  position: absolute;
+  left: 5cqw;
+  top: 5cqw;
+  width: 13cqw;
+  height: 13cqw;
+  border-radius: 50%;
+  background: var(--c-g1);
+}
+.snc-dots {
+  position: absolute;
+  right: -6cqw;
+  top: -4cqw;
+  width: 46cqw;
+  height: 120%;
+  border-radius: 50% 0 0 50%;
+  background-image: radial-gradient(circle, var(--c-g2) 32%, transparent 36%);
+  background-size: 4.2cqw 4.2cqw;
+  opacity: 0.9;
+}
+.snc-peek {
+  position: absolute;
+  right: 9cqw;
+  top: -2cqw;
+}
+.snc-peek > * {
+  width: 13cqw !important;
+  height: 13cqw !important;
+  --m-sz: 13cqw !important;
+}
+.snc-book {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 2cqw;
+  line-height: 0.85;
+}
+.snc-bk {
+  font-family: 'Black Han Sans', 'Noto Sans KR', sans-serif;
+  font-size: 15cqw;
+  color: var(--c-t1);
+  white-space: nowrap;
+}
+.snc-ch {
+  font-family: 'Black Han Sans', 'Noto Sans KR', sans-serif;
+  font-size: 30cqw;
+  line-height: 0.78;
+  color: var(--c-g2);
+  text-shadow: 1.2cqw 1.2cqw 0 color-mix(in srgb, var(--c-g1) 60%, transparent);
+  white-space: nowrap;
+}
+.snc-ch small {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 3.4cqw;
+  font-weight: 900;
+  color: var(--c-t1);
+  text-shadow: none;
+  margin-left: 1cqw;
+}
+.snc-pill {
+  position: absolute;
+  right: 5cqw;
+  top: 15cqw;
+  transform: rotate(3deg);
+  padding: 1.2cqw 3cqw;
+  border-radius: 99px;
+  background: #fff;
+  color: var(--c-ink);
+  font-size: 3cqw;
+  font-weight: 700;
+  box-shadow: 0 0.6cqw 1.6cqw rgba(60, 30, 80, 0.12);
+  white-space: nowrap;
+}
+.snc-meta {
+  font-size: 3.2cqw;
+  color: var(--c-sub);
+}
+.snc-title {
+  margin: 0;
+  font-size: 7cqw;
+  font-weight: 900;
+  line-height: 1.22;
+  letter-spacing: -0.02em;
+  color: var(--c-ink);
+  text-wrap: balance;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.snc[data-fmt='story'] .snc-title {
+  font-size: 8cqw;
+}
+.snc-who {
+  font-size: 3.6cqw;
+  font-weight: 700;
+}
+.snc-verse {
+  padding-left: 3cqw;
+  border-left: 0.8cqw solid var(--c-g1);
+  font-family: 'Hahmlet', 'Noto Serif KR', serif;
+  font-size: 3.3cqw;
+  line-height: 1.65;
+  color: var(--c-sub);
+}
+.snc-verse b {
+  display: block;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 3cqw;
+  color: var(--c-t1);
+}
+.snc-verse span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── 밑줄 ── */
+.snc-src {
+  align-self: flex-start;
+  padding: 1.2cqw 3.2cqw;
+  border-radius: 99px;
+  font-size: 3.1cqw;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--c-g2) 40%, #fff);
+  color: var(--c-t2);
+}
+.snc-src[data-src='verse'] {
+  background: color-mix(in srgb, var(--c-g1) 35%, #fff);
+  color: var(--c-t1);
+}
+.snc-qm {
+  position: absolute;
+  right: 5cqw;
+  top: 2cqw;
+  font-family: 'Hahmlet', serif;
+  font-weight: 700;
+  font-size: 24cqw;
+  line-height: 1;
+  color: var(--c-g1);
+}
+.snc-body {
+  margin: auto 0 0;
+  font-size: 5.6cqw;
+  font-weight: 500;
+  line-height: 1.7;
+  letter-spacing: -0.01em;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.snc-body[data-size='l'] {
+  font-size: 7cqw;
+  line-height: 1.6;
+}
+.snc-body[data-size='s'] {
+  font-size: 4.5cqw;
+}
+.snc[data-fmt='story'] .snc-body {
+  font-size: 6.4cqw;
+}
+.snc[data-fmt='story'] .snc-body[data-size='l'] {
+  font-size: 8cqw;
+}
+.snc[data-fmt='story'] .snc-body[data-size='s'] {
+  font-size: 5.2cqw;
+}
+.snc-body[data-serif='true'] {
+  font-family: 'Hahmlet', 'Noto Serif KR', serif;
+}
+.snc-body mark {
+  background: linear-gradient(
+    transparent 56%,
+    color-mix(in srgb, var(--c-g2) 75%, transparent) 56%
+  );
+  font-weight: 700;
+}
+.snc-body[data-serif='true'] mark {
+  font-weight: 600;
+}
+.snc-ctx {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8cqw;
+  margin-top: 3cqw;
+  padding-top: 3cqw;
+  border-top: 1px dashed color-mix(in srgb, var(--c-sub) 40%, transparent);
+  font-size: 3.1cqw;
+  color: var(--c-sub);
+}
+.snc-ctx b {
+  font-size: 3.4cqw;
+  color: var(--c-ink);
+}
+.snc-ref {
+  font-weight: 700;
+  color: var(--c-t1);
+}
+
+/* ───────── 공유 시트 ───────── */
+.sn-overlay .snc-sheet {
+  width: min(880px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.snc-sheet-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 4px 20px 20px;
+  overflow: auto;
+  min-height: 0;
+}
+.snc-stage {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 1px 1px, var(--sn-line-strong) 1px, transparent 1.5px) 0 0 / 16px 16px,
+    var(--sn-surface-2);
+  min-height: 0;
+}
+.snc-stage-card {
+  width: min(100%, 360px);
+}
+.snc-stage[data-fmt='story'] .snc-stage-card {
+  width: min(100%, 300px);
+}
+.snc-ctl {
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.snc-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 99px;
+  background: var(--sn-surface-2);
+}
+.snc-tabs button {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 99px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sn-muted);
+}
+.snc-tabs button[aria-selected='true'] {
+  background: var(--sn-surface);
+  color: var(--sn-accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+.snc-hint,
+.snc-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--sn-muted);
+}
+.snc-note {
+  font-size: 12px;
+  color: var(--sn-faint);
+}
+.snc-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 300px;
+  overflow: auto;
+  padding-right: 2px;
+}
+.snc-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.snc-pick[aria-checked='true'] {
+  border-color: var(--sn-accent);
+  box-shadow: 0 0 0 2px var(--sn-accent-soft);
+}
+.snc-pick:focus-visible,
+.snc-tabs button:focus-visible,
+.snc-chips button:focus-visible,
+.snc-toggle input:focus-visible + .snc-sw {
+  outline: 2px solid var(--sn-accent);
+  outline-offset: 2px;
+}
+.snc-pick-src {
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-t2);
+}
+.snc-pick-src[data-src='verse'] {
+  color: var(--sn-t1);
+}
+.snc-pick-t mark {
+  background: linear-gradient(
+    transparent 58%,
+    color-mix(in srgb, var(--sn-g2) 55%, transparent) 58%
+  );
+  color: inherit;
+  font-weight: 700;
+}
+.snc-pick-over {
+  font-size: 12px;
+  color: var(--sn-faint);
+}
+.snc-pick-sep {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-faint);
+}
+.snc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.snc-lbl {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sn-muted);
+}
+.snc-chips {
+  display: flex;
+  gap: 6px;
+}
+.snc-chips button {
+  padding: 7px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--sn-line);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sn-fg);
+}
+.snc-chips button small {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+.snc-chips button[aria-pressed='true'] {
+  background: var(--sn-accent);
+  border-color: var(--sn-accent);
+  color: var(--sn-accent-ink);
+}
+.snc-toggle {
+  cursor: pointer;
+}
+.snc-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.snc-sw {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex: none;
+  border-radius: 99px;
+  background: var(--sn-line-strong);
+  transition: background 0.15s;
+}
+.snc-sw::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+.snc-toggle input:checked + .snc-sw {
+  background: var(--sn-accent);
+}
+.snc-toggle input:checked + .snc-sw::after {
+  transform: translateX(16px);
+}
+.snc-acts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: auto;
+}
+.snc-acts .sn-btn {
+  justify-content: center;
+}
+.snc-acts .snc-main {
+  grid-column: 1 / -1;
+  min-height: 44px;
+}
+.snc-shot {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  pointer-events: none;
+}
+@media (max-width: 760px) {
+  .sn-overlay.snc-sheet-ov {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .sn-overlay .snc-sheet {
+    width: 100%;
+    max-height: 94dvh;
+    border-radius: 22px 22px 0 0;
+  }
+  .snc-sheet-body {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+  .snc-stage {
+    flex: none;
+    padding: 14px;
+  }
+  .snc-ctl {
+    flex: none;
+  }
+  .snc-stage-card {
+    width: min(100%, 250px);
+  }
+  .snc-stage[data-fmt='story'] .snc-stage-card {
+    width: min(100%, 190px);
+  }
+  .snc-picks {
+    max-height: 220px;
+  }
+}
+/* 오버레이(.sn-scope)에는 .sermon-app 의 버튼 규칙이 닿지 않아 여기서 같은 모양으로 */
+.snc-sheet .sn-btn,
+.snc-page .sn-btn,
+.snc-first .sn-btn {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--sn-line);
+  border-radius: var(--sn-r-pill, 999px);
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.snc-sheet .sn-btn:hover,
+.snc-page .sn-btn:hover,
+.snc-first .sn-btn:hover {
+  border-color: var(--sn-line-strong);
+}
+.snc-sheet .sn-btn.sn-primary,
+.snc-page .sn-btn.sn-primary,
+.snc-first .sn-btn.sn-primary {
+  background: var(--sn-accent);
+  border-color: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  font-weight: 700;
+}
+.snc-sheet .sn-btn.sn-ghost,
+.snc-first .sn-btn.sn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+.snc-sheet .sn-btn:disabled,
+.snc-page .sn-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.snc-sheet .sn-btn:focus-visible,
+.snc-page .sn-btn:focus-visible,
+.snc-first .sn-btn:focus-visible {
+  outline: 2px solid var(--sn-accent);
+  outline-offset: 2px;
+}
+.snc-sheet .sn-icon,
+.snc-page .sn-icon,
+.snc-first .sn-icon {
+  width: 18px;
+  height: 18px;
+}
+.snc-sheet .sn-btn.sn-icon-only {
+  width: 40px;
+  padding: 0;
+}
+
+/* ───────── 받은 카드 페이지 ───────── */
+.sermon-app.snc-page {
+  min-height: 100%;
+  overflow: auto;
+}
+.snc-page-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 380px) minmax(0, 360px);
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  padding: 32px 20px 48px;
+}
+.snc-page-card {
+  width: 100%;
+}
+.snc-page-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--sn-fg);
+}
+.snc-page-panel h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.snc-page-panel p {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--sn-muted);
+}
+.snc-page-main-btn {
+  min-height: 48px !important;
+  font-size: 15px !important;
+}
+.snc-page-empty {
+  grid-column: 1 / -1;
+  align-items: center;
+  text-align: center;
+  max-width: 360px;
+  justify-self: center;
+}
+.snc-first-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.snc-seed {
+  margin: 0 0 6px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--sn-surface);
+  border: 1px solid var(--sn-line);
+  font-size: 13px;
+}
+.snc-seed dt {
+  color: var(--sn-faint);
+  font-weight: 700;
+}
+.snc-seed dd {
+  margin: 0;
+  color: var(--sn-fg);
+}
+.snc-first-q {
+  font-size: 16px;
+  font-weight: 900;
+}
+.snc-first-form textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--sn-line-strong);
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  resize: none;
+}
+.snc-first-form textarea:focus {
+  outline: none;
+  border-color: var(--sn-accent);
+  box-shadow: 0 0 0 3px var(--sn-accent-soft);
+}
+@media (max-width: 760px) {
+  .snc-page-main {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 20px;
+    padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+  .snc-page-card {
+    width: min(100%, 300px);
+    justify-self: center;
+  }
+}
+
+/* ───────── 첫 스티커 ───────── */
+.sn-overlay .snc-first {
+  width: min(360px, calc(100vw - 32px));
+}
+.snc-first-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 22px 22px;
+  text-align: center;
+}
+.snc-first-body h2 {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 900;
+}
+.snc-first-body p {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--sn-muted);
+}
+.snc-first-stk {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 10px 24px -12px rgba(60, 30, 80, 0.45);
+  display: grid;
+  place-items: center;
+  animation: snc-pop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.snc-first-in {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  border: 2px dashed color-mix(in srgb, var(--ink-g2) 80%, transparent);
+  background: radial-gradient(
+    circle at 30% 25%,
+    #fff,
+    color-mix(in srgb, var(--ink-g1) 35%, #fff) 70%
+  );
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 0.95;
+}
+.snc-first-in b {
+  font-family: 'Black Han Sans', 'Noto Sans KR', sans-serif;
+  font-weight: 400;
+  font-size: 22px;
+  color: var(--ink-t1);
+}
+.snc-first-in strong {
+  font-family: 'Black Han Sans', 'Noto Sans KR', sans-serif;
+  font-weight: 400;
+  font-size: 44px;
+  color: var(--ink-g2);
+  text-shadow: 2px 2px 0 color-mix(in srgb, var(--ink-g1) 70%, transparent);
+}
+.snc-first-in small {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--ink-t1);
+  text-shadow: none;
+  margin-left: 2px;
+}
+.snc-first-badge {
+  position: absolute;
+  right: -6px;
+  top: 4px;
+  transform: rotate(10deg);
+  padding: 3px 9px;
+  border-radius: 99px;
+  background: var(--ink-t2);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+.snc-first-m {
+  position: absolute;
+  left: calc(50% + 40px);
+  top: 104px;
+}
+.snc-first-acts {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.snc-first-acts .sn-btn {
+  flex: 1;
+}
+@keyframes snc-pop {
+  from {
+    transform: scale(0.4) rotate(-20deg);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .snc-first-stk {
+    animation: none;
+  }
+}
+.snc[data-fmt='story'] .snc-verse span {
+  -webkit-line-clamp: 4;
+}

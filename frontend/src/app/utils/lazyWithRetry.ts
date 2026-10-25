@@ -16,6 +16,10 @@ export function lazyWithRetry<T extends ComponentType<unknown>>(
 ) {
   return lazy(() =>
     factory().catch(async (error: Error) => {
+      // 오프라인이면 새 청크를 받을 수 없다. 여기서 캐시를 지우고 새로고침하면
+      // 오프라인으로 쓰던 화면(설교 노트)까지 통째로 못 열게 되므로 손대지 않고 실패만 올린다.
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) throw error;
+
       const key = `chunk_reload_${chunkName ?? 'default'}`;
       const alreadyReloaded = sessionStorage.getItem(key);
 
@@ -25,7 +29,8 @@ export function lazyWithRetry<T extends ComponentType<unknown>>(
         // SW가 구버전 HTML을 캐싱하고 있을 수 있으므로 캐시 클리어
         if ('caches' in window) {
           const keys = await caches.keys();
-          await Promise.all(keys.map((k) => caches.delete(k)));
+          // 성경 본문(수 MB)은 앱 버전과 무관하다 — 남겨 두어 오프라인에서도 쓴다
+          await Promise.all(keys.filter((k) => k !== 'bible-cache').map((k) => caches.delete(k)));
         }
 
         // SW 업데이트 트리거

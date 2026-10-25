@@ -5,6 +5,7 @@ import { MediaUploadError, deleteMedia, uploadAudio } from './sermonMedia';
 import {
   audioPending,
   isLocalId,
+  LOCAL_ID_PREFIX,
   normalizeNote,
   SERMON_FEATURE_KEY,
   SERMON_SCHEMA_VER,
@@ -12,9 +13,10 @@ import {
   type SermonAudioSegment,
   type SermonContent,
   type SermonNote,
+  uid,
 } from './sermonTypes';
 import { audioExt } from './useSermonRecorder';
-import { adoptVersions, dropVersions, remapVersions } from './sermonVersions';
+import { adoptVersions, dropVersions, remapVersions, shrinkVersions } from './sermonVersions';
 
 /**
  * 설교 노트 저장소 — 기획서 §10 「저장과 동기화」.
@@ -22,7 +24,9 @@ import { adoptVersions, dropVersions, remapVersions } from './sermonVersions';
  * 1. 모든 변경은 먼저 이 기기(localStorage)에 쓴다. 예배 중에는 '저장 실패'를 보여주지 않는다.
  * 2. 올리지 못한 변경은 dirty/deleted 목록에 남겨, 연결되면 서버(personal_feature_docs, feature_key='sermon')로 보낸다.
  * 3. 실패하면 4초 → 최대 60초 간격으로 다시 시도한다.
- * 4. 다른 기기의 변경과 겹치면 더 나중에 고친 쪽(updated_at)을 남긴다.
+ * 4. 다른 기기의 변경과 겹치면(양쪽 다 마지막 동기화 뒤에 고침) 이 기기 내용은 그 노트에 두고,
+ *    다른 기기 내용은 사본 노트로 따로 남긴다. 어느 쪽도 버리지 않는다.
+ * 5. 오프라인·실패 뒤 다시 올릴 때는 먼저 서버 목록을 받아 4번을 확인한다.
  *
  * 서버 id 가 없는 새 노트는 `local-` id 로 만들어 두고, 올라간 뒤 서버 id 로 바꾼다(remap 리스너로 열린 화면에 알림).
  *
@@ -48,10 +52,16 @@ export interface SyncStatus {
   localOk: boolean;
   /** 녹음 올리는 중이면 진행률(0~100) */
   audioPct: number | null;
+  /** 기기 저장 공간이 차서 마지막 변경을 기기에 쓰지 못함 */
+  localFull: boolean;
+  /** 마지막 전송이 응답 없이 시간을 넘김 (느린·로그인 필요한 와이파이) */
+  slow: boolean;
 }
 
 type Listener = () => void;
 type RemapListener = (fromId: string, toId: string) => void;
+/** 다른 기기 수정과 겹쳐 사본 노트를 만들었을 때 */
+type ConflictListener = (copy: SermonNote) => void;
 
 interface PersistShape {
   notes: SermonNote[];
@@ -63,6 +73,48 @@ interface PersistShape {
 const BACKOFF_MIN = 4000;
 const BACKOFF_MAX = 60000;
 const FETCH_BATCH = 6;
+/** 문서 요청 하나의 제한 시간. 응답 없는 와이파이에서 전송이 멈춰 재시도도 못 하는 일을 막는다 */
+const REQUEST_TIMEOUT_MS = 20000;
+
+class RequestTimeout extends Error {}
+
+function withTimeout<T>(p: Promise<T>, ms = REQUEST_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new RequestTimeout('sermon: request timed out')), ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
+/** 본문이 같은지 — 저장 시각만 다른 경우는 겹친 것으로 보지 않는다 (서버 jsonb 는 키 순서를 바꾼다) */
+function sameContent(a: SermonNote, b: SermonNote): boolean {
+  const key = (n: SermonNote) => {
+    const { id: _i, updated_at: _u, created_at: _c, ...rest } = n;
+    return stableStringify(rest);
+  };
+  return key(a) === key(b);
+}
+
+function stableStringify(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableStringify).join(',')}]`;
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    return `{${Object.keys(o)
+      .filter((k) => o[k] !== undefined)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableStringify(o[k])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(v) ?? 'null';
+}
 
 /** 문서 없음(PF001)만. 기능 미등록(PF002)·라우트 404 는 재생성이 아니라 재시도 대상이다 */
 function isNotFound(err: unknown): boolean {
@@ -79,6 +131,9 @@ export class SermonStore {
 
   private listeners = new Set<Listener>();
   private remapListeners = new Set<RemapListener>();
+  private conflictListeners = new Set<ConflictListener>();
+  /** 오프라인·실패 뒤에는 올리기 전에 서버 목록부터 맞춘다 (겹친 수정 확인) */
+  private needPull = false;
 
   private flushing = false;
   private again = false;
@@ -96,13 +151,17 @@ export class SermonStore {
     loading: true,
     localOk: true,
     audioPct: null,
+    localFull: false,
+    slow: false,
   };
 
   private onOnline = () => {
     this.backoff = BACKOFF_MIN;
+    this.needPull = true;
     void this.flush();
   };
   private onOffline = () => {
+    this.needPull = true;
     this.setStatus({ online: false });
   };
 
@@ -124,6 +183,11 @@ export class SermonStore {
   onRemap(fn: RemapListener): () => void {
     this.remapListeners.add(fn);
     return () => this.remapListeners.delete(fn);
+  }
+
+  onConflict(fn: ConflictListener): () => void {
+    this.conflictListeners.add(fn);
+    return () => this.conflictListeners.delete(fn);
   }
 
   private notify() {
@@ -217,17 +281,24 @@ export class SermonStore {
       deleted: [...this.deleted],
       synced: [...this.synced.entries()],
     };
-    try {
-      localStorage.setItem(this.lsKey, JSON.stringify(shape));
-    } catch (e) {
-      console.warn('sermon: local persist failed', e);
+    const raw = JSON.stringify(shape);
+    let ok = tryWrite(this.lsKey, raw);
+    if (!ok) {
+      // 용량 초과 — 버전 기록(본문 사본)부터 줄이고 한 번 더
+      shrinkVersions(this.userId);
+      ok = tryWrite(this.lsKey, raw);
     }
+    if (ok === !this.status.localFull) return; // 상태 그대로
+    if (!ok) console.warn('sermon: local persist failed (storage full)');
+    this.status = { ...this.status, localFull: !ok };
+    this.notify();
   }
 
   // ───────── 수명 ─────────
 
   async init() {
     this.loadLocal();
+    requestPersistentStorage();
     if (this.anonymous) {
       // 로그인 전: 서버 없음. 기기 저장이 곧 저장이다
       this.setStatus({ loading: false, online: null });
@@ -314,15 +385,16 @@ export class SermonStore {
 
   // ───────── 서버 동기화 ─────────
 
-  /** 서버 목록과 맞춘다. 변경된 문서만 본문을 받는다 */
-  private async pull() {
+  /** 서버 목록과 맞춘다. 변경된 문서만 본문을 받는다. 목록을 못 받으면 false */
+  private async pull(): Promise<boolean> {
     let summaries: PersonalFeatureDocSummary[];
     try {
-      summaries = await personalFeatureAPI.listDocs(SERMON_FEATURE_KEY);
+      summaries = await withTimeout(personalFeatureAPI.listDocs(SERMON_FEATURE_KEY));
     } catch (e) {
       console.warn('sermon: pull failed', e);
-      this.setStatus({ online: false });
-      return;
+      this.needPull = true;
+      this.setStatus({ online: false, slow: e instanceof RequestTimeout });
+      return false;
     }
     const serverIds = new Set(summaries.map((s) => s.id));
 
@@ -342,7 +414,9 @@ export class SermonStore {
     for (let i = 0; i < toFetch.length; i += FETCH_BATCH) {
       const batch = toFetch.slice(i, i + FETCH_BATCH);
       const results = await Promise.allSettled(
-        batch.map((s) => personalFeatureAPI.getDoc<SermonContent>(SERMON_FEATURE_KEY, s.id)),
+        batch.map((s) =>
+          withTimeout(personalFeatureAPI.getDoc<SermonContent>(SERMON_FEATURE_KEY, s.id)),
+        ),
       );
       results.forEach((r) => {
         if (r.status !== 'fulfilled') return;
@@ -350,19 +424,62 @@ export class SermonStore {
       });
     }
     this.persistLocal();
-    this.setStatus({ online: true, lastSync: Date.now() });
+    this.needPull = false;
+    this.setStatus({ online: true, slow: false, lastSync: Date.now() });
+    return true;
   }
 
   private mergeRemote(doc: PersonalFeatureDoc<SermonContent>) {
     const remote = normalizeNote(doc.id, doc.content);
     const local = this.notes.get(doc.id);
-    // 이 기기에 더 나중에 고친 미전송 변경이 있으면 지킨다 (flush 가 올린다)
-    if (local && this.dirty.has(doc.id) && local.updated_at >= remote.updated_at) return;
+    if (local && this.dirty.has(doc.id)) {
+      if (sameContent(local, remote)) {
+        // 같은 내용 — 이미 올라간 것. 서버 쪽을 받는다
+        this.notes.set(doc.id, {
+          ...local,
+          updated_at: Math.max(local.updated_at, remote.updated_at),
+        });
+        this.dirty.delete(doc.id);
+        this.synced.set(doc.id, doc.updated_at);
+        return;
+      }
+      const base = this.synced.get(doc.id);
+      if (base && base !== doc.updated_at) {
+        // 마지막 동기화 뒤에 양쪽 다 고쳤다 → 이 기기 내용은 이 노트로 올리고, 다른 기기 내용은 사본으로
+        this.forkRemote(remote, local);
+        this.synced.set(doc.id, doc.updated_at);
+        return;
+      }
+      // 서버는 그대로고 이 기기만 고쳤다 → flush 가 올린다
+      if (local.updated_at >= remote.updated_at) return;
+    }
     // 열어서 편집 중인 노트는 덮어쓰지 않는다
     if (local && this.openId === doc.id) return;
     this.notes.set(doc.id, remote);
     this.dirty.delete(doc.id);
     this.synced.set(doc.id, doc.updated_at);
+  }
+
+  /** 다른 기기에서 고친 내용을 새 노트(사본)로 남긴다. 이 기기에 없는 녹음 토막만 가져간다 */
+  private forkRemote(remote: SermonNote, local: SermonNote) {
+    const localSegs = new Set((local.audio?.segments || []).map((x) => x.id));
+    const segments = (remote.audio?.segments || []).filter((x) => !localSegs.has(x.id));
+    const now = Date.now();
+    const copy: SermonNote = {
+      ...remote,
+      id: LOCAL_ID_PREFIX + uid('n'),
+      title: `${(remote.title || '').trim() || UNTITLED} · 다른 기기 사본`,
+      // 갈피는 한 주에 한 편 — 원래 노트에 둔다
+      bookmarked_at: null,
+      created_at: now,
+      updated_at: now,
+    };
+    if (segments.length) copy.audio = { segments };
+    else delete copy.audio;
+    this.notes.set(copy.id, copy);
+    this.dirty.add(copy.id);
+    console.warn('sermon: conflict — kept other device copy as', copy.id);
+    this.conflictListeners.forEach((fn) => fn(copy));
   }
 
   private scheduleRetry() {
@@ -376,7 +493,12 @@ export class SermonStore {
       this.setStatus({});
       return;
     }
-    if (this.dirty.size === 0 && this.deleted.size === 0 && this.audioPendingCount() === 0) {
+    if (
+      !this.needPull &&
+      this.dirty.size === 0 &&
+      this.deleted.size === 0 &&
+      this.audioPendingCount() === 0
+    ) {
       this.setStatus({});
       return;
     }
@@ -385,6 +507,7 @@ export class SermonStore {
       return;
     }
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      this.needPull = true;
       this.setStatus({ online: false });
       this.scheduleRetry();
       return;
@@ -395,6 +518,9 @@ export class SermonStore {
       this.retryTimer = null;
     }
     try {
+      // 끊겼다 다시 올리는 길이면 서버에서 그 사이 바뀐 것부터 받는다 (겹친 수정은 사본으로)
+      if (this.needPull && !(await this.pull()))
+        throw new Error('sermon: pull before flush failed');
       for (const id of [...this.dirty]) {
         const n = this.notes.get(id);
         if (!n) {
@@ -406,13 +532,11 @@ export class SermonStore {
           await this.createRemote(id, n, stamp);
         } else {
           try {
-            const saved = await personalFeatureAPI.updateDoc<SermonContent>(
-              SERMON_FEATURE_KEY,
-              id,
-              {
+            const saved = await withTimeout(
+              personalFeatureAPI.updateDoc<SermonContent>(SERMON_FEATURE_KEY, id, {
                 title: titleOf(n),
                 content: contentOf(n),
-              },
+              }),
             );
             if (this.notes.get(id)?.updated_at === stamp) this.dirty.delete(id);
             this.synced.set(id, saved.updated_at);
@@ -425,7 +549,7 @@ export class SermonStore {
       }
       for (const id of [...this.deleted]) {
         try {
-          await personalFeatureAPI.deleteDoc(SERMON_FEATURE_KEY, id);
+          await withTimeout(personalFeatureAPI.deleteDoc(SERMON_FEATURE_KEY, id));
         } catch (e) {
           if (!isNotFound(e)) throw e;
         }
@@ -433,10 +557,11 @@ export class SermonStore {
       }
       await this.flushAudio();
       this.backoff = BACKOFF_MIN;
-      this.setStatus({ online: true, lastSync: Date.now() });
+      this.setStatus({ online: true, slow: false, lastSync: Date.now() });
     } catch (e) {
       console.warn('sermon: flush failed, will retry', e);
-      this.setStatus({ online: false });
+      this.needPull = true;
+      this.setStatus({ online: false, slow: e instanceof RequestTimeout });
       this.scheduleRetry();
     } finally {
       this.flushing = false;
@@ -543,11 +668,13 @@ export class SermonStore {
   }
 
   private async createRemote(oldId: string, n: SermonNote, stamp: number) {
-    const created = await personalFeatureAPI.createDoc<SermonContent>(SERMON_FEATURE_KEY, {
-      title: titleOf(n),
-      content: contentOf(n),
-      schema_ver: SERMON_SCHEMA_VER,
-    });
+    const created = await withTimeout(
+      personalFeatureAPI.createDoc<SermonContent>(SERMON_FEATURE_KEY, {
+        title: titleOf(n),
+        content: contentOf(n),
+        schema_ver: SERMON_SCHEMA_VER,
+      }),
+    );
     const cur = this.notes.get(oldId) ?? n;
     const newId = created.id;
     this.notes.delete(oldId);
@@ -560,6 +687,29 @@ export class SermonStore {
     void sermonAudioStore.renameNote(oldId, newId);
     remapVersions(this.userId, oldId, newId);
     this.remapListeners.forEach((fn) => fn(oldId, newId));
+  }
+}
+
+function tryWrite(key: string, raw: string): boolean {
+  try {
+    localStorage.setItem(key, raw);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 브라우저가 공간이 부족할 때 이 사이트 저장소를 지우지 않도록 요청 (Safari 7일 정리 포함) */
+function requestPersistentStorage() {
+  try {
+    const st = typeof navigator !== 'undefined' ? navigator.storage : undefined;
+    if (!st?.persist || !st.persisted) return;
+    void st
+      .persisted()
+      .then((already) => (already ? true : st.persist()))
+      .catch(() => {});
+  } catch {
+    /* 지원 안 함 */
   }
 }
 
@@ -579,11 +729,18 @@ export function syncLabel(s: SyncStatus): { text: string; state: 'ok' | 'wait' |
   if (!s.localOk) {
     return { text: '저장 공간을 쓸 수 없어 창을 닫으면 사라져요', state: 'warn' };
   }
+  if (s.localFull) {
+    return {
+      text: '기기 저장 공간이 부족해요 · 마지막 변경이 기기에 저장되지 않았어요',
+      state: 'warn',
+    };
+  }
   if (s.anonymous) {
     return { text: '이 기기에 저장됨 · 로그인하면 다른 기기와 맞춰져요', state: 'ok' };
   }
   if (s.pending) {
     if (s.audioPct != null) return { text: `녹음 올리는 중 ${s.audioPct}%`, state: 'wait' };
+    if (s.slow) return { text: '기기에 저장됨 · 연결이 느려서 잠시 뒤 다시 올려요', state: 'wait' };
     return {
       text:
         s.online === false || (typeof navigator !== 'undefined' && navigator.onLine === false)

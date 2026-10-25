@@ -1,6 +1,6 @@
 {
-  "name": "설교 노트",
-  "short_name": "설교 노트",
+  "name": "갈피 — 설교 노트",
+  "short_name": "갈피",
   "description": "설교를 들으며 말씀을 받아 적고, 구절을 몇 글자로 넣고, 생각을 본문에 연결해 남기는 노트",
   "lang": "ko",
   "start_url": "/sermonnote",

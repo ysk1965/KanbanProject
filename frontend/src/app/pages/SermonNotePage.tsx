@@ -13,10 +13,10 @@ const SermonTab = lazyWithRetry(
 );
 
 export default function SermonNotePage() {
-  // 홈 화면 설치가 「설교 노트」 앱이 되도록, 이 화면에 있는 동안 매니페스트·아이콘·제목을 바꿔 단다
+  // 홈 화면 설치가 「갈피」 앱이 되도록, 이 화면에 있는 동안 매니페스트·아이콘·제목을 바꿔 단다
   useEffect(() => {
     const prevTitle = document.title;
-    document.title = '설교 노트';
+    document.title = '갈피';
     const head = document.head;
     const swaps: Array<{ el: HTMLElement; attr: string; prev: string | null; created: boolean }> =
       [];
@@ -40,6 +40,7 @@ export default function SermonNotePage() {
       m.name = name;
       return m;
     };
+    swap('link[rel="icon"]', link('icon'), 'href', '/favicon-32-sermonnote.png');
     swap('link[rel="manifest"]', link('manifest'), 'href', '/manifest-sermonnote.webmanifest');
     swap(
       'link[rel="apple-touch-icon"]',
@@ -51,7 +52,7 @@ export default function SermonNotePage() {
       'meta[name="apple-mobile-web-app-title"]',
       meta('apple-mobile-web-app-title'),
       'content',
-      '설교 노트',
+      '갈피',
     );
     swap(
       'meta[name="apple-mobile-web-app-capable"]',

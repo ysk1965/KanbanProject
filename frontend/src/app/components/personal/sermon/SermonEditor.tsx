@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import {
   ArrowLeft,
   BookOpen,
+  Bookmark,
   ChevronDown,
   History,
   Mic,
@@ -11,6 +12,7 @@ import {
   PenLine,
   Plus,
   Redo2,
+  Share2,
   SlidersHorizontal,
   Trash2,
   Undo2,
@@ -26,6 +28,8 @@ import { ThoughtsPanel, type ThoughtsPanelHandle } from './ThoughtsPanel';
 import { VersePicker, type InsertForm, type PickerTarget } from './VersePicker';
 import { StyleSettingsModal } from './StyleSettingsModal';
 import { VersionHistoryModal } from './VersionHistoryModal';
+import { ShareSheet } from './share/ShareSheet';
+import type { LineQuote } from './share/shareModel';
 import type { SermonStore } from './sermonStore';
 import { syncLabel } from './sermonStore';
 import type { SermonStyle } from './sermonStyle';
@@ -34,6 +38,7 @@ import {
   audioPending,
   fmtDate,
   fmtTime,
+  galpiRivals,
   isLocalId,
   noteRefs,
   plainText,
@@ -293,6 +298,17 @@ export function SermonEditor({
     saveTimer.current = window.setTimeout(saveNow, 700);
   }, [saveNow]);
 
+  // ───────── 카드로 공유 ─────────
+  /** 열 때 노트 사본(본문까지 저장한 최신) + 선택 버블에서 고른 문장 */
+  const [share, setShare] = useState<{ note: SermonNote; quote: LineQuote | null } | null>(null);
+  const openShare = useCallback(
+    (quote: LineQuote | null = null) => {
+      saveNow();
+      setShare({ note: noteRef.current, quote });
+    },
+    [saveNow],
+  );
+
   /** 메타·구절·생각처럼 React 가 들고 있는 필드를 바꿀 때 */
   const patchNote = useCallback(
     (patch: Partial<SermonNote>) => {
@@ -301,6 +317,22 @@ export function SermonEditor({
     },
     [scheduleSave],
   );
+
+  // ───────── 갈피 (그 주의 중심 설교) ─────────
+  const [galpiOn, setGalpiOn] = useState(() => !!note.bookmarked_at);
+  const toggleGalpi = useCallback(() => {
+    if (noteRef.current.bookmarked_at) {
+      setGalpiOn(false);
+      patchNote({ bookmarked_at: null });
+      toast('갈피를 뺐어요');
+      return;
+    }
+    const rivals = galpiRivals(store.all(), noteRef.current);
+    rivals.forEach((r) => store.save({ ...r, bookmarked_at: null }));
+    setGalpiOn(true);
+    patchNote({ bookmarked_at: Date.now() });
+    toast(rivals.length ? '이 설교로 갈피를 옮겼어요' : '이 주의 갈피를 꽂았어요');
+  }, [patchNote, store]);
 
   const updateThoughts = useCallback(
     (fn: (prev: Thought[]) => Thought[]) => {
@@ -893,6 +925,16 @@ export function SermonEditor({
         </button>
         <button
           type="button"
+          className="sn-btn sn-ghost"
+          title="카드로 공유"
+          aria-label="카드로 공유"
+          onClick={() => openShare()}
+        >
+          <Share2 className="sn-icon" />
+          <span className="sn-hide-sm">공유</span>
+        </button>
+        <button
+          type="button"
           className="sn-btn sn-ghost sn-hide-sm"
           title="버전 기록"
           onClick={openVersions}
@@ -1095,6 +1137,18 @@ export function SermonEditor({
                     onBlur={() => setDateShown(false)}
                   />
                 </div>
+                {date && (
+                  <button
+                    type="button"
+                    className="sn-btn sn-galpi-btn sn-meta-galpi"
+                    aria-pressed={galpiOn}
+                    title="그 주의 중심 설교로 갈피를 꽂아 둡니다"
+                    onClick={toggleGalpi}
+                  >
+                    <Bookmark className="sn-icon" aria-hidden />
+                    {galpiOn ? '갈피 빼기' : '갈피 꽂기'}
+                  </button>
+                )}
               </div>
 
               <section className="sn-mainv" aria-label="설교 본문 말씀">
@@ -1181,6 +1235,7 @@ export function SermonEditor({
                 canPolish={canAttach}
                 onNeedLogin={onLogin}
                 polish={(text) => personalFeatureAPI.polishText('sermon', text).then((r) => r.text)}
+                onMakeCard={openShare}
                 onInsertVerse={(r) => {
                   rememberRef(r);
                   coreRef.current?.insertBlock(r);
@@ -1339,6 +1394,13 @@ export function SermonEditor({
         style={style}
         onChange={onStyleChange}
         onClose={() => setStyleOpen(false)}
+      />
+      <ShareSheet
+        open={!!share}
+        note={share?.note ?? null}
+        initialQuote={share?.quote ?? null}
+        mascot={mascot}
+        onClose={() => setShare(null)}
       />
       <VersionHistoryModal
         open={versions !== null}

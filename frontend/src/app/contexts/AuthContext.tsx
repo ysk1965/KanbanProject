@@ -44,6 +44,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+/**
+ * 토큰 갱신이 실패했어도 세션이 살아 있는가.
+ * api.ts 는 세션 만료(4xx)일 때만 토큰을 지우고, 네트워크 오류·5xx 면 남긴다.
+ * 토큰과 저장된 사용자가 그대로면 "연결이 없어서 못 갱신한 것"이다.
+ */
+function keepsSessionOffline(): boolean {
+  return authService.isTokenExpiredButExists() && !!authService.getCurrentUser();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -119,6 +128,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAuthenticated(true);
           setCurrentUser(user);
           syncAnalyticsUser(user);
+        } else if (keepsSessionOffline()) {
+          // 오프라인·서버 장애로 갱신만 못 했다 — 세션은 살아 있으니 로그인 상태를 유지한다.
+          // (설교 노트를 오프라인으로 열어도 계정 노트가 보이게. 연결되면 첫 요청의 401→갱신이 이어 받는다)
+          console.log('📴 [Auth] 갱신 보류(연결 없음), 기존 세션 유지');
+          const user = authService.getCurrentUser();
+          setIsAuthenticated(true);
+          setCurrentUser(user);
+          syncAnalyticsUser(user);
         } else {
           console.log('❌ [Auth] 토큰 갱신 실패, 로그인 필요');
           setIsAuthenticated(false);
@@ -147,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (authService.isTokenExpiredButExists()) {
           console.log('🔄 [Auth] 탭 복귀, 만료된 토큰 갱신 시도...');
           const refreshed = await authService.tryRefreshToken();
-          if (!refreshed) {
+          if (!refreshed && !keepsSessionOffline()) {
             setIsAuthenticated(false);
             setCurrentUser(null);
             syncAnalyticsUser(null);

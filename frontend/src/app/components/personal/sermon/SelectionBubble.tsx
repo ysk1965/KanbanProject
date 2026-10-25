@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Loader2, Sparkles } from 'lucide-react';
 import { finalRef, parseRef, refShort, type Ref } from './bibleRefs';
 import type { EditorCore } from './editorCore';
+import { segsFromNode, segsText, type LineQuote } from './share/shareModel';
 
 /**
  * 본문에서 글자를 드래그하면 선택 영역 위에 뜨는 작은 서식 바 — 제목 · 강조 · 목록 · AI 문장 정리,
@@ -18,6 +19,8 @@ interface SelectionBubbleProps {
   onNeedLogin?: () => void;
   /** 선택한 글 → 정리된 글 */
   polish: (text: string) => Promise<string>;
+  /** 고른 문장으로 밑줄 카드 만들기 */
+  onMakeCard?: (q: LineQuote) => void;
 }
 
 interface Anchor {
@@ -105,6 +108,7 @@ export function SelectionBubble({
   canPolish,
   onNeedLogin,
   polish,
+  onMakeCard,
 }: SelectionBubbleProps) {
   const [info, setInfo] = useState<BubbleInfo | null>(null);
   const [ai, setAi] = useState<AiState | null>(null);
@@ -336,6 +340,24 @@ export function SelectionBubble({
           >
             <Sparkles size={13} aria-hidden />
             정리
+          </button>
+        </>
+      )}
+      {onMakeCard && (
+        <>
+          <span className="sn-bsep" aria-hidden />
+          <button
+            type="button"
+            title="이 문장으로 공유 카드 만들기"
+            onClick={() => {
+              const segs = segsFromNode(info.range.cloneContents());
+              const vb = closest(info.range.startContainer, '.sn-vblock');
+              setInfo(null);
+              if (!segsText(segs)) return;
+              onMakeCard({ src: vb ? 'verse' : 'note', segs, ref: vb?.dataset.ref ?? null });
+            }}
+          >
+            카드
           </button>
         </>
       )}

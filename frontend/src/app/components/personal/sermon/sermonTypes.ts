@@ -77,6 +77,8 @@ export interface SermonNote {
   elapsed: number;
   /** 설교 녹음. 녹음하지 않았으면 없음 */
   audio?: SermonAudio;
+  /** 갈피 꽂은 시각(ms). 갈피 = 그 주(일~토, date 기준)의 중심 설교. 한 주에 한 편 */
+  bookmarked_at?: number | null;
   created_at: number;
   updated_at: number;
 }
@@ -203,6 +205,57 @@ export function thisWeek(items: ApplyItem[]): ApplyItem[] {
   });
 }
 
+// ───────── 갈피 (그 주의 중심 설교) ─────────
+
+/** yyyy-MM-dd 가 든 주의 일요일 (yyyy-MM-dd). 날짜가 없으면 '' */
+export function weekOf(ds: string | null | undefined): string {
+  if (!ds) return '';
+  const [y, m, d] = ds.split('-').map(Number);
+  if (!y || !m || !d) return '';
+  const t = new Date(y, m - 1, d);
+  t.setDate(d - t.getDay());
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * 주(일요일) → 그 주 갈피 노트.
+ * 한 주에 갈피가 둘 이상 남아 있으면(다른 기기에서 동시에 꽂았거나 날짜를 옮긴 경우) 늦게 꽂은 쪽.
+ */
+export function galpiByWeek(notes: SermonNote[]): Map<string, SermonNote> {
+  const out = new Map<string, SermonNote>();
+  notes.forEach((n) => {
+    if (!n.bookmarked_at) return;
+    const w = weekOf(n.date);
+    if (!w) return;
+    const cur = out.get(w);
+    if (!cur || (cur.bookmarked_at || 0) < n.bookmarked_at) out.set(w, n);
+  });
+  return out;
+}
+
+/** 노트가 자기 주의 갈피인지 */
+export function isGalpi(n: SermonNote, byWeek: Map<string, SermonNote>): boolean {
+  return !!n.bookmarked_at && byWeek.get(weekOf(n.date))?.id === n.id;
+}
+
+/** 같은 주에서 갈피를 빼야 할 다른 노트들 (갈피를 꽂을 때 함께 저장) */
+export function galpiRivals(
+  notes: SermonNote[],
+  target: Pick<SermonNote, 'id' | 'date'>,
+): SermonNote[] {
+  const w = weekOf(target.date);
+  if (!w) return [];
+  return notes.filter((n) => n.id !== target.id && n.bookmarked_at && weekOf(n.date) === w);
+}
+
+/** '10.25 – 10.31' */
+export function weekRangeLabel(week: string): string {
+  const [y, m, d] = week.split('-').map(Number);
+  if (!y) return '';
+  const e = new Date(y, m - 1, d + 6);
+  return `${m}.${d} – ${e.getMonth() + 1}.${e.getDate()}`;
+}
+
 export function newNote(prev: SermonNote | undefined): SermonNote {
   const now = Date.now();
   return {
@@ -238,6 +291,7 @@ export function normalizeNote(
     thoughts: Array.isArray(c.thoughts) ? (c.thoughts as Thought[]) : [],
     elapsed: typeof c.elapsed === 'number' ? c.elapsed : 0,
     ...(audio ? { audio } : {}),
+    ...(typeof c.bookmarked_at === 'number' ? { bookmarked_at: c.bookmarked_at } : {}),
     created_at: typeof c.created_at === 'number' ? c.created_at : 0,
     updated_at: typeof c.updated_at === 'number' ? c.updated_at : 0,
   };
