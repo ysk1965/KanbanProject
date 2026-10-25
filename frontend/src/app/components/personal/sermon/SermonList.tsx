@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Check, LogIn, Plus, Search, X } from 'lucide-react';
+import { Check, LogIn, Mic, Plus, Search, X } from 'lucide-react';
 import { compareRef, encRef, norm, refLong, refShort, type Ref } from './bibleRefs';
 import type { SyncStatus } from './sermonStore';
 import {
   applyItems,
+  audioDuration,
+  audioPending,
   fmtDate,
   mainRef,
   noteRefs,
@@ -13,6 +15,12 @@ import {
   type ApplyItem,
   type SermonNote,
 } from './sermonTypes';
+
+/** 2461초 → '41분', 59초 → '1분' */
+function fmtMin(sec: number): string {
+  const m = Math.max(1, Math.round(sec / 60));
+  return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`;
+}
 import { firstVerseText, useBible } from './useBible';
 
 /**
@@ -345,7 +353,23 @@ export function SermonList({
                         <span className="sn-nx">{plainText(n.body).slice(0, 110)}</span>
                       </span>
                       <span className="sn-nr">{main ? refShort(main) : ''}</span>
-                      <span className="sn-nt">{thn ? `생각 ${thn}` : ''}</span>
+                      <span className="sn-nt">
+                        {audioDuration(n) > 0 && (
+                          <span
+                            className="sn-nrec"
+                            data-pending={audioPending(n) > 0}
+                            title={
+                              audioPending(n) > 0
+                                ? '녹음이 아직 이 기기에만 있어요'
+                                : '설교 녹음 있음'
+                            }
+                          >
+                            <Mic className="sn-icon" aria-hidden />
+                            {fmtMin(audioDuration(n))}
+                          </span>
+                        )}
+                        {thn ? `생각 ${thn}` : ''}
+                      </span>
                     </button>
                   );
                 })}

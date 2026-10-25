@@ -4,6 +4,8 @@ import {
   BookOpen,
   ChevronDown,
   History,
+  Mic,
+  MicOff,
   MoreHorizontal,
   PanelRight,
   PenLine,
@@ -16,6 +18,9 @@ import {
 import { toast } from 'sonner';
 import { decRef, encRef, refLong, refShort, type Ref } from './bibleRefs';
 import { EditorCore, verseHTML } from './editorCore';
+import { SermonPlayer, type SermonPlayerHandle } from './SermonPlayer';
+import { personalFeatureAPI } from '../../../utils/services';
+import { SelectionBubble } from './SelectionBubble';
 import { SnOverlay } from './SnOverlay';
 import { ThoughtsPanel, type ThoughtsPanelHandle } from './ThoughtsPanel';
 import { VersePicker, type InsertForm, type PickerTarget } from './VersePicker';
@@ -25,14 +30,21 @@ import type { SermonStore } from './sermonStore';
 import { syncLabel } from './sermonStore';
 import type { SermonStyle } from './sermonStyle';
 import {
+  audioEnd,
+  audioPending,
   fmtDate,
   fmtTime,
+  isLocalId,
   noteRefs,
   plainText,
   todayString,
+  type SermonAudioSegment,
   type SermonNote,
   type Thought,
 } from './sermonTypes';
+import { useSermonRecorder } from './useSermonRecorder';
+import { deleteMedia } from './sermonMedia';
+import { sermonAudioStore } from './sermonAudioStore';
 import { VersionTracker, listVersions, saveVersion, type NoteVersion } from './sermonVersions';
 import { firstVerseText, useBible } from './useBible';
 
@@ -69,7 +81,21 @@ const SERVICE_OPTIONS = [
 const RECENT_KEY = 'sermon-recent-v1';
 const ASIDE_KEY = 'sermon-aside-w';
 const PANEL_KEY = 'sermon-panel';
+/** '0' 이면 녹음 없이 시간만 기록 */
+const AUDIO_PREF_KEY = 'sermon-rec-audio';
 const NARROW_MQ = '(max-width: 899px)';
+/** 멈춘 채 이만큼 지나면 녹음 토막을 닫고 올린다 */
+const PAUSE_CLOSE_MS = 5 * 60 * 1000;
+/** 생각 시각으로 재생할 때 이만큼 앞에서 시작 */
+const SEEK_LEAD_SEC = 5;
+
+function loadAudioPref(): boolean {
+  try {
+    return localStorage.getItem(AUDIO_PREF_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
 
 function rememberRef(r: Ref) {
   try {
@@ -180,6 +206,11 @@ export function SermonEditor({
   const [thoughts, setThoughts] = useState<Thought[]>(note.thoughts);
   const [elapsed, setElapsed] = useState(note.elapsed || 0);
   const [recording, setRecording] = useState(false);
+  const [audioSegs, setAudioSegs] = useState<SermonAudioSegment[]>(note.audio?.segments || []);
+  const [audioPref, setAudioPref] = useState(loadAudioPref);
+  /** 녹음이 끊겼고 자동으로 잇지 못함 — 「이어서 녹음」 버튼을 보인다 */
+  const [micLost, setMicLost] = useState(false);
+  const [confirmDelAudio, setConfirmDelAudio] = useState(false);
   const [syncTick, setSyncTick] = useState(0);
 
   const [canUndo, setCanUndo] = useState(false);
@@ -235,6 +266,8 @@ export function SermonEditor({
   const pickWasPanel = useRef(false);
   const recordingRef = useRef(false);
   recordingRef.current = recording;
+  const playerRef = useRef<SermonPlayerHandle>(null);
+  const micWarned = useRef(false);
 
   // ───────── 저장 ─────────
   const saveNow = useCallback(() => {
@@ -272,6 +305,51 @@ export function SermonEditor({
     },
     [patchNote],
   );
+
+  // ───────── 녹음 ─────────
+  const patchAudio = useCallback(
+    (fn: (prev: SermonAudioSegment[]) => SermonAudioSegment[], now = false) => {
+      const next = fn(noteRef.current.audio?.segments || []);
+      setAudioSegs(next);
+      noteRef.current = { ...noteRef.current, audio: next.length ? { segments: next } : undefined };
+      if (deletedRef.current) return;
+      if (now) {
+        if (coreRef.current) saveNow();
+        else noteRef.current = store.save(noteRef.current); // 화면을 닫은 뒤 토막이 닫힘
+      } else scheduleSave();
+    },
+    [saveNow, scheduleSave, store],
+  );
+
+  const rec = useSermonRecorder({
+    noteId: () => noteRef.current.id,
+    getElapsed: () => noteRef.current.elapsed || 0,
+    onSegmentStart: ({ id, mime, offset }) =>
+      patchAudio((prev) => [...prev, { id, url: null, mime, offset, duration: 0, size: 0 }], true),
+    onSegmentProgress: ({ id, duration, size }) =>
+      patchAudio((prev) => prev.map((x) => (x.id === id ? { ...x, duration, size } : x))),
+    onSegmentEnd: ({ id, duration, size }) =>
+      patchAudio((prev) => prev.map((x) => (x.id === id ? { ...x, duration, size } : x)), true),
+    onInterrupted: () => {
+      if (!recordingRef.current) return;
+      if (document.visibilityState === 'visible') {
+        void recStartRef.current().then((ok) => {
+          setMicLost(!ok);
+          if (ok) toast('녹음이 잠깐 끊겨 이어서 녹음해요');
+        });
+      } else setMicLost(true);
+    },
+    onLimit: () => {
+      setRecording(false);
+      saveNow();
+      toast('녹음이 한도(200MB)에 닿아 저장했어요. 이어서 하려면 다시 눌러주세요');
+    },
+  });
+  const { start: recStart, stop: recStop } = rec;
+  const recStartRef = useRef(recStart);
+  recStartRef.current = recStart;
+  const audioOn = rec.supported && audioPref && !rec.denied;
+  const hasAudio = audioSegs.length > 0;
 
   // ───────── 편집기 코어 ─────────
   const openPicker = useCallback((target: PickerTarget) => {
@@ -317,6 +395,14 @@ export function SermonEditor({
     );
     if (initialAid) window.setTimeout(() => core.jumpTo(initialAid, null), 80);
 
+    // 새로고침·탭 종료로 안 닫힌 녹음 토막이 있으면 길이를 확정한다
+    void store.reconcileAudio(noteRef.current.id).then(() => {
+      const n = store.get(noteRef.current.id);
+      if (!n || deletedRef.current) return;
+      noteRef.current = { ...noteRef.current, audio: n.audio };
+      setAudioSegs(n.audio?.segments || []);
+    });
+
     const onPageHide = () => saveNow();
     window.addEventListener('pagehide', onPageHide);
 
@@ -326,7 +412,8 @@ export function SermonEditor({
       if (!deletedRef.current) {
         const body = core.serialize();
         trackerRef.current?.maybe(body, true);
-        store.save({ ...noteRef.current, body });
+        noteRef.current = { ...noteRef.current, body };
+        noteRef.current = store.save(noteRef.current);
       }
       if (store.openId === noteRef.current.id) store.openId = null;
       core.unmount();
@@ -354,8 +441,32 @@ export function SermonEditor({
     [store],
   );
 
-  // 저장 상태 표시
-  useEffect(() => store.subscribe(() => setSyncTick((t) => t + 1)), [store]);
+  // 저장 상태 표시 + 올라간 녹음 토막(id·URL 교체)을 화면 사본에 반영
+  useEffect(
+    () =>
+      store.subscribe(() => {
+        setSyncTick((t) => t + 1);
+        const srv = store.get(noteRef.current.id)?.audio?.segments;
+        const mine = noteRef.current.audio?.segments;
+        if (!srv || !mine || deletedRef.current) return;
+        const byOffset = new Map(srv.map((x) => [x.offset, x] as const));
+        let changed = false;
+        const merged = mine.map((x) => {
+          const y = byOffset.get(x.offset);
+          if (!y || y.id === x.id) return x;
+          if ((isLocalId(x.id) && !isLocalId(y.id)) || (y.lost && !x.lost)) {
+            changed = true;
+            return { ...x, id: y.id, url: y.url, ...(y.lost ? { lost: true } : {}) };
+          }
+          return x;
+        });
+        if (changed) {
+          noteRef.current = { ...noteRef.current, audio: { segments: merged } };
+          setAudioSegs(merged);
+        }
+      }),
+    [store],
+  );
 
   // 화면 폭
   useEffect(() => {
@@ -409,18 +520,59 @@ export function SermonEditor({
     return () => window.clearInterval(id);
   }, [recording]);
 
+  // 멈춘 채 5분이 지나면 녹음 토막을 닫는다 (올리기 시작)
+  useEffect(() => {
+    if (recording || rec.status !== 'paused') return;
+    const id = window.setTimeout(() => void recStop(), PAUSE_CLOSE_MS);
+    return () => window.clearTimeout(id);
+  }, [recording, rec.status, recStop]);
+
+  // 녹음 중에 창을 닫으려 하면 묻는다
+  useEffect(() => {
+    if (!recording) return;
+    const fn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', fn);
+    return () => window.removeEventListener('beforeunload', fn);
+  }, [recording]);
+
+  // 끊긴 녹음: 화면이 돌아오면 이어 본다
+  useEffect(() => {
+    if (!micLost) return;
+    const fn = () => {
+      if (document.visibilityState !== 'visible' || !recordingRef.current) return;
+      void recStart().then((ok) => {
+        if (ok) {
+          setMicLost(false);
+          toast('녹음을 이어서 시작했어요');
+        }
+      });
+    };
+    document.addEventListener('visibilitychange', fn);
+    return () => document.removeEventListener('visibilitychange', fn);
+  }, [micLost, recStart]);
+
   // Ctrl/Cmd+K → 구절 찾기 (페이지의 빠른 입력 단축키보다 먼저 받는다)
+  // Ctrl/Cmd+S → 즉시 저장 (브라우저 "별도 저장" 대화상자 대신)
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === 'k') {
         e.preventDefault();
         e.stopPropagation();
         openPicker('editor');
+      } else if (k === 's' && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        saveNow();
       }
     };
     document.addEventListener('keydown', fn, true);
     return () => document.removeEventListener('keydown', fn, true);
-  }, [openPicker]);
+  }, [openPicker, saveNow]);
 
   // ⋯ 메뉴 바깥 클릭
   useEffect(() => {
@@ -505,15 +657,66 @@ export function SermonEditor({
   // ───────── 타이머 ─────────
   const today = todayString();
   const recState = recording ? 'run' : elapsed ? 'pause' : 'idle';
+  const audioLive = recording && rec.status === 'on';
   const toggleRec = () => {
     const on = !recording;
-    setRecording(on);
-    if (!on) saveNow();
+    if (!on) {
+      setRecording(false);
+      rec.pause();
+      saveNow();
+      return;
+    }
+    playerRef.current?.pause();
+    setRecording(true);
+    if (!audioOn) return;
+    void rec.resume().then((ok) => {
+      if (ok) {
+        setMicLost(false);
+        return;
+      }
+      if (!micWarned.current) {
+        micWarned.current = true;
+        toast('마이크를 쓸 수 없어 시간만 기록해요');
+      }
+    });
   };
-  const stampNow = useCallback(
-    () => (noteRef.current.elapsed || recordingRef.current ? noteRef.current.elapsed || 0 : null),
-    [],
-  );
+  const retryMic = () => {
+    void rec.start().then((ok) => {
+      setMicLost(!ok);
+      if (!ok) toast('마이크를 다시 열지 못했어요');
+    });
+  };
+  const toggleAudioPref = () => {
+    const next = !audioPref;
+    setAudioPref(next);
+    try {
+      localStorage.setItem(AUDIO_PREF_KEY, next ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+    if (!next && rec.status !== 'off') void rec.stop();
+    toast(next ? '다음 기록부터 녹음도 함께 해요' : '녹음 없이 시간만 기록해요');
+  };
+  const deleteAudio = () => {
+    setConfirmDelAudio(false);
+    void rec.stop().then(() => {
+      const segs = noteRef.current.audio?.segments || [];
+      segs.forEach((sg) => {
+        if (isLocalId(sg.id)) void sermonAudioStore.removeSegment(sg.id);
+        else deleteMedia(sg.id);
+      });
+      patchAudio(() => [], true);
+      toast('녹음을 지웠어요');
+    });
+  };
+  /** 생각에 찍을 시각: 녹음을 듣는 중이면 그 위치, 아니면 타이머 */
+  const stampNow = useCallback(() => {
+    if (!recordingRef.current) {
+      const p = playerRef.current?.position();
+      if (p != null) return Math.floor(p);
+    }
+    return noteRef.current.elapsed || recordingRef.current ? noteRef.current.elapsed || 0 : null;
+  }, []);
 
   // ───────── 본문 말씀 ─────────
   const mainRefs = useMemo(
@@ -593,13 +796,17 @@ export function SermonEditor({
     deletedRef.current = true;
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
     setRecording(false);
+    void rec.stop();
     store.remove(noteRef.current.id);
     toast('노트를 삭제했어요');
     onDeleted();
   };
 
-  const onJump = (aid: string | null, label: string | null) => {
-    coreRef.current?.jumpTo(aid, label);
+  const onJump = (aid: string | null, label: string | null, t?: number | null) => {
+    if (aid || label) coreRef.current?.jumpTo(aid, label);
+    if (t != null && hasAudio && !recording) {
+      playerRef.current?.seek(Math.max(0, t - SEEK_LEAD_SEC), true);
+    }
     if (narrow) setPanel(false);
   };
 
@@ -635,25 +842,42 @@ export function SermonEditor({
           className="sn-rec"
           data-on={recording}
           data-state={recState}
+          data-audio={audioLive}
           data-compact={!recording && !!date && date !== today}
           aria-label={
             recState === 'run'
-              ? `설교 시간 기록 중 ${fmtTime(elapsed)}. 누르면 멈춥니다`
+              ? `${audioLive ? '설교 녹음 중' : '설교 시간 기록 중'} ${fmtTime(elapsed)}. 누르면 멈춥니다`
               : recState === 'pause'
-                ? `설교 시간 ${fmtTime(elapsed)}에서 멈춤. 누르면 이어서 기록합니다`
-                : '설교 시간 기록 시작'
+                ? `설교 시간 ${fmtTime(elapsed)}에서 멈춤. 누르면 이어서 ${audioOn ? '녹음' : '기록'}합니다`
+                : audioOn
+                  ? '설교 녹음 시작'
+                  : '설교 시간 기록 시작'
           }
           onClick={toggleRec}
         >
-          <span className="sn-dot" />
+          {audioLive ? <Mic className="sn-icon sn-mic" aria-hidden /> : <span className="sn-dot" />}
           <span className="sn-rs">
-            {recState === 'run' ? '기록 중' : recState === 'pause' ? '멈춤' : '설교 시간'}
+            {recState === 'run'
+              ? audioLive
+                ? '녹음 중'
+                : '기록 중'
+              : recState === 'pause'
+                ? '멈춤'
+                : '설교 시간'}
           </span>
           <span className="sn-mono sn-rt" hidden={recState === 'idle'}>
             {fmtTime(elapsed)}
           </span>
           <span className="sn-ra">
-            {recState === 'run' ? '멈추기' : recState === 'pause' ? '이어서 기록' : '기록 시작'}
+            {recState === 'run'
+              ? '멈추기'
+              : recState === 'pause'
+                ? audioOn
+                  ? '이어서 녹음'
+                  : '이어서 기록'
+                : audioOn
+                  ? '녹음 시작'
+                  : '기록 시작'}
           </span>
         </button>
         <button
@@ -706,6 +930,34 @@ export function SermonEditor({
                 <History className="sn-icon" />
                 버전 기록
               </button>
+              {rec.supported && (
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={audioPref}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    toggleAudioPref();
+                  }}
+                >
+                  {audioPref ? <MicOff className="sn-icon" /> : <Mic className="sn-icon" />}
+                  {audioPref ? '녹음 없이 시간만 기록' : '설교 녹음 켜기'}
+                </button>
+              )}
+              {hasAudio && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="sn-danger-text"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setConfirmDelAudio(true);
+                  }}
+                >
+                  <Trash2 className="sn-icon" />
+                  녹음 지우기
+                </button>
+              )}
               <button
                 type="button"
                 role="menuitem"
@@ -722,6 +974,25 @@ export function SermonEditor({
           )}
         </div>
       </header>
+
+      {recording && micLost && (
+        <div className="sn-player sn-player-lost" role="status">
+          <MicOff className="sn-icon" aria-hidden />
+          <span>녹음이 끊겼어요. 시간은 계속 기록 중이에요.</span>
+          <button type="button" className="sn-btn sn-primary" onClick={retryMic}>
+            이어서 녹음
+          </button>
+        </div>
+      )}
+      {hasAudio && !recording && (
+        <SermonPlayer
+          ref={playerRef}
+          segments={audioSegs}
+          end={Math.max(audioEnd({ audio: { segments: audioSegs } }), elapsed)}
+          pending={audioPending({ audio: { segments: audioSegs } })}
+          offline={store.status.online === false}
+        />
+      )}
 
       <div className="sn-body" ref={bodyRef}>
         <div className="sn-page">
@@ -892,7 +1163,18 @@ export function SermonEditor({
                 role="textbox"
                 aria-multiline="true"
                 aria-label="설교 내용"
-                data-placeholder="말씀을 받아 적어보세요. 문장 중에 ‘롬8:28’처럼 쓰고 띄어쓰면 구절로 바뀌어요. 아래 ‘구절 넣기’나 빈 줄에서 / 로 구절을 넣을 수 있어요."
+                data-placeholder="말씀을 받아 적어보세요. 문장 중에 ‘롬8:28’처럼 쓰고 띄어쓰면 구절로 바뀌어요. 빈 줄에 ‘# ’은 제목, ‘- ’은 목록. 아래 ‘구절 넣기’나 빈 줄에서 / 로 구절을 넣을 수 있어요."
+              />
+              <SelectionBubble
+                core={core}
+                canPolish={canAttach}
+                onNeedLogin={onLogin}
+                polish={(text) => personalFeatureAPI.polishText('sermon', text).then((r) => r.text)}
+                onInsertVerse={(r) => {
+                  rememberRef(r);
+                  coreRef.current?.insertBlock(r);
+                  toast('말씀을 노트에 넣었어요');
+                }}
               />
             </div>
           </div>
@@ -925,7 +1207,7 @@ export function SermonEditor({
               <button
                 type="button"
                 className="sn-btn"
-                title="소제목"
+                title="소제목 (Ctrl+E · 빈 줄에 # 띄어쓰기)"
                 onMouseDown={dockBtn}
                 onClick={() => coreRef.current?.format('h3')}
               >
@@ -1029,6 +1311,7 @@ export function SermonEditor({
             onClose={() => setPanel(false)}
             inputRef={thoughtInputRef}
             onJump={onJump}
+            hasAudio={hasAudio && !recording}
           />
         )}
       </div>
@@ -1068,6 +1351,24 @@ export function SermonEditor({
           </button>
           <button type="button" className="sn-btn sn-danger" onClick={deleteNote}>
             삭제
+          </button>
+        </div>
+      </SnOverlay>
+      <SnOverlay
+        open={confirmDelAudio}
+        onClose={() => setConfirmDelAudio(false)}
+        className="sn-modal"
+        role="alertdialog"
+        aria-labelledby="sn-ca-title"
+      >
+        <h2 id="sn-ca-title">이 설교의 녹음을 지울까요?</h2>
+        <p>녹음 파일만 지워지고, 노트와 생각 메모는 그대로 남아요. 되돌릴 수 없어요.</p>
+        <div className="sn-acts">
+          <button type="button" className="sn-btn" onClick={() => setConfirmDelAudio(false)}>
+            취소
+          </button>
+          <button type="button" className="sn-btn sn-danger" onClick={deleteAudio}>
+            녹음 지우기
           </button>
         </div>
       </SnOverlay>

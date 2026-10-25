@@ -34,12 +34,13 @@ public record AiInvocationRequest(
         String userPrompt,
         String model,
         int maxTokens,
-        Double temperature
-) {
+        Double temperature) {
 
     public enum CreditScope {
         /** {@code AiCreditService.consumeCredit(boardId, ...)} — 보드(또는 보드가 속한 조직) 크레딧 풀 */
         BOARD,
+        /** {@code AiCreditService.consumeUserCredit(userId, ...)} — 개인 크레딧 (마이스페이스 기능) */
+        USER,
         /** 차감 없음 — 시스템 호출, 또는 호출부가 직접 차감/환불을 관리하는 경우 */
         NONE
     }
@@ -57,10 +58,13 @@ public record AiInvocationRequest(
         if (creditScope == CreditScope.BOARD && creditCost > 0 && boardId == null) {
             throw new IllegalArgumentException("boardId is required to consume board credit");
         }
+        if (creditScope == CreditScope.USER && creditCost > 0 && userId == null) {
+            throw new IllegalArgumentException("userId is required to consume personal credit");
+        }
     }
 
     /** 이 호출이 실제로 크레딧을 차감하는지 */
     public boolean consumesCredit() {
-        return creditScope == CreditScope.BOARD && creditCost > 0;
+        return (creditScope == CreditScope.BOARD || creditScope == CreditScope.USER) && creditCost > 0;
     }
 }

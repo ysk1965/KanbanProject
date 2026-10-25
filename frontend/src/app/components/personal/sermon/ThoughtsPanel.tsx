@@ -9,13 +9,14 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ArrowRight,
+  ArrowUp,
   Check,
   ChevronDown,
   ChevronUp,
   MapPin,
   Paperclip,
   Pencil,
+  Play,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -59,7 +60,9 @@ interface ThoughtsPanelProps {
   onLogin?: () => void;
   onClose: () => void;
   inputRef: RefObject<HTMLTextAreaElement>;
-  onJump: (aid: string | null, label: string | null) => void;
+  onJump: (aid: string | null, label: string | null, t?: number | null) => void;
+  /** 녹음이 있어 생각의 시각을 누르면 그 자리부터 들을 수 있다 */
+  hasAudio?: boolean;
 }
 
 type Filter = '전체' | ThoughtTag;
@@ -134,7 +137,7 @@ function MediaGrid({
   );
 }
 
-/** 연결 위치 줄 */
+/** 연결 위치 줄 — 알약 한 줄 */
 function AnchorRow({
   core,
   target,
@@ -151,61 +154,70 @@ function AnchorRow({
     if (a !== 'pick') onAfter();
   };
   const stop = (e: React.MouseEvent) => e.preventDefault();
+  const pick = (
+    <button
+      type="button"
+      title="본문에서 연결할 곳 누르기"
+      onMouseDown={stop}
+      onClick={() => act('pick')}
+    >
+      연결하기
+    </button>
+  );
   if (!el) {
     return (
-      <div className="sn-anc">
-        <div className="sn-anc-l">
+      <div className="sn-anc" data-target={target}>
+        <span className="sn-pin">
           <MapPin className="sn-icon" aria-hidden />
-          <span className="sn-lab">본문과 연결하지 않음</span>
-        </div>
-        <div className="sn-anc-b">
-          <button type="button" onMouseDown={stop} onClick={() => act('pick')}>
-            본문에서 고르기
+          연결 없음
+        </span>
+        {pick}
+        {core.ptr.manual && (
+          <button type="button" onMouseDown={stop} onClick={() => act('auto')}>
+            적던 곳으로
           </button>
-          {core.ptr.manual && (
-            <button type="button" onMouseDown={stop} onClick={() => act('auto')}>
-              적던 곳으로
-            </button>
-          )}
-        </div>
+        )}
       </div>
     );
   }
   return (
-    <div className="sn-anc">
-      <div className="sn-anc-l">
+    <div className="sn-anc" data-target={target}>
+      <span className="sn-pin" data-on="true" title={core.labelFor(el) ?? undefined}>
         <MapPin className="sn-icon" aria-hidden />
-        <span className="sn-lab">
-          <b>{core.labelFor(el)}</b>
-          {!core.ptr.manual && <span className="sn-auto">적던 곳</span>}
-        </span>
-      </div>
-      <div className="sn-anc-b">
-        <button
-          type="button"
-          onMouseDown={stop}
-          disabled={!core.prevContent(el)}
-          onClick={() => act('up')}
-        >
-          <ChevronUp className="sn-icon" aria-hidden />앞
-        </button>
-        <button
-          type="button"
-          onMouseDown={stop}
-          disabled={!core.nextContent(el)}
-          onClick={() => act('down')}
-        >
-          <ChevronDown className="sn-icon" aria-hidden />
-          다음
-        </button>
-        <button type="button" onMouseDown={stop} onClick={() => act('pick')}>
-          본문에서 고르기
-        </button>
-        <button type="button" onMouseDown={stop} onClick={() => act('none')}>
-          연결 안 함
-        </button>
-      </div>
-      <span hidden>{target}</span>
+        <span className="sn-lab">{core.labelFor(el)}</span>
+        {!core.ptr.manual && <span className="sn-auto">적던 곳</span>}
+      </span>
+      <button
+        type="button"
+        aria-label="앞 문단에 연결"
+        title="앞 문단에 연결"
+        onMouseDown={stop}
+        disabled={!core.prevContent(el)}
+        onClick={() => act('up')}
+      >
+        <ChevronUp className="sn-icon" aria-hidden />
+      </button>
+      <button
+        type="button"
+        aria-label="다음 문단에 연결"
+        title="다음 문단에 연결"
+        onMouseDown={stop}
+        disabled={!core.nextContent(el)}
+        onClick={() => act('down')}
+      >
+        <ChevronDown className="sn-icon" aria-hidden />
+      </button>
+      {pick}
+      <button
+        type="button"
+        className="sn-anc-x"
+        aria-label="연결 안 함"
+        title="연결 안 함"
+        onMouseDown={stop}
+        onClick={() => act('none')}
+      >
+        <X className="sn-icon" aria-hidden />
+      </button>
     </div>
   );
 }
@@ -225,6 +237,7 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
       onClose,
       inputRef,
       onJump,
+      hasAudio = false,
     },
     handleRef,
   ) {
@@ -656,7 +669,8 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
                   </div>
                 );
               }
-              const can = !!(t.aid || t.label);
+              const canSeek = hasAudio && t.t != null;
+              const can = !!(t.aid || t.label) || canSeek;
               return (
                 <div
                   key={t.id}
@@ -670,7 +684,7 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
                     if (!can || editingId) return;
                     const tg = e.target as HTMLElement;
                     if (tg.closest('button,video,img,textarea')) return;
-                    onJump(t.aid, t.label);
+                    onJump(t.aid, t.label, canSeek ? t.t : null);
                   }}
                 >
                   <div className="sn-top">
@@ -689,7 +703,20 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
                     <span className="sn-tagT" data-t={t.tag}>
                       {t.tag}
                     </span>
-                    <span className="sn-tm sn-mono">{t.t != null ? fmtTime(t.t) : ''}</span>
+                    {canSeek ? (
+                      <button
+                        type="button"
+                        className="sn-tm sn-mono sn-tm-play"
+                        title="이 시각부터 녹음 듣기"
+                        aria-label={`${fmtTime(t.t)}부터 녹음 듣기`}
+                        onClick={() => onJump(t.aid, t.label, t.t)}
+                      >
+                        <Play className="sn-icon" aria-hidden />
+                        {fmtTime(t.t)}
+                      </button>
+                    ) : (
+                      <span className="sn-tm sn-mono">{t.t != null ? fmtTime(t.t) : ''}</span>
+                    )}
                     {t.edited && <span className="sn-edited">수정됨</span>}
                     <span className="sn-sp" />
                     <button
@@ -729,57 +756,23 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
         </div>
 
         <div className="sn-compose" data-open={composeOpen}>
-          <div className="sn-cx">
-            <div className="sn-tags">
-              {THOUGHT_TAGS.map((x) => (
-                <button
-                  key={x}
-                  type="button"
-                  className="sn-chip"
-                  aria-pressed={tag === x}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    setTag(x);
-                    inputRef.current?.focus();
-                  }}
-                >
-                  {x}
-                </button>
-              ))}
+          <div className="sn-cbox">
+            <div className="sn-cx">
+              {/* ptrTick 이 바뀌면 다시 그린다 */}
+              <AnchorRow key={ptrTick} core={core} target="new" onAfter={focusComposer} />
             </div>
-            {/* ptrTick 이 바뀌면 다시 그린다 */}
-            <AnchorRow key={ptrTick} core={core} target="new" onAfter={focusComposer} />
-          </div>
-          {pending.length > 0 && (
-            <MediaGrid
-              list={pending}
-              removable
-              onRemove={(i) => {
-                const m = pending[i];
-                setPending((l) => l.filter((_, k) => k !== i));
-                if (m?.id) deleteMedia(m.id);
-              }}
-              onZoom={setZoom}
-            />
-          )}
-          <div className="sn-inrow">
-            <button
-              type="button"
-              className="sn-attach"
-              aria-label="사진·영상 첨부"
-              title="사진·영상 첨부"
-              onClick={() => pickFiles('new')}
-            >
-              <Paperclip className="sn-icon" />
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*,video/mp4,video/webm,video/*"
-              multiple
-              hidden
-              onChange={onFiles}
-            />
+            {pending.length > 0 && (
+              <MediaGrid
+                list={pending}
+                removable
+                onRemove={(i) => {
+                  const m = pending[i];
+                  setPending((l) => l.filter((_, k) => k !== i));
+                  if (m?.id) deleteMedia(m.id);
+                }}
+                onZoom={setZoom}
+              />
+            )}
             <label htmlFor="sn-th-in" className="sn-sr">
               생각 입력
             </label>
@@ -787,7 +780,7 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
               id="sn-th-in"
               ref={inputRef}
               rows={1}
-              placeholder="생각 적기"
+              placeholder={showHint ? `${tag} 적기 · Enter 저장, 사진은 붙여넣기` : `${tag} 적기`}
               value={text}
               onChange={(e) => {
                 setText(e.target.value);
@@ -803,19 +796,53 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
                 }
               }}
             />
-            <button
-              type="button"
-              className="sn-send"
-              aria-label="생각 저장"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={addThought}
-            >
-              <ArrowRight className="sn-icon" />
-            </button>
+            <div className="sn-cbar">
+              <div className="sn-tseg" role="group" aria-label="분류">
+                {THOUGHT_TAGS.map((x) => (
+                  <button
+                    key={x}
+                    type="button"
+                    data-t={x}
+                    aria-pressed={tag === x}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setTag(x);
+                      inputRef.current?.focus();
+                    }}
+                  >
+                    {x}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="sn-cico"
+                aria-label="사진·영상 첨부"
+                title="사진·영상 첨부"
+                onClick={() => pickFiles('new')}
+              >
+                <Paperclip className="sn-icon" />
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,video/mp4,video/webm,video/*"
+                multiple
+                hidden
+                onChange={onFiles}
+              />
+              <button
+                type="button"
+                className="sn-send"
+                aria-label="생각 저장"
+                data-empty={!text.trim() && !pending.length}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={addThought}
+              >
+                <ArrowUp className="sn-icon" />
+              </button>
+            </div>
           </div>
-          {showHint && (
-            <div className="sn-foot">Enter 저장 · Shift+Enter 줄바꿈 · 사진은 붙여넣기도 돼요</div>
-          )}
         </div>
 
         {zoom &&

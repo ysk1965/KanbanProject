@@ -3522,6 +3522,11 @@ export const personalFeatureAPI = {
     return apiClient.delete(`${featureBase(featureKey)}/docs/${id}`);
   },
 
+  /** AI 문장 정리 — 선택한 글을 매끄럽게. 개인 크레딧 1 차감 (부족하면 402 PERSONAL_AI_CREDITS_EXHAUSTED) */
+  polishText: async (featureKey: string, text: string): Promise<{ text: string }> => {
+    return apiClient.post(`${featureBase(featureKey)}/ai/polish`, { text });
+  },
+
   /** 추천 용어. field(열 이름)를 주면 그 열의 것만. */
   listTerms: async (featureKey: string, field?: string): Promise<PersonalFeatureTerm[]> => {
     const query = field ? `?field=${encodeURIComponent(field)}` : '';

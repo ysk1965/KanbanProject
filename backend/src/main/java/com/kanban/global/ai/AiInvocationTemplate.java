@@ -103,8 +103,13 @@ public class AiInvocationTemplate {
         //    부족하면 여기서 AI_CREDITS_EXHAUSTED 등이 나가고 AI는 호출되지 않는다.
         CreditConsumption consumed = CreditConsumption.NONE;
         if (request.consumesCredit()) {
-            consumed = aiCreditService.consumeCredit(
-                    request.boardId(), request.userId(), request.featureType(), request.creditCost());
+            if (request.creditScope() == AiInvocationRequest.CreditScope.USER) {
+                aiCreditService.consumeUserCredit(request.userId(), request.featureType(), request.creditCost());
+                consumed = CreditConsumption.monthly(request.creditCost());
+            } else {
+                consumed = aiCreditService.consumeCredit(
+                        request.boardId(), request.userId(), request.featureType(), request.creditCost());
+            }
         }
 
         // 2. 프로바이더 — 트랜잭션 없음
@@ -154,7 +159,11 @@ public class AiInvocationTemplate {
             return;
         }
         try {
-            aiCreditService.refundCredit(request.boardId(), request.userId(), request.featureType(), consumed);
+            if (request.creditScope() == AiInvocationRequest.CreditScope.USER) {
+                aiCreditService.refundUserCredit(request.userId(), request.featureType(), consumed.total());
+            } else {
+                aiCreditService.refundCredit(request.boardId(), request.userId(), request.featureType(), consumed);
+            }
             log.info(
                     "AI credit refunded after failure - board: {}, feature: {}, monthly: {}, purchased: {}, reason: {}",
                     request.boardId(),

@@ -224,6 +224,15 @@ public class User extends BaseTimeEntity {
         }
     }
 
+    /** 차감의 역순 — 월간 사용량을 먼저 되돌리고, 남는 양은 구매 크레딧으로 */
+    public void refundPersonalCredits(int amount) {
+        int used = personalCreditsUsed != null ? personalCreditsUsed : 0;
+        int toMonthly = Math.min(used, amount);
+        this.personalCreditsUsed = used - toMonthly;
+        int rest = amount - toMonthly;
+        if (rest > 0) addPersonalPurchasedCredits(rest);
+    }
+
     public void addPersonalPurchasedCredits(int amount) {
         this.personalPurchasedCredits =
                 (this.personalPurchasedCredits != null ? this.personalPurchasedCredits : 0) + amount;

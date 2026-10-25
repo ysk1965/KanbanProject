@@ -1,14 +1,19 @@
 import { personalFeatureAPI } from '../../../utils/services';
 import type { PersonalFeatureDoc, PersonalFeatureDocSummary } from '../features/types';
+import { sermonAudioStore } from './sermonAudioStore';
+import { MediaUploadError, deleteMedia, uploadAudio } from './sermonMedia';
 import {
+  audioPending,
   isLocalId,
   normalizeNote,
   SERMON_FEATURE_KEY,
   SERMON_SCHEMA_VER,
   UNTITLED,
+  type SermonAudioSegment,
   type SermonContent,
   type SermonNote,
 } from './sermonTypes';
+import { audioExt } from './useSermonRecorder';
 import { adoptVersions, dropVersions, remapVersions } from './sermonVersions';
 
 /**
@@ -20,6 +25,10 @@ import { adoptVersions, dropVersions, remapVersions } from './sermonVersions';
  * 4. 다른 기기의 변경과 겹치면 더 나중에 고친 쪽(updated_at)을 남긴다.
  *
  * 서버 id 가 없는 새 노트는 `local-` id 로 만들어 두고, 올라간 뒤 서버 id 로 바꾼다(remap 리스너로 열린 화면에 알림).
+ *
+ * 녹음(audio.segments)은 노트 JSON 과 따로 간다: 조각은 IndexedDB(sermonAudioStore)에 있고,
+ * flush 끝에 `local-` 토막을 내 스토리지로 올린 뒤 노트의 토막 id·URL 을 바꾼다. 열어 둔 노트의
+ * 아직 안 닫힌 토막(녹음 중)은 건드리지 않는다.
  */
 
 /** 로그인 전 사용자의 저장소 키. 로그인하면 이 키의 노트가 그 계정으로 옮겨진다 */
@@ -37,6 +46,8 @@ export interface SyncStatus {
   loading: boolean;
   /** localStorage 를 쓸 수 없는 기기 */
   localOk: boolean;
+  /** 녹음 올리는 중이면 진행률(0~100) */
+  audioPct: number | null;
 }
 
 type Listener = () => void;
@@ -84,6 +95,7 @@ export class SermonStore {
     lastSync: 0,
     loading: true,
     localOk: true,
+    audioPct: null,
   };
 
   private onOnline = () => {
@@ -119,8 +131,20 @@ export class SermonStore {
   }
 
   private setStatus(patch: Partial<SyncStatus>) {
-    this.status = { ...this.status, ...patch, pending: this.dirty.size + this.deleted.size };
+    this.status = {
+      ...this.status,
+      ...patch,
+      pending: this.dirty.size + this.deleted.size + this.audioPendingCount(),
+    };
     this.notify();
+  }
+
+  private audioPendingCount(): number {
+    let n = 0;
+    this.notes.forEach((note) => {
+      n += audioPending(note);
+    });
+    return n;
   }
 
   // ───────── 로컬 저장 ─────────
@@ -241,7 +265,7 @@ export class SermonStore {
 
   /** 기기에 즉시 저장하고 서버 전송을 예약한다 */
   save(note: SermonNote): SermonNote {
-    const n = { ...note, updated_at: Date.now() };
+    const n = { ...this.keepUploadedAudio(note), updated_at: Date.now() };
     this.notes.set(n.id, n);
     this.dirty.add(n.id);
     this.persistLocal();
@@ -250,7 +274,34 @@ export class SermonStore {
     return n;
   }
 
+  /**
+   * 화면 사본이 들고 있는 `local-` 토막이 그 사이 올라가 id 가 바뀌었으면, 저장된 쪽을 지킨다.
+   * (토막은 시작 경과 초(offset)로 맞춘다)
+   */
+  private keepUploadedAudio(note: SermonNote): SermonNote {
+    const prev = this.notes.get(note.id);
+    const incoming = note.audio?.segments;
+    if (!prev?.audio || !incoming?.length) return note;
+    const byOffset = new Map(prev.audio.segments.map((x) => [x.offset, x] as const));
+    let changed = false;
+    const segments = incoming.map((x) => {
+      const y = byOffset.get(x.offset);
+      if (!y || y.id === x.id) return x;
+      if ((isLocalId(x.id) && !isLocalId(y.id)) || (y.lost && !x.lost)) {
+        changed = true;
+        return { ...x, id: y.id, url: y.url, ...(y.lost ? { lost: true } : {}) };
+      }
+      return x;
+    });
+    return changed ? { ...note, audio: { segments } } : note;
+  }
+
   remove(id: string) {
+    const n = this.notes.get(id);
+    (n?.audio?.segments || []).forEach((seg) => {
+      if (!isLocalId(seg.id)) deleteMedia(seg.id);
+    });
+    void sermonAudioStore.removeNote(id);
     this.notes.delete(id);
     this.dirty.delete(id);
     if (!isLocalId(id)) this.deleted.add(id);
@@ -325,7 +376,7 @@ export class SermonStore {
       this.setStatus({});
       return;
     }
-    if (this.dirty.size === 0 && this.deleted.size === 0) {
+    if (this.dirty.size === 0 && this.deleted.size === 0 && this.audioPendingCount() === 0) {
       this.setStatus({});
       return;
     }
@@ -380,6 +431,7 @@ export class SermonStore {
         }
         this.deleted.delete(id);
       }
+      await this.flushAudio();
       this.backoff = BACKOFF_MIN;
       this.setStatus({ online: true, lastSync: Date.now() });
     } catch (e) {
@@ -397,6 +449,99 @@ export class SermonStore {
     }
   }
 
+  // ───────── 녹음 ─────────
+
+  /**
+   * 열어 두지 않은 노트의 안 닫힌 토막(새로고침·탭 종료로 남은 것)을 닫는다.
+   * 길이는 마지막 조각을 받을 때의 경과 초로 잡는다. 조각이 하나도 없으면 lost.
+   */
+  async reconcileAudio(noteId: string, liveSegId: string | null = null): Promise<void> {
+    const n = this.notes.get(noteId);
+    if (!n?.audio) return;
+    let changed = false;
+    const segments: SermonAudioSegment[] = [];
+    for (const seg of n.audio.segments) {
+      if (!isLocalId(seg.id) || seg.lost || seg.id === liveSegId) {
+        segments.push(seg);
+        continue;
+      }
+      const meta = await sermonAudioStore.getSegment(seg.id);
+      if (!meta) {
+        segments.push({ ...seg, lost: true });
+        changed = true;
+        continue;
+      }
+      if (!meta.done) {
+        const duration = Math.max(0, meta.elapsedAt - meta.offset);
+        await sermonAudioStore.putSegment({ ...meta, done: true });
+        if (duration !== seg.duration || meta.bytes !== seg.size) {
+          segments.push({ ...seg, duration, size: meta.bytes });
+          changed = true;
+          continue;
+        }
+      }
+      segments.push(seg);
+    }
+    if (changed) {
+      const cur = this.notes.get(noteId);
+      if (!cur) return;
+      const next = { ...cur, audio: { segments } };
+      this.notes.set(noteId, next);
+      this.dirty.add(noteId);
+      this.persistLocal();
+      this.setStatus({});
+    }
+  }
+
+  /** `local-` 토막을 내 스토리지로 올리고 노트의 토막 id·URL 을 바꾼다 */
+  private async flushAudio(): Promise<void> {
+    for (const note of [...this.notes.values()]) {
+      if (!audioPending(note)) continue;
+      if (isLocalId(note.id)) continue; // 노트가 먼저 올라가야 한다 (다음 flush 에서)
+      if (note.id !== this.openId) await this.reconcileAudio(note.id);
+      const cur = this.notes.get(note.id);
+      if (!cur?.audio) continue;
+      for (const seg of cur.audio.segments) {
+        if (!isLocalId(seg.id) || seg.lost) continue;
+        const meta = await sermonAudioStore.getSegment(seg.id);
+        if (meta && !meta.done) continue; // 녹음 중
+        const latest = this.notes.get(note.id);
+        if (!latest?.audio) break;
+        const patchSeg = (p: Partial<typeof seg>) => {
+          const now = this.notes.get(note.id);
+          if (!now?.audio) return;
+          const segments = now.audio.segments.map((x) => (x.id === seg.id ? { ...x, ...p } : x));
+          this.notes.set(note.id, { ...now, audio: { segments }, updated_at: Date.now() });
+          this.dirty.add(note.id);
+          this.persistLocal();
+          this.setStatus({});
+        };
+        const blob = await sermonAudioStore.assemble(seg.id, seg.mime);
+        if (!blob || !blob.size) {
+          patchSeg({ lost: true });
+          await sermonAudioStore.removeSegment(seg.id);
+          continue;
+        }
+        const name = `${latest.date || 'sermon'} ${(latest.title || UNTITLED).slice(0, 40)}.${audioExt(seg.mime)}`;
+        this.setStatus({ audioPct: 0 });
+        try {
+          const up = await uploadAudio(blob, name, (pct) => this.setStatus({ audioPct: pct }));
+          patchSeg({ id: up.id, url: up.url, size: blob.size });
+          await sermonAudioStore.removeSegment(seg.id);
+        } catch (e) {
+          if (e instanceof MediaUploadError && e.code === 'too_large') {
+            patchSeg({ lost: true });
+            continue;
+          }
+          throw e;
+        } finally {
+          this.setStatus({ audioPct: null });
+        }
+      }
+    }
+    if (this.dirty.size) this.again = true; // 바뀐 토막 id 를 서버 문서에도 반영
+  }
+
   private async createRemote(oldId: string, n: SermonNote, stamp: number) {
     const created = await personalFeatureAPI.createDoc<SermonContent>(SERMON_FEATURE_KEY, {
       title: titleOf(n),
@@ -412,6 +557,7 @@ export class SermonStore {
     this.synced.set(newId, created.updated_at);
     this.synced.delete(oldId);
     if (this.openId === oldId) this.openId = newId;
+    void sermonAudioStore.renameNote(oldId, newId);
     remapVersions(this.userId, oldId, newId);
     this.remapListeners.forEach((fn) => fn(oldId, newId));
   }
@@ -437,6 +583,7 @@ export function syncLabel(s: SyncStatus): { text: string; state: 'ok' | 'wait' |
     return { text: '이 기기에 저장됨 · 로그인하면 다른 기기와 맞춰져요', state: 'ok' };
   }
   if (s.pending) {
+    if (s.audioPct != null) return { text: `녹음 올리는 중 ${s.audioPct}%`, state: 'wait' };
     return {
       text:
         s.online === false || (typeof navigator !== 'undefined' && navigator.onLine === false)

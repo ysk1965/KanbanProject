@@ -442,6 +442,23 @@ export class EditorCore {
         this.cb.onOpenPicker();
         return;
       }
+      if (k === 'e' && !e.shiftKey) {
+        // 제목 ↔ 본문 (⌘E — 브라우저 예약 키가 아니라 어디서나 닿는다)
+        e.preventDefault();
+        this.format('h3');
+        return;
+      }
+    }
+    if (
+      e.key === ' ' &&
+      !e.isComposing &&
+      !e.metaKey &&
+      !e.ctrlKey &&
+      !e.altKey &&
+      this.prefixShortcut()
+    ) {
+      e.preventDefault();
+      return;
     }
     if (e.key === '/' && !e.isComposing) {
       const sel = window.getSelection();
@@ -463,6 +480,15 @@ export class EditorCore {
       if (!sel || !sel.rangeCount || !sel.isCollapsed) return;
       const r = sel.getRangeAt(0);
       const tc = this.topChild(r.startContainer) as HTMLElement | null;
+      // 제목 첫머리에서 ⌫ → 글자를 지우는 대신 본문으로 (`# ` 로 만든 제목을 한 번에 되돌림)
+      if (tc && tc.nodeName === 'H3' && textOffset(tc, r.startContainer, r.startOffset) === 0) {
+        e.preventDefault();
+        this.snapNow();
+        const p = this.replaceBlock(tc, 'p');
+        this.caretIn(p);
+        this.cb.onChange();
+        return;
+      }
       const prev = tc?.previousSibling as HTMLElement | null;
       if (
         tc &&
@@ -591,6 +617,69 @@ export class EditorCore {
   }
 
   // ───────── 서식 ─────────
+
+  /** 블록 태그를 바꾼다. 내용과 연결 위치(data-aid)는 그대로 */
+  private replaceBlock(tc: HTMLElement, tag: 'p' | 'h3'): HTMLElement {
+    const n = document.createElement(tag);
+    n.innerHTML = tc.innerHTML.trim() ? tc.innerHTML : '<br>';
+    if (tc.dataset.aid) n.dataset.aid = tc.dataset.aid;
+    tc.replaceWith(n);
+    return n;
+  }
+
+  private caretIn(el: HTMLElement) {
+    const r = document.createRange();
+    r.setStart(el, 0);
+    r.collapse(true);
+    const s = window.getSelection() as Selection;
+    s.removeAllRanges();
+    s.addRange(r);
+    this.lastRange = r.cloneRange();
+  }
+
+  /** 빈 줄 첫머리 `#`+띄어쓰기 → 제목, `-`+띄어쓰기 → 목록. 처리했으면 true */
+  private prefixShortcut(): boolean {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount || !sel.isCollapsed) return false;
+    const r = sel.getRangeAt(0);
+    const tc = this.topChild(r.startContainer) as HTMLElement | null;
+    if (!tc || tc.nodeType !== 1 || (tc as Node) === this.el) return false;
+    if (tc.nodeName !== 'P' && tc.nodeName !== 'DIV') return false;
+    if (tc.classList.contains('sn-vblock') || tc.querySelector('.sn-vchip')) return false;
+    const raw = tc.textContent || '';
+    const t = raw.replace(/ /g, ' ').trim();
+    if (t !== '#' && t !== '-') return false;
+    if (textOffset(tc, r.startContainer, r.startOffset) < raw.length) return false;
+    this.snapNow();
+    tc.innerHTML = '<br>';
+    if (t === '#') {
+      this.caretIn(this.replaceBlock(tc, 'h3'));
+    } else {
+      const ul = document.createElement('ul');
+      const li = document.createElement('li');
+      li.innerHTML = '<br>';
+      ul.appendChild(li);
+      tc.replaceWith(ul);
+      this.caretIn(li);
+    }
+    this.updateEmpty();
+    this.cb.onChange();
+    return true;
+  }
+
+  /** 범위의 글을 다른 글로 바꾼다 (AI 문장 정리). 되돌리기 한 단계로 남는다 */
+  replaceRangeText(range: Range, text: string) {
+    if (!this.el.contains(range.commonAncestorContainer)) return;
+    this.snapNow();
+    this.el.focus({ preventScroll: true });
+    const sel = window.getSelection() as Selection;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand('insertText', false, text);
+    this.lastRange = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    this.updateEmpty();
+    this.cb.onChange();
+  }
 
   format(cmd: 'h3' | 'bold' | 'list') {
     this.snapNow();

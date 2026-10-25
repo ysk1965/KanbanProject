@@ -1675,68 +1675,64 @@ html.light .sn-scope {
   cursor: not-allowed;
 }
 
-/* 연결 위치 */
+/* 연결 위치 — 알약 한 줄 */
 .sermon-app .sn-anc {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 6px 4px 10px;
-  border: 1px solid var(--sn-line);
-  border-radius: var(--sn-r-ctl);
-  background: var(--sn-surface);
-  font-size: 13px;
-}
-.sermon-app .sn-anc-l {
-  display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 26px;
+  gap: 2px;
   min-width: 0;
+  font-size: 12px;
 }
-.sermon-app .sn-anc-b {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0;
-  margin-left: 10px;
-}
-.sermon-app .sn-anc .sn-icon {
-  width: 15px;
-  height: 15px;
-  color: var(--sn-accent);
-}
-.sermon-app .sn-anc-b button .sn-icon {
-  width: 14px;
-  height: 14px;
-  color: inherit;
-}
-.sermon-app .sn-anc .sn-lab {
-  flex: 1;
+.sermon-app .sn-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   min-width: 0;
+  max-width: 100%;
+  margin-right: 4px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  background: var(--sn-surface-2);
+  color: var(--sn-muted);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-.sermon-app .sn-anc .sn-lab b {
+.sermon-app .sn-pin[data-on='true'] {
+  background: var(--sn-accent-soft);
   color: var(--sn-accent);
   font-weight: 600;
 }
-.sermon-app .sn-anc .sn-lab .sn-auto {
+.sermon-app .sn-pin .sn-icon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+.sermon-app .sn-pin .sn-lab {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sermon-app .sn-pin .sn-auto {
   color: var(--sn-faint);
-  font-size: 11px;
-  margin-left: 4px;
+  font-weight: 400;
 }
 .sermon-app .sn-anc button {
   border: 0;
   background: transparent;
   color: var(--sn-muted);
-  min-height: 30px;
+  min-height: 26px;
+  min-width: 26px;
   border-radius: 6px;
   font-size: 12px;
   padding: 0 6px;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+.sermon-app .sn-anc button .sn-icon {
+  width: 15px;
+  height: 15px;
 }
 .sermon-app .sn-anc button:hover {
   background: var(--sn-surface-2);
@@ -1746,70 +1742,145 @@ html.light .sn-scope {
   opacity: 0.35;
   cursor: default;
 }
+.sermon-app .sn-anc .sn-anc-x {
+  margin-left: auto;
+  padding: 0;
+}
 
-/* 생각 입력 */
+/* 생각 입력 — 한 상자 */
 .sermon-app .sn-compose {
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 18px 14px;
+  padding: 12px 14px 14px;
   border-top: 1px solid var(--sn-line);
   background: var(--sn-bg);
 }
-.sermon-app .sn-compose .sn-tags {
-  display: flex;
-  gap: 6px;
-}
-.sermon-app .sn-compose .sn-cx {
+.sermon-app .sn-cbox {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  border: 1px solid var(--sn-line-strong);
+  border-radius: var(--sn-r-ovl);
+  background: var(--sn-surface);
+  transition: border-color 0.15s;
+}
+.sermon-app .sn-cbox:focus-within {
+  border-color: var(--sn-accent);
+}
+.sermon-app .sn-compose .sn-cx {
+  padding: 8px 8px 0 10px;
 }
 .sermon-app .sn-compose[data-open='false'] .sn-cx {
   display: none;
 }
-.sermon-app .sn-compose .sn-attach {
-  width: 40px;
-  height: 44px;
-}
-.sermon-app .sn-compose .sn-inrow {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
+.sermon-app .sn-cbox .sn-media {
+  padding: 8px 12px 0;
 }
 .sermon-app .sn-compose textarea {
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
+  display: block;
+  width: 100%;
+  min-height: 40px;
   max-height: 140px;
   resize: none;
-  padding: 10px 12px;
-  border: 1px solid var(--sn-line-strong);
-  border-radius: var(--sn-r-ctl);
-  background: var(--sn-surface);
+  padding: 10px 12px 4px;
+  border: 0;
+  background: transparent;
   font-size: 14px;
   line-height: 1.5;
   outline: 0;
 }
-.sermon-app .sn-compose textarea:focus {
-  border-color: var(--sn-accent);
+.sermon-app .sn-compose textarea::placeholder {
+  color: var(--sn-faint);
 }
-.sermon-app .sn-compose .sn-send {
-  width: 44px;
-  height: 44px;
+.sermon-app .sn-cbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 6px 8px;
+}
+.sermon-app .sn-tseg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--sn-surface-2);
+}
+.sermon-app .sn-tseg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 0 10px;
   border: 0;
-  border-radius: var(--sn-r-ctl);
-  background: var(--sn-accent);
-  color: var(--sn-accent-ink);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sn-muted);
+  font-size: 12px;
+}
+.sermon-app .sn-tseg button::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: currentColor;
+}
+.sermon-app .sn-tseg button[aria-pressed='true'] {
+  background: var(--sn-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  font-weight: 700;
+}
+.sermon-app .sn-tseg button[data-t='생각'][aria-pressed='true'] {
+  color: var(--sn-fg);
+}
+.sermon-app .sn-tseg button[data-t='질문'][aria-pressed='true'] {
+  color: var(--sn-c-blue);
+}
+.sermon-app .sn-tseg button[data-t='적용'][aria-pressed='true'] {
+  color: var(--sn-c-green);
+}
+.sermon-app .sn-cico {
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  flex-shrink: 0;
   padding: 0;
-}
-.sermon-app .sn-compose .sn-foot {
-  font-size: 11px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   color: var(--sn-muted);
+  flex-shrink: 0;
+}
+.sermon-app .sn-cico:hover {
+  background: var(--sn-surface-2);
+  color: var(--sn-fg);
+}
+.sermon-app .sn-compose .sn-send {
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  flex-shrink: 0;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.sermon-app .sn-compose .sn-send[data-empty='true'] {
+  background: var(--sn-surface-2);
+  color: var(--sn-faint);
+}
+.sermon-app .sn-compose .sn-send .sn-icon,
+.sermon-app .sn-cico .sn-icon {
+  width: 16px;
+  height: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app .sn-cbox,
+  .sermon-app .sn-compose .sn-send {
+    transition: none;
+  }
 }
 
 /* 분할선 */
@@ -2343,9 +2414,15 @@ html.light .sn-scope {
     width: 36px;
     height: 36px;
   }
-  .sermon-app .sn-anc button {
+  .sermon-app .sn-anc button,
+  .sermon-app .sn-cico,
+  .sermon-app .sn-compose .sn-send {
     min-width: 40px;
     height: 40px;
+  }
+  .sermon-app .sn-tseg button {
+    min-height: 36px;
+    padding: 0 12px;
   }
 }
 
@@ -2673,4 +2750,322 @@ html[data-keyboard-open] .sn-overlay {
   display: grid;
   place-items: center;
   padding: 0;
+}
+
+/* ───────── 설교 녹음 ───────── */
+.sermon-app .sn-rec .sn-mic {
+  width: 14px;
+  height: 14px;
+  color: var(--sn-c-red);
+}
+.sermon-app .sn-rec[data-audio='true'] .sn-rs {
+  color: var(--sn-surface);
+}
+
+/* 재생 바: 상단 바 바로 아래 한 줄 */
+.sermon-app .sn-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 12px 4px 10px;
+  border-bottom: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.sermon-app .sn-player .sn-pbtn {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--sn-fg);
+  color: var(--sn-surface);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.sermon-app .sn-player .sn-pbtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.sermon-app .sn-player .sn-pbtn .sn-icon {
+  width: 16px;
+  height: 16px;
+}
+.sermon-app .sn-player .sn-ptime {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.sermon-app .sn-player .sn-pend {
+  color: var(--sn-faint);
+}
+.sermon-app .sn-player .sn-prange {
+  flex: 1;
+  min-width: 60px;
+  accent-color: var(--sn-accent);
+  margin: 0;
+}
+.sermon-app .sn-player .sn-pnote {
+  font-size: 12px;
+  color: var(--sn-faint);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.sermon-app .sn-player .sn-pnote.sn-warn {
+  color: var(--sn-c-red);
+}
+.sermon-app .sn-player-lost {
+  color: var(--sn-c-red);
+}
+.sermon-app .sn-player-lost > span {
+  flex: 1;
+  min-width: 0;
+}
+@media (max-width: 599px) {
+  .sermon-app .sn-player .sn-pend {
+    display: none;
+  }
+  .sermon-app .sn-player .sn-pnote {
+    display: none;
+  }
+}
+
+/* 생각의 시각: 녹음이 있으면 누르면 들린다 */
+.sermon-app .sn-th .sn-tm-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px 0 4px;
+  min-height: 22px;
+  border: 1px solid var(--sn-line);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--sn-muted);
+  font: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+.sermon-app .sn-th .sn-tm-play .sn-icon {
+  width: 11px;
+  height: 11px;
+  color: var(--sn-accent);
+}
+.sermon-app .sn-th .sn-tm-play:hover {
+  color: var(--sn-fg);
+  border-color: var(--sn-muted);
+}
+
+/* 노트 목록의 녹음 표시 */
+.sermon-app .sn-nrow .sn-nt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.sermon-app .sn-nrow .sn-nrec {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.sermon-app .sn-nrow .sn-nrec .sn-icon {
+  width: 12px;
+  height: 12px;
+  color: var(--sn-accent);
+}
+.sermon-app .sn-nrow .sn-nrec[data-pending='true'] .sn-icon {
+  color: var(--sn-c-orange);
+}
+
+/* ---------- 선택 서식 버블 (SelectionBubble, body 포털) ---------- */
+.sn-scope.sn-bubble {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--sn-fg);
+  color: var(--sn-bg);
+  box-shadow: var(--sn-shadow);
+  font-family: var(--sn-f-ui);
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 10px));
+  animation: sn-bubble-in 0.12s ease-out;
+  --sn-bubble-arrow: 0px;
+}
+.sn-scope.sn-bubble[data-pos='below'] {
+  transform: translate(-50%, 10px);
+}
+.sn-scope.sn-bubble::after {
+  content: '';
+  position: absolute;
+  left: calc(50% + var(--sn-bubble-arrow));
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  background: var(--sn-fg);
+  transform: translateX(-50%) rotate(45deg);
+  border-radius: 2px;
+}
+.sn-scope.sn-bubble[data-pos='below']::after {
+  bottom: auto;
+  top: -5px;
+}
+.sn-scope.sn-bubble button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0 9px;
+  min-height: 30px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.sn-scope.sn-bubble button:hover {
+  background: color-mix(in srgb, var(--sn-bg) 18%, transparent);
+}
+.sn-scope.sn-bubble button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--sn-bg) 28%, transparent);
+}
+.sn-scope.sn-bubble button:focus-visible {
+  outline: 2px solid var(--sn-accent);
+  outline-offset: 1px;
+}
+.sn-scope.sn-bubble .sn-bubble-h {
+  font-family: var(--sn-f-display);
+  font-weight: 700;
+}
+.sn-scope.sn-bubble .sn-bsep {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: color-mix(in srgb, var(--sn-bg) 25%, transparent);
+}
+@keyframes sn-bubble-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sn-scope.sn-bubble {
+    animation: none;
+  }
+}
+.sn-scope.sn-bubble .sn-bubble-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--sn-accent);
+}
+
+/* AI 문장 정리 결과 카드 — 버블 자리에 대신 뜬다 */
+.sn-scope.sn-bubble-card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  width: min(380px, calc(100vw - 32px));
+  white-space: normal;
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  border: 1px solid var(--sn-line-strong);
+  border-radius: var(--sn-r-ovl);
+  overflow: hidden;
+}
+.sn-scope.sn-bubble-card::after {
+  background: var(--sn-surface);
+  border-right: 1px solid var(--sn-line-strong);
+  border-bottom: 1px solid var(--sn-line-strong);
+}
+.sn-scope.sn-bubble-card[data-pos='below']::after {
+  border: 0;
+  border-left: 1px solid var(--sn-line-strong);
+  border-top: 1px solid var(--sn-line-strong);
+}
+.sn-scope.sn-bubble-card .sn-bc-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-accent);
+  border-bottom: 1px solid var(--sn-line);
+}
+.sn-scope.sn-bubble-card .sn-bc-hint {
+  margin-left: auto;
+  font-weight: 400;
+  color: var(--sn-faint);
+}
+.sn-scope.sn-bubble-card .sn-bc-body {
+  padding: 12px 12px 10px;
+  font-family: var(--sn-t-font, var(--sn-f-ui));
+  font-size: 15px;
+  line-height: 1.7;
+  max-height: 40vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.sn-scope.sn-bubble-card .sn-bc-loading {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--sn-muted);
+}
+.sn-scope.sn-bubble-card .sn-bc-loading .sn-spin {
+  flex-shrink: 0;
+  margin-top: 4px;
+  animation: sn-spin 0.9s linear infinite;
+}
+.sn-scope.sn-bubble-card .sn-bc-orig {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sn-scope.sn-bubble-card .sn-bc-err {
+  color: var(--sn-c-red);
+  font-size: 13px;
+}
+.sn-scope.sn-bubble-card .sn-bc-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--sn-line);
+}
+.sn-scope.sn-bubble-card .sn-bc-foot button {
+  color: var(--sn-muted);
+  font-size: 13px;
+  min-height: 32px;
+}
+.sn-scope.sn-bubble-card .sn-bc-foot button:hover {
+  background: var(--sn-surface-2);
+  color: var(--sn-fg);
+}
+.sn-scope.sn-bubble-card .sn-bc-foot .sn-bc-apply {
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  font-weight: 700;
+  padding: 0 14px;
+}
+.sn-scope.sn-bubble-card .sn-bc-foot .sn-bc-apply:hover {
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  filter: brightness(1.08);
+}
+@keyframes sn-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

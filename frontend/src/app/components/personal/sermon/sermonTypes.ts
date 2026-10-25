@@ -38,6 +38,28 @@ export interface Thought {
   at: number;
 }
 
+/**
+ * 녹음 한 토막. 보통은 노트당 하나지만, 새로고침·iOS 백그라운드로 녹음이 끊기면
+ * 그 시점 elapsed 를 offset 으로 새 토막이 생긴다. 재생할 때 t 가 속한 토막을 찾는다.
+ */
+export interface SermonAudioSegment {
+  /** 스토리지 파일 id. 아직 안 올렸으면 `local-` 접두 (= IndexedDB seg id 를 그대로 씀) */
+  id: string;
+  url: string | null;
+  mime: string;
+  /** 이 토막이 시작할 때의 설교 타이머 경과 초 */
+  offset: number;
+  /** 초 */
+  duration: number;
+  size: number;
+  /** 기기에 조각이 없어 올릴 수 없는 토막 */
+  lost?: boolean;
+}
+
+export interface SermonAudio {
+  segments: SermonAudioSegment[];
+}
+
 export interface SermonNote {
   /** 서버 문서 id. 아직 올리지 못한 새 노트는 `local-` 접두 */
   id: string;
@@ -53,6 +75,8 @@ export interface SermonNote {
   thoughts: Thought[];
   /** 설교 타이머 누적 초 */
   elapsed: number;
+  /** 설교 녹음. 녹음하지 않았으면 없음 */
+  audio?: SermonAudio;
   created_at: number;
   updated_at: number;
 }
@@ -202,6 +226,7 @@ export function normalizeNote(
   raw: Partial<SermonContent> | null | undefined,
 ): SermonNote {
   const c = raw || {};
+  const audio = normalizeAudio(c.audio);
   return {
     id,
     title: typeof c.title === 'string' ? c.title : '',
@@ -212,9 +237,59 @@ export function normalizeNote(
     body: typeof c.body === 'string' ? c.body : '',
     thoughts: Array.isArray(c.thoughts) ? (c.thoughts as Thought[]) : [],
     elapsed: typeof c.elapsed === 'number' ? c.elapsed : 0,
+    ...(audio ? { audio } : {}),
     created_at: typeof c.created_at === 'number' ? c.created_at : 0,
     updated_at: typeof c.updated_at === 'number' ? c.updated_at : 0,
   };
+}
+
+function normalizeAudio(raw: unknown): SermonAudio | undefined {
+  const a = raw as Partial<SermonAudio> | null | undefined;
+  if (!a || !Array.isArray(a.segments)) return undefined;
+  const segments = a.segments
+    .filter((s): s is SermonAudioSegment => !!s && typeof s.id === 'string')
+    .map((s) => ({
+      id: s.id,
+      url: typeof s.url === 'string' ? s.url : null,
+      mime: typeof s.mime === 'string' ? s.mime : 'audio/webm',
+      offset: typeof s.offset === 'number' ? s.offset : 0,
+      duration: typeof s.duration === 'number' ? s.duration : 0,
+      size: typeof s.size === 'number' ? s.size : 0,
+      ...(s.lost ? { lost: true } : {}),
+    }))
+    .sort((x, y) => x.offset - y.offset);
+  return segments.length ? { segments } : undefined;
+}
+
+/** 녹음이 끝나는 경과 초 (= 마지막 토막의 offset + duration). 녹음 없으면 0 */
+export function audioEnd(n: Pick<SermonNote, 'audio'>): number {
+  return (n.audio?.segments || []).reduce((m, s) => Math.max(m, s.offset + s.duration), 0);
+}
+
+/** 녹음 총 길이(초) */
+export function audioDuration(n: Pick<SermonNote, 'audio'>): number {
+  return (n.audio?.segments || []).reduce((a, s) => a + s.duration, 0);
+}
+
+/** 아직 서버에 올리지 못한 토막 수 */
+export function audioPending(n: Pick<SermonNote, 'audio'>): number {
+  return (n.audio?.segments || []).filter((s) => isLocalId(s.id) && !s.lost).length;
+}
+
+/** 경과 초 t 가 속한 토막과 그 안의 위치 */
+export function audioLocate(
+  n: Pick<SermonNote, 'audio'>,
+  t: number,
+): { seg: SermonAudioSegment; at: number } | null {
+  const segs = n.audio?.segments || [];
+  if (!segs.length) return null;
+  const hit = segs.find((s) => t >= s.offset && t < s.offset + s.duration);
+  if (hit) return { seg: hit, at: t - hit.offset };
+  // 토막 사이 빈 구간(끊김) → 다음 토막 처음으로
+  const next = segs.find((s) => s.offset >= t);
+  if (next) return { seg: next, at: 0 };
+  const last = segs[segs.length - 1];
+  return { seg: last, at: Math.max(0, last.duration - 1) };
 }
 
 export const UNTITLED = '제목 없음';

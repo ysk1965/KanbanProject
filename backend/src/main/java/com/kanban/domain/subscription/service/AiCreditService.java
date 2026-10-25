@@ -199,6 +199,18 @@ public class AiCreditService {
                 user.getPersonalAvailableCredits());
     }
 
+    /** 개인 크레딧 환불 — AI 호출·파싱이 실패했을 때. 월간 사용량을 먼저 되돌리고, 그래도 남으면 구매분으로 */
+    @Transactional
+    public void refundUserCredit(String userId, String featureType, int amount) {
+        if (!monetizationService.isMonetizationEnabled() || amount <= 0) return;
+
+        User user = userRepository
+                .findByIdForUpdate(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        user.refundPersonalCredits(amount);
+        log.info("Personal AI credit refunded - user: {}, feature: {}, amount: {}", userId, featureType, amount);
+    }
+
     @Transactional(readOnly = true)
     public AiCreditResponse.CreditInfo getUserCredits(String userId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));

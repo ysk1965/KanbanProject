@@ -8,6 +8,8 @@ import type { ThoughtMedia } from './sermonTypes';
  */
 
 export const MEDIA_MAX_BYTES = 20 * 1024 * 1024;
+/** 설교 녹음 한 토막 상한. 모노 48kbps 로 약 4시간 */
+export const AUDIO_MAX_BYTES = 200 * 1024 * 1024;
 const FOLDER_NAME = '설교 노트';
 
 let folderIdPromise: Promise<string | null> | null = null;
@@ -106,6 +108,29 @@ export async function uploadMedia(file: File): Promise<ThoughtMedia> {
     return { id: item.id, type, url: item.url, thumb: item.thumbnail_url };
   } catch (e) {
     console.error('sermon: upload failed', e);
+    throw new MediaUploadError(
+      typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'upload_failed',
+    );
+  }
+}
+
+/** 설교 녹음 토막 업로드 — 같은 「설교 노트」 폴더. 노트 JSON 에는 파일 id·URL 만 남긴다 */
+export async function uploadAudio(
+  blob: Blob,
+  fileName: string,
+  onProgress?: (percent: number) => void,
+): Promise<{ id: string; url: string }> {
+  if (blob.size > AUDIO_MAX_BYTES) throw new MediaUploadError('too_large');
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new MediaUploadError('offline');
+  }
+  const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
+  const folderId = await ensureFolder();
+  try {
+    const item = await myStorageAPI.uploadFile(file, folderId, onProgress);
+    return { id: item.id, url: item.url };
+  } catch (e) {
+    console.error('sermon: audio upload failed', e);
     throw new MediaUploadError(
       typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'upload_failed',
     );
