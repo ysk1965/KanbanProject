@@ -1,0 +1,350 @@
+import { useMemo } from 'react';
+import { Check, Plus } from 'lucide-react';
+import { BOOKS, PSALMS, refLong, type Ref } from './bibleRefs';
+import { Mascot } from './Mascot';
+import { mascotName, type MascotId } from './sermonLook';
+import {
+  audioDuration,
+  mainRef,
+  todayString,
+  UNTITLED,
+  type ApplyItem,
+  type SermonNote,
+} from './sermonTypes';
+import { firstVerseText } from './useBible';
+
+/**
+ * 노트 목록의 첫 화면 「한 주 다이어리」.
+ *  - 이번 주 설교 카드(표지형): 그림은 장 번호만이 아니라 항상 「책 이름 + 장」을 가리킨다
+ *  - 한 주 동안: 일~토 칸에 그날 들은 설교와 실천한 적용이 스티커로 붙는다
+ *  - 모은 설교 스티커: 지난 설교가 칼선 도장 스티커로 쌓이고, 다음 주일 자리는 마스코트가 기다린다
+ */
+interface SermonHomeProps {
+  notes: SermonNote[];
+  week: ApplyItem[];
+  mascot: MascotId;
+  onOpen: (id: string, aid?: string | null) => void;
+  onNew: () => void;
+  onToggleApply: (noteId: string, thoughtId: string) => void;
+}
+
+const DOW = '일월화수목금토';
+
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** 오늘이 든 주의 일요일 ~ 토요일 */
+function weekDays(): Date[] {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  const start = new Date(t);
+  start.setDate(t.getDate() - t.getDay());
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return d;
+  });
+}
+
+/** 책 이름: 다섯 글자가 넘으면 약어 (예레미야애가 → 애) */
+function bookName(r: Ref): string {
+  const [long, short] = BOOKS[r.b];
+  return long.length > 4 ? short : long;
+}
+
+function verseRange(r: Ref): string {
+  if (r.whole) return r.b === PSALMS ? '전체' : '장 전체';
+  return r.v2 > r.v1 ? `${r.v1}–${r.v2}절` : `${r.v1}절`;
+}
+
+function chapterUnit(r: Ref): string {
+  return r.b === PSALMS ? '편' : '장';
+}
+
+/** 받침이 있으면 '이', 없으면 '가' */
+function josaIGa(word: string): string {
+  const c = word.charCodeAt(word.length - 1);
+  if (c < 0xac00 || c > 0xd7a3) return '가';
+  return (c - 0xac00) % 28 ? '이' : '가';
+}
+
+function fmtMin(sec: number): string {
+  const m = Math.max(1, Math.round(sec / 60));
+  return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`;
+}
+
+export function SermonHome({ notes, week, mascot, onOpen, onNew, onToggleApply }: SermonHomeProps) {
+  const today = todayString();
+  const days = useMemo(() => weekDays(), []);
+  const weekStart = ymd(days[0]);
+  const byDate = useMemo(
+    () => [...notes].sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+    [notes],
+  );
+  const hero = byDate[0];
+  const heroThisWeek = !!hero && (hero.date || '') >= weekStart && (hero.date || '') <= today;
+  const ref = hero ? mainRef(hero) : null;
+  const quote = ref ? firstVerseText(ref) : '';
+  const thn = hero ? (hero.thoughts || []).length : 0;
+  const rec = hero ? audioDuration(hero) : 0;
+
+  const done = week.filter((x) => x.t.done).length;
+  const left = week.length - done;
+  const name = mascotName(mascot);
+
+  const nextSunday = new Date(days[0]);
+  nextSunday.setDate(days[0].getDate() + 7);
+
+  const stickers = byDate.slice(0, 6);
+
+  return (
+    <div className="sn-home">
+      <div className="sn-home-top">
+        {hero && (
+          <article className="sn-hc">
+            <span className="sn-tape" style={{ left: 44, ['--r' as string]: '-7deg' }} />
+            <span className="sn-tape sn-c1" style={{ right: 150, ['--r' as string]: '5deg' }} />
+            <span className="sn-hc-peek">
+              <Mascot kind={mascot} size={84} state={left === 0 && week.length ? 'done' : 'idle'} />
+            </span>
+            <button
+              type="button"
+              className="sn-cover"
+              onClick={() => onOpen(hero.id)}
+              aria-label={`${hero.title || UNTITLED} 노트 열기`}
+            >
+              <span className="sn-ht" aria-hidden />
+              <span className="sn-disc" aria-hidden />
+              {ref ? (
+                <span className="sn-cover-txt" aria-hidden>
+                  <span className="sn-cover-bk">{bookName(ref)}</span>
+                  <span className="sn-cover-ch">
+                    {ref.c}
+                    <small>{chapterUnit(ref)}</small>
+                  </span>
+                </span>
+              ) : (
+                <span className="sn-cover-txt" aria-hidden>
+                  <span className="sn-cover-bk">설교</span>
+                </span>
+              )}
+              {ref && (
+                <span className="sn-stk sn-cover-vs" style={{ ['--r' as string]: '3deg' }}>
+                  {verseRange(ref)} · 개역한글
+                </span>
+              )}
+            </button>
+            <div className="sn-hc-body">
+              <p className="sn-hc-run">
+                <b>{heroThisWeek ? '이번 주 설교' : '최근 설교'}</b>
+                <span>{hero.date ? hero.date.slice(5).replace('-', '.') : ''}</span>
+                {hero.service && <span>· {hero.service}</span>}
+              </p>
+              <h3>{hero.title || UNTITLED}</h3>
+              <p className="sn-hc-who">
+                {hero.preacher && <b>{hero.preacher}</b>}
+                {rec > 0 && <span> · 녹음 {fmtMin(rec)}</span>}
+                {thn > 0 && <span> · 생각 {thn}</span>}
+              </p>
+              {ref && quote && (
+                <div className="sn-vq">
+                  <b>{refLong(ref)}</b>
+                  <p>{quote}</p>
+                </div>
+              )}
+              <div className="sn-hc-acts">
+                <button type="button" className="sn-btn sn-primary" onClick={() => onOpen(hero.id)}>
+                  노트 열기
+                </button>
+                <button type="button" className="sn-btn" onClick={onNew}>
+                  <Plus className="sn-icon" aria-hidden />새 설교 기록
+                </button>
+              </div>
+            </div>
+          </article>
+        )}
+
+        <aside className="sn-plan" aria-label="한 주 동안">
+          <span className="sn-stk sn-c2 sn-plan-tag" style={{ ['--r' as string]: '5deg' }}>
+            ♥ 이번 주 적용
+          </span>
+          <h4>
+            한 주 동안
+            {week.length > 0 && (
+              <span className="sn-plan-fr">
+                {done}/{week.length}
+              </span>
+            )}
+          </h4>
+          <div className="sn-days">
+            {days.map((d) => {
+              const ds = ymd(d);
+              const dayNotes = notes.filter((n) => n.date === ds);
+              const dayDone = week.filter(
+                (x) => x.t.done && x.t.done_at && ymd(new Date(x.t.done_at)) === ds,
+              );
+              return (
+                <div
+                  key={ds}
+                  className="sn-day"
+                  data-sun={d.getDay() === 0}
+                  data-today={ds === today}
+                >
+                  <div className="sn-day-l">
+                    <b>{d.getDate()}</b>
+                    <span>{ds === today ? '오늘' : `${DOW[d.getDay()]}요일`}</span>
+                  </div>
+                  <div className="sn-day-it">
+                    {dayNotes.map((n) => (
+                      <button
+                        key={n.id}
+                        type="button"
+                        className="sn-stk sn-c1"
+                        style={{ ['--r' as string]: '-2deg' }}
+                        onClick={() => onOpen(n.id)}
+                      >
+                        ✦ {n.title || UNTITLED}
+                      </button>
+                    ))}
+                    {dayDone.map(({ n, t }) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className="sn-stk sn-c2"
+                        style={{ ['--r' as string]: '2deg' }}
+                        onClick={() => onOpen(n.id, t.aid)}
+                      >
+                        ♥ {t.text || '적용'}
+                      </button>
+                    ))}
+                    {!dayNotes.length &&
+                      !dayDone.length &&
+                      (ds === today ? (
+                        <button
+                          type="button"
+                          className="sn-slot"
+                          aria-label="오늘 설교 기록"
+                          onClick={onNew}
+                        >
+                          +
+                        </button>
+                      ) : (
+                        <span className="sn-slot" aria-hidden />
+                      ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {week.length > 0 ? (
+            <div className="sn-todo">
+              {[...week.filter((x) => !x.t.done), ...week.filter((x) => x.t.done)].map(
+                ({ n, t }) => (
+                  <div key={`${n.id}|${t.id}`} className="sn-todo-row" data-checked={!!t.done}>
+                    <button
+                      type="button"
+                      className="sn-ck"
+                      aria-pressed={!!t.done}
+                      aria-label={t.done ? '실천 표시 지우기' : '실천했어요'}
+                      onClick={() => onToggleApply(n.id, t.id)}
+                    >
+                      <Check className="sn-icon" style={{ width: 15, height: 15 }} />
+                    </button>
+                    <button type="button" className="sn-todo-t" onClick={() => onOpen(n.id, t.aid)}>
+                      {t.text || '(사진·영상 메모)'}
+                      <small>{n.title || UNTITLED}</small>
+                    </button>
+                  </div>
+                ),
+              )}
+            </div>
+          ) : null}
+          <div className="sn-cheer">
+            <Mascot kind={mascot} size={50} state={week.length && !left ? 'done' : 'think'} />
+            <span>
+              {!week.length ? (
+                <>
+                  적용할 점을 남겨 보세요
+                  <small>설교를 들으며 ‘적용’ 태그로 적으면 여기 모여요</small>
+                </>
+              ) : left ? (
+                <>
+                  {left}개 남았어요
+                  <small>실천하면 {name}도 같이 기뻐해요</small>
+                </>
+              ) : (
+                <>
+                  이번 주 적용 완료!
+                  <small>다음 주일에 새 스티커가 생겨요</small>
+                </>
+              )}
+            </span>
+          </div>
+        </aside>
+      </div>
+
+      <div className="sn-sticker-sec">
+        <div className="sn-sec-h">
+          <h4>모은 설교 스티커</h4>
+          <span>{notes.length}장</span>
+        </div>
+        <div className="sn-stickers">
+          {stickers.map((n, i) => {
+            const r = mainRef(n);
+            const cur = n.id === hero?.id && heroThisWeek;
+            const ab = i % 2 ? ['var(--sn-g1)', 'var(--sn-g2)'] : ['var(--sn-g2)', 'var(--sn-g1)'];
+            const rot = [-6, 4, -2, 5, -4, 3][i % 6];
+            return (
+              <button
+                key={n.id}
+                type="button"
+                className="sn-badge"
+                onClick={() => onOpen(n.id)}
+                aria-label={`${n.title || UNTITLED} 노트 열기`}
+              >
+                <span
+                  className="sn-stkr"
+                  data-cur={cur}
+                  style={
+                    {
+                      '--r': `${rot}deg`,
+                      '--a': ab[0],
+                      '--b': ab[1],
+                    } as React.CSSProperties
+                  }
+                >
+                  <span className="sn-die" />
+                  <span className="sn-face">
+                    <span className="sn-ht" />
+                    <span className="sn-svc">{n.service || '설교'}</span>
+                    <span className="sn-bkn">{r ? bookName(r) : '설교'}</span>
+                    <span className="sn-chn">{r ? r.c : n.date ? +n.date.slice(8) : '·'}</span>
+                    {r && <span className="sn-vr">{verseRange(r)}</span>}
+                  </span>
+                  {cur && <span className="sn-new">이번 주</span>}
+                </span>
+                <b className="sn-badge-t">{n.title || UNTITLED}</b>
+                <span className="sn-badge-m">
+                  {n.date ? n.date.slice(5).replace('-', '.') : ''}
+                  {n.preacher ? ` · ${n.preacher}` : ''}
+                </span>
+              </button>
+            );
+          })}
+          <div className="sn-badge sn-badge-empty">
+            <span className="sn-stkr">
+              <span className="sn-die" />
+              <Mascot kind={mascot} size={92} state="sleep" />
+            </span>
+            <b className="sn-badge-t">다음 주일</b>
+            <span className="sn-badge-m">
+              {nextSunday.getMonth() + 1}.{nextSunday.getDate()} · {name}
+              {josaIGa(name)} 기다리는 중
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

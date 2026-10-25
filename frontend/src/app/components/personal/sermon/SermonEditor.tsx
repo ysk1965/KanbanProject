@@ -47,6 +47,8 @@ import { deleteMedia } from './sermonMedia';
 import { sermonAudioStore } from './sermonAudioStore';
 import { VersionTracker, listVersions, saveVersion, type NoteVersion } from './sermonVersions';
 import { firstVerseText, useBible } from './useBible';
+import { Mascot } from './Mascot';
+import type { MascotId } from './sermonLook';
 
 /**
  * 설교 기록 화면 — 기획서 §2 상단 바, §3 노트 머리, §4 본문 편집기, §6 내 생각 패널.
@@ -67,6 +69,8 @@ interface SermonEditorProps {
   /** 로그인 전이면 첨부 불가 */
   canAttach: boolean;
   onLogin?: () => void;
+  /** 꾸미기에서 고른 마스코트 — 녹음 버튼에서 같이 귀를 기울인다 */
+  mascot?: MascotId;
 }
 
 const SERVICE_OPTIONS = [
@@ -194,6 +198,7 @@ export function SermonEditor({
   initialAid,
   canAttach,
   onLogin,
+  mascot = 'galpi',
 }: SermonEditorProps) {
   const { bible } = useBible();
   const noteRef = useRef<SermonNote>(note);
@@ -855,6 +860,12 @@ export function SermonEditor({
           }
           onClick={toggleRec}
         >
+          <Mascot
+            kind={mascot}
+            size={26}
+            className="sn-rec-m"
+            state={recState === 'run' ? 'listen' : recState === 'pause' ? 'think' : 'idle'}
+          />
           {audioLive ? <Mic className="sn-icon sn-mic" aria-hidden /> : <span className="sn-dot" />}
           <span className="sn-rs">
             {recState === 'run'

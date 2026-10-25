@@ -151,10 +151,10 @@ describe('SermonTab smoke', () => {
     expect(saved.notes[0].thoughts[0].tag).toBe('적용');
     expect(saved.dirty.length).toBe(1);
 
-    // 목록으로 → 이번 주 적용 배너
+    // 목록으로 → 한 주 다이어리 (이번 주 적용이 남은 개수로 보인다)
     fireEvent.click(screen.getByRole('button', { name: '목록으로' }));
-    expect(await screen.findByText('이번 주 적용, 1개 남았어요')).toBeInTheDocument();
-    expect(screen.getByText('포도나무와 가지')).toBeInTheDocument();
+    expect(await screen.findByText('1개 남았어요')).toBeInTheDocument();
+    expect(screen.getAllByText('포도나무와 가지').length).toBeGreaterThan(0);
   });
 
   it('로그인 없이(/sermonnote) 쓰면 서버를 부르지 않고 기기에만 저장하며, 로그인 안내가 보인다', async () => {
@@ -251,6 +251,6 @@ describe('SermonTab smoke', () => {
       expect(cur.notes.some((n: { id: string }) => n.id === 'srv-1')).toBe(true);
       expect(cur.dirty).toEqual([]);
     });
-    expect(screen.getByText('로그인 전 메모')).toBeInTheDocument();
+    expect(screen.getAllByText('로그인 전 메모').length).toBeGreaterThan(0);
   });
 });

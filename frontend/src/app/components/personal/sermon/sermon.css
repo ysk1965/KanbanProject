@@ -1,26 +1,152 @@
 /*
- * 설교 노트 — 기획서 「디자인 시스템」.
- * 색은 인쇄된 성경에서: 먹색 글자, 얇은 종이, 와인빛 가름끈. 모서리는 컨트롤 6px / 창 10px 두 가지.
- * 모든 토큰은 .sermon-app 아래에만 산다(--sn-*). 앱 테마(html.light / html.dark)를 따른다.
+ * 설교 노트 — 디자인 시스템 v2 「스티커 다이어리」.
+ * 파스텔 잉크 두 색(g1·g2)으로 면·망점·스티커를 칠하고, 글자는 같은 계열의 진한 색(t1·t2)으로 쓴다.
+ * 잉크 조합은 사용자가 고른다: <html data-sn-ink="cotton|strawberry|…"> (sermonLook.ts).
+ * 모든 토큰은 .sermon-app / .sn-scope(포털) 아래에만 산다(--sn-*). 앱 테마(html.light / 기본 다크)를 따른다.
  */
+
+/* ---------- 1. 잉크 조합 ---------- */
 .sermon-app,
 .sn-scope {
-  /* dark (기본) */
-  --sn-bg: #131115;
-  --sn-surface: #1a181c;
-  --sn-surface-2: #252227;
-  --sn-line: #2e2a30;
-  --sn-line-strong: #463f47;
-  --sn-fg: #ece7ea;
-  --sn-muted: #a79fa7;
-  --sn-faint: #7b747c;
-  --sn-accent: #e38b96;
-  --sn-accent-ink: #1d0f13;
-  --sn-accent-soft: #3b2027;
-  --sn-verse-bg: #211b20;
-  --sn-verse-line: #43303a;
-  --sn-verse-ink: #e38b96;
-  --sn-verse-text: #efe9ec;
+  --ink-g1: #c3b5f5;
+  --ink-g2: #ffb3d1;
+  --ink-t1: #5a45b8;
+  --ink-t2: #b8336f;
+  --ink-g1d: #cbbff7;
+  --ink-g2d: #ffbfd8;
+  --ink-paper: #fcf8fb;
+  --ink-desk: #f3ecf3;
+  --ink-card: #fffdfe;
+  --ink-card2: #f6eff6;
+}
+html[data-sn-ink='strawberry'] .sermon-app,
+html[data-sn-ink='strawberry'] .sn-scope {
+  --ink-g1: #8fb8ec;
+  --ink-g2: #f49ac1;
+  --ink-t1: #2d5f9a;
+  --ink-t2: #b03a72;
+  --ink-g1d: #9fc4f2;
+  --ink-g2d: #f7a9cb;
+  --ink-paper: #fbf7f5;
+  --ink-desk: #f2eae8;
+  --ink-card: #fffdfc;
+  --ink-card2: #f7eff0;
+}
+html[data-sn-ink='mint'] .sermon-app,
+html[data-sn-ink='mint'] .sn-scope {
+  --ink-g1: #aba2ef;
+  --ink-g2: #86d9c0;
+  --ink-t1: #5246b3;
+  --ink-t2: #1d7b62;
+  --ink-g1d: #b8b0f5;
+  --ink-g2d: #93e0c9;
+  --ink-paper: #f7f8f7;
+  --ink-desk: #eaedef;
+  --ink-card: #fdfefe;
+  --ink-card2: #eef1f3;
+}
+html[data-sn-ink='peach'] .sermon-app,
+html[data-sn-ink='peach'] .sn-scope {
+  --ink-g1: #ffb38a;
+  --ink-g2: #ffd76a;
+  --ink-t1: #a8461a;
+  --ink-t2: #7f5a00;
+  --ink-g1d: #ffbf9c;
+  --ink-g2d: #ffe08a;
+  --ink-paper: #fdf8f1;
+  --ink-desk: #f3ebdf;
+  --ink-card: #fffcf7;
+  --ink-card2: #f7efe3;
+}
+html[data-sn-ink='lilac'] .sermon-app,
+html[data-sn-ink='lilac'] .sn-scope {
+  --ink-g1: #bba6e6;
+  --ink-g2: #a8cc9f;
+  --ink-t1: #6448ad;
+  --ink-t2: #3f6b37;
+  --ink-g1d: #c6b4ee;
+  --ink-g2d: #b5d6ad;
+  --ink-paper: #f8f6f9;
+  --ink-desk: #ece8ee;
+  --ink-card: #fefdfe;
+  --ink-card2: #f1edf3;
+}
+html[data-sn-ink='lemon'] .sermon-app,
+html[data-sn-ink='lemon'] .sn-scope {
+  --ink-g1: #8fd8e8;
+  --ink-g2: #ffe27a;
+  --ink-t1: #136b7c;
+  --ink-t2: #7a5c00;
+  --ink-g1d: #9fe0ee;
+  --ink-g2d: #ffe78f;
+  --ink-paper: #f8fbfb;
+  --ink-desk: #ebf1f1;
+  --ink-card: #fefffe;
+  --ink-card2: #eef5f4;
+}
+html[data-sn-ink='blueberry'] .sermon-app,
+html[data-sn-ink='blueberry'] .sn-scope {
+  --ink-g1: #a7b7f2;
+  --ink-g2: #f9d9a8;
+  --ink-t1: #3b4ea8;
+  --ink-t2: #8c5414;
+  --ink-g1d: #b4c2f5;
+  --ink-g2d: #fbe0b5;
+  --ink-paper: #f8f8fc;
+  --ink-desk: #eceef6;
+  --ink-card: #fefeff;
+  --ink-card2: #f0f1f8;
+}
+html[data-sn-ink='mono'] .sermon-app,
+html[data-sn-ink='mono'] .sn-scope {
+  --ink-g1: #c9ccd3;
+  --ink-g2: #8d919b;
+  --ink-t1: #2b2d33;
+  --ink-t2: #44474f;
+  --ink-g1d: #c9ccd3;
+  --ink-g2d: #8d919b;
+  --ink-paper: #f7f7f6;
+  --ink-desk: #ececeb;
+  --ink-card: #ffffff;
+  --ink-card2: #f0f0ef;
+}
+html[data-sn-ink='monopink'] .sermon-app,
+html[data-sn-ink='monopink'] .sn-scope {
+  --ink-g1: #c9ccd3;
+  --ink-g2: #f28fb6;
+  --ink-t1: #2b2d33;
+  --ink-t2: #b8336f;
+  --ink-g1d: #c9ccd3;
+  --ink-g2d: #f6a3c4;
+  --ink-paper: #f7f7f6;
+  --ink-desk: #ececeb;
+  --ink-card: #ffffff;
+  --ink-card2: #f0f0ef;
+}
+
+/* ---------- 2. 다크 (기본) = 밤 종이 ---------- */
+.sermon-app,
+.sn-scope {
+  --sn-g1: var(--ink-g1d);
+  --sn-g2: var(--ink-g2d);
+  --sn-t1: var(--ink-g1d);
+  --sn-t2: var(--ink-g2d);
+  --sn-desk: #0f0e14;
+  --sn-bg: #16151c;
+  --sn-surface: #1e1d26;
+  --sn-surface-2: #272632;
+  --sn-line: rgba(238, 237, 243, 0.1);
+  --sn-line-strong: rgba(238, 237, 243, 0.22);
+  --sn-fg: #eeedf3;
+  --sn-muted: #aaa6b6;
+  --sn-faint: #767283;
+  --sn-accent: var(--sn-t1);
+  --sn-accent-ink: #16151c;
+  --sn-accent-soft: color-mix(in srgb, var(--sn-g1) 24%, transparent);
+  --sn-verse-bg: color-mix(in srgb, var(--sn-g1) 12%, var(--sn-surface));
+  --sn-verse-line: color-mix(in srgb, var(--sn-g1) 35%, transparent);
+  --sn-verse-ink: var(--sn-t1);
+  --sn-verse-text: var(--sn-fg);
   --sn-c-blue: #9db4ef;
   --sn-c-orange: #e7aa6b;
   --sn-c-red: #f09a90;
@@ -30,14 +156,25 @@
   --sn-hl-green: #1f4a31;
   --sn-hl-blue: #1f3659;
   --sn-hl-pink: #56243b;
+  --sn-blend: screen;
+  --sn-die: #34323f;
+  --sn-eye: #2a2733;
+  --sn-on-ink: #1b1a1f;
   --sn-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 36px -12px rgba(0, 0, 0, 0.7);
+  --sn-shadow-soft: 0 24px 50px -30px rgba(0, 0, 0, 0.9);
 
-  --sn-f-display: 'Hahmlet', 'Nanum Myeongjo', 'AppleMyungjo', serif;
   --sn-f-ui:
-    -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR',
+    'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic',
     system-ui, sans-serif;
-  --sn-r-ctl: 6px;
-  --sn-r-ovl: 10px;
+  /* 화면 제목 = 굵은 고딕, 성경 본문·명조 서식 = Hahmlet, 숫자·책 이름 그림 = Black Han Sans */
+  --sn-f-display: var(--sn-f-ui);
+  --sn-f-serif: 'Hahmlet', 'Nanum Myeongjo', 'AppleMyungjo', serif;
+  --sn-f-poster: 'Black Han Sans', var(--sn-f-ui);
+  --sn-r-ctl: 12px;
+  --sn-r-ovl: 24px;
+  --sn-r-card: 30px;
+  --sn-r-pill: 999px;
+  --sn-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .45 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 
   /* 서식 설정 기본값 (sermonStyle.applyStyle 이 덮어쓴다) */
   --sn-t-font: var(--sn-f-ui);
@@ -47,51 +184,41 @@
   --sn-b-weight: 700;
   --sn-b-color: inherit;
   --sn-b-ul: underline;
-  --sn-b-ulc: var(--sn-accent);
+  --sn-b-ulc: var(--sn-g1);
   --sn-b-bg: none;
-  --sn-h-font: var(--sn-f-display);
+  --sn-h-font: var(--sn-f-ui);
   --sn-h-size: 20px;
-  --sn-h-weight: 700;
+  --sn-h-weight: 800;
   --sn-h-color: var(--sn-fg);
   --sn-h-ul: none;
   --sn-l-type: disc;
-  --sn-l-color: var(--sn-accent);
+  --sn-l-color: var(--sn-t1);
   --sn-l-gap: 4px;
 
   color-scheme: dark;
 }
-.sermon-app {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--sn-bg);
-  color: var(--sn-fg);
-  font-family: var(--sn-f-ui);
-  font-size: 15px;
-  line-height: 1.55;
-  letter-spacing: -0.005em;
-  accent-color: var(--sn-accent);
-  scrollbar-color: var(--sn-line-strong) transparent;
-  scrollbar-width: thin;
+html[data-sn-ink^='mono'] .sermon-app,
+html[data-sn-ink^='mono'] .sn-scope {
+  --sn-t1: #e3e4e8;
 }
+
+/* ---------- 3. 라이트 = 낮 종이 ---------- */
 html.light .sermon-app,
 html.light .sn-scope {
-  --sn-bg: #f2efef;
-  --sn-surface: #fcfbfb;
-  --sn-surface-2: #ece7e8;
-  --sn-line: #e1dadb;
-  --sn-line-strong: #c6bdbf;
-  --sn-fg: #1d1a20;
-  --sn-muted: #615a62;
-  --sn-faint: #8b838b;
-  --sn-accent: #8a2433;
-  --sn-accent-ink: #fcfbfb;
-  --sn-accent-soft: #f4e4e6;
-  --sn-verse-bg: #f6efef;
-  --sn-verse-line: #e6d3d6;
-  --sn-verse-ink: #8a2433;
-  --sn-verse-text: #221b21;
+  --sn-g1: var(--ink-g1);
+  --sn-g2: var(--ink-g2);
+  --sn-t1: var(--ink-t1);
+  --sn-t2: var(--ink-t2);
+  --sn-desk: var(--ink-desk);
+  --sn-bg: var(--ink-paper);
+  --sn-surface: var(--ink-card);
+  --sn-surface-2: var(--ink-card2);
+  --sn-line: rgba(29, 27, 36, 0.1);
+  --sn-line-strong: rgba(29, 27, 36, 0.22);
+  --sn-fg: #1d1b24;
+  --sn-muted: #625e6d;
+  --sn-faint: #8e8a99;
+  --sn-accent-ink: #ffffff;
   --sn-c-blue: #2f4f99;
   --sn-c-orange: #9a5410;
   --sn-c-red: #a3271f;
@@ -101,8 +228,41 @@ html.light .sn-scope {
   --sn-hl-green: #c8e9d2;
   --sn-hl-blue: #cddffb;
   --sn-hl-pink: #f8d0de;
-  --sn-shadow: 0 1px 2px rgba(35, 20, 28, 0.07), 0 14px 30px -10px rgba(35, 20, 28, 0.22);
+  --sn-blend: multiply;
+  --sn-die: #ffffff;
+  --sn-shadow: 0 1px 2px rgba(35, 20, 28, 0.06), 0 14px 30px -12px rgba(35, 20, 28, 0.2);
+  --sn-shadow-soft: 0 24px 50px -30px color-mix(in srgb, var(--sn-t1) 45%, transparent);
   color-scheme: light;
+}
+
+/* ---------- 4. 바탕 ---------- */
+.sermon-app {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(
+      55% 45% at 8% 0%,
+      color-mix(in srgb, var(--sn-g2) 24%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      45% 40% at 95% 8%,
+      color-mix(in srgb, var(--sn-g1) 26%, transparent),
+      transparent 70%
+    ),
+    var(--sn-bg);
+  color: var(--sn-fg);
+  font-family: var(--sn-f-ui);
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: -0.012em;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  accent-color: var(--sn-t1);
+  scrollbar-color: var(--sn-line-strong) transparent;
+  scrollbar-width: thin;
 }
 
 .sermon-app *,
@@ -181,7 +341,7 @@ html.light .sn-scope {
   min-height: 40px;
   padding: 0 14px;
   border: 1px solid var(--sn-line);
-  border-radius: var(--sn-r-ctl);
+  border-radius: var(--sn-r-pill);
   background: var(--sn-surface);
   display: inline-flex;
   align-items: center;
@@ -196,7 +356,7 @@ html.light .sn-scope {
   background: var(--sn-accent);
   color: var(--sn-accent-ink);
   border-color: var(--sn-accent);
-  font-weight: 600;
+  font-weight: 700;
 }
 .sermon-app .sn-btn.sn-ghost {
   background: transparent;
@@ -229,7 +389,7 @@ html.light .sn-scope {
   gap: 4px;
   min-height: 30px;
   padding: 0 10px;
-  border-radius: var(--sn-r-ctl);
+  border-radius: var(--sn-r-pill);
   border: 1px solid var(--sn-line);
   background: var(--sn-surface);
   font-size: 13px;
@@ -249,7 +409,7 @@ html.light .sn-scope {
 .sermon-app .sn-tag {
   font-size: 11px;
   padding: 2px 7px;
-  border-radius: 4px;
+  border-radius: var(--sn-r-pill);
   background: var(--sn-surface-2);
   color: var(--sn-muted);
   font-weight: 500;
@@ -318,7 +478,7 @@ html.light .sn-scope {
   color: var(--sn-faint);
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 10px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -393,7 +553,7 @@ html.light .sn-scope {
   gap: 8px;
   padding: 0 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--sn-r-pill);
   background: transparent;
   text-align: left;
   font-size: 14px;
@@ -405,8 +565,10 @@ html.light .sn-scope {
   background: var(--sn-surface);
   color: var(--sn-fg);
   font-weight: 600;
-  box-shadow: inset 2px 0 0 var(--sn-accent);
-  border-radius: 0 var(--sn-r-ctl) var(--sn-r-ctl) 0;
+  box-shadow:
+    0 0 0 1px var(--sn-line),
+    0 8px 18px -12px color-mix(in srgb, var(--sn-t1) 50%, transparent);
+  border-radius: var(--sn-r-pill);
 }
 .sermon-app .sn-nav button .sn-count {
   margin-left: auto;
@@ -445,7 +607,7 @@ html.light .sn-scope {
   min-height: 44px;
   padding: 0 14px;
   border: 1px solid var(--sn-line-strong);
-  border-radius: var(--sn-r-ovl);
+  border-radius: var(--sn-r-pill);
   background: var(--sn-surface);
 }
 .sermon-app .sn-search input {
@@ -531,8 +693,8 @@ html.light .sn-scope {
 }
 .sermon-app .sn-empty {
   padding: 48px 24px;
-  border: 1px dashed var(--sn-line-strong);
-  border-radius: 14px;
+  border: 2px dashed var(--sn-line-strong);
+  border-radius: var(--sn-r-card);
   text-align: center;
   color: var(--sn-muted);
   display: flex;
@@ -591,7 +753,7 @@ html.light .sn-scope {
 .sermon-app .sn-refpill {
   font-size: 12px;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--sn-r-pill);
   background: var(--sn-accent-soft);
   color: var(--sn-accent);
   font-weight: 500;
@@ -635,7 +797,7 @@ html.light .sn-scope {
 .sermon-app .sn-prog .sn-bar {
   flex: 1;
   height: 8px;
-  border-radius: 4px;
+  border-radius: var(--sn-r-pill);
   background: var(--sn-surface-2);
   overflow: hidden;
   min-width: 100px;
@@ -643,8 +805,8 @@ html.light .sn-scope {
 .sermon-app .sn-prog .sn-bar i {
   display: block;
   height: 100%;
-  background: var(--sn-c-green);
-  border-radius: 4px;
+  background: var(--sn-t1);
+  border-radius: var(--sn-r-pill);
 }
 .sermon-app .sn-apply-head {
   display: flex;
@@ -698,7 +860,7 @@ html.light .sn-scope {
   flex-shrink: 0;
   width: 28px;
   height: 28px;
-  border-radius: 5px;
+  border-radius: 50%;
   border: 1.5px solid var(--sn-line-strong);
   background: var(--sn-surface);
   color: transparent;
@@ -710,9 +872,9 @@ html.light .sn-scope {
   border-color: var(--sn-accent);
 }
 .sermon-app .sn-ck[aria-pressed='true'] {
-  background: var(--sn-c-green);
-  border-color: var(--sn-c-green);
-  color: var(--sn-surface);
+  background: var(--sn-t1);
+  border-color: var(--sn-t1);
+  color: var(--sn-accent-ink);
 }
 .sermon-app .sn-ck.sn-big {
   width: 36px;
@@ -788,7 +950,7 @@ html.light .sn-scope {
   gap: 8px;
   min-height: 40px;
   padding: 0 14px;
-  border-radius: var(--sn-r-ctl);
+  border-radius: var(--sn-r-pill);
   border: 1px solid var(--sn-line);
   background: transparent;
   font-size: 13px;
@@ -877,7 +1039,7 @@ html.light .sn-scope {
   min-height: 40px;
   padding: 0 10px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 10px;
   background: transparent;
   font-size: 14px;
   text-align: left;
@@ -955,7 +1117,7 @@ html.light .sn-scope {
   gap: 8px;
   min-height: 38px;
   padding: 0 10px;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: text;
 }
 .sermon-app .sn-mfield:hover {
@@ -1055,7 +1217,7 @@ html.light .sn-scope {
   padding: 0 8px;
   margin-left: -8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 10px;
   background: transparent;
   color: var(--sn-accent);
   font-size: 13px;
@@ -1160,7 +1322,7 @@ html.light .sn-scope {
   min-height: 36px;
   padding: 0 10px 0 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: var(--sn-verse-ink);
   font-size: 14px;
@@ -1187,7 +1349,7 @@ html.light .sn-scope {
 .sermon-app .sn-vblock .sn-vh .sn-peek {
   flex: 1;
   min-width: 0;
-  font-family: var(--sn-f-display);
+  font-family: var(--sn-f-serif);
   font-size: 13px;
   color: color-mix(in srgb, var(--sn-verse-text) 60%, var(--sn-verse-bg));
   white-space: nowrap;
@@ -1204,7 +1366,7 @@ html.light .sn-scope {
   font-size: 12px;
   min-height: 34px;
   padding: 0 8px;
-  border-radius: 6px;
+  border-radius: 10px;
   white-space: nowrap;
 }
 .sermon-app .sn-vblock .sn-vh button.sn-act:hover {
@@ -1214,7 +1376,7 @@ html.light .sn-scope {
 .sermon-app .sn-vblock .sn-vt {
   position: relative;
   padding: 2px 22px 18px 34px;
-  font-family: var(--sn-f-display);
+  font-family: var(--sn-f-serif);
   font-size: 17.5px;
   line-height: 1.9;
   letter-spacing: -0.01em;
@@ -1242,7 +1404,7 @@ html.light .sn-scope {
   display: inline-block;
   padding: 0 7px;
   margin: 0 1px;
-  border-radius: 5px;
+  border-radius: var(--sn-r-pill);
   background: var(--sn-accent-soft);
   color: var(--sn-accent);
   font-size: 0.88em;
@@ -1267,7 +1429,7 @@ html.light .sn-scope {
 /* 생각이 연결될 곳 표시 */
 .sermon-app .sn-editor .sn-pointed {
   position: relative;
-  border-radius: 6px;
+  border-radius: 10px;
   outline: 2px dashed var(--sn-accent);
   outline-offset: 5px;
   background: color-mix(in srgb, var(--sn-accent-soft) 55%, transparent);
@@ -1295,7 +1457,7 @@ html.light .sn-scope {
   z-index: 2;
 }
 .sermon-app .sn-editor .sn-peeked {
-  border-radius: 6px;
+  border-radius: 10px;
   outline: 2px solid var(--sn-line-strong);
   outline-offset: 5px;
 }
@@ -1304,7 +1466,7 @@ html.light .sn-scope {
   caret-color: transparent;
 }
 .sermon-app .sn-editor[data-picking='true'] > *:hover {
-  border-radius: 6px;
+  border-radius: 10px;
   outline: 2px solid var(--sn-accent);
   outline-offset: 5px;
 }
@@ -1328,7 +1490,7 @@ html.light .sn-scope {
   min-height: 34px;
   padding: 0 12px;
   border: 1px solid currentColor;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: inherit;
   font-size: 13px;
@@ -1438,7 +1600,7 @@ html.light .sn-scope {
   min-height: 34px;
   padding: 0 28px 0 10px;
   border: 1px solid var(--sn-line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--sn-surface);
   font-size: 13px;
   color: var(--sn-fg);
@@ -1495,7 +1657,7 @@ html.light .sn-scope {
   color: var(--sn-faint);
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: 10px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -1642,7 +1804,7 @@ html.light .sn-scope {
   resize: vertical;
   padding: 8px 10px;
   border: 1px solid var(--sn-accent);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--sn-surface);
   font-size: 14px;
   line-height: 1.5;
@@ -1721,7 +1883,7 @@ html.light .sn-scope {
   color: var(--sn-muted);
   min-height: 26px;
   min-width: 26px;
-  border-radius: 6px;
+  border-radius: 10px;
   font-size: 12px;
   padding: 0 6px;
   display: inline-flex;
@@ -1799,7 +1961,7 @@ html.light .sn-scope {
 .sermon-app .sn-tseg {
   display: inline-flex;
   padding: 2px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--sn-surface-2);
 }
 .sermon-app .sn-tseg button {
@@ -1809,7 +1971,7 @@ html.light .sn-scope {
   min-height: 26px;
   padding: 0 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 10px;
   background: transparent;
   color: var(--sn-muted);
   font-size: 12px;
@@ -1842,7 +2004,7 @@ html.light .sn-scope {
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: var(--sn-muted);
   flex-shrink: 0;
@@ -2115,7 +2277,7 @@ html.light .sn-scope {
   color: var(--sn-accent);
 }
 .sn-overlay .sn-prev-txt {
-  font-family: var(--sn-f-display);
+  font-family: var(--sn-f-serif);
   font-size: 15px;
   line-height: 1.8;
 }
@@ -2134,7 +2296,7 @@ html.light .sn-scope {
 .sn-overlay .sn-forms button {
   min-height: 34px;
   padding: 0 10px;
-  border-radius: 7px;
+  border-radius: 10px;
   border: 1px solid var(--sn-line);
   background: var(--sn-surface);
   font-size: 13px;
@@ -2168,7 +2330,7 @@ html.light .sn-scope {
 .sn-overlay .sn-book-grid button {
   min-height: 44px;
   border: 1px solid var(--sn-line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--sn-surface);
   font-size: 13px;
   padding: 2px;
@@ -2247,7 +2409,7 @@ html.light .sn-scope {
   min-width: 44px;
   padding: 0 12px;
   border: 1px solid var(--sn-line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--sn-surface);
   font-size: 13px;
 }
@@ -2370,7 +2532,7 @@ html.light .sn-scope {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  border-radius: 6px;
+  border-radius: 10px;
 }
 .sn-lightbox button {
   position: absolute;
@@ -2746,7 +2908,7 @@ html[data-keyboard-open] .sn-overlay {
   color: var(--sn-muted);
   width: 36px;
   height: 36px;
-  border-radius: 6px;
+  border-radius: 10px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -2887,7 +3049,7 @@ html[data-keyboard-open] .sn-overlay {
   align-items: center;
   gap: 2px;
   padding: 4px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--sn-fg);
   color: var(--sn-bg);
   box-shadow: var(--sn-shadow);
@@ -3067,5 +3229,916 @@ html[data-keyboard-open] .sn-overlay {
 @keyframes sn-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* =====================================================================
+   홈 「한 주 다이어리」 (SermonHome) — 디자인 v2
+   ===================================================================== */
+.sermon-app .sn-stk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  border: 0;
+  border-radius: var(--sn-r-pill);
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  box-shadow:
+    0 8px 18px -10px color-mix(in srgb, var(--sn-t1) 55%, transparent),
+    0 0 0 1px var(--sn-line);
+  transform: rotate(var(--r, -1deg));
+}
+.sermon-app .sn-stk.sn-c1 {
+  background: var(--sn-g1);
+  color: var(--sn-on-ink);
+  box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--sn-t1) 55%, transparent);
+}
+.sermon-app .sn-stk.sn-c2 {
+  background: var(--sn-g2);
+  color: var(--sn-on-ink);
+  box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--sn-t1) 55%, transparent);
+}
+.sermon-app button.sn-stk:hover {
+  transform: rotate(0deg) translateY(-1px);
+}
+.sermon-app .sn-tape {
+  position: absolute;
+  top: -12px;
+  width: 96px;
+  height: 26px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--sn-g2) 45%, transparent);
+  transform: rotate(var(--r, -6deg));
+  z-index: 4;
+  pointer-events: none;
+}
+.sermon-app .sn-tape.sn-c1 {
+  background: color-mix(in srgb, var(--sn-g1) 45%, transparent);
+}
+.sermon-app .sn-ht {
+  position: absolute;
+  border-radius: 50%;
+  background-image: radial-gradient(var(--ic, var(--sn-g2)) 36%, transparent 40%);
+  background-size: var(--ds, 12px) var(--ds, 12px);
+  mix-blend-mode: var(--sn-blend);
+  opacity: 0.6;
+  pointer-events: none;
+}
+.sermon-app .sn-home {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  margin-top: 10px;
+  min-width: 0;
+}
+.sermon-app .sn-hc,
+.sermon-app .sn-plan {
+  min-width: 0;
+}
+.sermon-app .sn-home-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.sermon-app .sn-hc {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: calc(var(--sn-r-card) + 6px);
+  background: var(--sn-surface);
+  box-shadow:
+    var(--sn-shadow-soft),
+    0 0 0 1px color-mix(in srgb, var(--sn-g1) 24%, transparent);
+}
+.sermon-app .sn-hc-peek {
+  position: absolute;
+  right: 30px;
+  top: -46px;
+  z-index: 5;
+}
+.sermon-app .sn-cover {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  height: 210px;
+  border: 0;
+  border-radius: 28px;
+  padding: 0;
+  text-align: left;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--sn-g1) 30%, var(--sn-surface)),
+    color-mix(in srgb, var(--sn-g2) 30%, var(--sn-surface))
+  );
+}
+.sermon-app .sn-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--sn-grain);
+  opacity: 0.1;
+  mix-blend-mode: var(--sn-blend);
+  pointer-events: none;
+}
+.sermon-app .sn-cover .sn-ht {
+  width: 300px;
+  height: 300px;
+  right: -80px;
+  top: -60px;
+  --ds: 13px;
+  z-index: 0;
+}
+.sermon-app .sn-cover .sn-disc {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  left: 24px;
+  top: 22px;
+  border-radius: 50%;
+  background: var(--sn-g1);
+  mix-blend-mode: var(--sn-blend);
+  z-index: 1;
+}
+.sermon-app .sn-cover-txt {
+  position: absolute;
+  left: 26px;
+  right: 26px;
+  bottom: -26px;
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  z-index: 2;
+  line-height: 0.9;
+}
+.sermon-app .sn-cover-bk {
+  font-family: var(--sn-f-poster);
+  font-size: clamp(48px, 6vw, 72px);
+  color: var(--sn-t1);
+  padding-bottom: 46px;
+  white-space: nowrap;
+}
+.sermon-app .sn-cover-ch {
+  font-family: var(--sn-f-poster);
+  font-size: clamp(150px, 17vw, 210px);
+  color: var(--sn-g2);
+  text-shadow: 0 10px 24px color-mix(in srgb, var(--sn-t1) 25%, transparent);
+  display: flex;
+  align-items: flex-end;
+}
+.sermon-app .sn-cover-ch small {
+  font-family: var(--sn-f-ui);
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--sn-t1);
+  text-shadow: none;
+  margin: 0 0 54px 6px;
+}
+.sermon-app .sn-cover-vs {
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  z-index: 3;
+}
+.sermon-app .sn-hc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 10px 8px;
+}
+.sermon-app .sn-hc-run {
+  margin: 0;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-hc-run b {
+  color: var(--sn-t2);
+}
+.sermon-app .sn-hc h3 {
+  margin: 0;
+  font-size: clamp(23px, 2.4vw, 30px);
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: -0.05em;
+  text-wrap: balance;
+}
+.sermon-app .sn-hc-who {
+  margin: -2px 0 0;
+  font-size: 14px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-hc-who b {
+  color: var(--sn-fg);
+}
+.sermon-app .sn-vq {
+  border-left: 3px solid var(--sn-g1);
+  padding: 1px 0 1px 12px;
+}
+.sermon-app .sn-vq b {
+  display: block;
+  font-size: 12.5px;
+  color: var(--sn-t1);
+}
+.sermon-app .sn-vq p {
+  margin: 2px 0 0;
+  font-family: var(--sn-f-serif);
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-hc-acts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+/* 한 주 동안 */
+.sermon-app .sn-plan {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+  border-radius: calc(var(--sn-r-card) + 6px);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--sn-g2) 16%, var(--sn-surface)),
+    var(--sn-surface)
+  );
+  box-shadow:
+    var(--sn-shadow-soft),
+    0 0 0 1px color-mix(in srgb, var(--sn-g2) 28%, transparent);
+}
+.sermon-app .sn-plan-tag {
+  position: absolute;
+  right: 18px;
+  top: -12px;
+  z-index: 3;
+}
+.sermon-app .sn-plan h4 {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+}
+.sermon-app .sn-plan-fr {
+  font-family: var(--sn-f-poster);
+  font-weight: 400;
+  font-size: 26px;
+  color: var(--sn-t2);
+}
+.sermon-app .sn-day {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 48px;
+  padding: 5px 0;
+  border-top: 1px solid color-mix(in srgb, var(--sn-g1) 25%, transparent);
+}
+.sermon-app .sn-day-l {
+  display: grid;
+  line-height: 1.15;
+}
+.sermon-app .sn-day-l b {
+  font-family: var(--sn-f-poster);
+  font-weight: 400;
+  font-size: 21px;
+}
+.sermon-app .sn-day-l span {
+  font-size: 11.5px;
+  color: var(--sn-faint);
+}
+.sermon-app .sn-day[data-sun='true'] .sn-day-l b {
+  color: var(--sn-t2);
+}
+.sermon-app .sn-day[data-today='true'] .sn-day-l span {
+  color: var(--sn-fg);
+  font-weight: 900;
+}
+.sermon-app .sn-day-it {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.sermon-app .sn-slot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px dashed color-mix(in srgb, var(--sn-g1) 55%, transparent);
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: var(--sn-t1);
+  font-size: 16px;
+  padding: 0;
+}
+.sermon-app button.sn-slot:hover {
+  border-style: solid;
+  background: var(--sn-accent-soft);
+}
+.sermon-app .sn-todo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.sermon-app .sn-todo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: var(--sn-surface);
+  box-shadow: 0 0 0 1px var(--sn-line);
+}
+.sermon-app .sn-todo-t {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.sermon-app .sn-todo-t small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--sn-faint);
+}
+.sermon-app .sn-todo-row[data-checked='true'] .sn-todo-t {
+  color: var(--sn-faint);
+  text-decoration: line-through;
+}
+.sermon-app .sn-cheer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 4px;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.sermon-app .sn-cheer small {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--sn-muted);
+}
+
+/* 모은 설교 스티커 — 칼선 도장 */
+.sermon-app .sn-sec-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+.sermon-app .sn-sec-h h4 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+}
+.sermon-app .sn-sec-h span {
+  font-size: 13px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-stickers {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+.sermon-app .sn-badge {
+  width: 164px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: center;
+  color: inherit;
+}
+.sermon-app .sn-stkr {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  display: grid;
+  place-items: center;
+  transform: rotate(var(--r, 0deg));
+  filter: drop-shadow(0 10px 12px color-mix(in srgb, var(--sn-t1) 22%, transparent));
+  transition: transform 0.25s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.sermon-app button.sn-badge:hover .sn-stkr,
+.sermon-app button.sn-badge:focus-visible .sn-stkr {
+  transform: rotate(0deg) translateY(-4px) scale(1.03);
+}
+.sermon-app .sn-die {
+  position: absolute;
+  inset: 0;
+  background: var(--sn-die);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M98.00 50.00 L93.35 56.23 L96.06 63.52 L89.84 68.20 L90.38 75.95 L83.10 78.68 L81.43 86.28 L73.68 86.85 L69.94 93.66 L62.34 92.03 L56.83 97.51 L50.00 93.80 L43.17 97.51 L37.66 92.03 L30.06 93.66 L26.32 86.85 L18.57 86.28 L16.90 78.68 L9.62 75.95 L10.16 68.20 L3.94 63.52 L6.65 56.23 L2.00 50.00 L6.65 43.77 L3.94 36.48 L10.16 31.80 L9.62 24.05 L16.90 21.32 L18.57 13.72 L26.32 13.15 L30.06 6.34 L37.66 7.97 L43.17 2.49 L50.00 6.20 L56.83 2.49 L62.34 7.97 L69.94 6.34 L73.68 13.15 L81.43 13.72 L83.10 21.32 L90.38 24.05 L89.84 31.80 L96.06 36.48 L93.35 43.77Z' fill='black' stroke='black' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M98.00 50.00 L93.35 56.23 L96.06 63.52 L89.84 68.20 L90.38 75.95 L83.10 78.68 L81.43 86.28 L73.68 86.85 L69.94 93.66 L62.34 92.03 L56.83 97.51 L50.00 93.80 L43.17 97.51 L37.66 92.03 L30.06 93.66 L26.32 86.85 L18.57 86.28 L16.90 78.68 L9.62 75.95 L10.16 68.20 L3.94 63.52 L6.65 56.23 L2.00 50.00 L6.65 43.77 L3.94 36.48 L10.16 31.80 L9.62 24.05 L16.90 21.32 L18.57 13.72 L26.32 13.15 L30.06 6.34 L37.66 7.97 L43.17 2.49 L50.00 6.20 L56.83 2.49 L62.34 7.97 L69.94 6.34 L73.68 13.15 L81.43 13.72 L83.10 21.32 L90.38 24.05 L89.84 31.80 L96.06 36.48 L93.35 43.77Z' fill='black' stroke='black' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
+}
+.sermon-app .sn-face {
+  position: absolute;
+  inset: 13px;
+  border-radius: 50%;
+  overflow: hidden;
+  isolation: isolate;
+  background: color-mix(in srgb, var(--a) 26%, var(--sn-surface));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 0.9;
+}
+.sermon-app .sn-face::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 1.5px dashed color-mix(in srgb, var(--sn-t1) 30%, transparent);
+  z-index: 1;
+}
+.sermon-app .sn-face .sn-ht {
+  --ic: var(--b);
+  width: 120px;
+  height: 120px;
+  right: -56px;
+  top: -50px;
+  --ds: 8px;
+  opacity: 0.55;
+}
+.sermon-app .sn-svc {
+  position: relative;
+  z-index: 3;
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--sn-t2);
+  margin-bottom: 4px;
+}
+.sermon-app .sn-bkn {
+  position: relative;
+  z-index: 3;
+  font-family: var(--sn-f-poster);
+  font-size: 19px;
+  color: var(--sn-t1);
+  margin-bottom: 2px;
+}
+.sermon-app .sn-chn {
+  position: relative;
+  z-index: 2;
+  font-family: var(--sn-f-poster);
+  font-size: 50px;
+  color: var(--a);
+  mix-blend-mode: var(--sn-blend);
+  text-shadow: 3px 3px 0 color-mix(in srgb, var(--b) 55%, transparent);
+}
+.sermon-app .sn-vr {
+  position: relative;
+  z-index: 3;
+  font-size: 10.5px;
+  font-weight: 700;
+  margin-top: 3px;
+  padding: 1px 8px;
+  border-radius: var(--sn-r-pill);
+  background: var(--sn-surface);
+}
+.sermon-app .sn-new {
+  position: absolute;
+  right: -6px;
+  top: 4px;
+  z-index: 5;
+  font-size: 11.5px;
+  font-weight: 900;
+  padding: 3px 9px;
+  border-radius: var(--sn-r-pill);
+  background: var(--sn-t2);
+  color: var(--sn-accent-ink);
+  transform: rotate(12deg);
+  box-shadow: 0 0 0 3px var(--sn-die);
+}
+.sermon-app .sn-stkr[data-cur='true'] {
+  animation: sn-wob 4s ease-in-out infinite;
+}
+@keyframes sn-wob {
+  0%,
+  100% {
+    transform: rotate(var(--r));
+  }
+  50% {
+    transform: rotate(calc(var(--r) + 4deg));
+  }
+}
+.sermon-app .sn-badge-t {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sermon-app .sn-badge-m {
+  font-size: 12px;
+  color: var(--sn-muted);
+  margin-top: -4px;
+}
+.sermon-app .sn-badge-empty .sn-stkr {
+  filter: none;
+}
+.sermon-app .sn-badge-empty .sn-die {
+  background: none;
+  -webkit-mask: none;
+  mask: none;
+  border-radius: 50%;
+  border: 2px dashed var(--sn-line-strong);
+}
+.sermon-app .sn-all-h {
+  margin: 34px 0 0;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+}
+.sermon-app .sn-look-btn {
+  justify-content: flex-start;
+  background: var(--sn-surface);
+}
+.sermon-app .sn-brand .sn-m {
+  align-self: center;
+}
+@media (max-width: 1080px) {
+  .sermon-app .sn-home-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .sermon-app .sn-cover {
+    height: 170px;
+  }
+  .sermon-app .sn-cover-bk {
+    font-size: 40px;
+    padding-bottom: 40px;
+  }
+  .sermon-app .sn-cover-ch {
+    font-size: 130px;
+  }
+  .sermon-app .sn-cover-vs {
+    display: none;
+  }
+  .sermon-app .sn-plan {
+    padding: 18px 14px;
+  }
+  .sermon-app .sn-badge {
+    width: calc(50% - 11px);
+  }
+  .sermon-app .sn-stkr {
+    width: 132px;
+    height: 132px;
+  }
+  .sermon-app .sn-hc-peek {
+    right: 18px;
+  }
+}
+
+/* =====================================================================
+   마스코트 (Mascot.tsx) — 눈 두 개, 감정은 눈·몸짓으로만
+   ===================================================================== */
+.sn-m {
+  display: inline-block;
+  position: relative;
+  width: var(--m-sz, 64px);
+  height: var(--m-sz, 64px);
+  flex: none;
+  cursor: pointer;
+}
+.sn-m svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  display: block;
+}
+.sn-m .sn-m-body {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: sn-m-float 3.2s ease-in-out infinite;
+}
+.sn-m[data-jump='1'] .sn-m-body {
+  animation: sn-m-hop 0.7s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.sn-m .sn-m-shadow {
+  fill: var(--sn-eye, #2a2733);
+  opacity: 0.12;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sn-m-shad 3.2s ease-in-out infinite;
+}
+.sn-m .sn-m-open {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sn-m-blink 4.6s infinite;
+}
+.sn-m .sn-m-eye {
+  fill: var(--sn-eye, #2a2733);
+}
+.sn-m .sn-m-happy,
+.sn-m .sn-m-shut,
+.sn-m .sn-m-fx,
+.sn-m .sn-m-ring,
+.sn-m .sn-m-zz {
+  opacity: 0;
+}
+.sn-m .sn-m-happy path,
+.sn-m .sn-m-shut path {
+  fill: none;
+  stroke: var(--sn-eye, #2a2733);
+  stroke-width: 3.6;
+  stroke-linecap: round;
+}
+.sn-m .sn-m-blush {
+  fill: #ff7aa8;
+  opacity: 0.35;
+}
+.sn-m .sn-m-hl {
+  fill: #fff;
+  opacity: 0.55;
+}
+.sn-m .sn-m-fx path {
+  fill: #ffe27a;
+}
+.sn-m .sn-m-zz text {
+  font-family: var(--sn-f-poster, sans-serif);
+  fill: var(--sn-t1, #5a45b8);
+}
+.sn-m[data-state='listen'] .sn-m-body {
+  animation: sn-m-bob 0.62s ease-in-out infinite;
+}
+.sn-m[data-state='listen'] .sn-m-ring {
+  opacity: 1;
+}
+.sn-m[data-state='listen'] .sn-m-ring circle {
+  fill: none;
+  stroke: var(--sn-g1, #c3b5f5);
+  stroke-width: 3;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sn-m-ringk 1.8s ease-out infinite;
+}
+.sn-m[data-state='listen'] .sn-m-ring circle:nth-child(2) {
+  animation-delay: 0.9s;
+}
+.sn-m[data-state='done'] .sn-m-body {
+  animation:
+    sn-m-hop 0.75s cubic-bezier(0.3, 1.6, 0.5, 1) 2,
+    sn-m-float 3.2s ease-in-out 1.5s infinite;
+}
+.sn-m[data-state='done'] .sn-m-open {
+  opacity: 0;
+}
+.sn-m[data-state='done'] .sn-m-happy,
+.sn-m[data-state='done'] .sn-m-fx {
+  opacity: 1;
+}
+.sn-m[data-state='done'] .sn-m-fx path {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sn-m-pop 1s ease-out infinite;
+}
+.sn-m[data-state='done'] .sn-m-fx path:nth-child(2) {
+  fill: var(--sn-g2, #ffb3d1);
+  animation-delay: 0.25s;
+}
+.sn-m[data-state='done'] .sn-m-fx path:nth-child(3) {
+  fill: var(--sn-g1, #c3b5f5);
+  animation-delay: 0.5s;
+}
+.sn-m[data-state='think'] .sn-m-open {
+  transform: translate(3px, -3px);
+}
+.sn-m[data-state='sleep'] .sn-m-body {
+  animation: sn-m-breathe 3.6s ease-in-out infinite;
+}
+.sn-m[data-state='sleep'] .sn-m-open {
+  opacity: 0;
+}
+.sn-m[data-state='sleep'] .sn-m-shut,
+.sn-m[data-state='sleep'] .sn-m-zz {
+  opacity: 1;
+}
+.sn-m[data-state='sleep'] .sn-m-zz text {
+  animation: sn-m-zzk 3s ease-in-out infinite;
+}
+.sn-m[data-state='sleep'] .sn-m-zz text:nth-child(2) {
+  animation-delay: 1.5s;
+}
+@keyframes sn-m-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5%);
+  }
+}
+@keyframes sn-m-shad {
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 0.12;
+  }
+  50% {
+    transform: scaleX(0.82);
+    opacity: 0.07;
+  }
+}
+@keyframes sn-m-blink {
+  0%,
+  94%,
+  100% {
+    transform: scaleY(1);
+  }
+  96.5% {
+    transform: scaleY(0.08);
+  }
+}
+@keyframes sn-m-bob {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-2%) scale(1.03, 0.97);
+  }
+}
+@keyframes sn-m-ringk {
+  from {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+@keyframes sn-m-hop {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    transform: scale(1.12, 0.86);
+  }
+  60% {
+    transform: translateY(-22%) scale(0.94, 1.08);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes sn-m-pop {
+  0% {
+    transform: scale(0.2) rotate(0);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.2) rotate(40deg);
+    opacity: 0;
+  }
+}
+@keyframes sn-m-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04, 0.96);
+  }
+}
+@keyframes sn-m-zzk {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(8px, -18px);
+  }
+}
+/* 녹음 버튼 안 마스코트: 점 대신 */
+.sermon-app .sn-rec .sn-rec-m {
+  margin: -6px -2px -6px -4px;
+}
+.sermon-app .sn-rec .sn-rec-m ~ .sn-dot {
+  display: none;
+}
+
+/* 꾸미기 창 */
+.sn-overlay .sn-look {
+  width: min(560px, 100%);
+  max-height: min(680px, calc(100% - 8px));
+}
+.sn-overlay .sn-look-body {
+  padding: 14px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+.sn-overlay .sn-look-body .sn-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--sn-muted);
+  margin-top: 6px;
+}
+.sn-overlay .sn-look-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sn-overlay .sn-look-opt {
+  border: 0;
+  border-radius: 18px;
+  background: var(--sn-surface-2);
+  box-shadow: 0 0 0 1px var(--sn-line);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 8px 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--sn-fg);
+}
+.sn-overlay .sn-look-opt[aria-checked='true'] {
+  background: var(--sn-surface);
+  box-shadow: 0 0 0 2px var(--sn-t1);
+}
+.sn-overlay .sn-look-m {
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px 10px;
+  min-width: 104px;
+}
+.sn-overlay .sn-look-m small {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--sn-muted);
+}
+.sn-overlay .sn-look-sw {
+  display: flex;
+}
+.sn-overlay .sn-look-sw i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: block;
+  box-shadow: 0 0 0 2px var(--sn-surface);
+}
+.sn-overlay .sn-look-sw i + i {
+  margin-left: -6px;
+}
+.sn-overlay .sn-look-note {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--sn-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sn-m *,
+  .sn-m .sn-m-body,
+  .sermon-app .sn-stkr[data-cur='true'] {
+    animation: none !important;
+  }
+  .sermon-app .sn-stkr {
+    transition: none;
   }
 }

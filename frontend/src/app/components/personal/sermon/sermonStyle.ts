@@ -45,7 +45,7 @@ export const STYLE_HIGHLIGHTS: Record<HighlightKey, [string, string | null]> = {
 
 export const STYLE_DEFAULT: SermonStyle = {
   bold: { underline: true, highlight: 'none', weight: 700, color: 'fg' },
-  head: { size: 'm', weight: 700, font: 'serif', color: 'fg', underline: false },
+  head: { size: 'm', weight: 800, font: 'sans', color: 'fg', underline: false },
   list: { marker: 'disc', color: 'accent', gap: 4 },
   body: { font: 'sans', size: 16, lh: 1.8, color: 'fg' },
 };
@@ -231,7 +231,7 @@ export function persistStyle(s: SermonStyle) {
 export function applyStyle(root: HTMLElement | null, s: SermonStyle) {
   if (!root) return;
   const r = root.style;
-  const F = { serif: 'var(--sn-f-display)', sans: 'var(--sn-f-ui)' };
+  const F = { serif: 'var(--sn-f-serif)', sans: 'var(--sn-f-ui)' };
   const C = (k: StyleColorKey) => (STYLE_COLORS[k] || STYLE_COLORS.fg)[1];
   const { bold: b, head: h, list: l, body: t } = s;
   r.setProperty('--sn-b-weight', String(b.weight));

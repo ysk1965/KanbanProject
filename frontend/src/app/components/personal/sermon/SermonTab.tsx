@@ -8,6 +8,8 @@ import { ANONYMOUS_USER, SermonStore } from './sermonStore';
 import { SermonList } from './SermonList';
 import { SermonEditor } from './SermonEditor';
 import { applyStyle, loadStyle, persistStyle, type SermonStyle } from './sermonStyle';
+import { applyInk, loadLook, persistLook, type SermonLook } from './sermonLook';
+import { LookModal } from './LookModal';
 import { newNote, toggleApplyDone, type SermonNote } from './sermonTypes';
 import { loadBible } from './useBible';
 import './sermon.css';
@@ -28,7 +30,7 @@ const PARAM_TAB = 'tab';
 const PARAM_NOTE = 'note';
 const FONT_ID = 'sermon-hahmlet-font';
 const FONT_HREF =
-  'https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;500;600;700&display=swap';
+  'https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;800;900&family=Black+Han+Sans&display=swap';
 
 /* ───── 홈 화면 설치 안내 (독립 화면에서만) ───── */
 const INSTALL_HINT_KEY = 'sermon-install-hint-dismissed';
@@ -214,6 +216,8 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
   const [openId, setOpenId] = useState<string | null>(() => searchParams.get(PARAM_NOTE));
   const [openAid, setOpenAid] = useState<string | null>(null);
   const [style, setStyle] = useState<SermonStyle>(() => loadStyle());
+  const [look, setLook] = useState<SermonLook>(() => loadLook());
+  const [lookOpen, setLookOpen] = useState(false);
 
   // 저장소 기동 + 폰트 + 성경 데이터
   useEffect(() => {
@@ -236,6 +240,13 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
   const onStyleChange = useCallback((s: SermonStyle) => {
     setStyle(s);
     persistStyle(s);
+  }, []);
+
+  // 꾸미기 → html[data-sn-ink] (포털 오버레이까지 같은 색)
+  useEffect(() => applyInk(look.ink), [look.ink]);
+  const onLookChange = useCallback((l: SermonLook) => {
+    setLook(l);
+    persistLook(l);
   }, []);
 
   // URL 동기화 (마이 스페이스에서는 tab=sermon 도 같이 적는다)
@@ -306,6 +317,7 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
           initialAid={openAid}
           canAttach={!anonymous}
           onLogin={onLogin}
+          mascot={look.mascot}
         />
       ) : openId && store.status.loading ? (
         <div
@@ -323,8 +335,16 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
           onNew={handleNew}
           onToggleApply={handleToggleApply}
           onLogin={onLogin}
+          mascot={look.mascot}
+          onOpenLook={() => setLookOpen(true)}
         />
       )}
+      <LookModal
+        open={lookOpen}
+        look={look}
+        onChange={onLookChange}
+        onClose={() => setLookOpen(false)}
+      />
     </div>
   );
 }

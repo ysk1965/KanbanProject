@@ -22,6 +22,9 @@ function fmtMin(sec: number): string {
   return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`;
 }
 import { firstVerseText, useBible } from './useBible';
+import { Mascot } from './Mascot';
+import { SermonHome } from './SermonHome';
+import type { MascotId } from './sermonLook';
 
 /**
  * 노트 목록 — 기획서 §1, §8 이번 주 적용.
@@ -35,6 +38,10 @@ interface SermonListProps {
   onToggleApply: (noteId: string, thoughtId: string) => void;
   /** 로그인 전이면 기존 로그인으로 보낸다 (없으면 안내를 그리지 않음) */
   onLogin?: () => void;
+  /** 꾸미기에서 고른 마스코트 */
+  mascot?: MascotId;
+  /** 꾸미기 창 열기 */
+  onOpenLook?: () => void;
 }
 
 const NUDGE_KEY = 'sermon-login-nudge-until';
@@ -89,6 +96,8 @@ export function SermonList({
   onNew,
   onToggleApply,
   onLogin,
+  mascot = 'galpi',
+  onOpenLook,
 }: SermonListProps) {
   const { bible } = useBible();
   const [nav, setNav] = useState<Nav>('all');
@@ -174,6 +183,7 @@ export function SermonList({
   if (!notes.length) {
     body = (
       <div className="sn-empty">
+        <Mascot kind={mascot} size={96} state="think" />
         <h2>아직 기록한 설교가 없어요</h2>
         <div>
           ‘새 설교 기록’을 눌러 이번 주 말씀을 적어보세요.
@@ -312,21 +322,18 @@ export function SermonList({
     });
     body = (
       <>
-        {!query && !service && week.length > 0 && (
-          <div className="sn-abanner">
-            <div className="sn-abl">
-              <b>
-                {weekLeft.length
-                  ? `이번 주 적용, ${weekLeft.length}개 남았어요`
-                  : '이번 주 적용을 모두 실천했어요'}
-              </b>
-              {weekLeft.length > 0 && <span className="sn-afirst">{weekLeft[0].t.text || ''}</span>}
-            </div>
-            <Progress done={week.length - weekLeft.length} total={week.length} />
-            <button type="button" className="sn-btn" onClick={() => setNav('apply')}>
-              확인하기
-            </button>
-          </div>
+        {!query && !service && (
+          <>
+            <SermonHome
+              notes={notes}
+              week={week}
+              mascot={mascot}
+              onOpen={onOpen}
+              onNew={onNew}
+              onToggleApply={onToggleApply}
+            />
+            <h2 className="sn-all-h">모든 기록</h2>
+          </>
         )}
         {groups.map((g) => {
           const [y, mm] = g.month.split('-');
@@ -385,6 +392,7 @@ export function SermonList({
     <section className="sn-list" aria-label="노트 목록">
       <nav className="sn-side" aria-label="노트 분류">
         <div className="sn-brand">
+          <Mascot kind={mascot} size={30} />
           설교 노트 <small>개역한글</small>
         </div>
         <button type="button" className="sn-btn sn-primary" onClick={onNew}>
@@ -425,6 +433,12 @@ export function SermonList({
               </button>
             ))}
           </div>
+        )}
+        {onOpenLook && (
+          <button type="button" className="sn-btn sn-look-btn" onClick={onOpenLook}>
+            <Mascot kind={mascot} size={24} />
+            꾸미기
+          </button>
         )}
         <div className="sn-store-note">
           {storeNote}
