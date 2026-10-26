@@ -22,8 +22,6 @@ public class SermonGroupResponse {
         private String id;
         private String name;
         private String kind;
-        private Integer meetDow;
-        private String meetTime;
         private List<Map<String, Object>> services;
         private boolean joinApproval;
         /** 리더·함께 리더에게만 */
@@ -68,8 +66,6 @@ public class SermonGroupResponse {
         private String groupId;
         private String name;
         private String kind;
-        private Integer meetDow;
-        private String meetTime;
         private List<Map<String, Object>> services;
         private String leaderName;
         private long memberCount;

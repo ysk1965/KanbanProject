@@ -1,11 +1,15 @@
 import { personalFeatureAPI } from '../../../utils/services';
 import type { PersonalFeatureDoc, PersonalFeatureDocSummary } from '../features/types';
 import { sermonAudioStore } from './sermonAudioStore';
-import { MediaUploadError, deleteMedia, uploadAudio } from './sermonMedia';
+import { MediaUploadError, deleteMedia, uploadAudio, uploadPreparedMedia } from './sermonMedia';
+import { sermonMediaQueue } from './sermonMediaQueue';
+import { isQuotaError, openNoteDb, type NoteDb, type NoteSnapshot } from './sermonNoteDb';
 import {
   audioPending,
   isLocalId,
+  madeOnThisDevice,
   LOCAL_ID_PREFIX,
+  mediaPending,
   normalizeNote,
   SERMON_FEATURE_KEY,
   SERMON_SCHEMA_VER,
@@ -13,6 +17,7 @@ import {
   type SermonAudioSegment,
   type SermonContent,
   type SermonNote,
+  type ThoughtMedia,
   uid,
 } from './sermonTypes';
 import { audioExt } from './useSermonRecorder';
@@ -21,7 +26,8 @@ import { adoptVersions, dropVersions, remapVersions, shrinkVersions } from './se
 /**
  * 설교 노트 저장소 — 기획서 §10 「저장과 동기화」.
  *
- * 1. 모든 변경은 먼저 이 기기(localStorage)에 쓴다. 예배 중에는 '저장 실패'를 보여주지 않는다.
+ * 1. 모든 변경은 먼저 이 기기(IndexedDB `sermon-notes`, 못 쓰면 localStorage)에 쓴다.
+ *    예배 중에는 '저장 실패'를 보여주지 않는다.
  * 2. 올리지 못한 변경은 dirty/deleted 목록에 남겨, 연결되면 서버(personal_feature_docs, feature_key='sermon')로 보낸다.
  * 3. 실패하면 4초 → 최대 60초 간격으로 다시 시도한다.
  * 4. 다른 기기의 변경과 겹치면(양쪽 다 마지막 동기화 뒤에 고침) 이 기기 내용은 그 노트에 두고,
@@ -32,7 +38,18 @@ import { adoptVersions, dropVersions, remapVersions, shrinkVersions } from './se
  *
  * 녹음(audio.segments)은 노트 JSON 과 따로 간다: 조각은 IndexedDB(sermonAudioStore)에 있고,
  * flush 끝에 `local-` 토막을 내 스토리지로 올린 뒤 노트의 토막 id·URL 을 바꾼다. 열어 둔 노트의
- * 아직 안 닫힌 토막(녹음 중)은 건드리지 않는다.
+ * 아직 안 닫힌 토막(녹음 중)은 건드리지 않는다. 생각 첨부(사진·영상)도 오프라인에 붙인 것은
+ * sermonMediaQueue 에 있다가 같은 자리에서 올라간다.
+ *
+ * 기기 저장 — 노트가 수천 편이면 localStorage(약 5MB)가 넘치므로 IndexedDB(sermonNoteDb)에 한 편씩 쓴다.
+ * - init 은 예전 localStorage 키(`sermon-notes-v1:<user>`)가 있으면 그것부터 동기로 읽어 바로 그리고,
+ *   IndexedDB 에 옮겨 쓴 뒤 그 키를 지운다. 이후 변경은 IndexedDB 에 0.3초 모아 쓴다(바뀐 노트만).
+ * - 키가 없으면 IndexedDB 를 비동기로 읽는다. 그동안 status.restoring = true (목록은 빈 화면 대신 로딩).
+ * - IndexedDB 를 못 쓰는 기기(일부 프라이빗 창, 테스트)는 예전처럼 localStorage 에 통째로 쓴다.
+ * - IndexedDB 쓰기가 공간 부족이 아닌 이유로 실패하면 localStorage 에 비상 사본을 두고, 다음 init 이 다시 옮긴다.
+ *
+ * 서버 문서 수 한도(PF004)에 닿으면 새 노트는 이 기기에만 두고 status.limit 을 켠다. 30분마다(또는 앱을
+ * 다시 열 때·노트를 지워 자리가 나면) 한 번 더 올려 본다.
  */
 
 /** 로그인 전 사용자의 저장소 키. 로그인하면 이 키의 노트가 그 계정으로 옮겨진다 */
@@ -56,6 +73,15 @@ export interface SyncStatus {
   localFull: boolean;
   /** 마지막 전송이 응답 없이 시간을 넘김 (느린·로그인 필요한 와이파이) */
   slow: boolean;
+  /** 기기 저장분(IndexedDB)을 아직 읽는 중 — 목록이 '비었음'을 그리지 않게 */
+  restoring: boolean;
+  /** 서버 노트 보관 한도(PF004)에 닿아 새 노트를 올리지 못함 (이 기기에만 저장) */
+  limit: boolean;
+}
+
+export interface SermonStoreOptions {
+  /** 노트 IndexedDB 를 여는 함수. 테스트는 메모리 구현을 넣는다. null 을 주면 localStorage 로 */
+  noteDb?: () => Promise<NoteDb | null>;
 }
 
 type Listener = () => void;
@@ -63,15 +89,17 @@ type RemapListener = (fromId: string, toId: string) => void;
 /** 다른 기기 수정과 겹쳐 사본 노트를 만들었을 때 */
 type ConflictListener = (copy: SermonNote) => void;
 
-interface PersistShape {
-  notes: SermonNote[];
-  dirty: string[];
-  deleted: string[];
-  synced: Array<[string, string]>;
-}
+/** 기기 저장 모양 — localStorage 키 하나에 통째로, IndexedDB 는 노트 행 + meta 행으로 */
+type PersistShape = NoteSnapshot;
 
 const BACKOFF_MIN = 4000;
 const BACKOFF_MAX = 60000;
+/** 문서 수 한도에 닿은 뒤 다시 올려 보는 간격 */
+const LIMIT_RETRY_MS = 30 * 60 * 1000;
+/** IndexedDB 쓰기를 모으는 시간 */
+const PERSIST_DELAY_MS = 300;
+/** 생각에 붙지 않은 채 남은 대기열 첨부(쓰다 만 생각)를 지우는 나이 */
+const MEDIA_SWEEP_AGE_MS = 24 * 60 * 60 * 1000;
 const FETCH_BATCH = 6;
 /** 문서 요청 하나의 제한 시간. 응답 없는 와이파이에서 전송이 멈춰 재시도도 못 하는 일을 막는다 */
 const REQUEST_TIMEOUT_MS = 20000;
@@ -122,6 +150,14 @@ function isNotFound(err: unknown): boolean {
   return !!e && e.code === 'PF001';
 }
 
+/** 서버 문서 수 한도(PF004) — 다시 보내도 같은 답이므로 바로 재시도하지 않는다 */
+function isLimit(err: unknown): boolean {
+  const e = err as { code?: string } | null;
+  return !!e && e.code === 'PF004';
+}
+
+type Backend = 'pending' | 'idb' | 'ls';
+
 export class SermonStore {
   readonly notes = new Map<string, SermonNote>();
   private dirty = new Set<string>();
@@ -139,6 +175,27 @@ export class SermonStore {
   private again = false;
   private retryTimer: number | null = null;
   private backoff = BACKOFF_MIN;
+  /** 이 시각 전에는 새 문서를 만들지 않는다 (PF004) */
+  private limitUntil = 0;
+
+  // 기기 저장
+  private backend: Backend = 'pending';
+  private db: NoteDb | null = null;
+  private readonly openDb: () => Promise<NoteDb | null>;
+  /** IndexedDB 에 마지막으로 쓴 노트(객체 그대로). 노트는 바뀔 때마다 새 객체라 === 로 바뀐 것만 고른다 */
+  private written = new Map<string, SermonNote>();
+  private writeTimer: number | null = null;
+  private writing: Promise<boolean> | null = null;
+  private writeAgain = false;
+  /** 저장 방식을 정하기 전에 들어온 저장 요청 */
+  private persistWanted = false;
+  /** localStorage 에 비상 사본을 둔 상태 — IndexedDB 쓰기가 다시 되면 지운다 */
+  private rescued = false;
+  private lsOk = true;
+  /** init/dispose 세대. StrictMode 로 두 번 불려도 옛 init 의 남은 비동기가 끼어들지 않게 */
+  private gen = 0;
+  /** 이번 창에서 올리지 못하게 된(lost) 첨부 local- id */
+  private lostMedia = new Set<string>();
 
   /** 편집 중인 노트 — 서버 pull 이 덮어쓰지 않도록 */
   openId: string | null = null;
@@ -153,6 +210,8 @@ export class SermonStore {
     audioPct: null,
     localFull: false,
     slow: false,
+    restoring: true,
+    limit: false,
   };
 
   private onOnline = () => {
@@ -165,8 +224,18 @@ export class SermonStore {
     this.setStatus({ online: false });
   };
 
-  constructor(private readonly userId: string) {
+  /** 탭을 닫거나 숨길 때 모아 둔 쓰기를 바로 한다 */
+  private onHide = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') return;
+    this.flushPersist();
+  };
+
+  constructor(
+    private readonly userId: string,
+    opts: SermonStoreOptions = {},
+  ) {
     this.status.anonymous = userId === ANONYMOUS_USER;
+    this.openDb = opts.noteDb ?? openNoteDb;
   }
 
   get anonymous(): boolean {
@@ -198,15 +267,16 @@ export class SermonStore {
     this.status = {
       ...this.status,
       ...patch,
-      pending: this.dirty.size + this.deleted.size + this.audioPendingCount(),
+      pending: this.dirty.size + this.deleted.size + this.uploadsPendingCount(),
     };
     this.notify();
   }
 
-  private audioPendingCount(): number {
+  /** 아직 안 올린 녹음 토막 + 생각 첨부 */
+  private uploadsPendingCount(): number {
     let n = 0;
     this.notes.forEach((note) => {
-      n += audioPending(note);
+      n += audioPending(note, true) + mediaPending(note, true);
     });
     return n;
   }
@@ -222,102 +292,305 @@ export class SermonStore {
   }
 
   /**
-   * 로그인 직후: 로그인 전에 이 기기에 적어 둔(익명) 노트를 이 계정으로 옮긴다.
-   * 익명 노트는 전부 local- id 라 서버 문서로 새로 올라간다. 옮긴 뒤 익명 저장소는 비운다.
+   * localStorage 저장분(예전 방식 또는 비상 사본)을 동기로 읽어 메모리에 합친다 — 첫 화면을 바로 그리기 위해.
+   * 키가 있었으면 true.
    */
-  private adoptAnonymous(): number {
-    if (this.anonymous || !this.status.localOk) return 0;
-    let raw: string | null;
-    try {
-      raw = localStorage.getItem(SermonStore.keyFor(ANONYMOUS_USER));
-    } catch {
-      return 0;
-    }
-    if (!raw) return 0;
-    let moved = 0;
-    try {
-      const data = JSON.parse(raw) as Partial<PersistShape>;
-      (data.notes || []).forEach((n) => {
-        if (!n || !n.id || this.notes.has(n.id)) return;
-        this.notes.set(n.id, normalizeNote(n.id, n));
-        this.dirty.add(n.id);
-        moved++;
-      });
-      adoptVersions(ANONYMOUS_USER, this.userId);
-      localStorage.removeItem(SermonStore.keyFor(ANONYMOUS_USER));
-    } catch (e) {
-      console.warn('sermon: adopt anonymous failed', e);
-    }
-    return moved;
-  }
-
-  private loadLocal() {
+  private loadLocal(): boolean {
     try {
       localStorage.setItem('sermon-probe', '1');
       localStorage.removeItem('sermon-probe');
     } catch {
+      this.lsOk = false;
       this.status.localOk = false;
     }
+    const data = readLs(this.lsKey);
+    if (!data) return false;
+    this.mergeSnapshot(data, false);
+    return true;
+  }
+
+  /**
+   * 저장분을 메모리에 합친다. 같은 노트가 이미 있으면 더 나중에 고친 쪽을 둔다.
+   * fromDb 면 IndexedDB 에 있는 것으로 기록해, 메모리와 다른 것만 다시 쓰고 메모리에 없는 것은 지운다.
+   */
+  private mergeSnapshot(data: Partial<PersistShape>, fromDb: boolean) {
+    (data.deleted || []).forEach((id) => this.deleted.add(id));
+    (data.notes || []).forEach((raw) => {
+      if (!raw || !raw.id) return;
+      const n = normalizeNote(raw.id, raw);
+      const cur = this.notes.get(raw.id);
+      const keep =
+        !this.deleted.has(raw.id) && (!cur || (n.updated_at || 0) > (cur.updated_at || 0));
+      if (keep) this.notes.set(raw.id, n);
+      if (fromDb) this.written.set(raw.id, keep ? n : raw);
+    });
+    (data.dirty || []).forEach((id) => this.dirty.add(id));
+    (data.synced || []).forEach(([id, at]) => {
+      if (!this.synced.has(id)) this.synced.set(id, at);
+    });
+  }
+
+  /**
+   * 저장 방식을 정하고 기기 저장분을 읽는다.
+   * IndexedDB 를 쓸 수 있으면 그 저장분을 합치고, localStorage 에 예전 저장분이 있었으면 옮긴 뒤 지운다.
+   */
+  private async restore(hadLs: boolean): Promise<void> {
+    let db: NoteDb | null = null;
     try {
-      const raw = localStorage.getItem(this.lsKey);
-      if (!raw) return;
-      const data = JSON.parse(raw) as Partial<PersistShape>;
-      (data.notes || []).forEach((n) => {
-        if (n && n.id) this.notes.set(n.id, normalizeNote(n.id, n));
-      });
-      (data.dirty || []).forEach((id) => this.dirty.add(id));
-      (data.deleted || []).forEach((id) => this.deleted.add(id));
-      (data.synced || []).forEach(([id, at]) => this.synced.set(id, at));
-    } catch (e) {
-      console.error('sermon: local load failed', e);
+      db = await this.openDb();
+    } catch {
+      db = null;
+    }
+    if (db && this.backend !== 'idb') {
+      try {
+        const snap = await db.load(this.userId);
+        if (snap) this.mergeSnapshot(snap, true);
+        this.db = db;
+        this.backend = 'idb';
+      } catch (e) {
+        console.warn('sermon: indexedDB load failed — localStorage 에 저장', e);
+      }
+    }
+    if (this.backend === 'pending') this.backend = 'ls';
+    this.status.localOk = this.backend === 'idb' || this.lsOk;
+    const wanted = this.persistWanted;
+    this.persistWanted = false;
+    if (this.backend === 'idb') {
+      // 예전 localStorage 저장분은 다 옮겨 쓴 뒤에만 지운다
+      if ((await this.writeDb()) && hadLs) {
+        try {
+          localStorage.removeItem(this.lsKey);
+        } catch {
+          /* ignore */
+        }
+      }
+    } else if (wanted) {
+      this.persistLs();
     }
   }
 
-  private persistLocal() {
-    if (!this.status.localOk) return;
-    const shape: PersistShape = {
+  /**
+   * 로그인 직후: 로그인 전에 이 기기에 적어 둔(익명) 노트를 이 계정으로 옮긴다.
+   * 익명 노트는 전부 local- id 라 서버 문서로 새로 올라간다. 이 계정 저장소에 쓴 뒤에 익명 저장분을 비운다.
+   */
+  private async adoptAnonymous(): Promise<number> {
+    if (this.anonymous || !this.status.localOk) return 0;
+    const anonKey = SermonStore.keyFor(ANONYMOUS_USER);
+    const fromLs = this.lsOk ? readLs(anonKey) : null;
+    let fromDb: NoteSnapshot | null = null;
+    if (this.db) {
+      try {
+        fromDb = await this.db.load(ANONYMOUS_USER);
+      } catch (e) {
+        console.warn('sermon: adopt anonymous (indexedDB) failed', e);
+      }
+    }
+    if (!fromLs && !fromDb) return 0;
+    let moved = 0;
+    [fromLs, fromDb].forEach((data) =>
+      (data?.notes || []).forEach((n) => {
+        if (!n || !n.id || this.notes.has(n.id)) return;
+        this.notes.set(n.id, normalizeNote(n.id, n));
+        this.dirty.add(n.id);
+        moved++;
+      }),
+    );
+    try {
+      adoptVersions(ANONYMOUS_USER, this.userId);
+    } catch (e) {
+      console.warn('sermon: adopt versions failed', e);
+    }
+    if (!(await this.persistNow())) return moved; // 계정 쪽에 못 썼으면 익명 저장분을 남겨 둔다
+    if (fromLs) {
+      try {
+        localStorage.removeItem(anonKey);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (fromDb && this.db) {
+      await this.db
+        .clear(ANONYMOUS_USER)
+        .catch((e) => console.warn('sermon: clear anonymous failed', e));
+    }
+    return moved;
+  }
+
+  private shape(): PersistShape {
+    return {
       notes: [...this.notes.values()],
       dirty: [...this.dirty],
       deleted: [...this.deleted],
       synced: [...this.synced.entries()],
     };
-    const raw = JSON.stringify(shape);
+  }
+
+  /** 기기에 저장한다 — IndexedDB 는 잠깐 모아서(바뀐 노트만), localStorage 는 바로 통째로 */
+  private persistLocal() {
+    if (this.backend === 'pending') {
+      this.persistWanted = true;
+      return;
+    }
+    if (this.backend === 'ls') {
+      this.persistLs();
+      return;
+    }
+    if (this.writeTimer != null) return;
+    this.writeTimer = window.setTimeout(() => {
+      this.writeTimer = null;
+      void this.writeDb();
+    }, PERSIST_DELAY_MS);
+  }
+
+  /** 모아 둔 쓰기를 기다리지 않고 바로 한다 */
+  private async persistNow(): Promise<boolean> {
+    if (this.backend === 'ls') return this.persistLs();
+    if (this.backend !== 'idb') return false;
+    if (this.writeTimer != null) {
+      window.clearTimeout(this.writeTimer);
+      this.writeTimer = null;
+    }
+    return this.writeDb();
+  }
+
+  private flushPersist() {
+    if (this.backend !== 'idb' || this.writeTimer == null) return;
+    void this.persistNow();
+  }
+
+  private setFull(full: boolean) {
+    if (full === this.status.localFull) return;
+    if (full) console.warn('sermon: local persist failed (storage full)');
+    this.status = { ...this.status, localFull: full };
+    this.notify();
+  }
+
+  /** localStorage 에 통째로 (IndexedDB 를 못 쓰는 기기) */
+  private persistLs(): boolean {
+    if (!this.lsOk) return false;
+    const raw = JSON.stringify(this.shape());
     let ok = tryWrite(this.lsKey, raw);
     if (!ok) {
       // 용량 초과 — 버전 기록(본문 사본)부터 줄이고 한 번 더
       shrinkVersions(this.userId);
       ok = tryWrite(this.lsKey, raw);
     }
-    if (ok === !this.status.localFull) return; // 상태 그대로
-    if (!ok) console.warn('sermon: local persist failed (storage full)');
-    this.status = { ...this.status, localFull: !ok };
-    this.notify();
+    this.setFull(!ok);
+    return ok;
+  }
+
+  /** IndexedDB 에 바뀐 노트만 쓴다. 쓰는 중에 또 바뀌면 끝난 뒤 한 번 더 */
+  private async writeDb(): Promise<boolean> {
+    if (this.writing) {
+      this.writeAgain = true;
+      return this.writing;
+    }
+    const db = this.db;
+    if (!db) return false;
+    const put: SermonNote[] = [];
+    const del: string[] = [];
+    this.notes.forEach((n, id) => {
+      if (this.written.get(id) !== n) put.push(n);
+    });
+    this.written.forEach((_, id) => {
+      if (!this.notes.has(id)) del.push(id);
+    });
+    const meta = {
+      dirty: [...this.dirty],
+      deleted: [...this.deleted],
+      synced: [...this.synced.entries()],
+    };
+    const run = (async () => {
+      try {
+        await db.write(this.userId, put, del, meta);
+        put.forEach((n) => this.written.set(n.id, n));
+        del.forEach((id) => this.written.delete(id));
+        if (this.rescued) {
+          // IndexedDB 가 다시 된다 — 비상 사본은 지운다 (남겨 두면 다음 init 이 옛 내용을 다시 합친다)
+          this.rescued = false;
+          try {
+            localStorage.removeItem(this.lsKey);
+          } catch {
+            /* ignore */
+          }
+        }
+        this.setFull(false);
+        return true;
+      } catch (e) {
+        if (isQuotaError(e)) {
+          this.setFull(true);
+          return false;
+        }
+        // 공간 부족이 아닌 실패(연결 닫힘 등) — localStorage 에 비상 사본. 다음 init 이 IndexedDB 로 다시 옮긴다
+        console.warn('sermon: indexedDB write failed', e);
+        const ok = this.lsOk && tryWrite(this.lsKey, JSON.stringify(this.shape()));
+        if (ok) this.rescued = true;
+        this.setFull(!ok);
+        return false;
+      }
+    })();
+    this.writing = run;
+    const ok = await run;
+    this.writing = null;
+    if (this.writeAgain) {
+      this.writeAgain = false;
+      this.persistLocal();
+    }
+    return ok;
   }
 
   // ───────── 수명 ─────────
 
   async init() {
-    this.loadLocal();
+    const gen = ++this.gen;
+    const hadLs = this.loadLocal();
     requestPersistentStorage();
+    if (typeof window !== 'undefined') window.addEventListener('pagehide', this.onHide);
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.onHide);
+    await this.restore(hadLs);
+    if (gen !== this.gen) return;
     if (this.anonymous) {
       // 로그인 전: 서버 없음. 기기 저장이 곧 저장이다
-      this.setStatus({ loading: false, online: null });
+      this.setStatus({ loading: false, online: null, restoring: false });
       return;
     }
-    const adopted = this.adoptAnonymous();
-    if (adopted) this.persistLocal();
-    this.setStatus({ loading: true });
+    await this.adoptAnonymous();
+    if (gen !== this.gen) return;
+    this.setStatus({ loading: true, restoring: false });
     window.addEventListener('online', this.onOnline);
     window.addEventListener('offline', this.onOffline);
+    void this.sweepMedia();
     await this.pull();
+    if (gen !== this.gen) return;
     this.setStatus({ loading: false });
     void this.flush();
   }
 
   dispose() {
+    this.gen++;
     window.removeEventListener('online', this.onOnline);
     window.removeEventListener('offline', this.onOffline);
+    window.removeEventListener('pagehide', this.onHide);
+    if (typeof document !== 'undefined')
+      document.removeEventListener('visibilitychange', this.onHide);
     if (this.retryTimer) window.clearTimeout(this.retryTimer);
+    this.flushPersist();
+  }
+
+  /** 생각에 붙지 않은 채 하루 넘게 남은 대기열 첨부(쓰다 만 생각 등)를 지운다 */
+  private async sweepMedia() {
+    try {
+      const used = new Set<string>();
+      this.notes.forEach((n) =>
+        (n.thoughts || []).forEach((t) => (t.media || []).forEach((m) => used.add(m.id))),
+      );
+      const old = Date.now() - MEDIA_SWEEP_AGE_MS;
+      for (const r of await sermonMediaQueue.list(this.userId)) {
+        if (!used.has(r.id) && r.at < old) await sermonMediaQueue.remove(r.id);
+      }
+    } catch (e) {
+      console.warn('sermon: media sweep failed', e);
+    }
   }
 
   // ───────── 읽기 ─────────
@@ -344,7 +617,11 @@ export class SermonStore {
           group_dismissed: prev.group_dismissed,
         }
       : {};
-    const n = { ...this.keepUploadedAudio(note), ...links, updated_at: Date.now() };
+    const n = {
+      ...this.keepUploadedMedia(this.keepUploadedAudio(note)),
+      ...links,
+      updated_at: Date.now(),
+    };
     if (!n.groups) delete n.groups;
     if (!n.group_dismissed) delete n.group_dismissed;
     this.notes.set(n.id, n);
@@ -377,6 +654,36 @@ export class SermonStore {
     return changed ? { ...note, audio: { segments } } : note;
   }
 
+  /**
+   * 화면 사본의 `local-` 생각 첨부가 그 사이 올라갔거나(id·URL 바뀜) lost 가 됐으면 저장된 쪽을 따른다.
+   * (편집기는 첨부를 붙일 때의 사본을 들고 있다)
+   */
+  private keepUploadedMedia(note: SermonNote): SermonNote {
+    if (!note.thoughts?.length) return note;
+    let changed = false;
+    const thoughts = note.thoughts.map((t) => {
+      if (!t.media?.length) return t;
+      let hit = false;
+      const media = t.media.map((m) => {
+        if (!m || !isLocalId(m.id)) return m;
+        const up = sermonMediaQueue.uploaded(m.id);
+        if (up) {
+          hit = true;
+          return up;
+        }
+        if (this.lostMedia.has(m.id) && !m.lost) {
+          hit = true;
+          return { ...m, lost: true };
+        }
+        return m;
+      });
+      if (!hit) return t;
+      changed = true;
+      return { ...t, media };
+    });
+    return changed ? { ...note, thoughts } : note;
+  }
+
   /** 모임 연결만 바꾼다 (노트 본문은 그대로) */
   saveLinks(
     id: string,
@@ -401,6 +708,11 @@ export class SermonStore {
       if (!isLocalId(seg.id)) deleteMedia(seg.id);
     });
     void sermonAudioStore.removeNote(id);
+    (n?.thoughts || []).forEach((t) =>
+      (t.media || []).forEach((m) => {
+        if (m && isLocalId(m.id)) void sermonMediaQueue.remove(m.id).catch(() => {});
+      }),
+    );
     this.notes.delete(id);
     this.dirty.delete(id);
     if (!isLocalId(id)) this.deleted.add(id);
@@ -516,16 +828,26 @@ export class SermonStore {
     this.backoff = Math.min(BACKOFF_MAX, this.backoff * 2);
   }
 
+  /** 문서 수 한도(PF004) 뒤 — 30분 뒤에 한 번 더 */
+  private scheduleLimitRetry() {
+    if (this.retryTimer) window.clearTimeout(this.retryTimer);
+    this.retryTimer = window.setTimeout(
+      () => void this.flush(),
+      Math.max(1000, this.limitUntil - Date.now()),
+    );
+  }
+
   async flush() {
     if (this.anonymous) {
       this.setStatus({});
       return;
     }
+    if (this.status.restoring) return; // 기기 저장분을 다 읽은 뒤에 (init 이 부른다)
     if (
       !this.needPull &&
       this.dirty.size === 0 &&
       this.deleted.size === 0 &&
-      this.audioPendingCount() === 0
+      this.uploadsPendingCount() === 0
     ) {
       this.setStatus({});
       return;
@@ -549,6 +871,8 @@ export class SermonStore {
       // 끊겼다 다시 올리는 길이면 서버에서 그 사이 바뀐 것부터 받는다 (겹친 수정은 사본으로)
       if (this.needPull && !(await this.pull()))
         throw new Error('sermon: pull before flush failed');
+      /** 한도에 닿아 이번에 못 만든 새 노트가 있다 */
+      let limited = false;
       for (const id of [...this.dirty]) {
         const n = this.notes.get(id);
         if (!n) {
@@ -556,23 +880,35 @@ export class SermonStore {
           continue;
         }
         const stamp = n.updated_at;
-        if (isLocalId(id)) {
-          await this.createRemote(id, n, stamp);
-        } else {
-          try {
-            const saved = await withTimeout(
-              personalFeatureAPI.updateDoc<SermonContent>(SERMON_FEATURE_KEY, id, {
-                title: titleOf(n),
-                content: contentOf(n),
-              }),
-            );
-            if (this.notes.get(id)?.updated_at === stamp) this.dirty.delete(id);
-            this.synced.set(id, saved.updated_at);
-          } catch (e) {
-            if (!isNotFound(e)) throw e;
-            // 다른 기기에서 지운 문서에 이 기기의 변경이 남아 있다 → 새 문서로 다시 올린다
+        try {
+          if (isLocalId(id)) {
+            if (Date.now() < this.limitUntil) {
+              limited = true;
+              continue;
+            }
             await this.createRemote(id, n, stamp);
+          } else {
+            try {
+              const saved = await withTimeout(
+                personalFeatureAPI.updateDoc<SermonContent>(SERMON_FEATURE_KEY, id, {
+                  title: titleOf(n),
+                  content: contentOf(n),
+                }),
+              );
+              if (this.notes.get(id)?.updated_at === stamp) this.dirty.delete(id);
+              this.synced.set(id, saved.updated_at);
+            } catch (e) {
+              if (!isNotFound(e)) throw e;
+              // 다른 기기에서 지운 문서에 이 기기의 변경이 남아 있다 → 새 문서로 다시 올린다
+              await this.createRemote(id, n, stamp);
+            }
           }
+        } catch (e) {
+          if (!isLimit(e)) throw e;
+          // 서버 보관 한도 — 새 문서는 이 기기에만 두고, 있던 문서 수정·삭제·녹음은 계속 올린다
+          if (!limited) console.warn('sermon: doc limit reached (PF004) — kept on this device');
+          limited = true;
+          this.limitUntil = Date.now() + LIMIT_RETRY_MS;
         }
       }
       for (const id of [...this.deleted]) {
@@ -582,10 +918,17 @@ export class SermonStore {
           if (!isNotFound(e)) throw e;
         }
         this.deleted.delete(id);
+        // 자리가 났다 — 한도로 못 만든 노트를 바로 다시 올려 본다
+        if (this.limitUntil) {
+          this.limitUntil = 0;
+          if (limited) this.again = true;
+        }
       }
       await this.flushAudio();
+      await this.flushMedia();
       this.backoff = BACKOFF_MIN;
-      this.setStatus({ online: true, slow: false, lastSync: Date.now() });
+      this.setStatus({ online: true, slow: false, lastSync: Date.now(), limit: limited });
+      if (limited && !this.again) this.scheduleLimitRetry();
     } catch (e) {
       console.warn('sermon: flush failed, will retry', e);
       this.needPull = true;
@@ -620,8 +963,13 @@ export class SermonStore {
       }
       const meta = await sermonAudioStore.getSegment(seg.id);
       if (!meta) {
-        segments.push({ ...seg, lost: true });
-        changed = true;
+        // 다른 기기에서 녹음한 토막은 그 기기가 올린다 — 여기서 lost 로 적으면 그 기기도 올리지 않게 된다
+        if (madeOnThisDevice(seg.id)) {
+          segments.push({ ...seg, lost: true });
+          changed = true;
+        } else {
+          segments.push(seg);
+        }
         continue;
       }
       if (!meta.done) {
@@ -658,6 +1006,7 @@ export class SermonStore {
         if (!isLocalId(seg.id) || seg.lost) continue;
         const meta = await sermonAudioStore.getSegment(seg.id);
         if (meta && !meta.done) continue; // 녹음 중
+        if (!meta && !madeOnThisDevice(seg.id)) continue; // 다른 기기 토막 — 그 기기가 올린다
         const latest = this.notes.get(note.id);
         if (!latest?.audio) break;
         const patchSeg = (p: Partial<typeof seg>) => {
@@ -666,6 +1015,7 @@ export class SermonStore {
           const segments = now.audio.segments.map((x) => (x.id === seg.id ? { ...x, ...p } : x));
           this.notes.set(note.id, { ...now, audio: { segments }, updated_at: Date.now() });
           this.dirty.add(note.id);
+          this.again = true; // 바뀐 토막 id 를 서버 문서에도 반영
           this.persistLocal();
           this.setStatus({});
         };
@@ -692,7 +1042,71 @@ export class SermonStore {
         }
       }
     }
-    if (this.dirty.size) this.again = true; // 바뀐 토막 id 를 서버 문서에도 반영
+  }
+
+  // ───────── 생각 첨부 ─────────
+
+  /** 노트 안의 첨부 하나를 바꾸고 서버 문서에도 반영하도록 표시한다 */
+  private patchMedia(noteId: string, localId: string, next: ThoughtMedia) {
+    const now = this.notes.get(noteId);
+    if (!now) return;
+    const thoughts = (now.thoughts || []).map((t) =>
+      (t.media || []).some((m) => m?.id === localId)
+        ? { ...t, media: t.media.map((m) => (m?.id === localId ? next : m)) }
+        : t,
+    );
+    this.notes.set(noteId, { ...now, thoughts, updated_at: Date.now() });
+    this.dirty.add(noteId);
+    this.again = true;
+    this.persistLocal();
+    this.setStatus({});
+  }
+
+  /** 오프라인에 붙인 `local-` 첨부를 내 스토리지로 올리고 생각의 첨부 id·URL 을 바꾼다 */
+  private async flushMedia(): Promise<void> {
+    for (const note of [...this.notes.values()]) {
+      if (!mediaPending(note)) continue;
+      if (isLocalId(note.id)) continue; // 노트가 먼저 올라가야 한다 (다음 flush 에서)
+      const waiting: ThoughtMedia[] = [];
+      (note.thoughts || []).forEach((t) =>
+        (t.media || []).forEach((m) => {
+          if (m && isLocalId(m.id) && !m.lost) waiting.push(m);
+        }),
+      );
+      for (const m of waiting) {
+        const done = sermonMediaQueue.uploaded(m.id);
+        if (done) {
+          this.patchMedia(note.id, m.id, done);
+          continue;
+        }
+        const q = await sermonMediaQueue.get(m.id);
+        if (!q || !q.blob?.size) {
+          if (!madeOnThisDevice(m.id)) continue; // 다른 기기에서 붙인 첨부 — 그 기기가 올린다
+          // 이 기기에서 붙였는데 파일이 없다 (저장소가 지워짐)
+          this.lostMedia.add(m.id);
+          this.patchMedia(note.id, m.id, { ...m, lost: true });
+          continue;
+        }
+        try {
+          const ext = q.type === 'image' ? 'jpg' : 'mp4';
+          const file = new File([q.blob], q.name || `sermon.${ext}`, { type: q.mime });
+          const up = await uploadPreparedMedia(file, q.type);
+          sermonMediaQueue.markUploaded(m.id, up);
+          this.patchMedia(note.id, m.id, up);
+          // 열린 편집기가 아직 blob: 주소로 보여 주고 있을 수 있어 주소는 남긴다
+          await sermonMediaQueue.remove(m.id, true);
+        } catch (e) {
+          if (e instanceof MediaUploadError && (e.code === 'rejected' || e.code === 'too_large')) {
+            // 다시 보내도 안 된다 — lost 로 두고 파일은 이 기기에서 계속 볼 수 있게 남긴다
+            console.warn('sermon: media rejected, marked lost', m.id, e.code);
+            this.lostMedia.add(m.id);
+            this.patchMedia(note.id, m.id, { ...m, lost: true });
+            continue;
+          }
+          throw e;
+        }
+      }
+    }
   }
 
   private async createRemote(oldId: string, n: SermonNote, stamp: number) {
@@ -715,6 +1129,17 @@ export class SermonStore {
     void sermonAudioStore.renameNote(oldId, newId);
     remapVersions(this.userId, oldId, newId);
     this.remapListeners.forEach((fn) => fn(oldId, newId));
+  }
+}
+
+function readLs(key: string): Partial<PersistShape> | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as Partial<PersistShape>;
+  } catch (e) {
+    console.error('sermon: local load failed', e);
+    return null;
   }
 }
 
@@ -766,6 +1191,9 @@ export function syncLabel(s: SyncStatus): { text: string; state: 'ok' | 'wait' |
   if (s.anonymous) {
     return { text: '이 기기에 저장됨 · 로그인하면 다른 기기와 맞춰져요', state: 'ok' };
   }
+  if (s.limit) {
+    return { text: '노트 보관 한도에 닿았어요 · 이 기기에만 저장돼요', state: 'warn' };
+  }
   if (s.pending) {
     if (s.audioPct != null) return { text: `녹음 올리는 중 ${s.audioPct}%`, state: 'wait' };
     if (s.slow) return { text: '기기에 저장됨 · 연결이 느려서 잠시 뒤 다시 올려요', state: 'wait' };
@@ -777,6 +1205,6 @@ export function syncLabel(s: SyncStatus): { text: string; state: 'ok' | 'wait' |
       state: 'wait',
     };
   }
-  if (s.loading) return { text: '불러오는 중…', state: 'wait' };
+  if (s.loading || s.restoring) return { text: '불러오는 중…', state: 'wait' };
   return { text: '모두 저장됨', state: 'ok' };
 }

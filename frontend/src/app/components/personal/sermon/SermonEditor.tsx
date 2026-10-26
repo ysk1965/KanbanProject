@@ -34,7 +34,7 @@ import { VersionHistoryModal } from './VersionHistoryModal';
 import { ShareSheet } from './share/ShareSheet';
 import type { LineQuote } from './share/shareModel';
 import type { SermonStore } from './sermonStore';
-import { syncLabel } from './sermonStore';
+import { ANONYMOUS_USER, syncLabel } from './sermonStore';
 import type { SermonStyle } from './sermonStyle';
 import {
   audioEnd,
@@ -1442,6 +1442,7 @@ export function SermonEditor({
             narrow={narrow}
             width={!narrow && asideW ? asideW : undefined}
             canAttach={canAttach}
+            ownerId={userId}
             onLogin={onLogin}
             onClose={() => setPanel(false)}
             inputRef={thoughtInputRef}
@@ -1474,6 +1475,8 @@ export function SermonEditor({
       <VersionHistoryModal
         open={versions !== null}
         versions={versions || []}
+        noteId={versions !== null ? noteRef.current.id : null}
+        remote={userId !== ANONYMOUS_USER}
         currentChars={bodyChars}
         onRestore={restoreVersion}
         onClose={() => setVersions(null)}

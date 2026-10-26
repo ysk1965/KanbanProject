@@ -7,6 +7,7 @@ import com.kanban.domain.personal.feature.PersonalFeatureDoc;
 import com.kanban.domain.personal.feature.PersonalFeatureDocRepository;
 import com.kanban.domain.personal.feature.dto.PersonalFeatureDocRequest;
 import com.kanban.domain.personal.feature.dto.PersonalFeatureDocResponse;
+import com.kanban.domain.sermonnote.service.SermonNoteDocHook;
 import com.kanban.domain.talent.service.SermonTalentHook;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
@@ -38,8 +39,11 @@ public class PersonalFeatureDocService {
     /** content 직렬화 크기 상한 — 자동 저장이 800ms마다 오므로 너무 큰 문서는 애초에 막는다. */
     public static final int MAX_CONTENT_BYTES = 256 * 1024;
 
-    /** 사용자 × 기능당 살아 있는 문서 상한 */
+    /** 사용자 × 기능당 살아 있는 문서 상한 — 기본값. 기능별 예외는 {@link #DOC_LIMITS} */
     public static final int MAX_DOCS_PER_FEATURE = 200;
+
+    /** 기능별 상한 — 설교 노트는 매주 몇 장씩 쌓이므로 넉넉히 */
+    public static final Map<String, Integer> DOC_LIMITS = Map.of(PersonalFeatureTermService.FEATURE_SERMON, 5000);
 
     private static final String DUPLICATE_SUFFIX = " (복사본)";
     private static final int TITLE_MAX_LENGTH = 200;
@@ -50,6 +54,13 @@ public class PersonalFeatureDocService {
     private final ObjectMapper objectMapper;
     /** 설교 노트 → 달란트 적립(커밋 뒤 별도 트랜잭션, 실패해도 저장은 그대로) */
     private final SermonTalentHook sermonTalentHook;
+    /** 설교 노트 삭제 → 버전 기록·모임 공개 사본 정리(같은 트랜잭션) */
+    private final SermonNoteDocHook sermonNoteDocHook;
+
+    /** 사용자 × 기능당 살아 있는 문서 상한 */
+    public static int docLimit(String featureKey) {
+        return DOC_LIMITS.getOrDefault(featureKey, MAX_DOCS_PER_FEATURE);
+    }
 
     public List<PersonalFeatureDocResponse.Summary> list(String userId, String featureKey) {
         validateFeatureKey(featureKey);
@@ -140,6 +151,7 @@ public class PersonalFeatureDocService {
         PersonalFeatureDoc doc = findDocAndVerifyOwner(userId, featureKey, docId);
         doc.softDelete();
         if (PersonalFeatureTermService.FEATURE_SERMON.equals(featureKey)) {
+            sermonNoteDocHook.docDeleted(userId, docId);
             sermonTalentHook.docDeleted(userId, docId);
         }
     }
@@ -167,7 +179,7 @@ public class PersonalFeatureDocService {
     }
 
     private void ensureCapacity(String userId, String featureKey) {
-        if (docRepository.countLive(userId, featureKey) >= MAX_DOCS_PER_FEATURE) {
+        if (docRepository.countLive(userId, featureKey) >= docLimit(featureKey)) {
             throw new BusinessException(ErrorCode.PERSONAL_FEATURE_DOC_LIMIT_EXCEEDED);
         }
     }

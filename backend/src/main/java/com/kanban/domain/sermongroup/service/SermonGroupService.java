@@ -99,8 +99,6 @@ public class SermonGroupService {
         SermonGroup group = groupRepository.save(SermonGroup.builder()
                 .name(support.validateGroupName(request.getName()))
                 .kind(support.validateKind(request.getKind()))
-                .meetDow(support.validateDow(request.getMeetDow()))
-                .meetTime(support.validateTime(request.getMeetTime()))
                 .services(support.validateServices(request.getServices()))
                 .joinApproval(Boolean.TRUE.equals(request.getJoinApproval()))
                 .inviteCode(newInviteCode())
@@ -124,7 +122,7 @@ public class SermonGroupService {
     }
 
     /**
-     * 부분 수정 — 본문에 있는 키만 바꾼다. meet_dow · meet_time 은 null 을 보내면 지운다(그래서 JsonNode 로 받는다).
+     * 부분 수정 — 본문에 있는 키만 바꾼다(그래서 JsonNode 로 받는다).
      */
     @Transactional
     public SermonGroupResponse.Detail patch(String userId, String groupId, JsonNode body) {
@@ -134,12 +132,6 @@ public class SermonGroupService {
 
         if (body.has("name")) group.updateName(support.validateGroupName(textOrNull(body.get("name"))));
         if (body.has("kind")) group.updateKind(support.validateKind(textOrNull(body.get("kind"))));
-        if (body.has("meet_dow")) {
-            JsonNode dow = body.get("meet_dow");
-            if (!dow.isNull() && !dow.canConvertToInt()) throw invalid();
-            group.updateMeetDow(support.validateDow(dow.isNull() ? null : dow.intValue()));
-        }
-        if (body.has("meet_time")) group.updateMeetTime(support.validateTime(textOrNull(body.get("meet_time"))));
         if (body.has("services")) {
             JsonNode services = body.get("services");
             if (!services.isArray()) throw invalid();
@@ -227,8 +219,6 @@ public class SermonGroupService {
                 .groupId(group.getId())
                 .name(group.getName())
                 .kind(group.getKind())
-                .meetDow(group.getMeetDow())
-                .meetTime(group.getMeetTime())
                 .services(group.getServices())
                 .leaderName(leaderName)
                 .memberCount(
@@ -317,6 +307,26 @@ public class SermonGroupService {
         }
         removeMemberData(groupId, userId);
         memberRepository.delete(me);
+    }
+
+    /**
+     * 회원 탈퇴 — 내가 든 모든 모임에서 나간다. 리더면 부리더 → 먼저 들어온 active 멤버 순으로 리더를 넘기고,
+     * 남은 사람이 없으면 모임을 소프트 삭제한다. 이미 지워진 모임의 멤버 행은 {@code SermonAccountCleaner} 가 정리한다.
+     */
+    @Transactional
+    public void leaveAllForAccountDeletion(String userId) {
+        for (SermonGroupMember me : memberRepository.findByUserId(userId)) {
+            SermonGroup group = groupRepository.findById(me.getGroupId()).orElse(null);
+            if (group == null || group.isDeleted()) continue;
+            if (me.isLeader()) {
+                memberRepository.findByGroupIdOrderByJoinedAtAsc(group.getId()).stream()
+                        .filter(m -> m.isActive() && !userId.equals(m.getUserId()))
+                        .min((a, b) -> Boolean.compare(!a.isManager(), !b.isManager()))
+                        .ifPresentOrElse(next -> next.changeRole(SermonGroupMember.ROLE_LEADER), group::softDelete);
+            }
+            removeMemberData(group.getId(), userId);
+            memberRepository.delete(me);
+        }
     }
 
     @Transactional

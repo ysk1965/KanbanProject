@@ -7,6 +7,7 @@ import { noteRefs, plainText, type SermonNote } from '../sermonTypes';
  * 「나의 갈피」 이름표 + 고정한 노트(폴라로이드 3장) 모델. 소속 교회는 챌린지(challenge/ChurchPicker)가 원본이라 여기 없다.
  * 서버와 같은 모양(snake_case)으로 들고 있는다.
  * 기기 캐시: localStorage `sermon-profile-v1:<userId>` — 로그인 전(anon)은 여기에만 산다.
+ * 갈피 설정(galpi_auto/galpi_service)도 여기 실어 계정을 따라가게 한다 — 화면은 galpiPrefs.ts 를 읽는다.
  */
 
 export type PinPattern = 'dots' | 'lines' | 'stars' | 'plain';
@@ -33,7 +34,13 @@ export interface SermonProfileData {
   verse_style: VerseStyle;
   visibility: Visibility;
   pins: ProfilePin[];
+  /** 주일 예배에 갈피 자동으로 꽂기 (기본 true) */
+  galpi_auto: boolean;
+  /** 내 주일 예배 — null 이면 최근 노트로 정함 */
+  galpi_service: string | null;
 }
+
+export const GALPI_SERVICE_MAX = 60;
 
 export const MAX_PINS = 3;
 export const MAX_VERSES = 3;
@@ -75,6 +82,8 @@ export function defaultProfile(look?: SermonLook): SermonProfileData {
     verse_style: 'serif',
     visibility: 'groups',
     pins: [],
+    galpi_auto: true,
+    galpi_service: null,
   };
 }
 
@@ -119,7 +128,67 @@ export function normalizeProfile(raw: unknown, look?: SermonLook): SermonProfile
     verse_style: r.verse_style === 'hand' ? 'hand' : 'serif',
     visibility: pick(r.visibility, VIS_IDS, d.visibility),
     pins,
+    galpi_auto: typeof r.galpi_auto === 'boolean' ? r.galpi_auto : d.galpi_auto,
+    galpi_service: clip(r.galpi_service, GALPI_SERVICE_MAX),
   };
+}
+
+/* ───── 갈피 설정 (계정 보관) ───── */
+
+export interface GalpiValues {
+  auto: boolean;
+  service: string | null;
+}
+
+export function galpiOf(d: SermonProfileData): GalpiValues {
+  return { auto: d.galpi_auto, service: d.galpi_service || null };
+}
+
+export function withGalpi(d: SermonProfileData, g: GalpiValues): SermonProfileData {
+  return { ...d, galpi_auto: g.auto, galpi_service: clip(g.service, GALPI_SERVICE_MAX) };
+}
+
+const isDefaultGalpi = (g: GalpiValues) => g.auto && !g.service;
+
+/** 서버가 갈피 설정을 들고 있나 — 필드가 없거나 기본값이면 「한 번도 안 올린 것」으로 본다 */
+export function serverHasGalpi(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object') return false;
+  const r = raw as Record<string, unknown>;
+  return r.galpi_auto === false || !!clip(r.galpi_service, GALPI_SERVICE_MAX);
+}
+
+/**
+ * 서버 이름표(saved)를 받을 때 갈피 설정 합치기. 평소엔 서버가 이긴다.
+ * 이전(계정당 한 번): 서버에 갈피 값이 없고(기본값) 이 기기 값이 기본값이 아니면 기기 값을 실어 올린다.
+ */
+export function mergeServerGalpi(
+  server: SermonProfileData,
+  raw: unknown,
+  device: GalpiValues,
+  migrated: boolean,
+): { data: SermonProfileData; push: boolean } {
+  if (!migrated && !serverHasGalpi(raw) && !isDefaultGalpi(device)) {
+    return { data: withGalpi(server, device), push: true };
+  }
+  return { data: server, push: false };
+}
+
+const GALPI_MIGRATED = (userId: string) => `sn-galpi-synced:${userId}`;
+
+export function galpiMigrated(userId: string): boolean {
+  try {
+    return localStorage.getItem(GALPI_MIGRATED(userId)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function markGalpiMigrated(userId: string) {
+  try {
+    localStorage.setItem(GALPI_MIGRATED(userId), '1');
+  } catch {
+    /* ignore */
+  }
 }
 
 export function sameProfile(a: SermonProfileData, b: SermonProfileData): boolean {
@@ -238,6 +307,8 @@ export interface ProfileCache {
   data: SermonProfileData;
   /** 서버에 아직 못 올린 변경이 있음 */
   dirty: boolean;
+  /** 캐시에 갈피 설정이 실려 있었나 (이전 판 캐시는 없다 → 기기 키 sn-galpi-prefs 를 쓴다) */
+  galpi?: boolean;
 }
 const CACHE = (userId: string) => `sermon-profile-v1:${userId}`;
 
@@ -248,7 +319,8 @@ export function readCache(userId: string, look?: SermonLook): ProfileCache | nul
       dirty?: boolean;
     } | null;
     if (!raw || !raw.data) return null;
-    return { data: normalizeProfile(raw.data, look), dirty: !!raw.dirty };
+    const galpi = typeof (raw.data as Record<string, unknown>).galpi_auto === 'boolean';
+    return { data: normalizeProfile(raw.data, look), dirty: !!raw.dirty, galpi };
   } catch {
     return null;
   }
@@ -256,7 +328,7 @@ export function readCache(userId: string, look?: SermonLook): ProfileCache | nul
 
 export function writeCache(userId: string, c: ProfileCache) {
   try {
-    localStorage.setItem(CACHE(userId), JSON.stringify(c));
+    localStorage.setItem(CACHE(userId), JSON.stringify({ data: c.data, dirty: c.dirty }));
   } catch {
     /* 저장 공간 없음 — 세션 동안만 */
   }

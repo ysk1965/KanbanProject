@@ -20,8 +20,6 @@
 | id | varchar(36) | uuid |
 | name | varchar(60) | 모임 이름 |
 | kind | varchar(20) | `church`(교회 모임) / `study`(성경공부) / `family`(가족) / `friend`(친구) / `team`(사역팀) |
-| meet_dow | int null | 모이는 요일 0=일 … 6=토 |
-| meet_time | varchar(5) null | "19:00" |
 | services | json | 예배표 (아래) |
 | invite_code | varchar(12) unique null | 초대 코드. null = 링크 꺼짐 |
 | invite_expires_at | timestamp null | null = 무기한 |
@@ -52,6 +50,10 @@ id, session_id, group_id, user_id, note_id(varchar 64 — 클라이언트 노트
 heard(`live`/`video`/`other`), part(varchar 10 null), private(boolean — 기록은 했지만 내용 비공개),
 fields(json, 최대 64KB), updated_at. UNIQUE(session_id, user_id)
 
+노트를 지우면(`DELETE /api/v1/personal/features/sermon/docs/{id}`, 소프트 삭제) 그 노트로 올린 **내** 공개 사본
+(`user_id` = 나 AND `note_id` = 서버 문서 id, 모든 모임)과 거기 달린 반응을 같은 트랜잭션에서 지운다.
+`note_id` 가 아직 `local-…` 인 사본은 맞지 않아 남는다 — 클라이언트는 서버 id 로 바뀐 뒤 다시 PUT 해 note_id 를 고친다.
+
 **fields**
 ```json
 { "highlights": [{ "ref": "44:5:12-12", "marks": [[0, 18]], "text": "이와 같이 모든 사람이 죄를 지었으므로" }],
@@ -70,7 +72,7 @@ id, group_id, from_user, to_user, week_start(date), session_id null, created_at,
 
 **GroupSummary / GroupDetail**
 ```json
-{ "id": "…", "name": "청년부 2모임", "kind": "church", "meet_dow": 6, "meet_time": "19:00",
+{ "id": "…", "name": "청년부 2모임", "kind": "church",
   "services": [ … ], "join_approval": true,
   "invite_code": "a7Kd2xQp", "invite_expires_at": "2026-11-02T00:00:00Z",   // 리더·함께 리더에게만, 아니면 null
   "me": { "user_id": "…", "role": "leader", "status": "active", "display_name": "상건", "muted_service_ids": [] },
@@ -92,17 +94,17 @@ id, group_id, from_user, to_user, week_start(date), session_id null, created_at,
 
 ### 모임
 - `GET /api/v1/sermon-groups` → `GroupDetail[]` (내가 active 또는 pending 인 모임)
-- `POST /api/v1/sermon-groups` body `{ name, kind, meet_dow, meet_time, services, join_approval, display_name, invite_expires_days }`
+- `POST /api/v1/sermon-groups` body `{ name, kind, services, join_approval, display_name, invite_expires_days }`
   → 201 `GroupDetail` (만든 사람 = leader, 초대 코드 생성. invite_expires_days: 7|30|null)
 - `GET /api/v1/sermon-groups/{id}` → `GroupDetail` (active 멤버만)
-- `PATCH /api/v1/sermon-groups/{id}` (리더·함께 리더) body 부분 `{ name, kind, meet_dow, meet_time, services, join_approval }` → `GroupDetail`
+- `PATCH /api/v1/sermon-groups/{id}` (리더·함께 리더) body 부분 `{ name, kind, services, join_approval }` → `GroupDetail`
 - `DELETE /api/v1/sermon-groups/{id}` (리더) → 204, 소프트 삭제
 - `POST /api/v1/sermon-groups/{id}/invite` (리더·함께 리더) body `{ expires_days: 7|30|null }` → `GroupDetail` (새 코드)
 - `DELETE /api/v1/sermon-groups/{id}/invite` (리더·함께 리더) → `GroupDetail` (invite_code=null)
 
 ### 초대·참여
 - `GET /api/v1/sermon-groups/invite/{code}` **공개** →
-  `{ group_id, name, kind, meet_dow, meet_time, services, leader_name, member_count, join_approval,
+  `{ group_id, name, kind, services, leader_name, member_count, join_approval,
      this_week: [{ service_id, date, name, title, refs, recorded_count }],
      my_status: null | "pending" | "active" }` (로그인 상태로 부르면 my_status 채움). 멤버 노트·이름 목록은 절대 넣지 않음
 - `POST /api/v1/sermon-groups/invite/{code}/join` body `{ display_name, muted_service_ids }` → `GroupDetail`

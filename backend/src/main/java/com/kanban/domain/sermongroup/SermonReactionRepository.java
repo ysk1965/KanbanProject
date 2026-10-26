@@ -37,6 +37,12 @@ public interface SermonReactionRepository extends JpaRepository<SermonReaction, 
             + "(SELECT s.id FROM SermonNoteShare s WHERE s.groupId = :groupId AND s.userId = :userId)")
     int deleteOnSharesOf(@Param("groupId") String groupId, @Param("userId") String userId);
 
+    /** 노트를 지울 때 — 그 노트로 올린 내 공개 사본에 달린 반응 */
+    @Modifying
+    @Query("DELETE FROM SermonReaction r WHERE r.shareId IN "
+            + "(SELECT s.id FROM SermonNoteShare s WHERE s.userId = :userId AND s.noteId = :noteId)")
+    int deleteOnSharesOfNote(@Param("userId") String userId, @Param("noteId") String noteId);
+
     /** 이 모임에서 그 사람이 남긴 반응 */
     @Modifying
     @Query("DELETE FROM SermonReaction r WHERE r.userId = :userId AND r.shareId IN "

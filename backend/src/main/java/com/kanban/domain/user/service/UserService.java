@@ -65,6 +65,7 @@ public class UserService {
     private final ChecklistItemRepository checklistItemRepository;
     private final InviteLinkRepository inviteLinkRepository;
     private final OrganizationRepository organizationRepository;
+    private final SermonAccountCleaner sermonAccountCleaner;
 
     public User getUser(String userId) {
         return userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -203,6 +204,9 @@ public class UserService {
         checklistItemRepository.nullifyAssigneeByUserId(userId);
         inviteLinkRepository.nullifyCreatedByUserId(userId);
         boardMemberRepository.nullifyInvitedByUserId(userId);
+
+        // 3-1. 설교 노트(갈피) 데이터 — 모임 리더 넘기기 포함, personal_feature_docs FK 때문에 users 삭제 전에
+        sermonAccountCleaner.deleteAll(userId);
 
         // 4. 보드 멤버십 삭제 (Owner가 아닌 것은 이미 확인됨)
         boardMemberRepository.deleteByUserId(userId);

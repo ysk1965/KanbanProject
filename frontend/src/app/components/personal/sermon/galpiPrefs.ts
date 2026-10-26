@@ -3,7 +3,10 @@ import { sundayServices, type GalpiRule, type SermonNote } from './sermonTypes';
 
 /**
  * 갈피 설정 — 「주일 대예배에 자동으로 꽂기」와 「내 주일 예배」.
- * 기기 저장(localStorage)만 (sermonLook 과 같음). service 가 null 이면 최근 노트에서 많이 쓴 일요일 예배를 쓴다.
+ * service 가 null 이면 최근 노트에서 많이 쓴 일요일 예배를 쓴다.
+ * 화면들은 이 모듈만 읽는다 (기기 키 `sn-galpi-prefs` — 빠른 캐시이자 로그인 전 저장소).
+ * 계정 보관은 이름표(profile/useSermonProfile)가 맡는다: 여기 바뀐 값을 이름표 galpi_auto/galpi_service 로 올리고,
+ * 서버에서 받은 값은 saveGalpiPrefs 로 여기에 내려 준다.
  */
 export interface GalpiPrefs {
   auto: boolean;
@@ -31,13 +34,29 @@ export function loadGalpiPrefs(): GalpiPrefs {
 }
 
 export function saveGalpiPrefs(patch: Partial<GalpiPrefs>) {
-  current = { ...loadGalpiPrefs(), ...patch };
+  const next = { ...loadGalpiPrefs(), ...patch };
+  next.service = typeof next.service === 'string' && next.service.trim() ? next.service : null;
+  if (sameGalpiPrefs(next, loadGalpiPrefs())) return;
+  current = next;
   try {
     localStorage.setItem(KEY, JSON.stringify(current));
   } catch {
     // 저장 못 해도 이번 세션 동안은 유지
   }
   listeners.forEach((l) => l());
+}
+
+export function sameGalpiPrefs(a: GalpiPrefs, b: GalpiPrefs): boolean {
+  return a.auto === b.auto && (a.service || null) === (b.service || null);
+}
+
+export function isDefaultGalpiPrefs(p: GalpiPrefs): boolean {
+  return sameGalpiPrefs(p, GALPI_PREFS_DEFAULT);
+}
+
+/** 설정이 바뀔 때 (이름표 동기화용) */
+export function onGalpiPrefs(l: () => void): () => void {
+  return subscribe(l);
 }
 
 function subscribe(l: () => void) {

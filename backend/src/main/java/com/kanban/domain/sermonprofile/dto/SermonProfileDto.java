@@ -37,6 +37,10 @@ public class SermonProfileDto {
         private String verseStyle;
         private String visibility;
         private List<Pin> pins;
+        /** null = 바꾸지 않음 (이 필드를 모르는 옛 클라이언트가 지우지 않게) */
+        private Boolean galpiAuto;
+        /** galpi_auto 가 함께 올 때만 반영. 앞뒤 공백 제거, 빈 값 = null, 60자 초과 = SPF001 */
+        private String galpiService;
     }
 
     @Getter
@@ -71,6 +75,10 @@ public class SermonProfileDto {
         private List<VerseEntry> verseHistory;
         /** 지금 대표 말씀이 몇 번째인지 (1부터). 본인 조회에만 */
         private Long verseCount;
+        /** 본인 조회에만 — 정한 적 없으면 true */
+        private Boolean galpiAuto;
+        /** 본인 조회에만 — 없으면 키 없음 */
+        private String galpiService;
 
         private LocalDateTime updatedAt;
     }

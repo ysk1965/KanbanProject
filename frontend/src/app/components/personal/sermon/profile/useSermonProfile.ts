@@ -1,15 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { loadGalpiPrefs, onGalpiPrefs, sameGalpiPrefs, saveGalpiPrefs } from '../galpiPrefs';
 import { loadLook, persistLook } from '../sermonLook';
 import type { SermonStore } from '../sermonStore';
 import { ANONYMOUS_USER } from '../sermonStore';
 import { sermonProfileAPI, type VerseEntry } from './profileApi';
 import {
   defaultProfile,
+  galpiMigrated,
+  galpiOf,
+  markGalpiMigrated,
+  mergeServerGalpi,
   normalizeProfile,
   readCache,
   remapPins,
   sameProfile,
   togglePinList,
+  withGalpi,
   writeCache,
   type PinToggle,
   type SermonProfileData,
@@ -21,6 +27,9 @@ import {
  *  - 아니면 서버 값을 받는다. 서버에 아직 없고 기기 값이 기본값과 다르면 올림
  * 고칠 때마다 기기에 바로 적고, 0.7초 모았다가 서버에 통째로 PUT. 실패하면 30초 뒤 다시.
  * 잉크·캐릭터는 기존 꾸미기 키(sermon-look-v1)에도 같이 적어 다른 화면(카드·초대 페이지)이 따라오게 한다.
+ * 갈피 설정(galpi_auto/galpi_service)도 같은 길로 계정을 따라간다. 화면은 galpiPrefs.ts(기기 키)를 읽으므로
+ * 서로 비춘다: 기기 키가 바뀌면 이름표에 commit, 이름표가 바뀌면(서버 값 포함) 기기 키에 적는다.
+ * 서버에 갈피 값이 한 번도 없었는데 이 기기 값이 기본값이 아니면 기기 값을 한 번 올린다(mergeServerGalpi).
  */
 export interface SermonProfileState {
   data: SermonProfileData;
@@ -41,15 +50,24 @@ const RETRY_DELAY = 30_000;
 
 function initial(userId: string): { data: SermonProfileData; dirty: boolean } {
   const look = loadLook();
+  // 갈피 설정이 없는 캐시(이전 판)·처음이면 기기 키 값을 쓴다
+  const device = loadGalpiPrefs();
   const own = readCache(userId, look);
-  if (own) return own;
+  if (own) return { data: own.galpi ? own.data : withGalpi(own.data, device), dirty: own.dirty };
   // 로그인 직후: 로그인 전에 꾸민 이름표를 이 계정으로 가져온다
   if (userId !== ANONYMOUS_USER) {
     const anon = readCache(ANONYMOUS_USER, look);
-    if (anon && !sameProfile(anon.data, defaultProfile(look)))
-      return { data: anon.data, dirty: true };
+    const anonData = anon && (anon.galpi ? anon.data : withGalpi(anon.data, device));
+    if (anonData && !sameProfile(anonData, defaultProfile(look)))
+      return { data: anonData, dirty: true };
   }
-  return { data: defaultProfile(look), dirty: false };
+  return { data: withGalpi(defaultProfile(look), device), dirty: false };
+}
+
+/** 이름표의 갈피 설정을 기기 키(화면들이 읽는 곳)에 비춘다 */
+function mirrorGalpi(d: SermonProfileData) {
+  const g = galpiOf(d);
+  if (!sameGalpiPrefs(loadGalpiPrefs(), g)) saveGalpiPrefs(g);
 }
 
 export function useSermonProfile({
@@ -104,6 +122,7 @@ export function useSermonProfile({
       dataRef.current = next;
       verRef.current += 1;
       setData(next);
+      mirrorGalpi(next);
       if (!anonymous) {
         dirtyRef.current = true;
         setPending(true);
@@ -129,11 +148,24 @@ export function useSermonProfile({
           void push();
           return;
         }
+        const migrated = galpiMigrated(userId);
+        markGalpiMigrated(userId);
         if (res.saved) {
-          const server = normalizeProfile(res, loadLook());
+          const merged = mergeServerGalpi(
+            normalizeProfile(res, loadLook()),
+            res,
+            galpiOf(dataRef.current),
+            migrated,
+          );
+          if (merged.push) {
+            commit(merged.data);
+            return;
+          }
+          const server = merged.data;
           dataRef.current = server;
           setData(server);
           writeCache(userId, { data: server, dirty: false });
+          mirrorGalpi(server);
         } else if (!sameProfile(dataRef.current, defaultProfile(loadLook()))) {
           dirtyRef.current = true;
           setPending(true);
@@ -147,7 +179,7 @@ export function useSermonProfile({
     return () => {
       gone = true;
     };
-  }, [anonymous, push, schedule, userId]);
+  }, [anonymous, commit, push, schedule, userId]);
 
   useEffect(
     () => () => {
@@ -176,6 +208,17 @@ export function useSermonProfile({
       }),
     [store, commit],
   );
+
+  // 갈피 설정: 처음 그릴 때 이름표 값을 기기 키에 비추고, 이후 기기 키가 바뀌면(설정 화면) 이름표에 담아 올린다
+  useEffect(() => {
+    mirrorGalpi(dataRef.current);
+    return onGalpiPrefs(() => {
+      const g = loadGalpiPrefs();
+      const d = dataRef.current;
+      if (sameGalpiPrefs(g, galpiOf(d))) return;
+      commit(withGalpi(d, g));
+    });
+  }, [commit]);
 
   // 잉크·캐릭터는 기존 꾸미기 키에도
   useEffect(() => {

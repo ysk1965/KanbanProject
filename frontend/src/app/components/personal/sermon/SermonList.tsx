@@ -1,6 +1,6 @@
 import { useMemo, useState, useSyncExternalStore, type ComponentType, type SVGProps } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LogIn, Mic, Plus, Search, X } from 'lucide-react';
+import { Loader2, LogIn, Mic, Plus, Search, X } from 'lucide-react';
 import { compareRef, encRef, norm, refLong, refShort, type Ref } from './bibleRefs';
 import type { SyncStatus } from './sermonStore';
 import {
@@ -252,11 +252,13 @@ export function SermonList({
       ? '기기 저장 공간이 부족해 마지막 변경을 기기에 저장하지 못했어요. 연결되면 바로 올라가요.'
       : status.anonymous
         ? '노트는 이 기기에만 저장돼요. 로그인하면 다른 기기와 맞춰지고 사진·영상도 붙일 수 있어요.'
-        : status.pending
-          ? `기기에 저장된 변경 ${status.pending}건은 연결되면 올라가요.`
-          : '노트는 기기에 먼저 저장되고, 다른 기기와 맞춰져요.';
+        : status.limit
+          ? '노트 보관 한도에 닿았어요. 새 노트는 이 기기에만 저장되고, 지난 노트를 지우면 다시 올라가요.'
+          : status.pending
+            ? `기기에 저장된 변경 ${status.pending}건은 연결되면 올라가요.`
+            : '노트는 기기에 먼저 저장되고, 다른 기기와 맞춰져요.';
   /** 평소엔 한 줄 상태, 문제가 있을 때(저장 불가·공간 부족·로그인 전)만 설명을 펼친다 */
-  const storeTrouble = !status.localOk || status.localFull || status.anonymous;
+  const storeTrouble = !status.localOk || status.localFull || status.anonymous || status.limit;
   const syncLine = status.pending ? `변경 ${status.pending}건 올리는 중` : '모든 기기와 맞춰짐';
 
   let body: React.ReactNode;
@@ -278,6 +280,13 @@ export function SermonList({
         onLogin={onLogin}
         onGoStickers={goStickers}
       />
+    );
+  } else if (tab === 'note' && !notes.length && status.restoring) {
+    // 기기 저장분(IndexedDB)을 읽는 중 — '비었음'을 잠깐 보이지 않게
+    body = (
+      <div className="sn-empty" role="status" aria-label="불러오는 중">
+        <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--sn-accent)' }} />
+      </div>
     );
   } else if (tab === 'note' && !notes.length && !hasGroups) {
     body = (

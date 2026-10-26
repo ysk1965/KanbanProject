@@ -27,7 +27,7 @@
 | `note_audio` | +5 | 녹음 토막 합계 600초 이상 + 업로드된 토막 존재 | 노트당 1 | `audio:{docId}` |
 | `apply` | +3 | 생각 tag `적용`, text 10자 이상 | 노트당 2개 | `apply:{docId}:{thoughtId}` |
 | `apply_done` | +10 | 적용 생각 `done=true` 이고 `done_at - at ≥ 12시간` | 주 5개 | `done:{docId}:{thoughtId}` |
-| `galpi` | +5 | `bookmarked_at` 있음 | 주 1 (노트 date 의 주) | `galpi:{noteWeek}` |
+| ~~`galpi`~~ | — | **2026-10-26 폐지.** 갈피(직접·자동 모두)는 적립하지 않는다. 이미 받은 `galpi:{noteWeek}` 행은 남겨 두고, 그 노트를 지울 때만 상쇄 | — | — |
 | `week_complete` | +20 | 그 주에 `note` 1 + `apply_done` 1 이상 | 주 1 | `complete:{week}` |
 | `streak` | +50/+150/+500 | `note` 가 있는 주가 4·12·52주 연속 | 각 1번 | `streak:{n}:{week}` (counts_for_rank=false) |
 | `game` | 점수/100 | 게임 판 완료 | **하루 30 (모든 게임 합산)** | `game:{runId}` |

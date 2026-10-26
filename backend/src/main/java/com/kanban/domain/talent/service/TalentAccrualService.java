@@ -1,14 +1,11 @@
 package com.kanban.domain.talent.service;
 
-import com.kanban.domain.personal.feature.PersonalFeatureDoc;
 import com.kanban.domain.talent.ChallengeClock;
-import com.kanban.domain.talent.SermonDocReader;
 import com.kanban.domain.talent.TalentReason;
 import com.kanban.domain.talent.TalentWallet;
 import com.kanban.domain.talent.service.TalentLedgerService.Award;
 import com.kanban.domain.talent.service.TalentLedgerService.KeyState;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,6 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>문서마다 "지금 받아야 할 키" 를 계산해 살아 있는 키와 맞춘다(reconcile). 사라진 키는 상쇄, 새 키는 상한 안에서 적립.
  * 노트 date 가 오늘(KST)보다 14일 넘게 지났으면 새로 적립하지 않는다(상쇄는 한다).
  *
+ * <p>갈피(bookmarked_at)는 달란트를 주지 않는다(2026-10-26 결정). 예전에 받은 {@code galpi:} 키는 저장 때 건드리지 않고 남겨 두며,
+ * 노트를 지우면 그 노트의 다른 키와 함께 상쇄된다.
+ *
  * <p>노트 저장과 다른 트랜잭션(REQUIRES_NEW)으로 돈다 — 여기서 실패해도 노트 저장은 이미 끝났다. 호출은 {@link SermonTalentHook}.
  */
 @Service
@@ -36,7 +36,6 @@ public class TalentAccrualService {
     public static final int AUDIO_AMOUNT = 5;
     public static final int APPLY_AMOUNT = 3;
     public static final int DONE_AMOUNT = 10;
-    public static final int GALPI_AMOUNT = 5;
     public static final int COMPLETE_AMOUNT = 20;
 
     public static final int NOTE_WEEKLY_CAP = 3;
@@ -48,7 +47,6 @@ public class TalentAccrualService {
     public static final Map<Integer, Integer> STREAK_BONUS = Map.of(4, 50, 12, 150, 52, 500);
 
     private final TalentLedgerService ledger;
-    private final SermonDocReader docReader;
     private final ChallengeClock clock;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -62,13 +60,10 @@ public class TalentAccrualService {
         Map<String, KeyState> active = ledger.activeBySource(userId, docId);
         Map<String, Award> desired = desiredAwards(userId, docId, facts, active, week);
 
-        List<LocalDate> releasedGalpiWeeks = new ArrayList<>();
         for (KeyState s : active.values()) {
-            if (desired.containsKey(s.key())) continue;
+            if (desired.containsKey(s.key()) || isLegacyGalpi(s.key())) continue;
             ledger.reverse(wallet, userId, s.key());
             touched.add(s.week());
-            if (s.key().startsWith(galpiPrefix()))
-                releasedGalpiWeeks.add(LocalDate.parse(s.key().substring(6)));
         }
 
         if (isFresh(facts.date())) {
@@ -78,7 +73,6 @@ public class TalentAccrualService {
             }
         }
 
-        for (LocalDate gw : releasedGalpiWeeks) handOverGalpi(wallet, userId, docId, gw, week);
         reconcileWeeks(wallet, userId, touched);
     }
 
@@ -88,14 +82,10 @@ public class TalentAccrualService {
         LocalDate week = clock.currentWeek();
         Set<LocalDate> touched = new TreeSet<>();
         touched.add(week);
-        List<LocalDate> releasedGalpiWeeks = new ArrayList<>();
         for (KeyState s : ledger.activeBySource(userId, docId).values()) {
             ledger.reverse(wallet, userId, s.key());
             touched.add(s.week());
-            if (s.key().startsWith(galpiPrefix()))
-                releasedGalpiWeeks.add(LocalDate.parse(s.key().substring(6)));
         }
-        for (LocalDate gw : releasedGalpiWeeks) handOverGalpi(wallet, userId, docId, gw, week);
         reconcileWeeks(wallet, userId, touched);
     }
 
@@ -133,10 +123,6 @@ public class TalentAccrualService {
             out.put(key, award(userId, TalentReason.APPLY_DONE, key, DONE_AMOUNT, docId, "적용 실천 · " + title, week));
         }
 
-        if (f.bookmarkedAt() != null) {
-            String key = galpiKey(galpiWeek(f.date()));
-            out.put(key, award(userId, TalentReason.GALPI, key, GALPI_AMOUNT, docId, "갈피 · " + title, week));
-        }
         return out;
     }
 
@@ -144,36 +130,8 @@ public class TalentAccrualService {
         return switch (reason) {
             case TalentReason.NOTE -> ledger.countActive(userId, week, TalentReason.NOTE) < NOTE_WEEKLY_CAP;
             case TalentReason.APPLY_DONE -> ledger.countActive(userId, week, TalentReason.APPLY_DONE) < DONE_WEEKLY_CAP;
-            default -> true; // apply 는 노트당 2개로 desired 에서 이미 잘랐고, galpi 는 키가 주마다 하나
+            default -> true; // apply 는 노트당 2개로 desired 에서 이미 잘랐다
         };
-    }
-
-    /** 갈피를 뺀 주에 갈피가 꽂힌 다른 노트가 있으면 그 노트에 넘긴다(늦게 꽂은 쪽) */
-    private void handOverGalpi(
-            TalentWallet wallet, String userId, String excludeDocId, LocalDate galpiWeek, LocalDate week) {
-        if (ledger.state(userId, galpiKey(galpiWeek)).active()) return;
-        PersonalFeatureDoc best = null;
-        SermonNoteFacts bestFacts = null;
-        for (PersonalFeatureDoc d : docReader.findLiveSermonDocs(userId, excludeDocId)) {
-            SermonNoteFacts f = SermonNoteFacts.from(d.getContent(), d.getTitle());
-            if (f.bookmarkedAt() == null || !galpiWeek(f.date()).equals(galpiWeek) || !isFresh(f.date())) continue;
-            if (bestFacts == null || f.bookmarkedAt() > bestFacts.bookmarkedAt()) {
-                best = d;
-                bestFacts = f;
-            }
-        }
-        if (best == null) return;
-        String title = bestFacts.title() != null ? bestFacts.title() : "설교 노트";
-        ledger.award(
-                wallet,
-                award(
-                        userId,
-                        TalentReason.GALPI,
-                        galpiKey(galpiWeek),
-                        GALPI_AMOUNT,
-                        best.getId(),
-                        "갈피 · " + title,
-                        week));
     }
 
     /** 한 주 완주(+20)와 연속 기록 보너스를 그 주 상태에 맞춘다 */
@@ -217,10 +175,6 @@ public class TalentAccrualService {
         return noteDate == null || !noteDate.isBefore(clock.today().minusDays(NOTE_MAX_AGE_DAYS));
     }
 
-    private LocalDate galpiWeek(LocalDate noteDate) {
-        return ChallengeClock.galpiWeekOf(noteDate != null ? noteDate : clock.today());
-    }
-
     private static Award award(
             String userId, String reason, String key, int amount, String sourceId, String label, LocalDate week) {
         return Award.builder()
@@ -243,11 +197,8 @@ public class TalentAccrualService {
         return "apply:" + docId + ":" + thoughtId;
     }
 
-    private static String galpiPrefix() {
-        return "galpi:";
-    }
-
-    private static String galpiKey(LocalDate galpiWeek) {
-        return galpiPrefix() + galpiWeek;
+    /** 갈피 적립을 없애기 전에 받은 키 — 저장 때 상쇄하지 않는다 */
+    private static boolean isLegacyGalpi(String key) {
+        return key.startsWith("galpi:");
     }
 }

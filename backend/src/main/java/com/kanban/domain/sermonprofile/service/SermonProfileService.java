@@ -54,6 +54,7 @@ public class SermonProfileService {
     public static final int MAX_VERSES = 3;
     public static final int PIN_LINE_MAX = 40;
     public static final int NOTE_ID_MAX = 64;
+    public static final int GALPI_SERVICE_MAX = 60;
 
     /** encRef: 권(0~65):장:절-절, 끝에 w 면 장 전체 */
     private static final Pattern VERSE_REF = Pattern.compile("^(\\d{1,2}):(\\d{1,3}):(\\d{1,3})-(\\d{1,3})(w?)$");
@@ -84,6 +85,8 @@ public class SermonProfileService {
         String visibility = pick(req.getVisibility(), VISIBILITIES, "groups");
         String verseRef = verseRef(req.getVerseRef());
         List<Map<String, Object>> pins = pins(req.getPins());
+        Boolean galpiAuto = req.getGalpiAuto();
+        String galpiService = galpiAuto == null ? null : galpiService(req.getGalpiService());
 
         SermonProfile p = profileRepository.findById(userId).orElse(null);
         String before = p == null ? null : p.getVerseRef();
@@ -97,10 +100,14 @@ public class SermonProfileService {
                     .verseStyle(verseStyle)
                     .visibility(visibility)
                     .pins(pins)
+                    .galpiAuto(galpiAuto)
+                    .galpiService(galpiService)
                     .build();
             p = profileRepository.save(p);
         } else {
             p.update(mascot, state, ink, verseRef, verseStyle, visibility, pins);
+            // 자동 갈피 설정은 galpi_auto 가 올 때만 바꾼다 — 모르는 클라이언트가 PUT 해도 남는다
+            if (galpiAuto != null) p.updateGalpi(galpiAuto, galpiService);
         }
         recordVerse(userId, before, verseRef);
         return toMine(userId, p);
@@ -174,6 +181,8 @@ public class SermonProfileService {
                 .pins(pins)
                 .verseHistory(history)
                 .verseCount(p != null && p.getVerseRef() != null ? verseRepository.countByUserId(userId) : null)
+                .galpiAuto(p == null || p.getGalpiAuto() == null ? Boolean.TRUE : p.getGalpiAuto())
+                .galpiService(p == null ? null : p.getGalpiService())
                 .build();
     }
 
@@ -253,6 +262,15 @@ public class SermonProfileService {
                 || v2 - v1 + 1 > MAX_VERSES
                 || !m.group(5).isEmpty()) throw invalid();
         return s.trim();
+    }
+
+    /** 앞뒤 공백 제거, 빈 값 = null, 60자(코드포인트) 넘으면 SPF001 */
+    private static String galpiService(String v) {
+        if (v == null) return null;
+        String t = v.strip();
+        if (t.isEmpty()) return null;
+        if (t.codePointCount(0, t.length()) > GALPI_SERVICE_MAX) throw invalid();
+        return t;
     }
 
     private static String pick(String v, Set<String> allowed, String fallback) {

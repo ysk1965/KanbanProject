@@ -119,20 +119,6 @@ public class SermonGroupSupport {
         return kind;
     }
 
-    public Integer validateDow(Integer dow) {
-        if (dow != null && (dow < 0 || dow > 6)) {
-            throw invalid();
-        }
-        return dow;
-    }
-
-    public String validateTime(String time) {
-        if (time != null && !HH_MM.matcher(time).matches()) {
-            throw invalid();
-        }
-        return time;
-    }
-
     /** 표시 이름 — 비어 있으면 계정 이름(20자 자름) */
     public String resolveDisplayName(String requested, User user) {
         String trimmed = requested == null ? "" : requested.trim();
@@ -280,8 +266,6 @@ public class SermonGroupSupport {
                 .id(group.getId())
                 .name(group.getName())
                 .kind(group.getKind())
-                .meetDow(group.getMeetDow())
-                .meetTime(group.getMeetTime())
                 .services(group.getServices())
                 .joinApproval(group.isJoinApproval())
                 .inviteCode(viewerManager ? group.getInviteCode() : null)

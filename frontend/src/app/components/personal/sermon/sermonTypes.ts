@@ -13,11 +13,14 @@ export const THOUGHT_TAGS = ['생각', '질문', '적용'] as const;
 export type ThoughtTag = (typeof THOUGHT_TAGS)[number];
 
 export interface ThoughtMedia {
-  /** 스토리지 파일 id */
+  /** 스토리지 파일 id. 아직 안 올렸으면 `local-` 접두 (= 기기 대기열 sermonMediaQueue 의 id) */
   id: string;
   type: 'image' | 'video';
+  /** 안 올린 첨부는 이 창 안에서만 유효한 blob: 주소 — 화면은 sermonMediaQueue.resolveUrl 로 다시 만든다 */
   url: string;
   thumb?: string | null;
+  /** 기기에 파일이 없거나 서버가 거절해 올릴 수 없는 첨부 */
+  lost?: boolean;
 }
 
 export interface Thought {
@@ -108,6 +111,46 @@ export type SermonContent = Omit<SermonNote, 'id'>;
 
 export const LOCAL_ID_PREFIX = 'local-';
 export const isLocalId = (id: string) => id.startsWith(LOCAL_ID_PREFIX);
+
+const DEVICE_KEY = 'sermon-device-id';
+let deviceId: string | null = null;
+
+/** 이 기기 표시(영숫자). 저장소를 못 쓰면 이 창 동안만 유효 */
+export function deviceTag(): string {
+  if (deviceId) return deviceId;
+  try {
+    deviceId = localStorage.getItem(DEVICE_KEY);
+  } catch {
+    /* 저장소 없음 */
+  }
+  if (!deviceId || !/^[a-z0-9]+$/.test(deviceId)) {
+    deviceId = Math.random().toString(36).slice(2, 10) || 'dev';
+    try {
+      localStorage.setItem(DEVICE_KEY, deviceId);
+    } catch {
+      /* 이 창 동안만 */
+    }
+  }
+  return deviceId;
+}
+
+/**
+ * 아직 안 올린 녹음 토막·생각 첨부의 id. 만든 기기를 넣어 둔다 —
+ * 노트는 파일보다 먼저 서버에 올라가므로, 다른 기기는 그 파일이 없어도 lost 로 적으면 안 된다(그 기기가 올린다).
+ */
+export function localFileId(prefix: string): string {
+  return `${LOCAL_ID_PREFIX}${deviceTag()}-${uid(prefix)}`;
+}
+
+/**
+ * 이 기기에서 만든 `local-` 토막·첨부인지. 기기 표시가 없는 예전 id 는 예전처럼 이 기기 것으로 본다
+ * (안 그러면 정말 잃어버린 예전 토막이 영원히 「올리는 중」으로 남는다).
+ */
+export function madeOnThisDevice(id: string): boolean {
+  return !TAGGED_LOCAL.test(id) || id.startsWith(`${LOCAL_ID_PREFIX}${deviceTag()}-`);
+}
+
+const TAGGED_LOCAL = /^local-[a-z0-9]+-/;
 
 export function uid(prefix = 'n'): string {
   return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -453,9 +496,27 @@ export function audioDuration(n: Pick<SermonNote, 'audio'>): number {
   return (n.audio?.segments || []).reduce((a, s) => a + s.duration, 0);
 }
 
-/** 아직 서버에 올리지 못한 토막 수 */
-export function audioPending(n: Pick<SermonNote, 'audio'>): number {
-  return (n.audio?.segments || []).filter((s) => isLocalId(s.id) && !s.lost).length;
+/** 아직 서버에 올리지 못한 토막 수. hereOnly 면 이 기기가 올릴 것만 (예전 id 는 파일이 있을 수 있어 센다) */
+export function audioPending(n: Pick<SermonNote, 'audio'>, hereOnly = false): number {
+  return (n.audio?.segments || []).filter(
+    (s) => isLocalId(s.id) && !s.lost && (!hereOnly || !madeElsewhere(s.id)),
+  ).length;
+}
+
+/** 아직 서버에 올리지 못한 생각 첨부 수. hereOnly 면 이 기기가 올릴 것만 */
+export function mediaPending(n: Pick<SermonNote, 'thoughts'>, hereOnly = false): number {
+  let c = 0;
+  (n.thoughts || []).forEach((t) =>
+    (t.media || []).forEach((m) => {
+      if (m && isLocalId(m.id) && !m.lost && (!hereOnly || !madeElsewhere(m.id))) c++;
+    }),
+  );
+  return c;
+}
+
+/** 다른 기기에서 만든 `local-` id */
+function madeElsewhere(id: string): boolean {
+  return !madeOnThisDevice(id);
 }
 
 /** 경과 초 t 가 속한 토막과 그 안의 위치 */

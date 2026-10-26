@@ -7,9 +7,9 @@ export const SERVICE_PRESETS: GroupService[] = [
     name: '주일 설교',
     active: true,
     slots: [
-      { dow: 0, start: '09:00', end: '10:20', part: '1부' },
-      { dow: 0, start: '11:00', end: '12:20', part: '2부' },
-      { dow: 0, start: '13:30', end: '14:50', part: '3부' },
+      { dow: 0, start: '09:00', end: '10:30' },
+      { dow: 0, start: '11:00', end: '12:30' },
+      { dow: 0, start: '13:30', end: '15:00' },
     ],
   },
   { id: 'wed', name: '수요예배', active: true, slots: [{ dow: 3, start: '19:30', end: '21:00' }] },
@@ -72,14 +72,21 @@ export function slotsLabel(s: GroupService): string {
   return dows.map((d) => `${DOW_KO[d]} ${byDow.get(d)!.join(' · ')}`).join(', ');
 }
 
+/** 스티커 아래 한 줄 — "일 9:00 외 2", "월~토 5:30", "수 19:30" */
+export function timesSummary(s: GroupService): string {
+  if (!s.slots.length) return '';
+  const dows = [...new Set(s.slots.map((x) => x.dow))].sort((a, b) => a - b);
+  const times = [...new Set(s.slots.map((x) => x.start))].sort();
+  const days =
+    dows.length >= 5 && dows[dows.length - 1] - dows[0] === dows.length - 1
+      ? `${DOW_KO[dows[0]]}~${DOW_KO[dows[dows.length - 1]]}`
+      : dows.map((d) => DOW_KO[d]).join('·');
+  const first = times[0].replace(/^0/, '');
+  return `${days} ${first}${times.length > 1 ? ` 외 ${times.length - 1}` : ''}`;
+}
+
 export function newServiceId(existing: GroupService[]): string {
   let i = existing.length + 1;
   while (existing.some((s) => s.id === `s${i}`)) i++;
   return `s${i}`;
-}
-
-/** 모이는 날 문구 "토 19:00" */
-export function meetLabel(dow?: number | null, time?: string | null): string {
-  if (dow == null) return '';
-  return `${DOW_KO[dow]}요일${time ? ` ${time}` : ''}`;
 }

@@ -22,10 +22,12 @@ import {
 import { toast } from 'sonner';
 import type { EditorCore } from './editorCore';
 import { prefersReducedMotion, useFx } from './microFx';
-import { MediaUploadError, deleteMedia, mediaErrorMessage, uploadMedia } from './sermonMedia';
+import { MediaUploadError, attachMedia, deleteMedia, mediaErrorMessage } from './sermonMedia';
+import { sermonMediaQueue } from './sermonMediaQueue';
 import {
   THOUGHT_TAGS,
   fmtTime,
+  isLocalId,
   uid,
   type Thought,
   type ThoughtMedia,
@@ -58,6 +60,8 @@ interface ThoughtsPanelProps {
   width?: number;
   /** 로그인 전에는 첨부를 올릴 곳이 없다 → 안내만 */
   canAttach: boolean;
+  /** 오프라인 첨부 대기열의 주인(계정 id) */
+  ownerId?: string;
   onLogin?: () => void;
   onClose: () => void;
   inputRef: RefObject<HTMLTextAreaElement>;
@@ -95,6 +99,63 @@ function autoGrow(ta: HTMLTextAreaElement | null) {
   ta.style.height = `${Math.min(140, ta.scrollHeight)}px`;
 }
 
+/**
+ * 첨부 화면 주소. 아직 안 올린(`local-`) 첨부는 노트에 적힌 blob: 주소가 새로고침 뒤엔 죽어 있으므로
+ * 기기 대기열의 파일로 다시 만든다. 파일이 없으면 ''.
+ */
+function useMediaSrc(id: string | undefined, url: string): string {
+  const local = !!id && isLocalId(id);
+  const [src, setSrc] = useState(() => (local ? (sermonMediaQueue.urlFor(id) ?? '') : url));
+  useEffect(() => {
+    if (!local || !id) {
+      setSrc(url);
+      return;
+    }
+    let alive = true;
+    const have = sermonMediaQueue.urlFor(id);
+    if (have) setSrc(have);
+    else
+      void sermonMediaQueue.resolveUrl(id).then((u) => {
+        if (alive) setSrc(u ?? '');
+      });
+    return () => {
+      alive = false;
+    };
+  }, [local, id, url]);
+  return src;
+}
+
+function MediaItem({
+  m,
+  onZoom,
+  children,
+}: {
+  m: PendingMedia | ThoughtMedia;
+  onZoom: (src: string) => void;
+  children?: React.ReactNode;
+}) {
+  const busy = 'busy' in m && m.busy;
+  const src = useMediaSrc(busy ? undefined : m.id, m.url);
+  const lost = 'lost' in m && !!m.lost;
+  return (
+    <div
+      className={`sn-m${m.type === 'video' ? ' sn-vid' : ''}`}
+      data-local={(!busy && !!m.id && isLocalId(m.id)) || undefined}
+    >
+      {busy ? (
+        <div className="sn-busy">올리는 중…</div>
+      ) : !src ? (
+        <div className="sn-busy">{lost ? '올리지 못한 첨부' : '이 기기에 없는 첨부'}</div>
+      ) : m.type === 'video' ? (
+        <video src={src} controls playsInline preload="metadata" />
+      ) : (
+        <img src={src} alt="첨부한 사진" loading="lazy" onClick={() => onZoom(src)} />
+      )}
+      {children}
+    </div>
+  );
+}
+
 function MediaGrid({
   list,
   removable,
@@ -110,17 +171,9 @@ function MediaGrid({
   return (
     <div className="sn-media">
       {list.map((m, i) => {
-        const busy = 'busy' in m && m.busy;
         const key = 'key' in m ? m.key : m.id;
         return (
-          <div key={key ?? i} className={`sn-m${m.type === 'video' ? ' sn-vid' : ''}`}>
-            {busy ? (
-              <div className="sn-busy">올리는 중…</div>
-            ) : m.type === 'video' ? (
-              <video src={m.url} controls playsInline preload="metadata" />
-            ) : (
-              <img src={m.url} alt="첨부한 사진" loading="lazy" onClick={() => onZoom(m.url)} />
-            )}
+          <MediaItem key={key ?? i} m={m} onZoom={onZoom}>
             {removable && (
               <button
                 type="button"
@@ -131,7 +184,7 @@ function MediaGrid({
                 <X className="sn-icon" style={{ width: 15, height: 15 }} />
               </button>
             )}
-          </div>
+          </MediaItem>
         );
       })}
     </div>
@@ -234,6 +287,7 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
       narrow,
       width,
       canAttach,
+      ownerId = '',
       onLogin,
       onClose,
       inputRef,
@@ -328,32 +382,38 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
     }, [editingId, inputRef]);
 
     // ───────── 첨부 ─────────
-    const addFile = useCallback(async (file: File, target: 'new' | 'edit') => {
-      const item: PendingMedia = {
-        key: uid('m'),
-        type: /^video\//.test(file.type) ? 'video' : 'image',
-        url: URL.createObjectURL(file),
-        busy: true,
-      };
-      const put = (fn: (l: PendingMedia[]) => PendingMedia[]) => {
-        if (target === 'edit') {
-          const d = draftRef.current;
-          if (d) setDraft({ ...d, media: fn(d.media) });
-        } else setPending(fn);
-      };
-      try {
-        // 형식·크기 검사는 올리기 전에 — 실패하면 목록에 넣지 않는다
-        const uploaded = uploadMedia(file);
-        put((l) => [...l, item]);
-        const res = await uploaded;
-        URL.revokeObjectURL(item.url);
-        put((l) => l.map((m) => (m.key === item.key ? { ...m, ...res, busy: false } : m)));
-      } catch (err) {
-        put((l) => l.filter((m) => m.key !== item.key));
-        const code = err instanceof MediaUploadError ? err.code : 'upload_failed';
-        toast(mediaErrorMessage(code));
-      }
-    }, []);
+    const addFile = useCallback(
+      async (file: File, target: 'new' | 'edit') => {
+        const item: PendingMedia = {
+          key: uid('m'),
+          type: /^video\//.test(file.type) ? 'video' : 'image',
+          url: URL.createObjectURL(file),
+          busy: true,
+        };
+        const put = (fn: (l: PendingMedia[]) => PendingMedia[]) => {
+          if (target === 'edit') {
+            const d = draftRef.current;
+            if (d) setDraft({ ...d, media: fn(d.media) });
+          } else setPending(fn);
+        };
+        try {
+          // 형식·크기 검사는 올리기 전에 — 실패하면 목록에 넣지 않는다.
+          // 오프라인·연결 실패면 기기 대기열에 넣고 local- 첨부로 바로 붙인다 (연결되면 저장소가 올린다)
+          const attached = attachMedia(file, ownerId);
+          put((l) => [...l, item]);
+          const { media, queued } = await attached;
+          URL.revokeObjectURL(item.url);
+          put((l) => l.map((m) => (m.key === item.key ? { ...m, ...media, busy: false } : m)));
+          if (queued) toast('기기에 붙여 뒀어요 · 연결되면 올라가요');
+        } catch (err) {
+          URL.revokeObjectURL(item.url);
+          put((l) => l.filter((m) => m.key !== item.key));
+          const code = err instanceof MediaUploadError ? err.code : 'upload_failed';
+          toast(mediaErrorMessage(code));
+        }
+      },
+      [ownerId],
+    );
 
     const loginNudge = useCallback(() => {
       toast('로그인하면 사진·영상을 첨부할 수 있어요', {
@@ -402,7 +462,13 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
       const a = core ? core.currentAnchor() : { aid: null, label: null };
       const media: ThoughtMedia[] = pend
         .filter((m): m is PendingMedia & ThoughtMedia => !!m.id)
-        .map(({ id, type, url, thumb }) => ({ id, type, url, thumb }));
+        .map(({ id, type, url, thumb, lost }) => ({
+          id,
+          type,
+          url,
+          thumb,
+          ...(lost ? { lost: true } : {}),
+        }));
       const id = uid('t');
       fire(`new:${id}`);
       updateThoughts((prev) => [
@@ -462,7 +528,13 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
       const keep = new Set(d.media.map((m) => m.id));
       const media: ThoughtMedia[] = d.media
         .filter((m): m is PendingMedia & ThoughtMedia => !!m.id)
-        .map(({ id, type, url, thumb }) => ({ id, type, url, thumb }));
+        .map(({ id, type, url, thumb, lost }) => ({
+          id,
+          type,
+          url,
+          thumb,
+          ...(lost ? { lost: true } : {}),
+        }));
       let removed: ThoughtMedia[] = [];
       updateThoughts((prev) =>
         prev.map((x) => {

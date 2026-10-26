@@ -21,8 +21,6 @@ import { GroupSticker } from './GroupSticker';
 import { ServicePicker } from './ServicePicker';
 import './group.css';
 
-export { ServiceEditor } from './ServicePicker';
-
 /**
  * 모임 만들기 = 「모임 스티커」 한 장 만들기.
  * 1 이름·종류 · 2 같이 드리는 예배(예배표) · 3 완성·초대.
@@ -99,8 +97,6 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
   const [name, setName] = useState('');
   const [kind, setKind] = useState<GroupKind>('church');
   const [myName, setMyName] = useState(defaultName);
-  const [meetDow, setMeetDow] = useState<number | null>(null);
-  const [meetTime, setMeetTime] = useState('19:00');
   const [services, setServices] = useState<GroupService[]>(() =>
     SERVICE_PRESETS.map((s) => ({ ...s })),
   );
@@ -121,7 +117,6 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
     setName('');
     setKind('church');
     setMyName(defaultName);
-    setMeetDow(null);
     setServices(SERVICE_PRESETS.map((s) => ({ ...s, slots: s.slots.map((x) => ({ ...x })) })));
     setEditing(null);
     setApproval(true);
@@ -141,6 +136,24 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
     return weekSlots(fake, ws);
   }, [services]);
 
+  /** 오른쪽 「한 주 동안」 — 요일·예배마다 한 줄, 시각은 모두 ("일 9:00 · 11:00 · 주일 설교") */
+  const weekRows = useMemo(() => {
+    const rows: Array<{ key: string; label: string; tone: 1 | 2 }> = [];
+    for (let d = 0; d < 7; d++) {
+      services.forEach((s, i) => {
+        if (!s.active) return;
+        const times = [...new Set(s.slots.filter((x) => x.dow === d).map((x) => x.start))].sort();
+        if (!times.length) return;
+        rows.push({
+          key: `${d}-${s.id}`,
+          label: `${DOW_KO[d]} ${times.map((t) => t.replace(/^0/, '')).join(' · ')} · ${s.name}`,
+          tone: i % 2 === 0 ? 1 : 2,
+        });
+      });
+    }
+    return rows;
+  }, [services]);
+
   const canNext1 = name.trim().length > 0 && myName.trim().length > 0;
   const activeCount = services.filter((s) => s.active).length;
 
@@ -157,8 +170,6 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
       const g = await sermonGroupAPI.create({
         name: name.trim().slice(0, 60),
         kind,
-        meet_dow: meetDow,
-        meet_time: meetDow == null ? null : meetTime,
         services: services.map((s) => ({ ...s, name: s.name.trim().slice(0, 20) || '예배' })),
         join_approval: approval,
         display_name: myName.trim().slice(0, 20),
@@ -190,9 +201,7 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
   const stickerName = (created?.name ?? name).trim();
   const stickerSub =
     step === 1
-      ? meetDow == null
-        ? `${myName.trim() || '나'} · 1명`
-        : `매주 ${DOW_KO[meetDow]} ${meetTime}`
+      ? `${myName.trim() || '나'} · 1명`
       : activeCount
         ? services
             .filter((s) => s.active)
@@ -274,14 +283,13 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
           {step < 3 && (
             <div className="sg-wk">
               <small>다 만들면 「한 주 동안」에 이렇게 놓여요</small>
-              {preview.slice(0, 3).map((p) => (
-                <span key={`${p.service.id}${p.date}`} className="sg-wk-slot">
+              {weekRows.slice(0, 4).map((r) => (
+                <span key={r.key} className="sg-wk-slot" data-tone={r.tone}>
                   <i />
-                  {DOW_KO[new Date(`${p.date}T00:00:00`).getDay()]} {p.start.replace(/^0/, '')} ·{' '}
-                  {p.service.name}
+                  {r.label}
                 </span>
               ))}
-              {preview.length > 3 && <span className="sg-wk-more">+{preview.length - 3}</span>}
+              {weekRows.length > 4 && <span className="sg-wk-more">+{weekRows.length - 4}</span>}
             </div>
           )}
         </div>
@@ -352,52 +360,6 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
                     onChange={(e) => setMyName(e.target.value)}
                   />
                 </label>
-              </div>
-              <div className="sg-mf">
-                <span className="sg-lb" id="sg-day-l">
-                  정해진 모임 요일이 있나요?<small>없으면 비워 두세요</small>
-                </span>
-                <div className="sg-days" role="group" aria-labelledby="sg-day-l">
-                  {[...DOW_KO].map((d, i) => (
-                    <button
-                      key={d}
-                      type="button"
-                      className="sg-day"
-                      data-sun={i === 0 || undefined}
-                      aria-pressed={meetDow === i}
-                      aria-label={`${d}요일`}
-                      onClick={() => {
-                        setMeetDow(meetDow === i ? null : i);
-                        poke();
-                      }}
-                    >
-                      {d}
-                    </button>
-                  ))}
-                </div>
-                <div className="sg-dayrow" data-open={meetDow != null || undefined}>
-                  <div>
-                    <span>매주 {meetDow != null ? DOW_KO[meetDow] : ''}요일</span>
-                    <input
-                      type="time"
-                      aria-label="모이는 시간"
-                      value={meetTime}
-                      tabIndex={meetDow == null ? -1 : undefined}
-                      onChange={(e) => setMeetTime(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className="sg-link-btn"
-                      tabIndex={meetDow == null ? -1 : undefined}
-                      onClick={() => {
-                        setMeetDow(null);
-                        poke();
-                      }}
-                    >
-                      요일 지우기
-                    </button>
-                  </div>
-                </div>
               </div>
             </>
           )}

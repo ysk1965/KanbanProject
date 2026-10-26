@@ -123,7 +123,8 @@ class ChallengeFlowTest {
     // ───────────────── 적립 규칙 ─────────────────
 
     @Test
-    @DisplayName("노트 적립 → 같은 내용 재저장은 중복 없음 → 적용 2개 상한 → 실천 12시간 → 완주 → 체크 해제 상쇄 → 재적립 → 갈피 → 삭제 전부 상쇄")
+    @DisplayName(
+            "노트 적립 → 같은 내용 재저장은 중복 없음 → 적용 2개 상한 → 실천 12시간 → 완주 → 체크 해제 상쇄 → 재적립 → 갈피는 적립 없음(예전 갈피는 유지) → 삭제 전부 상쇄")
     void noteLifecycle() {
         String u = newUser();
         Map<String, Object> note = note("2026-10-25", BODY_120);
@@ -195,11 +196,31 @@ class ChallengeFlowTest {
                 .extracting(TalentLedger::getAmount)
                 .containsExactly(10, -10, 10);
 
-        // 갈피 +5
+        // 갈피는 달란트 없음 — 뺀 주(0)도, 직접 꽂아도
+        note.put("bookmarked_at", 0L);
+        patch(u, docId, note);
+        assertThat(balance(u)).isEqualTo(56);
         note.put("bookmarked_at", WED_NOON.toEpochMilli());
         patch(u, docId, note);
+        assertThat(balance(u)).isEqualTo(56);
+
+        // 폐지 전에 받은 갈피 +5 는 다시 저장해도 상쇄하지 않는다 (삭제 때만)
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(tx -> ledgerService.award(
+                        ledgerService.lockWallet(u),
+                        TalentLedgerService.Award.builder()
+                                .userId(u)
+                                .reason(TalentReason.GALPI)
+                                .key("galpi:2026-10-25")
+                                .amount(5)
+                                .sourceId(docId)
+                                .label("갈피")
+                                .week(clock.currentWeek())
+                                .countsForRank(true)
+                                .build()));
+        note.put("bookmarked_at", null);
+        patch(u, docId, note);
         assertThat(balance(u)).isEqualTo(61);
-        assertThat(weekTalents(u)).isEqualTo(61);
 
         // 삭제 → 모두 상쇄
         docService.delete(u, "sermon", docId);

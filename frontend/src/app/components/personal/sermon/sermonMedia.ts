@@ -1,10 +1,14 @@
 import { myStorageAPI } from '../../../utils/api';
-import type { ThoughtMedia } from './sermonTypes';
+import { sermonMediaQueue } from './sermonMediaQueue';
+import { isLocalId, type ThoughtMedia } from './sermonTypes';
 
 /**
  * 내 생각 첨부(사진·영상) — 기획서 §6.
  * 파일은 「내 스토리지」의 '설교 노트' 폴더에 올리고, 노트에는 파일 id 와 URL 만 남긴다.
  * 사진은 긴 변 2048px JPEG 로 줄이고, 영상은 MP4·WebM 20MB 이하만 받는다.
+ *
+ * 오프라인이거나 연결 문제로 못 올리면 attachMedia 가 파일을 기기 대기열(sermonMediaQueue)에 넣고
+ * `local-` 첨부로 돌려준다. 실제 업로드는 저장소 flush 가 한다 (uploadPreparedMedia).
  */
 
 export const MEDIA_MAX_BYTES = 20 * 1024 * 1024;
@@ -33,7 +37,13 @@ async function ensureFolder(): Promise<string | null> {
 }
 
 export type MediaError =
-  'unsupported_type' | 'video_format' | 'too_large' | 'offline' | 'upload_failed';
+  | 'unsupported_type'
+  | 'video_format'
+  | 'too_large'
+  | 'offline'
+  | 'upload_failed'
+  /** 서버가 받지 않음(4xx: 스토리지 용량 등) — 다시 시도해도 안 된다 */
+  | 'rejected';
 
 export class MediaUploadError extends Error {
   constructor(public code: MediaError) {
@@ -51,6 +61,8 @@ export function mediaErrorMessage(code: MediaError): string {
       return '파일이 너무 커요. 20MB 이하로 올려주세요';
     case 'offline':
       return '인터넷에 연결되면 사진·영상을 첨부할 수 있어요';
+    case 'rejected':
+      return '첨부를 받을 수 없어요. 내 스토리지 공간을 확인해 주세요';
     default:
       return '첨부를 올리지 못했어요. 다시 시도해 주세요';
   }
@@ -95,22 +107,72 @@ async function shrinkImage(file: File): Promise<File> {
   return file;
 }
 
-export async function uploadMedia(file: File): Promise<ThoughtMedia> {
+/** 올리기 실패를 분류: 연결 끊김 → offline, 서버가 거절(4xx) → rejected, 그 밖 → upload_failed */
+function failCode(e: unknown): MediaError {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'offline';
+  const st = (e as { status?: number } | null)?.status;
+  if (typeof st === 'number' && st >= 400 && st < 500 && st !== 401 && st !== 408 && st !== 429)
+    return 'rejected';
+  return 'upload_failed';
+}
+
+/** 형식·크기 검사 + 사진 줄이기. 올리기 전에 한 번만 */
+export async function prepareMedia(file: File): Promise<{ file: File; type: 'image' | 'video' }> {
   const type = classifyFile(file);
+  const prepared = type === 'image' ? await shrinkImage(file) : file;
+  if (prepared.size > MEDIA_MAX_BYTES) throw new MediaUploadError('too_large');
+  return { file: prepared, type };
+}
+
+/** 준비된(prepareMedia) 파일을 내 스토리지에 올린다 */
+export async function uploadPreparedMedia(
+  file: File,
+  type: 'image' | 'video',
+): Promise<ThoughtMedia> {
+  if (file.size > MEDIA_MAX_BYTES) throw new MediaUploadError('too_large');
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     throw new MediaUploadError('offline');
   }
-  const prepared = type === 'image' ? await shrinkImage(file) : file;
-  if (prepared.size > MEDIA_MAX_BYTES) throw new MediaUploadError('too_large');
   const folderId = await ensureFolder();
   try {
-    const item = await myStorageAPI.uploadFile(prepared, folderId);
+    const item = await myStorageAPI.uploadFile(file, folderId);
     return { id: item.id, type, url: item.url, thumb: item.thumbnail_url };
   } catch (e) {
     console.error('sermon: upload failed', e);
-    throw new MediaUploadError(
-      typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'upload_failed',
-    );
+    throw new MediaUploadError(failCode(e));
+  }
+}
+
+export async function uploadMedia(file: File): Promise<ThoughtMedia> {
+  const p = await prepareMedia(file);
+  return uploadPreparedMedia(p.file, p.type);
+}
+
+/**
+ * 생각에 붙이기: 연결돼 있으면 바로 올리고, 오프라인·연결 실패면 기기 대기열에 넣어
+ * `local-` 첨부로 돌려준다(queued=true). 형식·크기·서버 거절은 MediaUploadError 로 던진다.
+ */
+export async function attachMedia(
+  file: File,
+  owner: string,
+): Promise<{ media: ThoughtMedia; queued: boolean }> {
+  const p = await prepareMedia(file);
+  const queue = async () => ({
+    media: await sermonMediaQueue.put(owner, p.file, p.type, p.file.name),
+    queued: true,
+  });
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return queue();
+  try {
+    return { media: await uploadPreparedMedia(p.file, p.type), queued: false };
+  } catch (e) {
+    if (e instanceof MediaUploadError && (e.code === 'offline' || e.code === 'upload_failed')) {
+      try {
+        return await queue();
+      } catch (qe) {
+        console.warn('sermon: media queue failed', qe);
+      }
+    }
+    throw e;
   }
 }
 
@@ -131,13 +193,20 @@ export async function uploadAudio(
     return { id: item.id, url: item.url };
   } catch (e) {
     console.error('sermon: audio upload failed', e);
-    throw new MediaUploadError(
-      typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'upload_failed',
-    );
+    const code = failCode(e);
+    // 녹음은 거절돼도 기기에 남겨 두고 다시 시도한다 (예전과 같음)
+    throw new MediaUploadError(code === 'rejected' ? 'upload_failed' : code);
   }
 }
 
 export function deleteMedia(id: string) {
+  if (isLocalId(id)) {
+    // 아직 안 올린 첨부 — 기기 대기열에서 빼고, 이번 창에서 이미 올라갔으면 그 파일도 지운다
+    void sermonMediaQueue.remove(id).catch(() => {});
+    const up = sermonMediaQueue.uploaded(id);
+    if (up && !isLocalId(up.id)) deleteMedia(up.id);
+    return;
+  }
   myStorageAPI.deleteFile(id).catch(() => {
     /* 이미 지워졌거나 오프라인 — 조용히 넘어간다 */
   });

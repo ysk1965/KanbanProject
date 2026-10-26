@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../../../contexts/AuthContext';
 import { UserMenu } from '../../UserMenu';
 import { ANONYMOUS_USER, SermonStore } from './sermonStore';
+import { kickVersionUploads } from './sermonVersions';
 import { SermonList } from './SermonList';
 import { SermonEditor } from './SermonEditor';
 import { applyStyle, loadStyle, persistStyle, type SermonStyle } from './sermonStyle';
@@ -259,6 +260,11 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
       store.dispose();
     };
   }, [store]);
+
+  // 지난번에 서버로 못 올린 버전 기록이 있으면 올린다 (익명은 안 함)
+  useEffect(() => {
+    kickVersionUploads(userId);
+  }, [userId]);
 
   // 서식 설정 → CSS 변수
   useEffect(() => {

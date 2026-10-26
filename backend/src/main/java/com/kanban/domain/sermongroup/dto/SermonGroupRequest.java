@@ -11,7 +11,7 @@ import lombok.Setter;
 /**
  * 모임 API 요청 본문. 검증은 서비스가 SG010 으로 한다(@Valid 의 C001 과 섞지 않는다).
  *
- * <p>PATCH /sermon-groups/{id} 는 null 로 지우기(meet_dow · meet_time)가 있어 JsonNode 로 받는다 — 여기 없음.
+ * <p>PATCH /sermon-groups/{id} 는 본문에 있는 키만 바꾸려고 JsonNode 로 받는다 — 여기 없음.
  */
 public class SermonGroupRequest {
 
@@ -21,8 +21,6 @@ public class SermonGroupRequest {
     public static class Create {
         private String name;
         private String kind;
-        private Integer meetDow;
-        private String meetTime;
         private List<Map<String, Object>> services;
         private Boolean joinApproval;
         private String displayName;

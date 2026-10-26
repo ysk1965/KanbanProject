@@ -322,7 +322,7 @@ public enum ErrorCode {
     PERSONAL_FEATURE_DOC_NOT_FOUND(HttpStatus.NOT_FOUND, "PF001", "문서를 찾을 수 없습니다"),
     PERSONAL_FEATURE_UNKNOWN(HttpStatus.NOT_FOUND, "PF002", "알 수 없는 기능입니다"),
     PERSONAL_FEATURE_CONTENT_TOO_LARGE(HttpStatus.BAD_REQUEST, "PF003", "문서 내용이 256KB를 초과합니다"),
-    PERSONAL_FEATURE_DOC_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "PF004", "기능당 문서는 최대 200개까지 만들 수 있습니다"),
+    PERSONAL_FEATURE_DOC_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "PF004", "문서를 더 만들 수 없습니다 (기능별 개수 상한)"),
 
     // Custom Icon
     CUSTOMICON_REFERENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "CI001", "레퍼런스 이미지를 찾을 수 없습니다"),
@@ -523,6 +523,10 @@ public enum ErrorCode {
     // 설교 노트 나의 갈피 (이름표)
     SERMON_PROFILE_INVALID_INPUT(HttpStatus.BAD_REQUEST, "SPF001", "이름표 입력값을 확인해 주세요"),
     SERMON_PROFILE_NOT_VISIBLE(HttpStatus.NOT_FOUND, "SPF002", "이 이름표는 볼 수 없습니다"),
+
+    // 설교 노트 버전 기록
+    SERMON_NOTE_VERSION_NOT_FOUND(HttpStatus.NOT_FOUND, "SNV001", "노트 버전을 찾을 수 없습니다"),
+    SERMON_NOTE_VERSION_INVALID(HttpStatus.BAD_REQUEST, "SNV002", "노트 버전 입력값을 확인해 주세요"),
 
     // 설교 노트 성경 읽기 형광펜
     SERMON_HIGHLIGHT_INVALID_INPUT(HttpStatus.BAD_REQUEST, "SHL001", "형광펜 입력값을 확인해 주세요"),

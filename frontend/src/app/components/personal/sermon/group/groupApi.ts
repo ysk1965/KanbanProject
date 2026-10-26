@@ -43,8 +43,6 @@ export interface SermonGroup {
   id: string;
   name: string;
   kind: GroupKind;
-  meet_dow?: number | null;
-  meet_time?: string | null;
   services: GroupService[];
   join_approval: boolean;
   invite_code?: string | null;
@@ -129,8 +127,6 @@ export interface InvitePreview {
   group_id: string;
   name: string;
   kind: GroupKind;
-  meet_dow?: number | null;
-  meet_time?: string | null;
   services: GroupService[];
   leader_name?: string | null;
   member_count: number;
@@ -149,8 +145,6 @@ export interface InvitePreview {
 export interface CreateGroupBody {
   name: string;
   kind: GroupKind;
-  meet_dow: number | null;
-  meet_time: string | null;
   services: GroupService[];
   join_approval: boolean;
   display_name: string;
@@ -175,9 +169,7 @@ export const sermonGroupAPI = {
   get: (id: string) => apiClient.get<SermonGroup>(`${G}/${id}`),
   update: (
     id: string,
-    body: Partial<
-      Pick<SermonGroup, 'name' | 'kind' | 'meet_dow' | 'meet_time' | 'services' | 'join_approval'>
-    >,
+    body: Partial<Pick<SermonGroup, 'name' | 'kind' | 'services' | 'join_approval'>>,
   ) => apiClient.patch<SermonGroup>(`${G}/${id}`, body),
   remove: (id: string) => apiClient.delete<void>(`${G}/${id}`),
   renewInvite: (id: string, expires_days: 7 | 30 | null) =>

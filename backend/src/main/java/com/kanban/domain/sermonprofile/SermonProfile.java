@@ -54,6 +54,14 @@ public class SermonProfile {
     @Builder.Default
     private List<Map<String, Object>> pins = new ArrayList<>();
 
+    /** 자동 갈피(예배 시간에 노트를 열면 그 예배로 갈피를 꽂기) — null = 정한 적 없음 (응답은 true) */
+    @Column(name = "galpi_auto")
+    private Boolean galpiAuto;
+
+    /** 자동 갈피가 고르는 예배 (클라이언트 예배표 id/이름) — null = 고르지 않음 */
+    @Column(name = "galpi_service", length = 60)
+    private String galpiService;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -82,6 +90,12 @@ public class SermonProfile {
         this.verseStyle = verseStyle;
         this.visibility = visibility;
         this.pins = pins;
+        this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    public void updateGalpi(Boolean galpiAuto, String galpiService) {
+        this.galpiAuto = galpiAuto;
+        this.galpiService = galpiService;
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 }

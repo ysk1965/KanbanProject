@@ -13,7 +13,7 @@ import { startPath } from '../share/shareModel';
 import { groupErrorMessage, sermonGroupAPI, type InvitePreview } from './groupApi';
 import { groupStoreFor } from './groupStore';
 import { GroupSticker, stickerTilt, stickerTone } from './GroupSticker';
-import { DOW_KO, kindName, meetLabel, slotsLabel } from './servicePresets';
+import { DOW_KO, kindName, slotsLabel } from './servicePresets';
 import '../sermon.css';
 import './group.css';
 
@@ -157,11 +157,6 @@ export default function GroupJoinPage() {
                       {s.name}
                     </span>
                   ))}
-                {preview.meet_dow != null && (
-                  <span className="sg-tagchip" data-tone="2">
-                    {meetLabel(preview.meet_dow, preview.meet_time)} 모임
-                  </span>
-                )}
               </div>
             </section>
 

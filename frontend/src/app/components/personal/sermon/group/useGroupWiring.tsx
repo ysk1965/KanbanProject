@@ -247,6 +247,20 @@ export function useGroupWiring({
       if ((n.groups || []).length) syncNoteShares(gstore, n, onLinked);
     });
   }, [notes, anonymous, gstore, onLinked]);
+  // 못 보낸 사본 작업 다시 보내기 (앱 시작·online·4초→60초) — 최신 노트 내용은 노트 저장소에서 읽는다
+  useEffect(() => {
+    if (anonymous) return;
+    return gstore.attachNotes({
+      get: (id) => store.get(id),
+      ready: () => !store.status.loading && !store.status.restoring,
+      settled: () => !store.status.loading && store.status.pending === 0,
+      onLinked,
+    });
+  }, [anonymous, gstore, store, onLinked]);
+  useEffect(() => {
+    if (anonymous) return;
+    return store.onRemap((from, to) => gstore.remapShares(from, to));
+  }, [anonymous, gstore, store]);
 
   /* ── 참여 직후: 지난 노트 데려오기 ── */
   useEffect(() => {
@@ -307,7 +321,7 @@ export function useGroupWiring({
       const cur = store.get(openNote.id);
       if (!cur) return;
       const old = (cur.groups || []).find((l) => l.group_id === s.group_id);
-      if (old) void removeShare(old);
+      if (old && old.session_id !== s.session.id) void removeShare(gstore, old, cur.id);
       const groups = [
         ...(cur.groups || []).filter((l) => l.group_id !== s.group_id),
         {
@@ -321,7 +335,7 @@ export function useGroupWiring({
       store.saveLinks(cur.id, { groups, group_dismissed: cur.group_dismissed });
       toast('같은 설교 자리에 붙였어요');
     },
-    [openNote, store],
+    [openNote, store, gstore],
   );
   const dismiss = useCallback(
     (s: Suggestion) => {

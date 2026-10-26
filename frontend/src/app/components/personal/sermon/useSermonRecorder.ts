@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AUDIO_MAX_BYTES } from './sermonMedia';
 import { sermonAudioStore } from './sermonAudioStore';
-import { LOCAL_ID_PREFIX, uid } from './sermonTypes';
+import { localFileId } from './sermonTypes';
 
 /**
  * 설교 녹음 — 타이머와 같은 시계를 쓴다.
@@ -213,7 +213,7 @@ export function useSermonRecorder(cb: RecorderCallbacks) {
     }
     const offset = cbRef.current.getElapsed();
     const seg: LiveSeg = {
-      id: LOCAL_ID_PREFIX + uid('a'),
+      id: localFileId('a'),
       mime: rec.mimeType || mime || 'audio/webm',
       offset,
       seq: 0,

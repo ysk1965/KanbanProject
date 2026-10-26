@@ -23,6 +23,7 @@ vi.mock('./sermonMedia', () => ({
   MediaUploadError: class extends Error {},
   deleteMedia: vi.fn(),
   uploadAudio: vi.fn(),
+  uploadPreparedMedia: vi.fn(),
 }));
 
 import { SermonStore } from './sermonStore';

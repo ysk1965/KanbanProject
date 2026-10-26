@@ -21,7 +21,7 @@ import { GroupSticker, stickerTilt, stickerTone } from './GroupSticker';
 import { ServicePicker } from './ServicePicker';
 import { inviteUrl, shareInvite } from './inviteLink';
 import { faceColor, initial, josa, useWeek, type GroupStore } from './groupStore';
-import { DOW_KO, kindName, meetLabel } from './servicePresets';
+import { DOW_KO, kindName } from './servicePresets';
 import { slotPhase, weekSlots, weekStartOf, ymdLocal } from './sessionMatch';
 import './group.css';
 
@@ -147,9 +147,6 @@ export function GroupHome({ store, groupId, notes, onOpenSession, onStartInSlot,
               <span className="sg-tagchip" data-off>
                 예배표 없음
               </span>
-            )}
-            {group.meet_dow != null && (
-              <span className="sg-tagchip">{meetLabel(group.meet_dow, group.meet_time)} 모임</span>
             )}
             {group.me.status === 'active' && (
               <span className="sg-tagchip" data-tone="2">

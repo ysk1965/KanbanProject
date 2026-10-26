@@ -19,4 +19,9 @@ public interface SermonNoteShareRepository extends JpaRepository<SermonNoteShare
     @Modifying
     @Query("DELETE FROM SermonNoteShare s WHERE s.groupId = :groupId AND s.userId = :userId")
     int deleteByGroupAndUser(@Param("groupId") String groupId, @Param("userId") String userId);
+
+    /** 노트를 지울 때 — 그 노트로 올린 내 공개 사본 (모든 모임) */
+    @Modifying
+    @Query("DELETE FROM SermonNoteShare s WHERE s.userId = :userId AND s.noteId = :noteId")
+    int deleteByUserAndNote(@Param("userId") String userId, @Param("noteId") String noteId);
 }

@@ -3,9 +3,18 @@ import { ArrowLeft, ArrowRight, Loader2, Search, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SnOverlay } from '../SnOverlay';
 import { SnSheetBar } from '../SnSheetBar';
-import { refShort } from '../bibleRefs';
+import { refLong, refShort } from '../bibleRefs';
+import { Mascot } from '../Mascot';
 import { INKS, type MascotId } from '../sermonLook';
-import { fmtDate, mainRef, noteRefs, plainText, UNTITLED, type SermonNote } from '../sermonTypes';
+import {
+  fmtDate,
+  mainRef,
+  noteRefs,
+  plainText,
+  UNTITLED,
+  weekOf,
+  type SermonNote,
+} from '../sermonTypes';
 import { CARD_BRAND } from '../share/ShareCard';
 import { cardShareText, cardUrl, coverData } from '../share/shareModel';
 import {
@@ -18,6 +27,7 @@ import {
 } from '../share/shareImage';
 import { PolaroidCover } from './Polaroid';
 import {
+  coverInkFor,
   MAX_PINS,
   movePin,
   PATTERNS,
@@ -28,7 +38,8 @@ import {
 import type { SermonProfileState } from './useSermonProfile';
 
 /**
- * 고정 노트 창. 빈 자리에서 열면 「노트 고르기」 → 고르면 바로 「카드 꾸미기」.
+ * 고정 노트 창. 빈 자리에서 열면 「스티커 판」 — 위에 고정 자리 3칸, 아래 노트 표지를 주 단위로 깔아 둔다.
+ * 한 장을 누르면 가름끈이 내려오고 다음 빈 자리에 미리 붙는다 → 「이 노트로 꾸미기」로 확정하면 「카드 꾸미기」.
  * 꾸미기는 고치는 즉시 이름표에 반영된다(따로 저장 버튼 없음).
  */
 export function PinSheet({
@@ -48,6 +59,8 @@ export function PinSheet({
   onClose: () => void;
 }) {
   const [picked, setPicked] = useState<string | null>(null);
+  /** 스티커 판에서 고른(아직 안 꽂은) 노트 */
+  const [sel, setSel] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [sharing, setSharing] = useState(false);
   const shotRef = useRef<HTMLDivElement>(null);
@@ -78,10 +91,23 @@ export function PinSheet({
       .sort((a, b) => (b.date || '').localeCompare(a.date || '') || b.updated_at - a.updated_at)
       .slice(0, 60);
   }, [notes, pins, q]);
+  const weeks = useMemo(() => groupByWeek(candidates), [candidates]);
+  const dupKeys = useMemo(() => untitledDupes(notes), [notes]);
+  const used = pins.map((p) => p.ink);
+  /** 고르기 미리보기용 — 꽂으면 togglePinList 가 만드는 것과 같은 표지 */
+  const previewPin = (noteId: string): ProfilePin => ({
+    note_id: noteId,
+    ink: coverInkFor(noteId, used),
+    pattern: 'dots',
+    sticker: 'mascot',
+  });
+  const selNote = sel ? notes.find((n) => n.id === sel) : undefined;
+  const full = pins.length >= MAX_PINS;
   const lines = useMemo(() => (note ? pinLineSuggestions(note) : []), [note]);
 
   const close = () => {
     setPicked(null);
+    setSel(null);
     setQ('');
     onClose();
   };
@@ -96,7 +122,15 @@ export function PinSheet({
       toast(`고정은 ${MAX_PINS}장까지예요. 카드 하나를 먼저 내려놓아 주세요`);
       return;
     }
+    setSel(null);
     setPicked(noteId);
+  };
+  const tap = (noteId: string) => {
+    if (full) {
+      toast(`고정은 ${MAX_PINS}장까지예요. 카드 하나를 먼저 내려놓아 주세요`);
+      return;
+    }
+    setSel((cur) => (cur === noteId ? null : noteId));
   };
 
   /** 꾸민 카드를 그대로 이미지로 — 파일 공유를 못 하는 브라우저는 저장 + 링크 복사 */
@@ -280,6 +314,49 @@ export function PinSheet({
         </div>
       ) : (
         <div className="snp-sbody snp-pick">
+          <div className="snp-board-say">
+            <Mascot kind={mascot} state={sel ? 'done' : 'idle'} size={34} />
+            <span>
+              {full
+                ? '세 자리가 다 찼어요'
+                : sel
+                  ? `${pins.length + 1}번 자리에 붙여 봤어요`
+                  : `${pins.length + 1}번 자리가 비어 있어요`}
+            </span>
+          </div>
+          <ol className="snp-slots" aria-label="고정 자리">
+            {Array.from({ length: MAX_PINS }, (_, i) => {
+              const p = pins[i];
+              const pn = p && notes.find((n) => n.id === p.note_id);
+              const next = i === pins.length;
+              if (pn) {
+                return (
+                  <li key={i} className="snp-slot snp-slot-on" data-i={i}>
+                    <SlotCard pin={p} note={pn} mascot={mascot} dupKeys={dupKeys} />
+                  </li>
+                );
+              }
+              if (next && selNote) {
+                return (
+                  <li key={i} className="snp-slot snp-slot-on snp-slot-new" data-i={i}>
+                    <SlotCard
+                      key={selNote.id}
+                      pin={previewPin(selNote.id)}
+                      note={selNote}
+                      mascot={mascot}
+                      dupKeys={dupKeys}
+                    />
+                  </li>
+                );
+              }
+              return (
+                <li key={i} className={`snp-slot${next ? ' snp-slot-next' : ''}`}>
+                  <span className="snp-slot-no">{i + 1}</span>
+                  {next ? '여기에 꽂혀요' : '빈 자리'}
+                </li>
+              );
+            })}
+          </ol>
           <label className="snp-search">
             <Search className="sn-icon" aria-hidden />
             <input
@@ -289,24 +366,39 @@ export function PinSheet({
               aria-label="노트 찾기"
             />
           </label>
-          {candidates.length ? (
-            <ul className="snp-pick-list">
-              {candidates.map((n) => {
-                const r = mainRef(n);
-                return (
-                  <li key={n.id}>
-                    <button type="button" onClick={() => choose(n.id)}>
-                      <b>{n.title || UNTITLED}</b>
-                      <span>
-                        {[fmtDate(n.date), n.service, n.preacher, r ? refShort(r) : '']
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+          {weeks.length ? (
+            weeks.map((w) => (
+              <section key={w.key} className="snp-week" aria-label={w.title}>
+                <h3 className="snp-week-h">
+                  <b>{w.title}</b>
+                  <span>{w.notes.length}편</span>
+                </h3>
+                <div className="snp-board">
+                  {w.notes.map((n) => {
+                    const t = displayTitle(n, dupKeys);
+                    const meta = [fmtDate(n.date), n.service, n.preacher]
+                      .filter(Boolean)
+                      .join(' · ');
+                    return (
+                      <button
+                        key={n.id}
+                        type="button"
+                        className="snp-stk"
+                        aria-pressed={sel === n.id}
+                        onClick={() => tap(n.id)}
+                      >
+                        <span className="snp-stk-rib" aria-hidden />
+                        <PolaroidCover pin={previewPin(n.id)} note={n} mascot={mascot} small />
+                        <span className={`snp-stk-t${t.fallback ? ' snp-fallback' : ''}`}>
+                          {t.text}
+                        </span>
+                        <span className="snp-stk-m">{meta}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))
           ) : (
             <p className="snp-empty">
               {notes.length ? '찾는 노트가 없어요' : '먼저 설교 노트를 한 편 써 보세요'}
@@ -315,6 +407,17 @@ export function PinSheet({
         </div>
       )}
       <SnSheetBar onClose={close}>
+        {!editing && (
+          <button
+            type="button"
+            className="sn-btn sn-primary"
+            disabled={!sel}
+            onClick={() => sel && choose(sel)}
+          >
+            이 노트로 꾸미기
+            <ArrowRight className="sn-icon" aria-hidden />
+          </button>
+        )}
         {editing && (
           <button
             type="button"
@@ -333,6 +436,85 @@ export function PinSheet({
       </SnSheetBar>
     </SnOverlay>
   );
+}
+
+/** 자리에 붙은 작은 폴라로이드 */
+function SlotCard({
+  pin,
+  note,
+  mascot,
+  dupKeys,
+}: {
+  pin: ProfilePin;
+  note: SermonNote;
+  mascot: MascotId;
+  dupKeys: Set<string>;
+}) {
+  const t = displayTitle(note, dupKeys);
+  return (
+    <span className="snp-slot-card">
+      <span className="snp-tape" aria-hidden />
+      <PolaroidCover pin={pin} note={note} mascot={mascot} small />
+      <span className={`snp-slot-t${t.fallback ? ' snp-fallback' : ''}`}>{t.text}</span>
+    </span>
+  );
+}
+
+const NTH = ['첫째', '둘째', '셋째', '넷째', '다섯째'];
+
+/** 일요일 시작 주로 묶는다 — 이름은 "10월 넷째 주"(그 주 수요일이 속한 달 기준), 날짜 없는 노트는 맨 뒤 */
+function groupByWeek(
+  list: SermonNote[],
+): Array<{ key: string; title: string; notes: SermonNote[] }> {
+  const out: Array<{ key: string; title: string; notes: SermonNote[] }> = [];
+  for (const n of list) {
+    const key = weekOf(n.date) || 'none';
+    let g = out.find((x) => x.key === key);
+    if (!g) {
+      g = { key, title: weekTitle(key), notes: [] };
+      out.push(g);
+    }
+    g.notes.push(n);
+  }
+  const i = out.findIndex((x) => x.key === 'none');
+  if (i >= 0) out.push(...out.splice(i, 1));
+  return out;
+}
+
+function weekTitle(key: string): string {
+  if (key === 'none') return '날짜 없는 노트';
+  const [y, m, d] = key.split('-').map(Number);
+  const wed = new Date(y, m - 1, d + 3);
+  return `${wed.getMonth() + 1}월 ${NTH[Math.min(4, Math.floor((wed.getDate() - 1) / 7))]} 주`;
+}
+
+const sameSlotKey = (n: SermonNote) => `${n.date || ''}|${n.service || ''}`;
+
+/** 제목 없는 노트 중 날짜·예배가 겹치는 것 — 이름 뒤에 첫 줄을 덧붙여 구분한다 */
+function untitledDupes(notes: SermonNote[]): Set<string> {
+  const seen = new Map<string, number>();
+  for (const n of notes) {
+    if (n.title?.trim() || mainRef(n)) continue;
+    const k = sameSlotKey(n);
+    seen.set(k, (seen.get(k) || 0) + 1);
+  }
+  return new Set([...seen].filter(([, c]) => c > 1).map(([k]) => k));
+}
+
+/**
+ * 제목이 비면 「제목 없음」 대신 알아볼 이름 — 설교 본문 구절 → "10월 26일 주일 2부"
+ * (같은 날·같은 예배가 여럿이면 첫 줄 20자를 덧붙임). fallback 은 흐린 명조로 그린다.
+ */
+function displayTitle(n: SermonNote, dupKeys: Set<string>): { text: string; fallback: boolean } {
+  const title = n.title?.trim();
+  if (title) return { text: title, fallback: false };
+  const r = mainRef(n);
+  if (r) return { text: refLong(r), fallback: true };
+  const [, m, d] = (n.date || '').split('-').map(Number);
+  const base = [m && d ? `${m}월 ${d}일` : '', n.service].filter(Boolean).join(' ') || UNTITLED;
+  if (!dupKeys.has(sameSlotKey(n))) return { text: base, fallback: true };
+  const first = clip(plainText(n.body), 20);
+  return { text: first ? `${base} · ${first}` : base, fallback: true };
 }
 
 function clip(t: string, max: number): string {

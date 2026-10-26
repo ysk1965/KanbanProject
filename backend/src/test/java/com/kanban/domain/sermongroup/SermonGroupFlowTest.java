@@ -104,10 +104,9 @@ class SermonGroupFlowTest {
         assertThat(groupService.get(minji, groupId).getInviteCode()).isNull(); // 일반 멤버에게는 코드 없음
 
         // 승인 불필요로 바꾸면 바로 active
-        JsonNode patch = objectMapper.readTree("{\"join_approval\": false, \"meet_time\": null}");
+        JsonNode patch = objectMapper.readTree("{\"join_approval\": false}");
         SermonGroupResponse.Detail patched = groupService.patch(leader, groupId, patch);
         assertThat(patched.isJoinApproval()).isFalse();
-        assertThat(patched.getMeetTime()).isNull();
         assertThat(groupService.join(jun, code, join("")).getMe().getStatus()).isEqualTo("active");
         assertThat(groupService.get(jun, groupId).getMe().getDisplayName()).isEqualTo("준"); // 비면 계정 이름
         assertCode(() -> groupService.patch(minji, groupId, patch), ErrorCode.SERMON_GROUP_LEADER_REQUIRED);
@@ -349,8 +348,6 @@ class SermonGroupFlowTest {
         SermonGroupRequest.Create req = new SermonGroupRequest.Create();
         req.setName("청년부 2모임");
         req.setKind("church");
-        req.setMeetDow(6);
-        req.setMeetTime("19:00");
         req.setJoinApproval(approval);
         req.setDisplayName("상건");
         req.setInviteExpiresDays(7);

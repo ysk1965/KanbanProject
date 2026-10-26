@@ -4,7 +4,7 @@ import { Faces } from './Faces';
 import type { SermonGroup } from './groupApi';
 import type { GroupStore } from './groupStore';
 import { useSermonGroups } from './GroupContext';
-import { dowOf, slotPhase, weekSlots, weekStartOf } from './sessionMatch';
+import { slotPhase, weekSlots, weekStartOf } from './sessionMatch';
 import './group.css';
 
 /**
@@ -84,15 +84,6 @@ export function GroupDaySlots({ date, notes }: { date: string; notes: SermonNote
           {label}
           {people.length > 0 && <Faces people={people} max={3} size={20} />}
         </button>,
-      );
-    }
-    if (g.meet_dow != null && dowOf(date) === g.meet_dow) {
-      out.push(
-        <span key={`${g.id}|meet`} className="sg-slot" data-meet>
-          {g.meet_time && <span className="sg-tm">{g.meet_time}</span>}
-          {g.name}
-          <small>모이는 날</small>
-        </span>,
       );
     }
   }

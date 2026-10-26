@@ -35,13 +35,6 @@ public class SermonGroup extends BaseTimeEntity {
     @Column(name = "kind", nullable = false, length = 20)
     private String kind;
 
-    /** 모이는 요일 0=일 … 6=토 */
-    @Column(name = "meet_dow")
-    private Integer meetDow;
-
-    @Column(name = "meet_time", length = 5)
-    private String meetTime;
-
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "services", nullable = false)
     @Builder.Default
@@ -77,14 +70,6 @@ public class SermonGroup extends BaseTimeEntity {
 
     public void updateKind(String kind) {
         this.kind = kind;
-    }
-
-    public void updateMeetDow(Integer meetDow) {
-        this.meetDow = meetDow;
-    }
-
-    public void updateMeetTime(String meetTime) {
-        this.meetTime = meetTime;
     }
 
     public void updateServices(List<Map<String, Object>> services) {
