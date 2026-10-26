@@ -17,7 +17,7 @@ import { WorshipSuggest } from './WorshipHomeBits';
 import { WeekPanel } from './WeekPanel';
 import { WeekServices } from './WeekServices';
 import { bookName, chapterUnit, dayLabel } from './homeFmt';
-import { useWeekPlan, weekBoard } from './weekPlan';
+import { dayEntries, dayStat, useWeekPlan, weekRaw } from './weekPlan';
 import { resolveGalpiRule, useGalpiPrefs } from './galpiPrefs';
 import { ShareSheet } from './share/ShareSheet';
 import './homeShare.css';
@@ -27,7 +27,7 @@ import './homeShare.css';
  *  - 이번 주 설교 카드(표지형): 이번 주 갈피(그 주의 중심 설교)가 있으면 그 설교, 없으면 최근 설교.
  *    그림은 장 번호만이 아니라 항상 「책 이름 + 장」을 가리킨다.
  *    카드의 다음 행동은 「공유」와 「나눈 곳」 줄 (홈에서는 갈피를 꽂고 빼지 않는다)
- *  - 한 주 동안(WeekPanel): 이번 주 할 일 판 — 설교의 「적용」 + 직접 적은 할 일(한 번 / 매일), 한 날에 ♥ 스티커
+ *  - 한 주 동안(WeekPanel): 이번 주 날짜 띠 + 고른 날의 할 일을 카테고리별로 (첫 칸 = 예배 갈피, 설교의 「적용」)
  *  - 이번 주 들은 예배(WeekServices): 이번 주 노트 카드 + 아직 안 쓴 예배 자리
  *  (모은 설교 스티커 = 스티커북은 「나의 갈피」 탭으로 옮김 — MyGalpi.tsx)
  */
@@ -97,10 +97,12 @@ export function SermonHome({ notes, mascot, onOpen, onNew, onToggleApply }: Serm
         .sort((a, b) => a.date.localeCompare(b.date) || a.created_at - b.created_at),
     [notes, dayStrs],
   );
-  const [plan, setPlan] = useWeekPlan(weekStart);
-  const board = useMemo(
-    () => weekBoard(weekNotes, plan, dayStrs, today),
-    [weekNotes, plan, dayStrs, today],
+  const planApi = useWeekPlan(weekStart);
+  // 표지 마스코트: 오늘 할 일을 다 하면 기뻐한다
+  const todayStat = useMemo(
+    () =>
+      dayStat(dayEntries(weekRaw(weekNotes, planApi.plan, dayStrs, today), today, dayStrs, today)),
+    [weekNotes, planApi.plan, dayStrs, today],
   );
   const [highlight, setHighlight] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
@@ -116,7 +118,7 @@ export function SermonHome({ notes, mascot, onOpen, onNew, onToggleApply }: Serm
               <Mascot
                 kind={mascot}
                 size={84}
-                state={board.total && !board.left ? 'done' : 'idle'}
+                state={todayStat.total && todayStat.done === todayStat.total ? 'done' : 'idle'}
               />
             </span>
             <button
@@ -202,9 +204,9 @@ export function SermonHome({ notes, mascot, onOpen, onNew, onToggleApply }: Serm
         <WeekPanel
           days={dayStrs}
           today={today}
-          board={board}
-          setPlan={setPlan}
+          api={planApi}
           notes={weekNotes}
+          galpiNote={weekGalpi ?? null}
           isGroupNote={isGroupNote}
           highlight={highlight}
           onOpen={onOpen}
