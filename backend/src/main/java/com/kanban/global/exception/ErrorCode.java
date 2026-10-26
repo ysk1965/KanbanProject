@@ -498,6 +498,24 @@ public enum ErrorCode {
     SERMON_POKE_LIMIT(HttpStatus.CONFLICT, "SG009", "같이 써요는 같은 사람에게 한 주에 한 번 보낼 수 있습니다"),
     SERMON_GROUP_INVALID_INPUT(HttpStatus.BAD_REQUEST, "SG010", "입력값을 확인해 주세요"),
 
+    // 설교 노트 챌린지 (달란트 · 게임 · 랭킹 · 교회)
+    CHALLENGE_NICKNAME_INVALID(HttpStatus.BAD_REQUEST, "CH001", "닉네임은 2~12자의 한글·영문·숫자·공백·_ 만 쓸 수 있습니다"),
+    CHALLENGE_INVALID_INPUT(HttpStatus.BAD_REQUEST, "CH002", "입력값을 확인해 주세요"),
+    TALENT_INSUFFICIENT(HttpStatus.CONFLICT, "CH003", "달란트가 부족합니다"),
+    TALENT_EXCHANGE_LIMIT(HttpStatus.CONFLICT, "CH004", "이번 달 교환 상한에 도달했습니다"),
+    CHURCH_CHANGE_TOO_SOON(HttpStatus.CONFLICT, "CH005", "교회는 30일에 한 번 바꿀 수 있습니다"),
+    GAME_RUN_NOT_FOUND(HttpStatus.NOT_FOUND, "CH006", "게임 판을 찾을 수 없거나 이미 끝났습니다"),
+    CHURCH_NOT_FOUND(HttpStatus.NOT_FOUND, "CH007", "교회를 찾을 수 없습니다"),
+
+    // 설교 노트 나의 갈피 (이름표)
+    SERMON_PROFILE_INVALID_INPUT(HttpStatus.BAD_REQUEST, "SPF001", "이름표 입력값을 확인해 주세요"),
+    SERMON_PROFILE_NOT_VISIBLE(HttpStatus.NOT_FOUND, "SPF002", "이 이름표는 볼 수 없습니다"),
+
+    // 설교 노트 성경 읽기 형광펜
+    SERMON_HIGHLIGHT_INVALID_INPUT(HttpStatus.BAD_REQUEST, "SHL001", "형광펜 입력값을 확인해 주세요"),
+    SERMON_HIGHLIGHT_NOT_FOUND(HttpStatus.NOT_FOUND, "SHL002", "형광펜을 찾을 수 없습니다"),
+    SERMON_HIGHLIGHT_LIMIT(HttpStatus.CONFLICT, "SHL003", "형광펜은 5,000개까지 칠할 수 있습니다"),
+
     // Image Vote
     IMAGE_VOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "IV001", "투표를 찾을 수 없습니다");
 

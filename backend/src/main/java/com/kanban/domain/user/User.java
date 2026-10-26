@@ -108,6 +108,14 @@ public class User extends BaseTimeEntity {
     @Column(name = "personal_credits_reset_date")
     private LocalDateTime personalCreditsResetDate;
 
+    /** 달란트로 바꾼 리워드 크레딧. 만료되면 없는 것으로 본다(소비 순서: 월 무료 → 리워드 → 구매). */
+    @Column(name = "personal_reward_credits")
+    @Builder.Default
+    private Integer personalRewardCredits = 0;
+
+    @Column(name = "personal_reward_expires_at")
+    private LocalDateTime personalRewardExpiresAt;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -200,11 +208,27 @@ public class User extends BaseTimeEntity {
         if (this.personalAiCredits == null) this.personalAiCredits = 30;
         if (this.personalCreditsUsed == null) this.personalCreditsUsed = 0;
         if (this.personalPurchasedCredits == null) this.personalPurchasedCredits = 0;
+        if (this.personalRewardCredits == null) this.personalRewardCredits = 0;
     }
 
     public int getPersonalAvailableCredits() {
         int purchased = personalPurchasedCredits != null ? personalPurchasedCredits : 0;
-        return Math.max(0, personalAiCredits - personalCreditsUsed) + purchased;
+        return Math.max(0, personalAiCredits - personalCreditsUsed) + getActivePersonalRewardCredits() + purchased;
+    }
+
+    /** 만료 전 리워드 크레딧 (만료됐으면 0) */
+    public int getActivePersonalRewardCredits() {
+        if (personalRewardCredits == null || personalRewardCredits <= 0) return 0;
+        if (personalRewardExpiresAt == null || !personalRewardExpiresAt.isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
+            return 0;
+        }
+        return personalRewardCredits;
+    }
+
+    /** 리워드 크레딧 적립 — 만료된 잔여분은 버리고, 만료일은 새 값으로 (교환할 때마다 다음 달 말로 늘어난다) */
+    public void addPersonalRewardCredits(int amount, LocalDateTime expiresAt) {
+        this.personalRewardCredits = getActivePersonalRewardCredits() + amount;
+        this.personalRewardExpiresAt = expiresAt;
     }
 
     public boolean hasEnoughPersonalCredits(int required) {
@@ -212,25 +236,41 @@ public class User extends BaseTimeEntity {
     }
 
     public void consumePersonalCredits(int amount) {
-        // 월간 크레딧 먼저 소진, 부족하면 구매 크레딧 차감
+        // 월간 크레딧 → 리워드(만료 전) → 구매 크레딧 순서로 차감
         int monthlyRemaining = Math.max(0, personalAiCredits - personalCreditsUsed);
         if (monthlyRemaining >= amount) {
             this.personalCreditsUsed += amount;
-        } else {
-            // 월간 크레딧 전부 소진 + 나머지는 구매 크레딧에서
-            this.personalCreditsUsed = personalAiCredits;
-            int fromPurchased = amount - monthlyRemaining;
-            this.personalPurchasedCredits = Math.max(0, this.personalPurchasedCredits - fromPurchased);
+            return;
+        }
+        this.personalCreditsUsed = personalAiCredits;
+        int rest = amount - monthlyRemaining;
+
+        int reward = getActivePersonalRewardCredits();
+        int fromReward = Math.min(reward, rest);
+        if (fromReward > 0) {
+            this.personalRewardCredits = reward - fromReward;
+            rest -= fromReward;
+        }
+        if (rest > 0) {
+            this.personalPurchasedCredits = Math.max(0, this.personalPurchasedCredits - rest);
         }
     }
 
-    /** 차감의 역순 — 월간 사용량을 먼저 되돌리고, 남는 양은 구매 크레딧으로 */
+    /**
+     * 환불 — 월간 사용량을 먼저 되돌리고, 남는 양은 리워드(만료 전일 때만), 그다음 구매 크레딧으로. 어느 칸에서 차감했는지 기록하지 않으므로
+     * 사용자에게 가장 유리한(만료 없는 쪽이 뒤) 순서로 돌려준다.
+     */
     public void refundPersonalCredits(int amount) {
         int used = personalCreditsUsed != null ? personalCreditsUsed : 0;
         int toMonthly = Math.min(used, amount);
         this.personalCreditsUsed = used - toMonthly;
         int rest = amount - toMonthly;
-        if (rest > 0) addPersonalPurchasedCredits(rest);
+        if (rest <= 0) return;
+        if (personalRewardExpiresAt != null && personalRewardExpiresAt.isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
+            this.personalRewardCredits = getActivePersonalRewardCredits() + rest;
+            return;
+        }
+        addPersonalPurchasedCredits(rest);
     }
 
     public void addPersonalPurchasedCredits(int amount) {

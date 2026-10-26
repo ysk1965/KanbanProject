@@ -93,3 +93,51 @@ export function useFirstSeen(storageKey: string, ids: string[]): Set<string> {
 
   return fresh.current;
 }
+
+/** 앞쪽 끝이 먼저 가고 뒤쪽 끝이 따라오는 시간 — sermonNav.css .sn-tab-ind */
+const JELLY_LEAD = '220ms cubic-bezier(0.3, 1.3, 0.5, 1)';
+const JELLY_TAIL = '380ms cubic-bezier(0.3, 1.2, 0.5, 1) 90ms';
+
+/**
+ * 세로 탭 목록의 「말랑 늘어나기」 표시. 표시 요소의 top/bottom 을 따로 움직여
+ * 가는 방향 끝이 먼저 늘어나고 반대 끝이 따라온다.
+ * 첫 렌더·크기 변화(뱃지, 좁은 화면에서 돌아옴)에는 움직이지 않고 제자리로만 옮긴다.
+ */
+export function useJellyTab(active: number) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const indRef = useRef<HTMLSpanElement>(null);
+  const prev = useRef<number | null>(null);
+  const placed = useRef('');
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const ind = indRef.current;
+    if (!list || !ind) return;
+    const place = (from: number | null) => {
+      const btn = list.querySelectorAll<HTMLElement>('[role="tab"]')[active];
+      if (!btn || !list.offsetHeight) return; // 좁은 화면에서는 왼쪽 패널이 숨는다
+      const top = btn.offsetTop;
+      const bottom = list.offsetHeight - top - btn.offsetHeight;
+      const key = `${top}/${bottom}`;
+      if (key === placed.current) return;
+      placed.current = key;
+      ind.style.transition =
+        from === null || from === active || prefersReducedMotion()
+          ? 'none'
+          : active > from
+            ? `bottom ${JELLY_LEAD}, top ${JELLY_TAIL}`
+            : `top ${JELLY_LEAD}, bottom ${JELLY_TAIL}`;
+      ind.style.top = `${top}px`;
+      ind.style.bottom = `${bottom}px`;
+      ind.dataset.ready = 'true';
+    };
+    place(prev.current);
+    prev.current = active;
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => place(null));
+    ro.observe(list);
+    return () => ro.disconnect();
+  }, [active]);
+
+  return { listRef, indRef };
+}

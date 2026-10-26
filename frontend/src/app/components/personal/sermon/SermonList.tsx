@@ -1,18 +1,6 @@
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useState, useSyncExternalStore, type ComponentType, type SVGProps } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  BookOpen,
-  Bookmark,
-  Check,
-  Flag,
-  LogIn,
-  Mic,
-  NotebookPen,
-  Plus,
-  Search,
-  Users,
-  X,
-} from 'lucide-react';
+import { Check, LogIn, Mic, Plus, Search, X } from 'lucide-react';
 import { compareRef, encRef, norm, refLong, refShort, type Ref } from './bibleRefs';
 import type { SyncStatus } from './sermonStore';
 import {
@@ -36,11 +24,18 @@ function fmtMin(sec: number): string {
 }
 import { firstVerseText, useBible } from './useBible';
 import { Mascot } from './Mascot';
+import { useJellyTab } from './microFx';
+import { BibleTabIcon, ChallengeTabIcon, GroupsTabIcon, MeTabIcon, NoteTabIcon } from './TabIcons';
+import { playTabVerb } from './tabMotion';
+import { SermonBottomNav } from './SermonBottomNav';
 import { SermonHome } from './SermonHome';
 import { useSermonGroups } from './group/GroupContext';
 import { BibleReader } from './BibleReader';
+import { HighlightList } from './HighlightList';
+import { useHighlights } from './bibleHighlights';
 import { MyGalpi } from './MyGalpi';
 import { GroupsLanding } from './group/GroupsLanding';
+import { ChallengeTab, type ChallengeView } from './challenge/ChallengeTab';
 import './sermonNav.css';
 import type { MascotId } from './sermonLook';
 
@@ -86,14 +81,19 @@ function nudgeSnoozed(): boolean {
 
 export type SermonTabKey = 'note' | 'groups' | 'bible' | 'challenge' | 'me';
 type NoteView = 'home' | 'all' | 'thoughts';
-type BibleView = 'read' | 'verses';
+type BibleView = 'read' | 'verses' | 'highlights';
 
-const TABS: Array<{ k: SermonTabKey; label: string; short: string; Icon: typeof NotebookPen }> = [
-  { k: 'note', label: '설교 노트', short: '노트', Icon: NotebookPen },
-  { k: 'groups', label: '모임', short: '모임', Icon: Users },
-  { k: 'bible', label: '성경 읽기', short: '성경', Icon: BookOpen },
-  { k: 'challenge', label: '챌린지', short: '챌린지', Icon: Flag },
-  { k: 'me', label: '나의 갈피', short: '나의 갈피', Icon: Bookmark },
+const TABS: Array<{
+  k: SermonTabKey;
+  label: string;
+  short: string;
+  Icon: ComponentType<SVGProps<SVGSVGElement>>;
+}> = [
+  { k: 'note', label: '설교 노트', short: '노트', Icon: NoteTabIcon },
+  { k: 'groups', label: '모임', short: '모임', Icon: GroupsTabIcon },
+  { k: 'bible', label: '성경 읽기', short: '성경', Icon: BibleTabIcon },
+  { k: 'challenge', label: '챌린지', short: '챌린지', Icon: ChallengeTabIcon },
+  { k: 'me', label: '나의 갈피', short: '나의 갈피', Icon: MeTabIcon },
 ];
 const TAB_KEYS = new Set<string>(TABS.map((t) => t.k));
 
@@ -174,8 +174,11 @@ export function SermonList({
       : TAB_KEYS.has(tabParam)
         ? (tabParam as SermonTabKey)
         : 'note';
+  const jelly = useJellyTab(TABS.findIndex((t) => t.k === tab));
   const [noteView, setNoteView] = useState<NoteView>('home');
   const [bibleView, setBibleView] = useState<BibleView>('read');
+  const highlights = useHighlights();
+  const [challengeView, setChallengeView] = useState<ChallengeView>('home');
   const [nudgeHidden, setNudgeHidden] = useState(() => nudgeSnoozed());
   const showNudge = status.anonymous && !!onLogin && notes.length > 0 && !nudgeHidden;
   const snoozeNudge = () => {
@@ -226,6 +229,7 @@ export function SermonList({
         setQ('');
       }
       if (t === 'bible') setBibleView('read');
+      if (t === 'challenge') setChallengeView('home');
     }
     if (next.toString() !== sp.toString()) setSp(next);
   };
@@ -293,6 +297,8 @@ export function SermonList({
   let body: React.ReactNode;
   if (tab === 'bible' && bibleView === 'read') {
     body = <BibleReader notes={notes} onOpen={onOpen} mascot={mascot} />;
+  } else if (tab === 'bible' && bibleView === 'highlights') {
+    body = <HighlightList onRead={() => setBibleView('read')} />;
   } else if (tab === 'groups') {
     body = <GroupsLanding mascot={mascot} />;
   } else if (tab === 'me') {
@@ -304,7 +310,6 @@ export function SermonList({
         anonymous={status.anonymous}
         syncLine={storeTrouble ? storeNote : syncLine}
         onOpen={onOpen}
-        onOpenLook={onOpenLook}
         onLogin={onLogin}
         onGoStickers={goStickers}
       />
@@ -327,7 +332,7 @@ export function SermonList({
   } else if (tab === 'challenge') {
     const older = allApply.filter((x) => !week.includes(x) && !x.t.done);
     const done = week.filter((x) => x.t.done).length;
-    body = (
+    const applySection = (
       <>
         <div className="sn-apply-head">
           <div>
@@ -354,6 +359,16 @@ export function SermonList({
           </>
         )}
       </>
+    );
+    body = (
+      <ChallengeTab
+        view={challengeView}
+        onView={setChallengeView}
+        notes={notes}
+        anonymous={status.anonymous}
+        onLogin={onLogin}
+        applySection={applySection}
+      />
     );
   } else if (noteView === 'thoughts' && !service) {
     const rows: Array<{ n: SermonNote; t: SermonNote['thoughts'][number] }> = [];
@@ -577,10 +592,36 @@ export function SermonList({
                   on: bibleView === 'verses',
                   go: () => setBibleView('verses'),
                 },
+                {
+                  key: 'highlights',
+                  label: '내 형광펜',
+                  count: highlights.count,
+                  on: bibleView === 'highlights',
+                  go: () => setBibleView('highlights'),
+                },
               ],
             },
           ]
-        : [];
+        : tab === 'challenge'
+          ? [
+              {
+                items: [
+                  {
+                    key: 'home',
+                    label: '홈',
+                    on: challengeView !== 'ranking',
+                    go: () => setChallengeView('home'),
+                  },
+                  {
+                    key: 'ranking',
+                    label: '랭킹',
+                    on: challengeView === 'ranking',
+                    go: () => setChallengeView('ranking'),
+                  },
+                ],
+              },
+            ]
+          : [];
 
   const subChip = (it: Sub) => (
     <button key={it.key} type="button" aria-pressed={it.on} onClick={it.go}>
@@ -598,7 +639,14 @@ export function SermonList({
         <button type="button" className="sn-btn sn-primary" onClick={onNew}>
           <Plus className="sn-icon" aria-hidden />새 설교 기록
         </button>
-        <div className="sn-tabs" role="tablist" aria-orientation="vertical" aria-label="갈피 탭">
+        <div
+          ref={jelly.listRef}
+          className="sn-tabs"
+          role="tablist"
+          aria-orientation="vertical"
+          aria-label="갈피 탭"
+        >
+          <span ref={jelly.indRef} className="sn-tab-ind" aria-hidden />
           {TABS.map(({ k, label, Icon }) => {
             const badge = tabBadge(k);
             return (
@@ -606,8 +654,12 @@ export function SermonList({
                 key={k}
                 type="button"
                 role="tab"
+                data-k={k}
                 aria-selected={tab === k}
-                onClick={() => goTab(k)}
+                onClick={(e) => {
+                  if (tab !== k) playTabVerb(k, e.currentTarget.querySelector('svg'));
+                  goTab(k);
+                }}
               >
                 <Icon className="sn-icon" aria-hidden />
                 {label}
@@ -763,32 +815,11 @@ export function SermonList({
         {showFab && (
           <button type="button" className="sn-fab" aria-label="새 설교 기록" onClick={onNew}>
             <Plus aria-hidden />
+            <span>새 기록</span>
           </button>
         )}
       </main>
-      {standalone && (
-        <nav className="sn-bnav" aria-label="갈피 탭">
-          {TABS.map(({ k, short, Icon }) => {
-            const badge = tabBadge(k);
-            return (
-              <button
-                key={k}
-                type="button"
-                aria-current={tab === k ? 'page' : undefined}
-                onClick={() => goTab(k)}
-              >
-                <Icon aria-hidden />
-                {short}
-                {badge && (
-                  <span className="sn-bnav-badge" data-k={k} aria-label={badge}>
-                    {k === 'challenge' ? badge : ''}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-      )}
+      {standalone && <SermonBottomNav tabs={TABS} tab={tab} badge={tabBadge} onGo={goTab} />}
     </section>
   );
 }

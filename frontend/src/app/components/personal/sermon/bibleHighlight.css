@@ -1,0 +1,313 @@
+/* 성경 읽기 「형광펜」 — BibleReader · HighlightBubble · HighlightList. 토큰은 sermon.css(--sn-*) */
+.sermon-app .sn-bible-page {
+  position: relative;
+}
+.sermon-app .sn-bv-t {
+  cursor: text;
+}
+.sermon-app .sn-hl {
+  border-radius: 4px;
+  padding: 1px 0;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  transition: background-color 0.18s;
+}
+.sermon-app .sn-hl[data-c='yellow'] {
+  background: var(--sn-hl-yellow);
+}
+.sermon-app .sn-hl[data-c='green'] {
+  background: var(--sn-hl-green);
+}
+.sermon-app .sn-hl[data-c='blue'] {
+  background: var(--sn-hl-blue);
+}
+.sermon-app .sn-hl[data-c='pink'] {
+  background: var(--sn-hl-pink);
+}
+/* 밑줄은 inset 그림자로 — 설교 물결 밑줄(text-decoration)과 겹쳐도 둘 다 보인다 */
+.sermon-app .sn-hl[data-ul='true'] {
+  box-shadow: inset 0 -2px 0 var(--sn-fg);
+}
+/* 메모만 단 구절 */
+.sermon-app .sn-hl[data-memo='true']:not([data-c]):not([data-ul='true']) {
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--sn-fg) 45%, transparent);
+}
+.sermon-app .sn-hl[data-sel='true'] {
+  outline: 2px solid color-mix(in srgb, var(--sn-t1) 70%, transparent);
+  outline-offset: 1px;
+}
+.sermon-app .sn-bv-row[data-pick='true'] .sn-bv-t {
+  background: color-mix(in srgb, var(--sn-t1) 16%, transparent);
+  border-radius: 6px;
+}
+@keyframes sn-hl-flash {
+  0%,
+  60% {
+    background: color-mix(in srgb, var(--sn-t2) 30%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
+}
+.sermon-app .sn-bv-row[data-flash='true'] .sn-bv {
+  animation: sn-hl-flash 1.8s ease-out;
+  border-radius: 10px;
+}
+
+/* 여백의 내 메모 — 분홍 손글씨 대신 칠한 색 테두리 */
+.sermon-app .sn-hand.sn-hand-mine {
+  --pen: var(--sn-fg);
+}
+.sermon-app .sn-hand-mine .sn-hand-line {
+  font-size: 18px;
+}
+.sermon-app .sn-hand-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--sn-line-strong);
+}
+.sermon-app .sn-hand-dot[data-c='yellow'] {
+  background: var(--sn-hl-yellow);
+}
+.sermon-app .sn-hand-dot[data-c='green'] {
+  background: var(--sn-hl-green);
+}
+.sermon-app .sn-hand-dot[data-c='blue'] {
+  background: var(--sn-hl-blue);
+}
+.sermon-app .sn-hand-dot[data-c='pink'] {
+  background: var(--sn-hl-pink);
+}
+
+/* 장 띠 — 형광펜이 있는 장은 번호 위에 작은 점 */
+.sermon-app .sn-bible-strip button[data-hl='true']::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sn-hl-yellow);
+  box-shadow: 0 0 0 1px var(--sn-line-strong);
+}
+
+/* 버블 */
+.sermon-app .sn-hlb {
+  position: absolute;
+  z-index: 20;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px;
+  border-radius: var(--sn-r-pill);
+  background: var(--sn-fg);
+  color: var(--sn-bg);
+  box-shadow: var(--sn-shadow);
+  /* absolute 는 left 부터 남은 폭으로 줄어든다 — 한 줄로 재고 left 는 HighlightBubble 이 가장자리 안으로 당긴다 */
+  width: max-content;
+  max-width: calc(100% - 12px);
+  flex-wrap: wrap;
+  justify-content: center;
+  animation: sn-hlb-in 0.16s var(--sn-ease);
+}
+.sermon-app .sn-hlb::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: calc(50% + var(--sn-bubble-arrow, 0px) - 5px);
+  width: 10px;
+  height: 10px;
+  background: inherit;
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+@keyframes sn-hlb-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+}
+.sermon-app .sn-hlb-sw {
+  width: 30px;
+  height: 30px;
+  margin: 0 1px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s var(--sn-spring);
+}
+.sermon-app .sn-hlb-sw:hover {
+  transform: scale(1.08);
+}
+.sermon-app .sn-hlb-sw[aria-pressed='true'] {
+  border-color: var(--sn-bg);
+  box-shadow:
+    0 0 0 2px var(--sn-fg),
+    0 0 0 4px currentColor;
+}
+.sermon-app .sn-hlb-sw[data-c='yellow'] {
+  background: var(--sn-hl-yellow);
+}
+.sermon-app .sn-hlb-sw[data-c='green'] {
+  background: var(--sn-hl-green);
+}
+.sermon-app .sn-hlb-sw[data-c='blue'] {
+  background: var(--sn-hl-blue);
+}
+.sermon-app .sn-hlb-sw[data-c='pink'] {
+  background: var(--sn-hl-pink);
+}
+.sermon-app .sn-hlb-sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: color-mix(in srgb, var(--sn-bg) 30%, transparent);
+}
+.sermon-app .sn-hlb-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: var(--sn-r-pill);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.sermon-app .sn-hlb-btn:hover,
+.sermon-app .sn-hlb-btn[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--sn-bg) 18%, transparent);
+}
+.sermon-app .sn-hlb-btn:focus-visible,
+.sermon-app .sn-hlb-sw:focus-visible {
+  outline: 2px solid var(--sn-g2);
+  outline-offset: 1px;
+}
+.sermon-app .sn-hlb-memo {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding-left: 8px;
+}
+.sermon-app .sn-hlb-memo input {
+  width: min(260px, 60vw);
+  height: 34px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+.sermon-app .sn-hlb-memo input::placeholder {
+  color: color-mix(in srgb, var(--sn-bg) 55%, transparent);
+}
+.sermon-app .sn-hlb-save {
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--sn-r-pill);
+  background: var(--sn-g1);
+  color: var(--sn-on-ink);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* 폰 — 바깥을 누르면 닫히니 닫기 단추는 빼고 조금 작게 */
+@media (pointer: coarse) {
+  .sermon-app .sn-hlb-x {
+    display: none;
+  }
+  .sermon-app .sn-hlb-sw {
+    width: 30px;
+    height: 30px;
+    margin: 0;
+  }
+  .sermon-app .sn-hlb-sep {
+    margin: 0 2px;
+  }
+  .sermon-app .sn-hlb-btn {
+    width: 34px;
+    height: 36px;
+  }
+}
+
+/* 모아보기 */
+.sermon-app .sn-hllist-book {
+  margin: 18px 0 6px;
+  font-family: var(--sn-f-poster);
+  font-size: 20px;
+  color: var(--sn-t1);
+}
+.sermon-app .sn-hllist-book:first-child {
+  margin-top: 0;
+}
+.sermon-app .sn-hlrow {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+}
+.sermon-app .sn-hlrow-ref {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-hlrow-text {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--sn-fg);
+}
+.sermon-app .sn-hlrow-memo {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-hlrow-memo::before {
+  content: '✎ ';
+}
+.sermon-app .sn-hlfilter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.sermon-app .sn-hlfilter button[data-c]::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+.sermon-app .sn-hlfilter button[data-c='yellow']::before {
+  background: var(--sn-hl-yellow);
+}
+.sermon-app .sn-hlfilter button[data-c='green']::before {
+  background: var(--sn-hl-green);
+}
+.sermon-app .sn-hlfilter button[data-c='blue']::before {
+  background: var(--sn-hl-blue);
+}
+.sermon-app .sn-hlfilter button[data-c='pink']::before {
+  background: var(--sn-hl-pink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app .sn-hlb,
+  .sermon-app .sn-bv-row[data-flash='true'] .sn-bv {
+    animation: none;
+  }
+  .sermon-app .sn-hl,
+  .sermon-app .sn-hlb-sw {
+    transition: none;
+  }
+}

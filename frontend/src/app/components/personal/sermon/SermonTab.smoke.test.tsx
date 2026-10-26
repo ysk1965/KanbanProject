@@ -278,7 +278,8 @@ describe('SermonTab 핵심 탭', () => {
     // 나의 갈피 — 프로필 이름 + 내 갈피 (비었을 때 안내)
     fireEvent.click(screen.getAllByRole('tab', { name: /나의 갈피/ })[0]);
     expect(await screen.findByText('탭테스트')).toBeInTheDocument();
-    expect(screen.getByText('아직 꽂은 갈피가 없어요.', { exact: false })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: '내 이름표' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /내 인생 설교 고정하기/ })).toBeInTheDocument();
 
     // 챌린지 — 이번 주 적용
     fireEvent.click(screen.getAllByRole('tab', { name: /챌린지/ })[0]);
@@ -291,5 +292,61 @@ describe('SermonTab 핵심 탭', () => {
     // 설교 노트로 돌아오면 첫 화면
     fireEvent.click(screen.getAllByRole('tab', { name: /설교 노트/ })[0]);
     expect(await screen.findByText('아직 기록한 설교가 없어요')).toBeInTheDocument();
+  });
+});
+
+describe('나의 갈피 — 이름표·고정 노트', () => {
+  it('편집기 메뉴로 고정 → 폴라로이드가 생기고, 카드·이름표 꾸미기가 기기에 남는다', async () => {
+    localStorage.clear();
+    authState.currentUser = { id: 'u-pin', name: '은혜', email: 'p@example.com' };
+    authState.isAuthenticated = true;
+    await renderTab();
+    expect(await screen.findByText('아직 기록한 설교가 없어요')).toBeInTheDocument();
+
+    // 새 노트 → 제목 → ⋯ → 나의 갈피에 고정
+    fireEvent.click(screen.getAllByRole('button', { name: /새 설교 기록/ })[0]);
+    fireEvent.change(await screen.findByLabelText('설교 제목'), {
+      target: { value: '환난이 소망이 되기까지' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '더보기' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /나의 갈피에 고정/ }));
+    fireEvent.click(screen.getByRole('button', { name: '더보기' }));
+    expect(screen.getByRole('menuitemcheckbox', { name: /고정 풀기/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    fireEvent.click(screen.getByRole('button', { name: '더보기' }));
+    fireEvent.click(screen.getAllByRole('button', { name: /목록/ })[0]);
+
+    // 나의 갈피 — 카드 한 장 + 빈 자리 두 개
+    fireEvent.click((await screen.findAllByRole('tab', { name: /나의 갈피/ }))[0]);
+    const titles = await screen.findAllByText('환난이 소망이 되기까지');
+    expect(titles.some((el) => el.classList.contains('snp-pola-t'))).toBe(true);
+    expect(screen.getAllByRole('button', { name: /한 장 더/ })).toHaveLength(2);
+
+    // 카드 꾸미기 — 내 한 줄
+    fireEvent.click(screen.getByRole('button', { name: /카드 꾸미기/ }));
+    fireEvent.change(await screen.findByLabelText(/내 한 줄/), {
+      target: { value: '버티는 게 아니라' },
+    });
+    fireEvent.click(screen.getByRole('radio', { name: '빗금' }));
+    fireEvent.click(screen.getByRole('button', { name: '완료' }));
+    expect(await screen.findByText('“버티는 게 아니라”')).toBeInTheDocument();
+
+    // 이름표 꾸미기 — 캐릭터 · 소속 교회는 챌린지 교회 창으로
+    fireEvent.click(screen.getAllByRole('button', { name: '이름표 꾸미기' })[0]);
+    fireEvent.click(await screen.findByRole('radio', { name: /방울/ }));
+    expect(screen.getByText('아직 정하지 않았어요')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '교회 고르기' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '이름표 꾸미기' })).toBeNull();
+
+    const cache = JSON.parse(localStorage.getItem('sermon-profile-v1:u-pin') as string);
+    expect(cache.dirty).toBe(true); // 서버 없음 → 올리지 못한 변경으로 남음
+    expect(cache.data.mascot).toBe('bang');
+    expect(cache.data.pins).toHaveLength(1);
+    expect(cache.data.pins[0]).toMatchObject({ pattern: 'lines', line: '버티는 게 아니라' });
+    // 꾸미기 키도 같이 바뀐다 (카드·초대 페이지가 따라오게)
+    expect(JSON.parse(localStorage.getItem('sermon-look-v1') as string).mascot).toBe('bang');
   });
 });

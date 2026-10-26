@@ -8,7 +8,7 @@ import { ANONYMOUS_USER, SermonStore } from './sermonStore';
 import { SermonList } from './SermonList';
 import { SermonEditor } from './SermonEditor';
 import { applyStyle, loadStyle, persistStyle, type SermonStyle } from './sermonStyle';
-import { applyInk, loadLook, persistLook, type MascotId, type SermonLook } from './sermonLook';
+import { applyInk, type MascotId, type SermonLook } from './sermonLook';
 import { Mascot } from './Mascot';
 import { LookModal } from './LookModal';
 import { esc, galpiRivals, newNote, toggleApplyDone, type SermonNote } from './sermonTypes';
@@ -17,6 +17,8 @@ import { FirstSticker } from './share/FirstSticker';
 import { GroupContext } from './group/GroupContext';
 import { useGroupWiring } from './group/useGroupWiring';
 import { loadBible } from './useBible';
+import { useSermonProfile } from './profile/useSermonProfile';
+import { ProfileContext } from './profile/ProfileContext';
 import './sermon.css';
 
 /**
@@ -225,8 +227,13 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
   const [openId, setOpenId] = useState<string | null>(() => searchParams.get(PARAM_NOTE));
   const [openAid, setOpenAid] = useState<string | null>(null);
   const [style, setStyle] = useState<SermonStyle>(() => loadStyle());
-  const [look, setLook] = useState<SermonLook>(() => loadLook());
   const [lookOpen, setLookOpen] = useState(false);
+  // 꾸미기(잉크·캐릭터)는 이름표에 들어 있다 — 서버에 보관되고 기기 키(sermon-look-v1)에도 같이 적힌다
+  const profile = useSermonProfile({ userId, anonymous, store });
+  const look: SermonLook = useMemo(
+    () => ({ ink: profile.data.ink, mascot: profile.data.mascot }),
+    [profile.data.ink, profile.data.mascot],
+  );
 
   // 저장소 기동 + 폰트 + 성경 데이터
   useEffect(() => {
@@ -253,10 +260,11 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
 
   // 꾸미기 → html[data-sn-ink] (포털 오버레이까지 같은 색)
   useEffect(() => applyInk(look.ink), [look.ink]);
-  const onLookChange = useCallback((l: SermonLook) => {
-    setLook(l);
-    persistLook(l);
-  }, []);
+  const { update: updateProfile } = profile;
+  const onLookChange = useCallback(
+    (l: SermonLook) => updateProfile({ ink: l.ink, mascot: l.mascot }),
+    [updateProfile],
+  );
 
   // URL 동기화 (마이 스페이스에서는 tab=sermon 도 같이 적는다)
   useEffect(() => {
@@ -394,64 +402,66 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
 
   return (
     <GroupContext.Provider value={groups.ctx}>
-      <div ref={rootRef} className="sermon-app">
-        {!editing && strip(look.mascot)}
-        {editing ? (
-          <SermonEditor
-            key={openNote.id}
-            note={openNote}
-            store={store}
-            userId={userId}
-            style={style}
-            onStyleChange={onStyleChange}
-            onBack={() => setOpenId(null)}
-            onDeleted={() => setOpenId(null)}
-            initialAid={openAid}
-            canAttach={!anonymous}
-            onLogin={onLogin}
+      <ProfileContext.Provider value={profile}>
+        <div ref={rootRef} className="sermon-app">
+          {!editing && strip(look.mascot)}
+          {editing ? (
+            <SermonEditor
+              key={openNote.id}
+              note={openNote}
+              store={store}
+              userId={userId}
+              style={style}
+              onStyleChange={onStyleChange}
+              onBack={() => setOpenId(null)}
+              onDeleted={() => setOpenId(null)}
+              initialAid={openAid}
+              canAttach={!anonymous}
+              onLogin={onLogin}
+              mascot={look.mascot}
+              groupBand={groups.band}
+            />
+          ) : openId && store.status.loading ? (
+            <div
+              style={{ flex: 1, display: 'grid', placeItems: 'center' }}
+              role="status"
+              aria-label="불러오는 중"
+            >
+              <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--sn-accent)' }} />
+            </div>
+          ) : (
+            <SermonList
+              notes={notes}
+              status={store.status}
+              onOpen={handleOpen}
+              onNew={handleNew}
+              onToggleApply={handleToggleApply}
+              onToggleGalpi={handleToggleGalpi}
+              onLogin={onLogin}
+              mascot={look.mascot}
+              onOpenLook={() => setLookOpen(true)}
+              groupNav={groups.groupNav}
+              main={groups.main}
+              standalone={standalone}
+              userName={userName}
+            />
+          )}
+          {groups.overlays}
+          <FirstSticker
+            open={!!firstNote}
+            note={firstNote}
             mascot={look.mascot}
-            groupBand={groups.band}
-          />
-        ) : openId && store.status.loading ? (
-          <div
-            style={{ flex: 1, display: 'grid', placeItems: 'center' }}
-            role="status"
-            aria-label="불러오는 중"
-          >
-            <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--sn-accent)' }} />
-          </div>
-        ) : (
-          <SermonList
-            notes={notes}
-            status={store.status}
-            onOpen={handleOpen}
-            onNew={handleNew}
-            onToggleApply={handleToggleApply}
-            onToggleGalpi={handleToggleGalpi}
             onLogin={onLogin}
-            mascot={look.mascot}
-            onOpenLook={() => setLookOpen(true)}
-            groupNav={groups.groupNav}
-            main={groups.main}
-            standalone={standalone}
-            userName={userName}
+            onClose={() => setFirstNote(null)}
           />
-        )}
-        {groups.overlays}
-        <FirstSticker
-          open={!!firstNote}
-          note={firstNote}
-          mascot={look.mascot}
-          onLogin={onLogin}
-          onClose={() => setFirstNote(null)}
-        />
-        <LookModal
-          open={lookOpen}
-          look={look}
-          onChange={onLookChange}
-          onClose={() => setLookOpen(false)}
-        />
-      </div>
+          <LookModal
+            open={lookOpen}
+            look={look}
+            onChange={onLookChange}
+            onClose={() => setLookOpen(false)}
+          />
+        </div>
+      </ProfileContext.Provider>
     </GroupContext.Provider>
   );
 }

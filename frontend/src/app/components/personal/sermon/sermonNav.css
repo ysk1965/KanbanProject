@@ -3,14 +3,81 @@
  * sermon.css 의 옛 「보기」 사이드바 규칙보다 이기도록 .sn-list 를 한 단계 더 붙인다.
  */
 
+/* 탭 고유 색 — 하단 바 동그라미·왼쪽 패널 아이콘 면. 잉크 조합과 상관없이 고정 */
+.sermon-app,
+.sn-scope {
+  --sn-tab-note: #c9bcf7;
+  --sn-tab-groups: #ffbdd6;
+  --sn-tab-bible: #a8e2cb;
+  --sn-tab-challenge: #ffcaa6;
+  --sn-tab-me: #ffe39a;
+  --sn-tab-ink: #2a2433;
+}
+.sermon-app [data-k='note'] {
+  --sn-tab-c: var(--sn-tab-note);
+}
+.sermon-app [data-k='groups'] {
+  --sn-tab-c: var(--sn-tab-groups);
+}
+.sermon-app [data-k='bible'] {
+  --sn-tab-c: var(--sn-tab-bible);
+}
+.sermon-app [data-k='challenge'] {
+  --sn-tab-c: var(--sn-tab-challenge);
+}
+.sermon-app [data-k='me'] {
+  --sn-tab-c: var(--sn-tab-me);
+}
+
+/* ── 탭 아이콘 (TabIcons.tsx) — 안쪽 조각은 tabMotion.ts 가 움직인다 ── */
+.sermon-app .sn-ti {
+  overflow: visible;
+}
+.sermon-app .sn-ti .sn-ti-f {
+  fill: transparent;
+  transition: fill 0.18s;
+}
+.sermon-app .sn-ti .sn-ti-dot {
+  fill: currentColor;
+  stroke: none;
+}
+.sermon-app .sn-ti .sn-ti-ink {
+  stroke-dasharray: 1;
+}
+.sermon-app .sn-ti :is(.sn-ti-pen, .sn-ti-bk, .sn-ti-cross, .sn-ti-eyes) {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.sermon-app .sn-ti :is(.sn-ti-pl, .sn-ti-pr, .sn-ti-mas, .sn-ti-pole) {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
 /* ── 왼쪽 패널 (넓은 화면) ── */
 .sermon-app .sn-list .sn-side {
   gap: 16px;
 }
 .sermon-app .sn-tabs {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+/* 선택 표시(말랑 늘어나기) — top/bottom 은 useJellyTab 이 정한다 */
+.sermon-app .sn-tab-ind {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-radius: 16px;
+  background: var(--sn-surface);
+  box-shadow:
+    0 0 0 1px var(--sn-line),
+    0 8px 18px -12px color-mix(in srgb, var(--sn-t1) 50%, transparent);
+  pointer-events: none;
+  opacity: 0;
+}
+.sermon-app .sn-tab-ind[data-ready='true'] {
+  opacity: 1;
 }
 .sermon-app .sn-tabs button {
   min-height: 42px;
@@ -25,26 +92,31 @@
   font-size: 15px;
   font-weight: 500;
   text-align: left;
+  position: relative;
+  transition:
+    color 0.2s var(--sn-ease),
+    background 0.15s;
 }
 .sermon-app .sn-tabs button .sn-icon {
   width: 18px;
   height: 18px;
   flex: none;
+  transition: color 0.2s var(--sn-ease);
 }
 .sermon-app .sn-tabs button:hover {
   background: var(--sn-surface-2);
   color: var(--sn-fg);
 }
 .sermon-app .sn-tabs button[aria-selected='true'] {
-  background: var(--sn-surface);
+  background: transparent;
   color: var(--sn-fg);
   font-weight: 700;
-  box-shadow:
-    0 0 0 1px var(--sn-line),
-    0 8px 18px -12px color-mix(in srgb, var(--sn-t1) 50%, transparent);
 }
 .sermon-app .sn-tabs button[aria-selected='true'] .sn-icon {
   color: var(--sn-t1);
+}
+.sermon-app .sn-tabs button[aria-selected='true'] .sn-ti-f {
+  fill: color-mix(in srgb, var(--sn-tab-c) 75%, transparent);
 }
 .sermon-app .sn-tab-badge {
   margin-left: auto;
@@ -393,50 +465,98 @@
     color: inherit;
   }
   .sermon-app .sn-fab {
-    display: grid;
-    place-items: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     position: sticky;
     bottom: 16px;
     align-self: flex-end;
     margin-top: auto;
     flex: none;
-    width: 56px;
-    height: 56px;
+    height: 48px;
+    padding: 0 18px 0 14px;
     border: 0;
-    border-radius: 50%;
+    border-radius: 18px;
     background: var(--sn-t1);
     color: var(--sn-bg);
+    font-size: 15px;
+    font-weight: 700;
     box-shadow: 0 12px 26px -10px color-mix(in srgb, var(--sn-t1) 70%, transparent);
     z-index: 3;
   }
   .sermon-app .sn-fab svg {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
+  }
+  /* 하단 바 「오목 자리」 — 윤곽·동그라미 위치는 SermonBottomNav 가 그린다 */
+  .sermon-app .sn-list[data-standalone='true'] .sn-list-main {
+    padding-bottom: 40px;
   }
   .sermon-app .sn-bnav {
+    position: relative;
+    z-index: 4;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     flex: none;
-    padding: 6px 4px calc(8px + env(safe-area-inset-bottom, 0px));
-    border-top: 1px solid var(--sn-line);
-    background: var(--sn-bg);
+    height: calc(72px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .sermon-app .sn-bn-shape {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+    filter: drop-shadow(0 -6px 12px color-mix(in srgb, var(--sn-fg) 8%, transparent));
+  }
+  .sermon-app .sn-bn-shape path {
+    fill: var(--sn-bg);
+    stroke: var(--sn-line);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .sermon-app .sn-bn-orb {
+    position: absolute;
+    top: -22px;
+    left: 0;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--sn-tab-c);
+    box-shadow: 0 12px 20px -10px rgba(42, 36, 51, 0.45);
+    pointer-events: none;
+    transition: background-color 0.22s;
   }
   .sermon-app .sn-bnav button {
     position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    min-height: 48px;
-    padding: 4px 0 0;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    padding: 0;
     border: 0;
     background: transparent;
     color: var(--sn-faint);
     font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
+    transition: color 0.15s;
   }
-  .sermon-app .sn-bnav button svg {
+  .sermon-app .sn-bn-ic {
+    position: relative;
+    width: 22px;
+    height: 22px;
+  }
+  .sermon-app .sn-bn-lift {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    transition: color 0.15s;
+  }
+  .sermon-app .sn-bn-lift svg {
     width: 22px;
     height: 22px;
   }
@@ -444,14 +564,21 @@
     color: var(--sn-t1);
     font-weight: 700;
   }
+  .sermon-app .sn-bnav button[aria-current='page'] .sn-bn-lift {
+    color: var(--sn-tab-ink);
+  }
+  .sermon-app .sn-bnav button[aria-current='page'] .sn-ti-f {
+    fill: color-mix(in srgb, #fff 62%, transparent);
+  }
   .sermon-app .sn-bnav-badge {
     position: absolute;
-    top: 0;
-    left: calc(50% + 8px);
+    top: -2px;
+    right: -6px;
     min-width: 8px;
     height: 8px;
     border-radius: var(--sn-r-pill);
     background: var(--sn-t2);
+    transition: opacity 0.15s;
   }
   .sermon-app .sn-bnav-badge[data-k='challenge'] {
     height: auto;
@@ -460,7 +587,11 @@
     line-height: 16px;
     color: var(--sn-bg);
     background: var(--sn-t1);
-    top: -2px;
+    top: -6px;
+    right: -14px;
+  }
+  .sermon-app .sn-bnav button[aria-current='page'] .sn-bnav-badge {
+    opacity: 0;
   }
   .sermon-app .sn-me-prof .sn-btn {
     padding-inline: 12px;

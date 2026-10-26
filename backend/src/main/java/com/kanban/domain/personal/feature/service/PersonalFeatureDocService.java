@@ -7,6 +7,7 @@ import com.kanban.domain.personal.feature.PersonalFeatureDoc;
 import com.kanban.domain.personal.feature.PersonalFeatureDocRepository;
 import com.kanban.domain.personal.feature.dto.PersonalFeatureDocRequest;
 import com.kanban.domain.personal.feature.dto.PersonalFeatureDocResponse;
+import com.kanban.domain.talent.service.SermonTalentHook;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -47,6 +48,8 @@ public class PersonalFeatureDocService {
     private final PersonalFeatureTermService termService;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    /** 설교 노트 → 달란트 적립(커밋 뒤 별도 트랜잭션, 실패해도 저장은 그대로) */
+    private final SermonTalentHook sermonTalentHook;
 
     public List<PersonalFeatureDocResponse.Summary> list(String userId, String featureKey) {
         validateFeatureKey(featureKey);
@@ -79,6 +82,9 @@ public class PersonalFeatureDocService {
                 .build());
 
         termService.upsertFromContent(userId, featureKey, content);
+        if (PersonalFeatureTermService.FEATURE_SERMON.equals(featureKey)) {
+            sermonTalentHook.docSaved(userId, doc.getId(), doc.getTitle(), content);
+        }
         return PersonalFeatureDocResponse.Detail.of(doc);
     }
 
@@ -99,6 +105,9 @@ public class PersonalFeatureDocService {
             validateContentSize(request.getContent());
             doc.updateContent(request.getContent());
             termService.upsertFromContent(userId, featureKey, request.getContent());
+            if (PersonalFeatureTermService.FEATURE_SERMON.equals(featureKey)) {
+                sermonTalentHook.docSaved(userId, doc.getId(), doc.getTitle(), request.getContent());
+            }
         }
         return PersonalFeatureDocResponse.Detail.of(doc);
     }
@@ -130,6 +139,9 @@ public class PersonalFeatureDocService {
         validateFeatureKey(featureKey);
         PersonalFeatureDoc doc = findDocAndVerifyOwner(userId, featureKey, docId);
         doc.softDelete();
+        if (PersonalFeatureTermService.FEATURE_SERMON.equals(featureKey)) {
+            sermonTalentHook.docDeleted(userId, docId);
+        }
     }
 
     // ───────────────── internal ─────────────────

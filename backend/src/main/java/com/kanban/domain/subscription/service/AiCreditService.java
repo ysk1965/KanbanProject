@@ -225,6 +225,8 @@ public class AiCreditService {
                 .monthlyCredits(user.getPersonalAiCredits())
                 .monthlyUsed(user.getPersonalCreditsUsed())
                 .purchasedCredits(user.getPersonalPurchasedCredits() != null ? user.getPersonalPurchasedCredits() : 0)
+                .rewardCredits(user.getActivePersonalRewardCredits())
+                .rewardExpiresAt(user.getActivePersonalRewardCredits() > 0 ? user.getPersonalRewardExpiresAt() : null)
                 .totalAvailable(available)
                 .resetDate(user.getPersonalCreditsResetDate())
                 .warningLevel(warningLevel)

@@ -16,6 +16,8 @@ import {
   SlidersHorizontal,
   Trash2,
   Undo2,
+  Pin,
+  PinOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { decRef, encRef, refLong, refShort, type Ref } from './bibleRefs';
@@ -54,6 +56,7 @@ import { VersionTracker, listVersions, saveVersion, type NoteVersion } from './s
 import { firstVerseText, useBible } from './useBible';
 import { Mascot } from './Mascot';
 import type { MascotId } from './sermonLook';
+import { useProfile } from './profile/ProfileContext';
 
 /**
  * 설교 기록 화면 — 기획서 §2 상단 바, §3 노트 머리, §4 본문 편집기, §6 내 생각 패널.
@@ -249,6 +252,7 @@ export function SermonEditor({
   });
   const [dragging, setDragging] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const profile = useProfile();
   const [picker, setPicker] = useState<{ open: boolean; target: PickerTarget }>({
     open: false,
     target: 'editor',
@@ -998,6 +1002,31 @@ export function SermonEditor({
                 <History className="sn-icon" />
                 버전 기록
               </button>
+              {profile && (
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={profile.isPinned(note.id)}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    const r = profile.togglePin(note.id, (id) => !!store.get(id));
+                    toast(
+                      r === 'added'
+                        ? '나의 갈피에 고정했어요'
+                        : r === 'removed'
+                          ? '고정을 풀었어요'
+                          : '고정은 3장까지예요. 나의 갈피에서 한 장을 먼저 내려놓아 주세요',
+                    );
+                  }}
+                >
+                  {profile.isPinned(note.id) ? (
+                    <PinOff className="sn-icon" />
+                  ) : (
+                    <Pin className="sn-icon" />
+                  )}
+                  {profile.isPinned(note.id) ? '나의 갈피 고정 풀기' : '나의 갈피에 고정'}
+                </button>
+              )}
               {rec.supported && (
                 <button
                   type="button"
