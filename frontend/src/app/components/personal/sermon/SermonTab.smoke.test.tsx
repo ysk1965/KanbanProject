@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeAll } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 /**
@@ -281,9 +281,9 @@ describe('SermonTab 핵심 탭', () => {
     expect(screen.getByRole('region', { name: '내 이름표' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /내 인생 설교 고정하기/ })).toBeInTheDocument();
 
-    // 챌린지 — 이번 주 적용
+    // 챌린지 — 이번 주 삶의 갈피
     fireEvent.click(screen.getAllByRole('tab', { name: /챌린지/ })[0]);
-    expect(await screen.findByRole('heading', { name: '이번 주 적용' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: '이번 주 삶의 갈피' })).toBeInTheDocument();
 
     // 모임 — 모임이 없을 때 본문 안내
     fireEvent.click(screen.getAllByRole('tab', { name: /^모임/ })[0]);
@@ -330,7 +330,7 @@ describe('나의 갈피 — 이름표·고정 노트', () => {
       target: { value: '버티는 게 아니라' },
     });
     fireEvent.click(screen.getByRole('radio', { name: '빗금' }));
-    fireEvent.click(screen.getByRole('button', { name: '완료' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '닫기' }));
     expect(await screen.findByText('“버티는 게 아니라”')).toBeInTheDocument();
 
     // 이름표 꾸미기 — 캐릭터 · 소속 교회는 챌린지 교회 창으로

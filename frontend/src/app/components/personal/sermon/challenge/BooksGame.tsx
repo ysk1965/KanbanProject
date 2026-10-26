@@ -220,7 +220,7 @@ export function BooksGame({
           ) : (
             <>
               <p className="sn-ch-talent">
-                <Coin size={18} /> 달란트 +{s?.talents ?? 0}
+                <Coin size={18} play={s?.talents ? 'gain' : undefined} /> 달란트 +{s?.talents ?? 0}
                 {s?.talents_capped ? ' · 오늘 게임 달란트를 다 채웠어요' : ''}
               </p>
               <p>

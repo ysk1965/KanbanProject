@@ -1,0 +1,583 @@
+/*
+ * 함께 읽는 길 (통독) — 모임 통독 탭 · 읽는 중인 길 · 장 끝 도장 · 길 내기 시트.
+ * 토큰은 sermon.css(--sn-*)만 쓴다. 날 스티커는 g1 잉크로 채우고, 일부만 읽은 날은 채운 만큼 원호.
+ */
+
+/* ---------- 길 하나 ---------- */
+.rp-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: var(--sn-fg);
+}
+.rp-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.rp-head h3 {
+  margin: 0;
+  font-family: var(--sn-f-poster);
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 1.2;
+}
+.rp-head span {
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+
+.rp-today {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 20px;
+  border: 1.5px solid var(--sn-g1);
+  background: color-mix(in srgb, var(--sn-g1) 14%, var(--sn-surface));
+}
+.rp-today[data-done] {
+  border-color: var(--sn-g3);
+  background: color-mix(in srgb, var(--sn-g3) 16%, var(--sn-surface));
+}
+.rp-today-n {
+  font-family: var(--sn-f-poster);
+  font-size: 32px;
+  line-height: 1;
+  color: var(--sn-t1);
+  text-align: center;
+  min-width: 44px;
+}
+.rp-today-n small {
+  display: block;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--sn-muted);
+  margin-top: 4px;
+  font-family: var(--sn-f-ui);
+}
+.rp-today-in {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.rp-today-in small {
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.rp-today-in b {
+  font-family: var(--sn-f-poster);
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.rp-today-act {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+.rp-manual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-muted);
+  background: transparent;
+  border: 1px dashed var(--sn-line-strong);
+  border-radius: var(--sn-r-pill);
+  padding: 6px 12px;
+  cursor: pointer;
+  min-height: 32px;
+}
+.rp-manual[aria-pressed='true'] {
+  border-style: solid;
+  border-color: transparent;
+  background: var(--sn-g3);
+  color: var(--sn-on-ink);
+}
+.rp-manual:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--sn-accent-soft);
+}
+.rp-rest {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1.5px dashed var(--sn-line-strong);
+  font-family: var(--sn-f-hand);
+  font-size: 18px;
+  color: var(--sn-muted);
+}
+
+.rp-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.rp-who span + .sg-faces {
+  margin-left: 6px;
+}
+.rp-all {
+  font-weight: 700;
+  color: var(--sn-t1);
+}
+
+.rp-lb {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-muted);
+}
+.rp-missed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rp-missed-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.rp-missed-list button {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sn-fg);
+  background: var(--sn-surface-2);
+  border: 1px solid var(--sn-line);
+  border-radius: var(--sn-r-pill);
+  padding: 5px 11px;
+  cursor: pointer;
+}
+.rp-missed-list button:hover {
+  border-color: var(--sn-line-strong);
+}
+
+/* 함께 걸은 길 */
+.rp-trail-box {
+  border: 1px solid var(--sn-line);
+  border-radius: 20px;
+  padding: 14px 16px 12px;
+  background: var(--sn-surface);
+}
+.rp-trail-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.rp-trail-top b {
+  font-size: 13px;
+  color: var(--sn-fg);
+}
+.rp-trail-top em {
+  font-style: normal;
+  font-family: var(--sn-f-poster);
+  font-size: 22px;
+  color: var(--sn-t1);
+}
+.rp-trail {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 6px;
+}
+.rp-trail[data-dense] {
+  grid-template-columns: repeat(auto-fill, minmax(12px, 1fr));
+  gap: 4px;
+}
+.rp-st {
+  position: relative;
+  aspect-ratio: 1;
+  max-width: 100%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-t1);
+  background: conic-gradient(
+    var(--sn-g1) var(--p, 0%),
+    color-mix(in srgb, var(--sn-g1) 18%, var(--sn-surface)) 0
+  );
+}
+.rp-st > span {
+  width: 66%;
+  height: 66%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--sn-surface);
+}
+.rp-st[data-full] {
+  background: var(--sn-g1);
+  color: var(--sn-on-ink);
+  transform: rotate(-4deg);
+}
+.rp-st[data-full] > span {
+  background: transparent;
+}
+.rp-st[data-future] {
+  background: transparent;
+  border: 1.5px dashed var(--sn-line-strong);
+  color: var(--sn-faint);
+}
+.rp-st[data-future] > span {
+  background: transparent;
+}
+.rp-st[data-now] {
+  box-shadow:
+    0 0 0 2px var(--sn-surface),
+    0 0 0 4px var(--sn-accent);
+}
+.rp-st[data-mine]::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--sn-g2);
+  border: 2px solid var(--sn-surface);
+}
+.rp-trail[data-dense] .rp-st[data-mine]::after {
+  display: none;
+}
+.rp-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.rp-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.rp-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.rp-legend i[data-k='full'] {
+  background: var(--sn-g1);
+}
+.rp-legend i[data-k='part'] {
+  background: conic-gradient(
+    var(--sn-g1) 60%,
+    color-mix(in srgb, var(--sn-g1) 18%, var(--sn-surface)) 0
+  );
+}
+.rp-legend i[data-k='now'] {
+  border: 2px solid var(--sn-accent);
+}
+.rp-legend i[data-k='mine'] {
+  width: 9px;
+  height: 9px;
+  background: var(--sn-g2);
+}
+
+.rp-manage {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--sn-muted);
+}
+.rp-link {
+  font: inherit;
+  font-size: 12px;
+  color: var(--sn-faint);
+  background: none;
+  border: 0;
+  padding: 8px 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.rp-danger {
+  background: #c2415d;
+  color: #fff;
+  border-color: transparent;
+}
+
+.rp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--sn-muted);
+}
+.rp-empty p {
+  margin: 0;
+  max-width: 44ch;
+}
+
+/* ---------- 길 내기 시트 ---------- */
+.rp-sheet-head {
+  padding: 20px 20px 4px;
+}
+.rp-sheet-head small,
+.rp-sheet-owner {
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.rp-sheet-head h2 {
+  margin: 2px 0 0;
+  font-family: var(--sn-f-poster);
+  font-weight: 400;
+  font-size: 22px;
+  color: var(--sn-fg);
+}
+.rp-sheet-body {
+  padding: 18px 20px 16px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rp-tpls {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.rp-tpl {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  font: inherit;
+  color: var(--sn-fg);
+  background: var(--sn-surface);
+  border: 1.5px solid var(--sn-line);
+  border-radius: 16px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.rp-tpl b {
+  font-size: 14px;
+}
+.rp-tpl span {
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.rp-tpl small {
+  font-family: var(--sn-f-hand);
+  font-size: 15px;
+  color: var(--sn-t2);
+}
+.rp-tpl[aria-checked='true'] {
+  border-color: var(--sn-accent);
+  background: color-mix(in srgb, var(--sn-g1) 16%, var(--sn-surface));
+}
+.rp-tpl:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--sn-accent-soft);
+}
+.rp-custom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 88px;
+  gap: 8px;
+}
+.rp-row2 {
+  display: grid;
+  grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.rp-preview {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--sn-surface-2);
+  font-size: 13px;
+  color: var(--sn-muted);
+  line-height: 1.6;
+}
+.rp-preview b {
+  color: var(--sn-fg);
+}
+@media (max-width: 520px) {
+  .rp-custom,
+  .rp-row2 {
+    grid-template-columns: 1fr;
+  }
+  .rp-today {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .rp-today-act {
+    grid-column: 1 / -1;
+    flex-direction: row;
+  }
+  .rp-today-act > * {
+    flex: 1;
+  }
+}
+
+/* ---------- 성경 읽기: 읽는 중인 길 ---------- */
+.rp-paths {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 2px 10px;
+  scrollbar-width: none;
+}
+.rp-paths::-webkit-scrollbar {
+  display: none;
+}
+.rp-paths-lb {
+  flex: none;
+  align-self: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-muted);
+  padding-right: 2px;
+}
+.rp-path {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 6px;
+  align-items: baseline;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  color: var(--sn-fg);
+  background: var(--sn-surface);
+  border: 1px solid var(--sn-line);
+  border-radius: 14px;
+  padding: 7px 12px 9px;
+  cursor: pointer;
+  overflow: hidden;
+  max-width: 240px;
+}
+.rp-path b {
+  font-size: 12px;
+  color: var(--sn-t2);
+}
+.rp-path[data-group] b {
+  color: var(--sn-t1);
+}
+.rp-path span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+.rp-path small {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.rp-path-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--sn-g2);
+  border-radius: 0 3px 3px 0;
+}
+.rp-path[data-group] .rp-path-bar {
+  background: var(--sn-g1);
+}
+.rp-path-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  color: var(--sn-accent);
+  border-style: dashed;
+  border-color: var(--sn-line-strong);
+  background: transparent;
+}
+.rp-path:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--sn-accent-soft);
+}
+
+/* ---------- 장 끝 도장 ---------- */
+.rp-stamp {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: 18px;
+  border: 1.5px solid var(--sn-g1);
+  background: color-mix(in srgb, var(--sn-g1) 14%, var(--sn-surface));
+}
+.rp-stamp[data-done] {
+  border-color: var(--sn-g3);
+  background: color-mix(in srgb, var(--sn-g3) 16%, var(--sn-surface));
+  animation: rp-stamp-in 0.45s var(--sn-spring, ease) both;
+}
+.rp-stamp-txt {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rp-stamp-txt b {
+  font-size: 14px;
+  color: var(--sn-fg);
+}
+.rp-stamp-txt small {
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.rp-stamp-seal {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--sn-g3);
+  color: var(--sn-on-ink);
+  transform: rotate(-8deg);
+}
+@keyframes rp-stamp-in {
+  from {
+    transform: scale(0.94);
+    opacity: 0.4;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rp-stamp[data-done] {
+    animation: none;
+  }
+  .rp-st[data-full] {
+    transform: none;
+  }
+}

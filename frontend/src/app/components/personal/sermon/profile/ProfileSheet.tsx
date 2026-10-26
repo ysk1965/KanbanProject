@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { BookOpen, X } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { SnOverlay } from '../SnOverlay';
+import { SnSheetBar } from '../SnSheetBar';
 import { VersePicker } from '../VersePicker';
 import { decRef, encRef, refLong, refShort, type Ref } from '../bibleRefs';
 import { Mascot } from '../Mascot';
@@ -53,9 +54,6 @@ export function ProfileSheet({
       >
         <div className="snp-shead">
           <h2 id="snp-prof-title">이름표 꾸미기</h2>
-          <button type="button" className="snp-x" aria-label="닫기" onClick={onClose}>
-            <X className="sn-icon" />
-          </button>
         </div>
         <div className="snp-sbody">
           <div className="snp-label">프로필 캐릭터</div>
@@ -225,6 +223,7 @@ export function ProfileSheet({
                 : '저장했어요.'}
           </p>
         </div>
+        <SnSheetBar onClose={onClose} />
       </SnOverlay>
       <VersePicker
         open={picking}

@@ -1,29 +1,41 @@
-import { useEffect, useMemo, type ReactNode } from 'react';
-import { Check, ChevronRight, LogIn, Trophy } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronRight, LogIn, Trophy } from 'lucide-react';
 import type { SermonNote } from '../sermonTypes';
 import { tierName } from './challengeApi';
 import { Coin, SoonNote } from './ChallengeBits';
 import { leftLabel, localWeekStart, num } from './challengeUtil';
 import { useChallengeStore, type ChallengeStore } from './challengeStore';
-import { STAGE_TALENTS, fmtMs } from './books';
 import { sermonSource } from './wordPool';
-import { refLong } from '../bibleRefs';
+import { BOOKS, refLong } from '../bibleRefs';
+import { CoinDots, PilsaWindow, RainWindow } from './GameWindows';
+import { LifeGalpiCard, type LifeGalpiApply } from './LifeGalpiCard';
+import { nextChapter, pilsaDoneCount, usePilsa } from './pilsaStore';
 
 /**
- * 챌린지 홈 — 지갑 · 오늘의 말씀 산성비 · 66권 줄 세우기 · 이번 주 완주 · 내 리그 · 이번 주 적용.
+ * 챌린지 홈 — 지갑 · 이번 주 삶의 갈피 · 말씀 산성비 · 이번 주 말씀 필사 · 내 리그.
+ * (66권 줄 세우기는 홈에서 뺐다 — 보기는 ChallengeTab 에 남아 있음)
  * 서버가 없거나 로그인 전이면 지갑·리그 자리에 안내만 두고 게임은 연습 판으로 열린다.
  */
 
-/** 서버가 없을 때 이 기기 노트로 이번 주 완주를 어림한다 (월요일 시작) */
-function localComplete(notes: SermonNote[]): { note: boolean; apply_done: boolean } {
+/** 서버가 없을 때 이 기기 노트로 이번 주 삶의 갈피를 어림한다 (월요일 시작) + 이번 주 가장 최근 노트 */
+function localComplete(notes: SermonNote[]): {
+  note: boolean;
+  apply_done: boolean;
+  weekNote: SermonNote | null;
+} {
   const ws = localWeekStart();
   const wsYmd = `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`;
-  const note = notes.some((n) => (n.date || '') >= wsYmd);
+  const inWeek = notes
+    .filter((n) => (n.date || '') >= wsYmd)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const apply_done = notes.some((n) =>
     (n.thoughts || []).some((t) => t.tag === '적용' && t.done && (t.done_at || 0) >= ws.getTime()),
   );
-  return { note, apply_done };
+  return { note: inWeek.length > 0, apply_done, weekNote: inWeek[0] ?? null };
 }
+
+/** 지갑에서 마지막으로 본 잔액 — 늘어나면 동전 연출. 화면을 다시 열어도 같은 잔액에 또 터지지 않게 모듈에 둔다 */
+let seenBalance: number | null = null;
 
 function Wallet({
   store,
@@ -34,6 +46,13 @@ function Wallet({
   anonymous: boolean;
   onLogin?: () => void;
 }) {
+  const bal = store.wallet?.balance;
+  const [gain, setGain] = useState(0);
+  useEffect(() => {
+    if (bal == null) return;
+    if (seenBalance != null && bal > seenBalance) setGain(bal - seenBalance);
+    seenBalance = bal;
+  }, [bal]);
   if (anonymous) {
     return (
       <SoonNote
@@ -75,7 +94,12 @@ function Wallet({
   return (
     <div className="sn-ch-wallet">
       <div className="sn-ch-bal">
-        <Coin size={28} />
+        <Coin size={28} play={gain > 0 ? 'gain' : undefined} />
+        {gain > 0 && (
+          <span className="sn-ch-plus" aria-hidden onAnimationEnd={() => setGain(0)}>
+            +{num(gain)}
+          </span>
+        )}
         <b className="sn-mono">{num(w.balance)}</b>
         <span>달란트</span>
       </div>
@@ -107,15 +131,21 @@ export function ChallengeHome({
   onLogin,
   onPlay,
   onRanking,
-  applySection,
+  apply,
+  onToggleApply,
+  onOpenNote,
+  onNew,
 }: {
   notes: SermonNote[];
   userId: string;
   anonymous: boolean;
   onLogin?: () => void;
-  onPlay: (game: 'rain' | 'books') => void;
+  onPlay: (game: 'rain' | 'pilsa') => void;
   onRanking: () => void;
-  applySection?: ReactNode;
+  apply: LifeGalpiApply;
+  onToggleApply: (noteId: string, thoughtId: string) => void;
+  onOpenNote: (noteId: string, aid?: string | null) => void;
+  onNew: () => void;
 }) {
   const store = useChallengeStore(userId);
 
@@ -140,19 +170,26 @@ export function ChallengeHome({
   const local = useMemo(() => localComplete(notes), [notes]);
   const doneNote = wc ? !!wc.note : local.note;
   const doneApply = wc ? !!wc.apply_done : local.apply_done;
-  const steps = (doneNote ? 1 : 0) + (doneApply ? 1 : 0);
   const league = !anonymous ? store.league : null;
   const me = league?.entries?.find((e) => e.me);
   const rainBest = store.rainBest?.best;
-  const booksBest = store.booksBest?.best;
-  const capLeft =
-    store.wallet && !anonymous
-      ? Math.max(0, (store.wallet.game_daily_cap ?? 30) - (store.wallet.today_game_talents ?? 0))
-      : null;
+  const pilsa = usePilsa(notes, userId, anonymous);
+  const pilsaNext = nextChapter(pilsa.plan);
+  const pilsaDone = pilsaDoneCount(pilsa.plan);
 
   return (
     <div className="sn-ch-home">
       <Wallet store={store} anonymous={anonymous} onLogin={onLogin} />
+
+      <LifeGalpiCard
+        weekNote={local.weekNote}
+        doneNote={doneNote}
+        doneApply={doneApply}
+        apply={apply}
+        onToggleApply={onToggleApply}
+        onOpenNote={onOpenNote}
+        onNew={onNew}
+      />
 
       <div className="sn-ch-games">
         <button
@@ -161,82 +198,67 @@ export function ChallengeHome({
           data-game="rain"
           onClick={() => onPlay('rain')}
         >
-          <div className="sn-ch-vis" aria-hidden>
-            <span style={{ left: '10%', top: 10 }}>사망이</span>
-            <span data-kind="gold" style={{ left: '46%', top: 34 }}>
-              은혜
-            </span>
-            <span data-kind="galpi" style={{ left: '24%', top: 52 }}>
-              갈피
-            </span>
-          </div>
+          <RainWindow refs={src?.refs} />
           <b>오늘의 말씀 산성비</b>
           <span>
             {src
               ? `이번 주 설교 · ${refLong(src.refs[0])}`
               : '요한복음 15장 · 시편 23편 · 66권 이름'}
           </span>
-          <span className="sn-ch-faint">
-            {anonymous
-              ? '연습 판'
-              : [
-                  rainBest != null ? `내 최고 ${num(rainBest)}점` : '',
-                  capLeft != null ? `오늘 받을 수 있는 달란트 ${capLeft}` : '',
-                ]
-                  .filter(Boolean)
-                  .join(' · ') || '100점마다 1달란트'}
-          </span>
-          <span className="sn-ch-go">
-            시작 <ChevronRight className="sn-icon" aria-hidden />
+          <span className="sn-gw-meta">
+            {anonymous ? (
+              '연습 판'
+            ) : (
+              <>
+                {rainBest != null && (
+                  <>
+                    <span className="sn-gw-best">{num(rainBest)}</span>내 최고
+                  </>
+                )}
+                {store.wallet && (
+                  <CoinDots
+                    got={store.wallet.today_game_talents ?? 0}
+                    cap={store.wallet.game_daily_cap ?? 30}
+                  />
+                )}
+                {rainBest == null && !store.wallet && '100점마다 1달란트'}
+              </>
+            )}
+            <span className="sn-ch-go">
+              시작 <ChevronRight className="sn-icon" aria-hidden />
+            </span>
           </span>
         </button>
         <button
           type="button"
           className="sn-ch-game-card"
-          data-game="books"
-          onClick={() => onPlay('books')}
+          data-game="pilsa"
+          onClick={() => onPlay('pilsa')}
         >
-          <div className="sn-ch-vis sn-ch-vis-books" aria-hidden>
-            <span>창세기</span>
-            <span>출애굽기</span>
-            <span>레위기</span>
-          </div>
-          <b>66권 줄 세우기</b>
-          <span>모세오경 · 신약 · 구약 · 전체 66권</span>
-          <span className="sn-ch-faint">
-            {anonymous
-              ? '연습 판'
-              : booksBest != null
-                ? `66권 내 최고 ${fmtMs(booksBest)}`
-                : `전체 66권 완주 +${STAGE_TALENTS.all}`}
+          <PilsaWindow plan={pilsa.plan} />
+          <b>이번 주 말씀 필사</b>
+          <span>
+            {pilsa.plan
+              ? `${pilsa.plan.chapters[0]?.reason === 'common' ? '이번 주 함께 쓰는' : '설교에서 고른'} 일곱 장${pilsaDone ? ` · ${pilsaDone}장 썼어요` : ''}`
+              : '이번 주 일곱 장을 고르는 중'}
           </span>
-          <span className="sn-ch-go">
-            시작 <ChevronRight className="sn-icon" aria-hidden />
+          <span className="sn-gw-meta">
+            {pilsa.plan && (
+              <>
+                <span className="sn-gw-best">{pilsaDone} / 7</span>
+                {pilsaNext
+                  ? `오늘은 ${BOOKS[pilsaNext.b][1]} ${pilsaNext.c}`
+                  : '일곱 장 다 꽂았어요'}
+              </>
+            )}
+            {anonymous && ' · 연습'}
+            <span className="sn-ch-go">
+              {pilsaDone || pilsaNext?.done.length ? '이어 쓰기' : '시작'}{' '}
+              <ChevronRight className="sn-icon" aria-hidden />
+            </span>
           </span>
         </button>
       </div>
-
-      <section className="sn-ch-sec" aria-label="이번 주 완주">
-        <div className="sn-sec-h">
-          <h4>이번 주 완주</h4>
-          <span>{steps === 2 ? '완주했어요 · +20' : `${2 - steps}개 남음 · 완주하면 +20`}</span>
-        </div>
-        <div className="sn-ch-complete">
-          <div className="sn-ch-cbar" role="img" aria-label={`2개 중 ${steps}개`}>
-            <i style={{ width: `${steps * 50}%` }} />
-          </div>
-          <ul>
-            <li data-done={doneNote}>
-              <Check className="sn-icon" aria-hidden />
-              설교 노트 1편 기록
-            </li>
-            <li data-done={doneApply}>
-              <Check className="sn-icon" aria-hidden />
-              적용 1개 실천 체크
-            </li>
-          </ul>
-        </div>
-      </section>
 
       {!anonymous && (
         <button type="button" className="sn-ch-league" onClick={onRanking}>
@@ -269,8 +291,6 @@ export function ChallengeHome({
           <ChevronRight className="sn-icon" aria-hidden />
         </button>
       )}
-
-      {applySection && <section className="sn-ch-sec sn-ch-apply">{applySection}</section>}
     </div>
   );
 }

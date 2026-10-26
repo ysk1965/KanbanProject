@@ -7,20 +7,189 @@
   --sn-ch-gold-ink: #5a3d00;
   --sn-ch-up: var(--sn-c-green);
   --sn-ch-down: var(--sn-c-red);
+  --sn-coin-face: #f2c14e;
+  --sn-coin-ink: #4a2f00;
+  --sn-coin-mis: #9c3d6c;
+}
+html.light :is(.sermon-app, .sn-scope) {
+  --sn-coin-face: #f6c744;
+  --sn-coin-ink: #6e4600;
+  --sn-coin-mis: #f49ac1;
 }
 
 /* ── 공통 ── */
 :is(.sermon-app, .sn-scope) .sn-coin {
-  display: inline-grid;
-  place-items: center;
+  display: block;
   flex: none;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ffe9a6, #e8b437 60%, #b98417);
-  color: #6b4a00;
+  overflow: visible;
+  transition: transform 0.18s var(--sn-ease);
+}
+:is(.sermon-app, .sn-scope) .sn-coin-face {
+  fill: var(--sn-coin-face);
+  stroke: var(--sn-coin-ink);
+}
+:is(.sermon-app, .sn-scope) .sn-coin-ring {
+  fill: none;
+  stroke: var(--sn-coin-ink);
+  stroke-width: 1;
+  opacity: 0.35;
+}
+:is(.sermon-app, .sn-scope) .sn-coin-stem {
+  fill: none;
+  stroke: var(--sn-coin-ink);
+  stroke-linecap: round;
+  transform-box: view-box;
+  transform-origin: 12px 17.2px;
+}
+:is(.sermon-app, .sn-scope) .sn-coin-leaf {
+  fill: var(--sn-coin-ink);
+  transform-box: view-box;
+  transform-origin: 12px 12px;
+}
+:is(.sermon-app, .sn-scope) .sn-coin-mis {
+  fill: var(--sn-coin-mis);
+  opacity: 0.7;
+}
+:is(.sermon-app, .sn-scope) .sn-coin-spark circle {
+  fill: var(--sn-coin-face);
+  stroke: var(--sn-coin-ink);
+  stroke-width: 0.6;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+/* 적립 — 뒤집기 → 줄기 → 잎 → 반짝 */
+:is(.sermon-app, .sn-scope) .sn-coin.is-gain {
+  animation: sn-coin-flip 0.6s var(--sn-ease) both;
+}
+:is(.sermon-app, .sn-scope) .sn-coin.is-gain .sn-coin-stem {
+  animation: sn-coin-stem 0.22s var(--sn-ease) 0.45s both;
+}
+:is(.sermon-app, .sn-scope) .sn-coin.is-gain .sn-coin-leaf {
+  animation: sn-coin-sprout 0.45s var(--sn-spring) 0.58s both;
+}
+:is(.sermon-app, .sn-scope) .sn-coin.is-gain .sn-coin-spark circle {
+  animation: sn-coin-spark 0.6s var(--sn-ease) 0.7s both;
+}
+:is(.sermon-app, .sn-scope) .sn-coin.is-gain .sn-coin-spark circle:nth-child(2) {
+  animation-delay: 0.78s;
+}
+:is(.sermon-app, .sn-scope) .sn-coin.is-gain .sn-coin-spark circle:nth-child(3) {
+  animation-delay: 0.86s;
+}
+/* 손 올리면 잎이 한 번 흔들리고, 누르면 살짝 눌린다 */
+@media (hover: hover) {
+  :is(.sermon-app, .sn-scope)
+    :is(button, a, .sn-ch-bal):hover
+    .sn-coin:not(.is-gain)
+    .sn-coin-leaf {
+    animation: sn-coin-sway 0.8s var(--sn-ease);
+  }
+}
+:is(.sermon-app, .sn-scope) :is(button, a):active .sn-coin {
+  transform: scale(0.86);
+}
+@keyframes sn-coin-flip {
+  from {
+    transform: perspective(80px) rotateY(0) scale(0.6);
+  }
+  70% {
+    transform: perspective(80px) rotateY(340deg) scale(1.12);
+  }
+  to {
+    transform: perspective(80px) rotateY(360deg) scale(1);
+  }
+}
+@keyframes sn-coin-stem {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes sn-coin-sprout {
+  from {
+    transform: scale(0);
+  }
+}
+@keyframes sn-coin-spark {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+@keyframes sn-coin-sway {
+  25% {
+    transform: rotate(-12deg);
+  }
+  55% {
+    transform: rotate(8deg);
+  }
+  80% {
+    transform: rotate(-3deg);
+  }
+}
+/* 지갑 잔액이 늘었을 때 동전 위로 떠오르는 +N */
+.sermon-app .sn-ch-bal {
+  position: relative;
+}
+.sermon-app .sn-ch-plus {
+  position: absolute;
+  left: 2px;
+  bottom: 100%;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
   font-weight: 700;
-  line-height: 1;
-  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.15);
-  vertical-align: -4px;
+  color: var(--sn-fg);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: sn-coin-plus 1.4s var(--sn-ease) 0.5s both;
+}
+@keyframes sn-coin-plus {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  25% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.sermon-app, .sn-scope) .sn-coin,
+  :is(.sermon-app, .sn-scope) .sn-coin * {
+    animation: none !important;
+    transition: none;
+  }
+  :is(.sermon-app, .sn-scope) .sn-coin-spark circle {
+    opacity: 0;
+  }
+  .sermon-app .sn-ch-plus {
+    animation-name: sn-coin-plus-still;
+  }
+  @keyframes sn-coin-plus-still {
+    0%,
+    100% {
+      opacity: 0;
+    }
+    10%,
+    80% {
+      opacity: 1;
+    }
+  }
 }
 :is(.sermon-app, .sn-scope) .sn-ch-hint {
   margin: 0;
@@ -962,6 +1131,12 @@
   padding: 12px 14px;
   border-radius: 16px;
   background: var(--sn-accent-soft);
+}
+.sn-scope .sn-ch-mine .sn-ch-leave {
+  align-self: flex-start;
+  min-height: 36px;
+  margin: 6px 0 -4px -10px;
+  padding: 0 10px;
 }
 .sn-scope .sn-ch-mine span {
   font-size: 13px;

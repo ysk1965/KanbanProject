@@ -371,6 +371,7 @@
   color: var(--sn-muted);
   font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
   opacity: 0;
   transition: opacity 0.15s;
 }
@@ -448,25 +449,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 12px 4px 20px;
+  min-height: 44px;
+  padding: 14px 20px 4px;
 }
 .sn-overlay .snp-shead h2 {
   margin: 0;
   flex: 1;
   font-size: 17px;
-}
-.sn-overlay .snp-x {
-  width: 44px;
-  height: 44px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--sn-fg);
-  display: grid;
-  place-items: center;
-}
-.sn-overlay .snp-x:hover {
-  background: var(--sn-surface-2);
 }
 .sn-overlay .snp-sbody {
   padding: 8px 20px 22px;
@@ -655,7 +644,7 @@
   width: 16px;
   height: 16px;
 }
-.sn-overlay :is(.snp-btn, .snp-chip, .snp-mopt, .snp-sw, .snp-x):focus-visible {
+.sn-overlay :is(.snp-btn, .snp-chip, .snp-mopt, .snp-sw):focus-visible {
   outline: 2px solid var(--sn-t1);
   outline-offset: 2px;
 }

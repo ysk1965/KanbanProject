@@ -164,3 +164,84 @@
     transition: none;
   }
 }
+
+/* ── 시트 하단 바 (SnSheetBar) ──
+ * 시트는 body 포털(.sn-overlay)이라 .sermon-app 밖. 왼쪽 끝 닫기 · 오른쪽 끝 주요 동작. */
+.sn-overlay .sn-sbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-top: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+}
+.sn-overlay .sn-sbar-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--sn-r-pill);
+  background: var(--sn-surface-2);
+  color: var(--sn-fg);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.sn-overlay .sn-sbar-close:has(.sn-icon) {
+  padding-left: 12px;
+}
+.sn-overlay .sn-sbar-close:hover {
+  background: color-mix(in srgb, var(--sn-fg) 10%, var(--sn-surface-2));
+}
+.sn-overlay .sn-sbar-close:focus-visible {
+  outline: 2px solid var(--sn-accent);
+  outline-offset: 2px;
+}
+.sn-overlay .sn-sbar-close .sn-icon {
+  width: 18px;
+  height: 18px;
+}
+.sn-overlay .sn-sbar-note {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sn-overlay .sn-sbar-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.sn-overlay .sn-sbar-main .sn-btn {
+  min-height: 44px;
+  padding-inline: 20px;
+  border-radius: var(--sn-r-pill);
+  font-size: 15px;
+}
+/* 안쪽 여백이 있는 작은 창은 바를 가장자리까지 */
+.sn-overlay .sn-modal > .sn-sbar {
+  position: sticky;
+  bottom: -22px;
+  z-index: 1;
+  margin: 4px -22px -22px;
+}
+
+@media (max-width: 699px) {
+  /* 전체 화면 구절 찾기는 홈 표시줄만큼 띄운다 */
+  .sn-overlay.sn-overlay-picker .sn-sbar {
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  }
+  .sn-overlay .sn-sbar-note {
+    display: none;
+  }
+}

@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Copy, Loader2, Plus, Settings2, Share2, Trash2, UserMinus } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { openInReader } from '../bibleHighlights';
+import { GroupReading } from '../reading/GroupReading';
+import { parseCh } from '../reading/readingPlan';
 import { decRef, refLong } from '../bibleRefs';
 import { Mascot } from '../Mascot';
 import { loadLook, type MascotId } from '../sermonLook';
@@ -23,7 +27,7 @@ import './group.css';
 
 /**
  * 모임 홈 — 「같이 쓰는 한 권의 다이어리」.
- * 표지 카드(모임 스티커) + 인덱스 탭: 이번 주 · 지난 주들 · 멤버 · 설정
+ * 표지 카드(모임 스티커) + 인덱스 탭: 이번 주 · 통독 · 지난 주들 · 멤버 · 설정
  * 이번 주는 설교 자리를 날짜 칸으로, 쓴 자리엔 노트 스티커가 붙고 아직인 자리는 점선.
  */
 interface Props {
@@ -35,7 +39,7 @@ interface Props {
   onLeft: () => void;
 }
 
-type Tab = 'week' | 'last' | 'members' | 'settings';
+type Tab = 'week' | 'reading' | 'last' | 'members' | 'settings';
 
 /** 지난 주들 — 몇 주까지 띠에 놓을지 */
 const PAST_WEEKS = 12;
@@ -71,6 +75,19 @@ export function GroupHome({ store, groupId, notes, onOpenSession, onStartInSlot,
   const start = tab === 'last' ? past : thisWeek;
   const week = useWeek(store, activeId, start);
   const nowWeek = useWeek(store, activeId, thisWeek);
+  const [sp, setSp] = useSearchParams();
+
+  /** 통독 「읽으러 가기」 — 성경 읽기 탭을 그 장에서 연다 */
+  const readChapter = (chapter: string) => {
+    const p = parseCh(chapter);
+    if (!p) return;
+    openInReader(p.b, p.c, 1);
+    const next = new URLSearchParams(sp);
+    next.delete('group');
+    next.delete('session');
+    next.set('tab', 'bible');
+    setSp(next);
+  };
 
   // 지난 주들 띠의 점을 그리려고 12주를 미리 받아 둔다 (60초 캐시·중복 요청 없음)
   useEffect(() => {
@@ -98,6 +115,7 @@ export function GroupHome({ store, groupId, notes, onOpenSession, onStartInSlot,
 
   const tabs: Array<[Tab, string]> = [
     ['week', '이번 주'],
+    ['reading', '통독'],
     ['last', '지난 주들'],
     ['members', `멤버 ${active.length}`],
   ];
@@ -226,6 +244,9 @@ export function GroupHome({ store, groupId, notes, onOpenSession, onStartInSlot,
                   onOpenSession(s.id);
                 }}
               />
+            )}
+            {tab === 'reading' && (
+              <GroupReading group={group} mascot={mascot} onRead={readChapter} />
             )}
             {tab === 'members' && (
               <Members

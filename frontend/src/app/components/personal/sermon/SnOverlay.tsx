@@ -22,6 +22,60 @@ interface SnOverlayProps {
   initialFocus?: string;
 }
 
+/**
+ * 시트마다 방문 기록에 한 칸을 넣어 두어, 안드로이드·브라우저 뒤로는 시트만 닫게 한다.
+ * 닫힐 때 그 칸이 아직 맨 위면 되돌린다. 닫자마자 다른 시트가 열리면(단계 이동 등) 같은 칸을 이어 쓴다.
+ */
+let sheetDepth = 0;
+let pendingBack: number | null = null;
+
+function pushSheet(): number {
+  const my = ++sheetDepth;
+  const state = { ...(window.history.state || {}), snSheet: my };
+  if (pendingBack !== null) {
+    window.clearTimeout(pendingBack);
+    pendingBack = null;
+    window.history.replaceState(state, '');
+  } else {
+    window.history.pushState(state, '');
+  }
+  return my;
+}
+
+let backing = false;
+const afterBack: Array<() => void> = [];
+
+function flushAfterBack() {
+  backing = false;
+  afterBack.splice(0).forEach((fn) => fn());
+}
+
+function popSheet(my: number) {
+  sheetDepth = Math.max(0, sheetDepth - 1);
+  if (window.history.state?.snSheet !== my) return;
+  if (pendingBack !== null) window.clearTimeout(pendingBack);
+  pendingBack = window.setTimeout(() => {
+    pendingBack = null;
+    if (window.history.state?.snSheet !== my) return flushAfterBack();
+    backing = true;
+    window.addEventListener('popstate', () => window.setTimeout(flushAfterBack, 0), { once: true });
+    window.setTimeout(() => backing && flushAfterBack(), 500); // popstate 가 오지 않는 환경 대비
+    window.history.back();
+  }, 0);
+}
+
+/**
+ * 시트를 닫고 다른 화면으로 넘어갈 때 — 시트 칸이 기록에서 빠진 뒤에 fn 을 부른다.
+ * (먼저 넘어가면 시트 칸이 그 아래 남아 뒤로를 한 번 헛누르게 된다)
+ * onClose() 와 같은 이벤트 안에서 부른다.
+ */
+export function afterSheetClose(fn: () => void) {
+  window.setTimeout(() => {
+    if (pendingBack !== null || backing) afterBack.push(fn);
+    else fn();
+  }, 0);
+}
+
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -40,6 +94,21 @@ export function SnOverlay({
   useEscClose(open, onClose);
   const boxRef = useRef<HTMLDivElement>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const my = pushSheet();
+    const onPop = () => {
+      if ((window.history.state?.snSheet ?? 0) < my) closeRef.current();
+    };
+    window.addEventListener('popstate', onPop);
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      popSheet(my);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;

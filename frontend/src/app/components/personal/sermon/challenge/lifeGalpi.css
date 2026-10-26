@@ -1,0 +1,273 @@
+/* 챌린지 홈 「이번 주 삶의 갈피」 (LifeGalpiCard.tsx) */
+.sermon-app .sn-lg {
+  position: relative;
+  padding: 16px 18px 18px;
+  border-radius: 28px;
+  border: 1.5px solid color-mix(in srgb, var(--sn-g1) 70%, transparent);
+  background: var(--sn-surface);
+  overflow: hidden;
+}
+.sermon-app .sn-lg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--sn-g1) 45%, transparent) 1px,
+    transparent 1.4px
+  );
+  background-size: 9px 9px;
+  opacity: 0.5;
+  mask-image: linear-gradient(120deg, #000 0, transparent 45%);
+}
+.sermon-app .sn-lg-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sermon-app .sn-lg-head h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--sn-fg);
+}
+.sermon-app .sn-lg-due {
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-lg-prize {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--sn-fg);
+}
+.sermon-app .sn-lg-slots {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+.sermon-app .sn-lg-slot {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 22px;
+  background: var(--sn-surface-2);
+}
+/* 가름끈 도장 — 빈 칸은 점선, 꽂히면 잉크색 */
+.sermon-app .sn-lg-rib {
+  flex: none;
+  width: 48px;
+  height: 64px;
+  padding: 0 0 10px;
+  border: 0;
+  border-radius: 8px 8px 0 0;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 84%, 0 100%);
+  display: grid;
+  place-items: center;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  color: var(--sn-faint);
+  background:
+    repeating-linear-gradient(0deg, var(--sn-line-strong) 0 4px, transparent 4px 8px) left / 2px
+      100% no-repeat,
+    repeating-linear-gradient(0deg, var(--sn-line-strong) 0 4px, transparent 4px 8px) right / 2px
+      100% no-repeat,
+    repeating-linear-gradient(90deg, var(--sn-line-strong) 0 4px, transparent 4px 8px) top / 100%
+      2px no-repeat,
+    var(--sn-surface);
+}
+.sermon-app button.sn-lg-rib {
+  cursor: pointer;
+  color: var(--sn-t1);
+}
+.sermon-app button.sn-lg-rib:hover {
+  background-color: color-mix(in srgb, var(--sn-g1) 18%, var(--sn-surface));
+}
+.sermon-app .sn-lg-rib[data-on] {
+  font-family: var(--sn-f-poster);
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--sn-on-ink);
+}
+.sermon-app .sn-lg-rib[data-on='word'] {
+  background: var(--sn-g2);
+  transform: rotate(-4deg);
+}
+.sermon-app .sn-lg-rib[data-on='life'] {
+  background: var(--sn-g3);
+  transform: rotate(4deg);
+}
+.sermon-app .sn-lg-rib[data-just] {
+  animation: sn-lg-drop 0.5s var(--sn-spring);
+}
+@keyframes sn-lg-drop {
+  from {
+    transform: translateY(-26px) rotate(-10deg);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(4deg);
+    opacity: 1;
+  }
+}
+.sermon-app .sn-lg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sermon-app .sn-lg-body small {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-lg-body b {
+  font-size: 14px;
+  color: var(--sn-fg);
+}
+.sermon-app .sn-lg-src {
+  font-size: 12px;
+  color: var(--sn-faint);
+}
+.sermon-app .sn-lg-memo {
+  font-family: var(--sn-f-hand);
+  font-size: 21px;
+  line-height: 1.25;
+  color: var(--sn-fg);
+  overflow-wrap: anywhere;
+}
+.sermon-app .sn-lg-memo[data-done] {
+  text-decoration: line-through;
+  text-decoration-color: var(--sn-t2);
+}
+.sermon-app .sn-lg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.sermon-app .sn-lg-btn {
+  min-height: 34px;
+  padding: 6px 14px;
+  font-size: 13px;
+}
+.sermon-app .sn-lg-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 34px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sn-t1);
+  cursor: pointer;
+}
+.sermon-app .sn-lg-more .sn-icon {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s;
+}
+.sermon-app .sn-lg-more[aria-expanded='true'] .sn-icon {
+  transform: rotate(90deg);
+}
+.sermon-app .sn-lg-ribbon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  color: var(--sn-fg);
+  background: color-mix(in srgb, var(--sn-g3) 45%, var(--sn-surface));
+}
+.sermon-app .sn-lg-ribbon b {
+  font-family: var(--sn-f-poster);
+  font-weight: 400;
+  font-size: 17px;
+}
+.sermon-app .sn-lg-list {
+  position: relative;
+  margin-top: 12px;
+  padding: 4px;
+  border-radius: 20px;
+  border: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+}
+.sermon-app .sn-lg-list-h {
+  padding: 10px 12px 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-lg-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 14px;
+}
+.sermon-app .sn-lg-line + .sn-lg-line {
+  border-top: 1px dashed var(--sn-line);
+}
+.sermon-app .sn-lg-line-tx {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sermon-app .sn-lg-line .sn-lg-memo {
+  font-size: 19px;
+}
+.sermon-app .sn-lg-line[data-done] .sn-lg-memo {
+  text-decoration: line-through;
+  text-decoration-color: var(--sn-t2);
+  color: var(--sn-muted);
+}
+.sermon-app .sn-lg-ck {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--sn-line-strong);
+  background: transparent;
+  cursor: pointer;
+}
+.sermon-app .sn-lg-ck[aria-pressed='true'] {
+  border-color: var(--sn-g3);
+  background: var(--sn-g3)
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231b1a1f' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg>")
+    center / 16px no-repeat;
+}
+@media (max-width: 760px) {
+  .sermon-app .sn-lg {
+    padding: 14px;
+    border-radius: 24px;
+  }
+  .sermon-app .sn-lg-slots {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app .sn-lg-rib[data-just] {
+    animation: none;
+  }
+}

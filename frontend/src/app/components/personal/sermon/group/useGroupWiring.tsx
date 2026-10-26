@@ -3,6 +3,7 @@ import { useNavigate, type SetURLSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { SnOverlay } from '../SnOverlay';
+import { SnSheetBar } from '../SnSheetBar';
 import type { SermonStore } from '../sermonStore';
 import { newNote, todayString, type NoteGroupLink, type SermonNote } from '../sermonTypes';
 import type { SessionDetail } from './groupApi';
@@ -280,18 +281,25 @@ export function useGroupWiring({
   }, [adoptId, anonymous, store, store.status.loading, gstore, gstore.loaded, setView]);
 
   /* ── 편집기 띠 동작 ── */
-  const setLink = useCallback(
-    (groupId: string, patch: Partial<NoteGroupLink>) => {
-      if (!openNote) return;
-      const cur = store.get(openNote.id);
+  const setNoteLink = useCallback(
+    (noteId: string, groupId: string, patch: Partial<NoteGroupLink>) => {
+      const cur = store.get(noteId);
       if (!cur) return;
       const groups = (cur.groups || []).map((l) =>
         l.group_id === groupId ? { ...l, ...patch } : l,
       );
       store.saveLinks(cur.id, { groups, group_dismissed: cur.group_dismissed });
       if (patch.off === true) toast('모임에서 뺐어요 · 다시 같이 볼 수 있어요');
+      else if (patch.off === false) toast('다시 모임과 같이 봐요');
+      else if (patch.private === false) toast('모임에 공개했어요');
     },
-    [openNote, store],
+    [store],
+  );
+  const setLink = useCallback(
+    (groupId: string, patch: Partial<NoteGroupLink>) => {
+      if (openNote) setNoteLink(openNote.id, groupId, patch);
+    },
+    [openNote, setNoteLink],
   );
   const accept = useCallback(
     (s: Suggestion) => {
@@ -342,9 +350,10 @@ export function useGroupWiring({
       openSession,
       openCreate: () => setCreateOpen(true),
       startInSlot,
+      setNoteLink,
       onLogin,
     }),
-    [gstore, userId, anonymous, openGroup, openSession, startInSlot, onLogin],
+    [gstore, userId, anonymous, openGroup, openSession, startInSlot, setNoteLink, onLogin],
   );
 
   const groupNav = (
@@ -428,10 +437,7 @@ export function useGroupWiring({
                 ))}
               </ul>
             </div>
-            <div className="sg-foot">
-              <button type="button" className="sn-btn sn-ghost" onClick={() => setAdopt(null)}>
-                나중에
-              </button>
+            <SnSheetBar onClose={() => setAdopt(null)} closeLabel="나중에">
               <button
                 type="button"
                 className="sn-btn sn-primary"
@@ -450,7 +456,7 @@ export function useGroupWiring({
               >
                 붙이기
               </button>
-            </div>
+            </SnSheetBar>
           </>
         )}
       </SnOverlay>

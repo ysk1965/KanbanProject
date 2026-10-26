@@ -1,0 +1,211 @@
+/* 챌린지 홈 게임 카드 — 살아 있는 창 (GameWindows.tsx) */
+.sermon-app .sn-gw {
+  position: relative;
+  width: 100%;
+  height: 128px;
+  border-radius: 18px;
+  overflow: hidden;
+  background-color: color-mix(in srgb, var(--sn-g1) 14%, var(--sn-surface-2));
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--sn-g1) 50%, transparent) 1.1px,
+    transparent 1.5px
+  );
+  background-size: 8px 8px;
+}
+
+/* 산성비 */
+.sermon-app .sn-gw-word {
+  position: absolute;
+  top: 0;
+  padding: 2px 10px;
+  border-radius: var(--sn-r-pill);
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 2px 0 var(--sn-line-strong);
+  animation: sn-gw-fall 7s linear infinite paused;
+}
+.sermon-app .sn-gw-word[data-kind='gold'] {
+  background: var(--sn-ch-gold);
+  color: var(--sn-ch-gold-ink);
+}
+.sermon-app .sn-gw-word[data-kind='galpi'] {
+  background: color-mix(in srgb, var(--sn-g2) 80%, var(--sn-surface));
+  color: var(--sn-on-ink);
+}
+@keyframes sn-gw-fall {
+  from {
+    transform: translateY(-24px);
+  }
+  to {
+    transform: translateY(112px);
+  }
+}
+.sermon-app .sn-gw-ground {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sermon-app .sn-gw-town {
+  flex: 1;
+  height: 14px;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(
+    90deg,
+    var(--sn-g2) 0 18%,
+    transparent 18% 22%,
+    var(--sn-g1) 22% 40%,
+    transparent 40% 44%,
+    var(--sn-g3) 44% 62%,
+    transparent 62% 66%,
+    var(--sn-g2) 66% 84%,
+    transparent 84% 88%,
+    var(--sn-g1) 88%
+  );
+}
+.sermon-app .sn-gw-input {
+  padding: 2px 10px;
+  border-radius: var(--sn-r-pill);
+  border: 1px solid var(--sn-line-strong);
+  background: var(--sn-surface);
+  color: var(--sn-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* 필사 — 펼친 노트 + 매달린 가름끈 일곱 */
+.sermon-app .sn-gw-pilsa {
+  background-color: color-mix(in srgb, var(--sn-g2) 12%, var(--sn-surface-2));
+}
+.sermon-app .sn-gw-hang {
+  position: absolute;
+  top: 0;
+  left: 22px;
+  right: 22px;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.sermon-app .sn-gw-rb {
+  width: 12px;
+  height: 34px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  background: var(--sn-line-strong);
+  transform-origin: top;
+}
+.sermon-app .sn-gw-rb[data-s='on'][data-k='main'] {
+  background: var(--sn-g2);
+}
+.sermon-app .sn-gw-rb[data-s='on'][data-k='cited'] {
+  background: var(--sn-g1);
+}
+.sermon-app .sn-gw-rb[data-s='on'][data-k='near'] {
+  background: var(--sn-g3);
+}
+.sermon-app .sn-gw-rb[data-s='on'][data-k='next'] {
+  background: var(--sn-ch-gold);
+}
+.sermon-app .sn-gw-rb[data-s='now'] {
+  height: 44px;
+  background: var(--sn-ch-gold);
+  animation: sn-gw-sway 2.4s ease-in-out infinite paused;
+}
+@keyframes sn-gw-sway {
+  50% {
+    transform: rotate(6deg);
+  }
+}
+.sermon-app .sn-gw-spread {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 22px;
+  bottom: -10px;
+  border-radius: 14px 14px 0 0;
+  background: var(--sn-surface);
+  box-shadow: 0 -1px 0 var(--sn-line-strong);
+  overflow: hidden;
+}
+.sermon-app .sn-gw-pg {
+  padding: 18px 14px 0 30px;
+  font-family: var(--sn-f-serif);
+  font-size: 13px;
+  line-height: 22px;
+  color: var(--sn-faint);
+  background-image: repeating-linear-gradient(transparent 0 21px, var(--sn-line) 21px 22px);
+  background-position: 0 17px;
+  height: 100%;
+}
+.sermon-app .sn-gw-pg b {
+  font-family: var(--sn-f-ui);
+  font-size: 12px;
+  color: var(--sn-t2);
+}
+.sermon-app .sn-gw-ink {
+  color: var(--sn-fg);
+}
+.sermon-app .sn-gw-caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 14px;
+  margin: 0 1px;
+  vertical-align: -2px;
+  background: var(--sn-t1);
+}
+
+.sermon-app .sn-gw[data-play] .sn-gw-word,
+.sermon-app .sn-gw[data-play] .sn-gw-rb {
+  animation-play-state: running;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app .sn-gw[data-play] .sn-gw-word,
+  .sermon-app .sn-gw[data-play] .sn-gw-rb {
+    animation-play-state: paused;
+  }
+}
+
+/* 카드 아래 한 줄: 손글씨 최고점 · 동전 칸 · 시작 */
+.sermon-app .sn-gw-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-gw-best {
+  font-family: var(--sn-f-hand);
+  font-size: 19px;
+  line-height: 1;
+  color: var(--sn-fg);
+}
+.sermon-app .sn-gw-meta .sn-ch-go {
+  margin: 0 0 0 auto;
+}
+.sermon-app .sn-gw-coins {
+  display: inline-flex;
+  gap: 2px;
+}
+.sermon-app .sn-gw-coins i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--sn-line-strong);
+}
+.sermon-app .sn-gw-coins i[data-on] {
+  background: var(--sn-ch-gold);
+}
+@media (max-width: 760px) {
+  .sermon-app .sn-gw {
+    height: 112px;
+  }
+}

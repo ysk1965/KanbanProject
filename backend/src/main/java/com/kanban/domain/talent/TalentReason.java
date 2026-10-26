@@ -15,6 +15,10 @@ public final class TalentReason {
     public static final String GAME = "game";
     public static final String GAME_FIRST = "game_first";
     public static final String EXCHANGE = "exchange";
+    /** 말씀 필사 — 한 장을 다 씀 (게임 하루 상한과 무관, 랭킹에 들어간다) */
+    public static final String PILSA = "pilsa";
+    /** 말씀 필사 — 이번 주 일곱 장을 다 씀 */
+    public static final String PILSA_WEEK = "pilsa_week";
 
     /** 하루 30 상한에 함께 묶이는 사유 */
     public static final Set<String> GAME_REASONS = Set.of(GAME, GAME_FIRST);

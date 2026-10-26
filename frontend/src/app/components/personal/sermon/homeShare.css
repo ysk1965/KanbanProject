@@ -1,0 +1,134 @@
+/* =====================================================================
+   홈 표지 카드 — 공유 버튼 · 「나눈 곳」 줄 · 갈피 리본 (SermonHome · GroupWeekBits NoteShareRow)
+   ===================================================================== */
+
+/* ── 칩: 갈피 색(g2)이 아니라 기본 잉크로 — 갈피는 리본만 말한다 ── */
+.sermon-app .sn-hc .sn-hc-chip {
+  padding: 2px 10px;
+  background: color-mix(in srgb, var(--sn-g1) 26%, transparent);
+  color: var(--sn-t1);
+}
+
+/* ── 공유 버튼 ── */
+.sermon-app .sn-hc-share {
+  border-color: color-mix(in srgb, var(--sn-t1) 55%, transparent);
+  color: var(--sn-t1);
+}
+.sermon-app .sn-hc-share:hover {
+  background: color-mix(in srgb, var(--sn-g1) 18%, transparent);
+}
+
+/* ── 갈피 리본: 표지 위쪽에 걸린 가름끈. 꽂힘 = 채움, 아직 = 옅게 ── */
+.sermon-app .sn-hc-rib {
+  position: absolute;
+  top: 14px;
+  right: 118px;
+  z-index: 4;
+  width: 24px;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--sn-t2) 22%, transparent);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  transform-origin: top center;
+  transition:
+    height 0.2s var(--sn-ease),
+    background-color 0.2s var(--sn-ease);
+}
+.sermon-app .sn-hc-rib:hover,
+.sermon-app .sn-hc-rib:focus-visible {
+  height: 52px;
+  background: color-mix(in srgb, var(--sn-t2) 45%, transparent);
+  outline: none;
+}
+.sermon-app .sn-hc-rib[aria-pressed='true'] {
+  background: var(--sn-t2);
+}
+.sermon-app .sn-hc[data-fx='pin'] .sn-hc-rib {
+  animation: sn-slip-in 0.55s var(--sn-spring);
+}
+.sermon-app .sn-hc[data-fx='unpin'] .sn-hc-rib {
+  animation: sn-slip-out 0.35s var(--sn-ease);
+}
+
+/* ── 나눈 곳 ── */
+.sermon-app .sn-share-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--sn-line);
+}
+.sermon-app .sn-share-lbl {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--sn-faint);
+}
+.sermon-app .sn-share-it {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-share-it small {
+  font-size: 12px;
+}
+.sermon-app .sn-share-st {
+  padding: 2px 9px;
+  border-radius: var(--sn-r-pill);
+  font-size: 12px;
+  font-weight: 700;
+}
+.sermon-app .sn-share-st[data-st='open'] {
+  background: color-mix(in srgb, var(--sn-g3) 26%, transparent);
+  color: var(--sn-fg);
+}
+.sermon-app .sn-share-st[data-st='private'] {
+  border: 1px dashed color-mix(in srgb, var(--sn-t2) 60%, transparent);
+  color: var(--sn-t2);
+}
+.sermon-app .sn-share-st[data-st='none'] {
+  background: color-mix(in srgb, var(--sn-fg) 7%, transparent);
+}
+.sermon-app .sn-share-off {
+  color: var(--sn-faint);
+}
+.sermon-app .sn-share-go,
+.sermon-app .sn-share-no {
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sn-t1);
+  cursor: pointer;
+}
+.sermon-app .sn-share-no {
+  font-weight: 500;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-share-go:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sermon-app .sn-share-go:focus-visible,
+.sermon-app .sn-share-no:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--sn-t1) 50%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app .sn-hc-rib,
+  .sermon-app .sn-hc[data-fx] .sn-hc-rib {
+    transition: none;
+    animation: none;
+  }
+}

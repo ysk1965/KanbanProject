@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, Copy, Loader2, Share2, X } from 'lucide-react';
+import { Check, Copy, Loader2, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { SnOverlay } from '../SnOverlay';
+import { SnOverlay, afterSheetClose } from '../SnOverlay';
+import { SnSheetBar } from '../SnSheetBar';
 import { Mascot, type MascotState } from '../Mascot';
 import { loadLook, mascotName } from '../sermonLook';
 import { todayString } from '../sermonTypes';
@@ -248,14 +249,6 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
             {TITLES[step - 1]}
           </h2>
         </div>
-        <button
-          type="button"
-          className="sn-btn sn-icon-only sn-ghost"
-          aria-label="닫기"
-          onClick={onClose}
-        >
-          <X className="sn-icon" />
-        </button>
       </div>
       <ol className="sg-pills" aria-label={`3단계 중 ${step}단계`}>
         {STEPS.map((label, i) => (
@@ -484,54 +477,53 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
         </div>
       </div>
 
-      <div className="sg-mfoot">
-        <span className="sg-hint" key={hint.join('')}>
-          {hint.map((h, i) => (i % 2 ? <b key={i}>{h}</b> : <span key={i}>{h}</span>))}
-        </span>
-        <div className="sg-row">
-          {step === 2 && (
-            <button type="button" className="sn-btn sn-ghost" onClick={() => go(1)}>
-              이전
-            </button>
-          )}
-          {step === 1 && (
-            <button
-              type="button"
-              className="sn-btn sn-primary sg-go"
-              data-ready={canNext1 || undefined}
-              disabled={!canNext1}
-              onClick={() => go(2)}
-            >
-              다음
-            </button>
-          )}
-          {step === 2 && (
-            <button
-              type="button"
-              className="sn-btn sn-primary sg-go"
-              data-ready={activeCount > 0 || undefined}
-              disabled={busy || activeCount === 0}
-              onClick={() => void create()}
-            >
-              {busy && <Loader2 className="sn-icon animate-spin" />}
-              모임 만들기
-            </button>
-          )}
-          {step === 3 && created && (
-            <button
-              type="button"
-              className="sn-btn sn-primary sg-go"
-              data-ready
-              onClick={() => {
-                onCreated(created);
-                onClose();
-              }}
-            >
-              모임 홈으로
-            </button>
-          )}
-        </div>
-      </div>
+      <SnSheetBar
+        onClose={step === 2 ? () => go(1) : onClose}
+        closeLabel={step === 2 ? '이전' : '닫기'}
+        back={step === 2}
+        note={
+          <span className="sg-hint" key={hint.join('')}>
+            {hint.map((h, i) => (i % 2 ? <b key={i}>{h}</b> : <span key={i}>{h}</span>))}
+          </span>
+        }
+      >
+        {step === 1 && (
+          <button
+            type="button"
+            className="sn-btn sn-primary sg-go"
+            data-ready={canNext1 || undefined}
+            disabled={!canNext1}
+            onClick={() => go(2)}
+          >
+            다음
+          </button>
+        )}
+        {step === 2 && (
+          <button
+            type="button"
+            className="sn-btn sn-primary sg-go"
+            data-ready={activeCount > 0 || undefined}
+            disabled={busy || activeCount === 0}
+            onClick={() => void create()}
+          >
+            {busy && <Loader2 className="sn-icon animate-spin" />}
+            모임 만들기
+          </button>
+        )}
+        {step === 3 && created && (
+          <button
+            type="button"
+            className="sn-btn sn-primary sg-go"
+            data-ready
+            onClick={() => {
+              onClose();
+              afterSheetClose(() => onCreated(created));
+            }}
+          >
+            모임 홈으로
+          </button>
+        )}
+      </SnSheetBar>
     </SnOverlay>
   );
 }

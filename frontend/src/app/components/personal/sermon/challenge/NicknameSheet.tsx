@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
 import { SnOverlay } from '../SnOverlay';
+import { SnSheetBar } from '../SnSheetBar';
 import { challengeAPI, challengeErrorMessage } from './challengeApi';
 import type { ChallengeStore } from './challengeStore';
 import { validNickname, rankName } from './challengeUtil';
@@ -64,14 +64,6 @@ export function NicknameSheet({
     >
       <div className="sn-ch-sheet-h">
         <h2 id="sn-ch-prof-h">랭킹에 보일 이름</h2>
-        <button
-          type="button"
-          className="sn-btn sn-ghost sn-icon-only"
-          aria-label="닫기"
-          onClick={onClose}
-        >
-          <X className="sn-icon" aria-hidden />
-        </button>
       </div>
       {saved && shown?.nickname ? (
         <>
@@ -80,11 +72,7 @@ export function NicknameSheet({
             {shown.anonymous ? ` 대신 「${shown.anon_name || '익명의 양'}」` : ''}(으)로 보여요.
           </p>
           <p className="sn-ch-hint">같은 닉네임이 있어도 뒤의 #숫자로 구분돼요.</p>
-          <div className="sn-acts">
-            <button type="button" className="sn-btn sn-primary" onClick={onClose}>
-              확인
-            </button>
-          </div>
+          <SnSheetBar onClose={onClose} />
         </>
       ) : (
         <>
@@ -113,10 +101,7 @@ export function NicknameSheet({
             </span>
           </label>
           {err && <p className="sn-ch-warn">{err}</p>}
-          <div className="sn-acts">
-            <button type="button" className="sn-btn sn-ghost" onClick={onClose}>
-              {first ? '나중에' : '취소'}
-            </button>
+          <SnSheetBar onClose={onClose} closeLabel={first ? '나중에' : '닫기'}>
             <button
               type="button"
               className="sn-btn sn-primary"
@@ -125,7 +110,7 @@ export function NicknameSheet({
             >
               {busy ? '저장 중…' : '저장'}
             </button>
-          </div>
+          </SnSheetBar>
         </>
       )}
     </SnOverlay>

@@ -504,9 +504,8 @@
 .snc-acts .sn-btn {
   justify-content: center;
 }
-.snc-acts .snc-main {
-  grid-column: 1 / -1;
-  min-height: 44px;
+.snc-sheet .sn-sbar .snc-main {
+  gap: 6px;
 }
 .snc-shot {
   position: fixed;
@@ -527,7 +526,10 @@
   .snc-sheet-body {
     flex-direction: column;
     align-items: stretch;
-    padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    padding: 0 16px 16px;
+  }
+  .snc-sheet .sn-sbar {
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
   }
   .snc-stage {
     flex: none;

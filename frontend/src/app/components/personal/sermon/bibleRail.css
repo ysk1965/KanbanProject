@@ -1,0 +1,269 @@
+/* 성경 읽기 — 오른쪽 길잡이 레일 (BibleRail). 넓은 화면에서만 보인다. */
+.sermon-app .sn-brail {
+  display: none;
+}
+@media (min-width: 1320px) {
+  /* 본문 칸은 그대로 1000px, 오른쪽에 레일 자리를 덧붙인다 */
+  .sermon-app .sn-bible[data-rail='true'] {
+    position: relative;
+    max-width: 1260px;
+    padding-right: 260px;
+  }
+  .sermon-app .sn-bible[data-rail='true'] .sn-brail {
+    display: block;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 232px;
+  }
+}
+.sermon-app .sn-brail-in {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: calc(100dvh - 120px);
+}
+.sermon-app .sn-brail-card {
+  background: var(--sn-bg);
+  border: 1px solid var(--sn-line);
+  border-radius: 20px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.sermon-app .sn-brail-card:first-child {
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+.sermon-app .sn-brail-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.sermon-app .sn-brail-top strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--sn-f-poster);
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 1.1;
+  color: var(--sn-t1);
+}
+.sermon-app .sn-brail-top em {
+  font-style: normal;
+  color: var(--sn-t2);
+}
+.sermon-app .sn-brail-step {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--sn-r-pill);
+  border: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  cursor: pointer;
+}
+.sermon-app .sn-brail-step:hover:not(:disabled) {
+  border-color: var(--sn-line-strong);
+}
+.sermon-app .sn-brail-step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.sermon-app .sn-brail-where {
+  font-size: 12px;
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sermon-app .sn-brail-where b {
+  color: var(--sn-fg);
+}
+
+/* 구절 지도 — 지금 보이는 절은 진하게, 설교 구절·형광펜은 밑줄, 손글씨·메모는 점 */
+.sermon-app .sn-brail-map {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 4px;
+  flex: none;
+}
+.sermon-app .sn-brail-map[data-dense] {
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  gap: 2px;
+}
+.sermon-app .sn-brail-tick {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--sn-fg) 6%, transparent);
+  color: var(--sn-faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+.sermon-app .sn-brail-map[data-dense] .sn-brail-tick {
+  aspect-ratio: 1 / 1.5;
+  border-radius: 3px;
+}
+.sermon-app .sn-brail-tick:hover {
+  color: var(--sn-fg);
+  background: color-mix(in srgb, var(--sn-fg) 12%, transparent);
+}
+.sermon-app .sn-brail-tick[data-here] {
+  background: var(--sn-fg);
+  color: var(--sn-bg);
+}
+.sermon-app .sn-brail-tick[data-mark='quote'] {
+  box-shadow: inset 0 -3px 0 var(--sn-t1);
+}
+.sermon-app .sn-brail-tick[data-mark='main'] {
+  box-shadow: inset 0 -3px 0 var(--sn-t2);
+}
+.sermon-app .sn-brail-tick[data-mark='hl'] {
+  box-shadow: inset 0 -3px 0 var(--sn-hl-yellow);
+}
+.sermon-app .sn-brail-tick[data-note]::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--sn-t1);
+}
+.sermon-app .sn-brail-tick[data-here][data-note]::after {
+  background: var(--sn-bg);
+}
+.sermon-app .sn-brail-map[data-dense] .sn-brail-tick[data-note]::after {
+  top: 1px;
+  right: 1px;
+  width: 3px;
+  height: 3px;
+}
+
+/* 이 장의 갈피 */
+.sermon-app .sn-brail-marks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+.sermon-app .sn-brail-marks ul {
+  margin: 0 -6px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.sermon-app .sn-brail-marks button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+  padding: 7px 6px;
+  border: 0;
+  border-radius: var(--sn-r-ctl);
+  background: transparent;
+  color: var(--sn-fg);
+  text-align: left;
+  cursor: pointer;
+}
+.sermon-app .sn-brail-marks button:hover {
+  background: color-mix(in srgb, var(--sn-fg) 5%, transparent);
+}
+.sermon-app .sn-brail-marks button[data-here] {
+  background: var(--sn-accent-soft);
+}
+.sermon-app .sn-brail-ref {
+  padding-top: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--sn-t1);
+}
+.sermon-app .sn-brail-ref[data-k='main'] {
+  color: var(--sn-t2);
+}
+.sermon-app .sn-brail-ref[data-k='hl'] {
+  color: var(--sn-muted);
+}
+.sermon-app .sn-brail-txt {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--sn-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sermon-app .sn-brail-txt[data-hand] {
+  font-family: var(--sn-f-hand);
+  font-size: 16px;
+  line-height: 1.25;
+  color: var(--sn-t1);
+}
+
+/* 책 진도 + 다음 장 */
+.sermon-app .sn-brail-book {
+  gap: 8px;
+  flex: none;
+}
+.sermon-app .sn-brail-prog {
+  height: 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--sn-fg) 8%, transparent);
+  overflow: hidden;
+}
+.sermon-app .sn-brail-prog i {
+  display: block;
+  height: 100%;
+  background: var(--sn-t2);
+  transition: width 0.2s var(--sn-ease);
+}
+.sermon-app .sn-brail-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--sn-r-ctl);
+  background: var(--sn-fg);
+  color: var(--sn-bg);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.sermon-app .sn-brail-step:focus-visible,
+.sermon-app .sn-brail-tick:focus-visible,
+.sermon-app .sn-brail-marks button:focus-visible,
+.sermon-app .sn-brail-next:focus-visible {
+  outline: 2px solid var(--sn-t1);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app .sn-brail-tick,
+  .sermon-app .sn-brail-prog i {
+    transition: none;
+  }
+}

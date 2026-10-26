@@ -1,5 +1,5 @@
-import { useEffect, useSyncExternalStore } from 'react';
-import type { SermonNote } from '../sermonTypes';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import type { NoteGroupLink, SermonNote } from '../sermonTypes';
 import { Faces } from './Faces';
 import type { SermonGroup } from './groupApi';
 import type { GroupStore } from './groupStore';
@@ -11,7 +11,7 @@ import './group.css';
  * 「한 주 동안」 날짜 칸에 붙는 모임 조각.
  *  - GroupDaySlots: 그날의 모임 예배 자리(점선 스티커)와 모이는 날 표시. 내가 이미 쓴 자리는 그리지 않는다(내 스티커가 대신)
  *  - NoteGroupFaces: 내 노트 스티커 끝에 모임 이름과 같은 자리를 채운 멤버 얼굴(2명까지, 넘치면 +n)
- *  - NoteGroupsWith: 표지 카드의 「같이 들은 모임」 — 갈피 노트를 여러 모임과 함께 들었을 때 모임마다 쓴 사람
+ *  - NoteShareRow: 표지 카드의 「나눈 곳」 — 모임마다 공개 상태와 다음 행동(비교하기·공개하기·되돌리기)
  *  - useNoteGroups: 노트가 「모임 노트」(내가 속한 모임 자리에 연결)인지 — 스티커 색을 나누는 기준
  * 모임이 없거나 로그인 전이면 아무것도 그리지 않아 지금 화면과 같다.
  */
@@ -160,38 +160,123 @@ export function NoteGroupFaces({ note }: { note: SermonNote }) {
   );
 }
 
-export function NoteGroupsWith({ note }: { note: SermonNote }) {
+/**
+ * 표지 카드 「나눈 곳」 — 이 노트가 모임마다 어떻게 보이는지와 다음 행동.
+ *  공개 중 → 같은 자리에 쓴 사람 + 비교하기 / 나만 보기 → 공개하기(한 번 더 확인) / 뺀 연결 → 되돌리기
+ *  연결된 모임이 없으면(로그인 전 포함) 카드로 보내기 한 줄.
+ */
+export function NoteShareRow({ note, onCard }: { note: SermonNote; onCard: () => void }) {
   const ctx = useSermonGroups();
   const store = ctx?.store;
   useSyncExternalStore(store?.subscribe ?? noopSub, store?.snapshot ?? zero);
-  if (!ctx || !store || ctx.anonymous) return null;
-  const rows = linkedGroups(note, store).map((g) => {
-    const l = (note.groups || []).find((x) => x.group_id === g.id && !x.off);
-    const sess = l?.session_id
-      ? store.weekCached(g.id, weekStartOf(l.date))?.sessions.find((x) => x.id === l.session_id)
-      : undefined;
-    const people = (sess?.members || [])
-      .filter((m) => m.user_id !== g.me.user_id)
-      .map((m) => ({
-        user_id: m.user_id,
-        display_name: g.members.find((x) => x.user_id === m.user_id)?.display_name || '?',
-      }));
-    return { g, people };
-  });
-  if (!rows.length) return null;
+  const [asking, setAsking] = useState<string | null>(null);
+
+  const rows: Array<{ g: SermonGroup; l: NoteGroupLink; people: FacePerson[] }> = [];
+  if (ctx && store && !ctx.anonymous) {
+    for (const l of note.groups || []) {
+      const g = store.get(l.group_id);
+      if (!g || g.me.status !== 'active' || rows.some((r) => r.g.id === g.id)) continue;
+      const sess = l.session_id
+        ? store.weekCached(g.id, weekStartOf(l.date))?.sessions.find((x) => x.id === l.session_id)
+        : undefined;
+      const people = (sess?.members || [])
+        .filter((m) => m.user_id !== g.me.user_id)
+        .map((m) => ({
+          user_id: m.user_id,
+          display_name: g.members.find((x) => x.user_id === m.user_id)?.display_name || '?',
+        }));
+      rows.push({ g, l, people });
+    }
+  }
+
   return (
-    <p className="sn-hc-with">
-      같이 들은 모임
-      {rows.map(({ g, people }) => (
-        <span key={g.id} className="sn-hc-grp">
-          {people.length > 0 && <Faces people={people} max={2} size={20} />}
-          {g.name}
-          {people.length > 0 && <small>{people.length}명</small>}
-        </span>
-      ))}
-    </p>
+    <div className="sn-share-row" aria-label="나눈 곳">
+      <span className="sn-share-lbl">나눈 곳</span>
+      {rows.length === 0 && (
+        <p className="sn-share-it">
+          <span className="sn-share-st" data-st="none">
+            아직 아무에게도
+          </span>
+          <button type="button" className="sn-share-go" onClick={onCard}>
+            카드로 보내기 →
+          </button>
+        </p>
+      )}
+      {rows.map(({ g, l, people }) => {
+        if (l.off)
+          return (
+            <p key={g.id} className="sn-share-it">
+              <span className="sn-share-off">{g.name}에는 안 보여요</span>
+              <button
+                type="button"
+                className="sn-share-go"
+                onClick={() => ctx?.setNoteLink(note.id, g.id, { off: false })}
+              >
+                되돌리기
+              </button>
+            </p>
+          );
+        const grp = (
+          <span className="sn-hc-grp">
+            {people.length > 0 && <Faces people={people} max={2} size={20} />}
+            {g.name}
+          </span>
+        );
+        if (l.private)
+          return (
+            <p key={g.id} className="sn-share-it">
+              {grp}
+              <span className="sn-share-st" data-st="private">
+                나만 보기
+              </span>
+              {asking === g.id ? (
+                <>
+                  <small>밑줄·생각·적용만 보여요</small>
+                  <button
+                    type="button"
+                    className="sn-share-go"
+                    onClick={() => {
+                      setAsking(null);
+                      ctx?.setNoteLink(note.id, g.id, { private: false });
+                    }}
+                  >
+                    공개
+                  </button>
+                  <button type="button" className="sn-share-no" onClick={() => setAsking(null)}>
+                    취소
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="sn-share-go" onClick={() => setAsking(g.id)}>
+                  공개하기
+                </button>
+              )}
+            </p>
+          );
+        return (
+          <p key={g.id} className="sn-share-it">
+            {grp}
+            <span className="sn-share-st" data-st="open">
+              공개 중
+            </span>
+            {people.length > 0 && <small>{people.length}명도 썼어요</small>}
+            {l.session_id && (
+              <button
+                type="button"
+                className="sn-share-go"
+                onClick={() => ctx?.openSession(l.session_id as string, g.id)}
+              >
+                {people.length > 0 ? '비교하기 →' : '자리 보기 →'}
+              </button>
+            )}
+          </p>
+        );
+      })}
+    </div>
   );
 }
+
+type FacePerson = { user_id: string; display_name: string };
 
 const noopSub = () => () => undefined;
 const zero = () => 0;

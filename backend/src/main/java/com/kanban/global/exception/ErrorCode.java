@@ -497,6 +497,13 @@ public enum ErrorCode {
     SERMON_SESSION_LOCKED(HttpStatus.CONFLICT, "SG008", "잠긴 설교 자리입니다"),
     SERMON_POKE_LIMIT(HttpStatus.CONFLICT, "SG009", "같이 써요는 같은 사람에게 한 주에 한 번 보낼 수 있습니다"),
     SERMON_GROUP_INVALID_INPUT(HttpStatus.BAD_REQUEST, "SG010", "입력값을 확인해 주세요"),
+    // 설교 노트 함께 읽는 길 (통독) — 코드 문자열 RP001~RP003 은 자동 보고서와 겹치지만 API 경로가 달라 구분된다
+    READING_PLAN_BAD_TODAY(HttpStatus.BAD_REQUEST, "RPL001", "오늘 날짜 값이 올바르지 않습니다"),
+    READING_PLAN_INVALID_INPUT(HttpStatus.BAD_REQUEST, "RPL002", "읽기 길 입력값을 확인해 주세요"),
+    READING_PLAN_GROUP_ACTIVE_EXISTS(HttpStatus.CONFLICT, "RPL003", "이 모임엔 이미 진행 중인 길이 있습니다"),
+    READING_PLAN_SOLO_LIMIT(HttpStatus.CONFLICT, "RPL004", "나의 길은 3개까지 만들 수 있습니다"),
+    READING_PLAN_DAY_NOT_YET(HttpStatus.BAD_REQUEST, "RPL005", "아직 오지 않은 날입니다"),
+    READING_PLAN_NOT_FOUND(HttpStatus.NOT_FOUND, "RPL006", "길을 찾을 수 없습니다"),
 
     // 설교 노트 챌린지 (달란트 · 게임 · 랭킹 · 교회)
     CHALLENGE_NICKNAME_INVALID(HttpStatus.BAD_REQUEST, "CH001", "닉네임은 2~12자의 한글·영문·숫자·공백·_ 만 쓸 수 있습니다"),
@@ -506,6 +513,12 @@ public enum ErrorCode {
     CHURCH_CHANGE_TOO_SOON(HttpStatus.CONFLICT, "CH005", "교회는 30일에 한 번 바꿀 수 있습니다"),
     GAME_RUN_NOT_FOUND(HttpStatus.NOT_FOUND, "CH006", "게임 판을 찾을 수 없거나 이미 끝났습니다"),
     CHURCH_NOT_FOUND(HttpStatus.NOT_FOUND, "CH007", "교회를 찾을 수 없습니다"),
+
+    // 설교 노트 챌린지 — 이번 주 말씀 필사
+    PILSA_NOT_THIS_WEEK(HttpStatus.BAD_REQUEST, "PIL001", "이번 주가 아닙니다"),
+    PILSA_CHAPTER_NOT_IN_PLAN(HttpStatus.BAD_REQUEST, "PIL002", "이번 주 일곱 장에 없는 장입니다"),
+    PILSA_INVALID(HttpStatus.BAD_REQUEST, "PIL003", "필사 입력값을 확인해 주세요"),
+    PILSA_TOO_FAST(HttpStatus.UNPROCESSABLE_ENTITY, "PIL004", "너무 빠르게 입력되었습니다"),
 
     // 설교 노트 나의 갈피 (이름표)
     SERMON_PROFILE_INVALID_INPUT(HttpStatus.BAD_REQUEST, "SPF001", "이름표 입력값을 확인해 주세요"),

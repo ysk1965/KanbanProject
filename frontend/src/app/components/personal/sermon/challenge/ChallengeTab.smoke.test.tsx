@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 /**
- * 스모크: 챌린지 탭 → 홈(지갑 안내·게임 카드·이번 주 적용) → 말씀 산성비 연습 판 → 랭킹.
+ * 스모크: 챌린지 탭 → 홈(지갑 안내·이번 주 삶의 갈피·게임 카드) → 말씀 산성비 연습 판 → 랭킹.
  * 챌린지 서버는 아직 없다고 가정한다 (모든 API 실패 → 「아직 준비 중」 + 연습 판).
  */
 
@@ -104,10 +104,11 @@ describe('챌린지 탭 (서버 없음)', () => {
       </MemoryRouter>,
     );
 
-    // 홈 — 지갑 자리는 안내, 게임 카드 둘, 이번 주 적용은 그대로
+    // 홈 — 지갑 자리는 안내, 이번 주 삶의 갈피, 게임 카드 둘(산성비·필사)
     expect(await screen.findByText('달란트와 랭킹은 아직 준비 중이에요.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '이번 주 적용' })).toBeInTheDocument();
-    expect(screen.getByText('이번 주 완주')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: '이번 주 삶의 갈피' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /이번 주 말씀 필사/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /66권 줄 세우기/ })).not.toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith('/challenge/wallet');
 
     // 산성비 — 서버 판을 못 열면 연습 판
@@ -128,22 +129,25 @@ describe('챌린지 탭 (서버 없음)', () => {
 
     // 뒤로 → 홈, 랭킹 칩
     fireEvent.click(screen.getByRole('button', { name: /돌아가기.*챌린지/ }));
-    expect(await screen.findByRole('button', { name: /66권 줄 세우기/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /이번 주 말씀 필사/ })).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button', { name: '랭킹' })[0]);
     expect(await screen.findByText('랭킹은 아직 준비 중이에요.')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '우리 교회' })).toBeInTheDocument();
   });
 
+  // 66권은 홈 카드에서 뺐지만 보기(BooksGame)는 남아 있어 직접 그려 확인한다
   it('66권 줄 세우기 연습 판 — 순서대로 누르면 끝난다', async () => {
     localStorage.clear();
-    const { default: SermonTab } = await import('../SermonTab');
+    const { BooksGame } = await import('./BooksGame');
+    const { ANONYMOUS_USER } = await import('../sermonStore');
     render(
-      <MemoryRouter initialEntries={['/sermonnote?tab=challenge']}>
-        <SermonTab standalone />
+      <MemoryRouter>
+        <div className="sermon-app">
+          <BooksGame userId={ANONYMOUS_USER} anonymous onBack={() => {}} />
+        </div>
       </MemoryRouter>,
     );
-    fireEvent.click(await screen.findByRole('button', { name: /66권 줄 세우기/ }));
-    fireEvent.click(screen.getByRole('button', { name: '모세오경 시작' }));
+    fireEvent.click(await screen.findByRole('button', { name: '모세오경 시작' }));
     for (const name of ['출애굽기', '창세기', '출애굽기', '레위기', '민수기', '신명기']) {
       fireEvent.click(await screen.findByRole('button', { name }));
     }

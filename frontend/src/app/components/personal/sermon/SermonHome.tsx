@@ -1,5 +1,6 @@
-import { useMemo, useRef } from 'react';
-import { ArrowRight, Bookmark, Check, MessageCircle, Mic } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { ArrowRight, Check, MessageCircle, Mic, Share2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { BOOKS, PSALMS, refLong, type Ref } from './bibleRefs';
 import { Mascot } from './Mascot';
 import { mascotName, type MascotId } from './sermonLook';
@@ -16,18 +17,16 @@ import {
 } from './sermonTypes';
 import { firstVerseText } from './useBible';
 import { useFirstSeen, useFlip, useFx } from './microFx';
-import {
-  GroupDaySlots,
-  NoteGroupFaces,
-  NoteGroupsWith,
-  useNoteGroups,
-} from './group/GroupWeekBits';
+import { GroupDaySlots, NoteGroupFaces, NoteShareRow, useNoteGroups } from './group/GroupWeekBits';
 import { resolveGalpiRule, useGalpiPrefs } from './galpiPrefs';
+import { ShareSheet } from './share/ShareSheet';
+import './homeShare.css';
 
 /**
  * 노트 목록의 첫 화면 「한 주 다이어리」.
  *  - 이번 주 설교 카드(표지형): 이번 주 갈피(그 주의 중심 설교)가 있으면 그 설교, 없으면 최근 설교.
- *    그림은 장 번호만이 아니라 항상 「책 이름 + 장」을 가리킨다
+ *    그림은 장 번호만이 아니라 항상 「책 이름 + 장」을 가리킨다.
+ *    카드의 다음 행동은 「공유」와 「나눈 곳」 줄 — 갈피는 표지 리본으로만 보이고 리본을 눌러 꽂고 뺀다
  *  - 한 주 동안: 일~토 칸에 그날 들은 설교와 실천한 적용이 스티커로 붙는다
  *  - 모은 설교 스티커: 지난 설교가 칼선 도장 스티커로 쌓이고, 다음 주일 자리는 마스코트가 기다린다
  */
@@ -151,7 +150,9 @@ export function SermonHome({
   const toggleGalpi = (noteId: string) => {
     fire(weekGalpi ? `unpin:${noteId}` : `pin:${noteId}`);
     onToggleGalpi(noteId);
+    toast(weekGalpi ? '이번 주는 갈피를 뺐어요' : '이번 주 갈피를 꽂았어요');
   };
+  const [shareOpen, setShareOpen] = useState(false);
   const applyFx = fx?.startsWith('apply:') || fx?.startsWith('all:');
 
   return (
@@ -167,6 +168,20 @@ export function SermonHome({
           >
             <span className="sn-tape" style={{ left: 44, ['--r' as string]: '-7deg' }} />
             <span className="sn-tape sn-c1" style={{ right: 150, ['--r' as string]: '5deg' }} />
+            {heroThisWeek && (
+              <button
+                type="button"
+                className="sn-hc-rib"
+                aria-pressed={!!weekGalpi}
+                aria-label={weekGalpi ? '이번 주 갈피에서 빼기' : '이번 주 갈피로 꽂기'}
+                title={
+                  weekGalpi
+                    ? `이번 주 갈피${isAutoGalpi(weekGalpi, galpi) ? ' · 자동' : ''} · 누르면 빼요`
+                    : '이번 주 갈피로 꽂기'
+                }
+                onClick={() => toggleGalpi(hero.id)}
+              />
+            )}
             <span className="sn-hc-peek">
               <Mascot kind={mascot} size={84} state={left === 0 && week.length ? 'done' : 'idle'} />
             </span>
@@ -199,14 +214,7 @@ export function SermonHome({
             </button>
             <div className="sn-hc-body">
               <p className="sn-hc-run">
-                {weekGalpi ? (
-                  <b className="sn-hc-chip">
-                    <Bookmark className="sn-icon" aria-hidden />
-                    이번 주 갈피{isAutoGalpi(weekGalpi, galpi) && ' · 자동'}
-                  </b>
-                ) : (
-                  <b>{heroThisWeek ? '이번 주 설교' : '최근 설교'}</b>
-                )}
+                <b className="sn-hc-chip">{heroThisWeek ? '이번 주 설교' : '최근 설교'}</b>
                 {hero.date && <span className="sn-hc-date">{dayLabel(hero.date)}</span>}
                 {hero.service && <span>{hero.service}</span>}
               </p>
@@ -226,7 +234,6 @@ export function SermonHome({
                   </span>
                 )}
               </p>
-              <NoteGroupsWith note={hero} />
               {ref && quote && (
                 <blockquote className="sn-vq">
                   <p>{quote}</p>
@@ -238,29 +245,25 @@ export function SermonHome({
                   노트 열기
                   <ArrowRight className="sn-icon" aria-hidden />
                 </button>
-                {heroThisWeek && (
-                  <button
-                    type="button"
-                    className="sn-btn sn-galpi-btn"
-                    aria-pressed={!!weekGalpi}
-                    aria-label={weekGalpi ? '이번 주 갈피에서 빼기' : '이번 주 갈피로 꽂기'}
-                    onClick={() => toggleGalpi(hero.id)}
-                  >
-                    <Bookmark className="sn-icon" aria-hidden />
-                    {weekGalpi ? (
-                      <>
-                        <span className="sn-galpi-on">갈피 꽂힘</span>
-                        <span className="sn-galpi-off">갈피 빼기</span>
-                      </>
-                    ) : (
-                      '갈피 꽂기'
-                    )}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="sn-btn sn-hc-share"
+                  onClick={() => setShareOpen(true)}
+                >
+                  <Share2 className="sn-icon" aria-hidden />
+                  공유
+                </button>
               </div>
+              {heroThisWeek && <NoteShareRow note={hero} onCard={() => setShareOpen(true)} />}
             </div>
           </article>
         )}
+        <ShareSheet
+          open={shareOpen && !!hero}
+          note={hero ?? null}
+          mascot={mascot}
+          onClose={() => setShareOpen(false)}
+        />
 
         <aside className="sn-plan" aria-label="한 주 동안">
           <span className="sn-stk sn-c2 sn-plan-tag" style={{ ['--r' as string]: '5deg' }}>

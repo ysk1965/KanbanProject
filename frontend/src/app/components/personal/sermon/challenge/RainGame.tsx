@@ -497,7 +497,7 @@ export function RainGame({
                 ) : (
                   <>
                     <p className="sn-ch-talent">
-                      <Coin size={18} /> 달란트 +{talents}
+                      <Coin size={18} play={talents ? 'gain' : undefined} /> 달란트 +{talents}
                       {s?.talents_capped ? ' · 오늘 게임 달란트를 다 채웠어요' : ''}
                     </p>
                     <p>

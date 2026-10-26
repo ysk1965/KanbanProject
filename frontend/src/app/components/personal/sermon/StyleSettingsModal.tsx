@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
 import { SnOverlay } from './SnOverlay';
+import { SnSheetBar } from './SnSheetBar';
 import {
   STYLE_COLORS,
   STYLE_DEFAULT,
@@ -64,11 +64,12 @@ export function StyleSettingsModal({ open, style, onChange, onClose }: StyleSett
         <h2 id="sn-style-title">서식 설정</h2>
         <button
           type="button"
-          className="sn-btn sn-icon-only sn-ghost"
-          aria-label="닫기"
-          onClick={onClose}
+          className="sn-btn sn-ghost"
+          onClick={() =>
+            onChange({ ...style, [tab]: JSON.parse(JSON.stringify(STYLE_DEFAULT[tab])) })
+          }
         >
-          <X className="sn-icon" />
+          이 항목 기본값으로
         </button>
       </div>
       <div ref={tabs.listRef} className="sn-ptabs" role="tablist">
@@ -158,22 +159,7 @@ export function StyleSettingsModal({ open, style, onChange, onClose }: StyleSett
           dangerouslySetInnerHTML={{ __html: previewHTML() }}
         />
       </div>
-      <div className="sn-sfoot">
-        <button
-          type="button"
-          className="sn-btn sn-ghost"
-          onClick={() =>
-            onChange({ ...style, [tab]: JSON.parse(JSON.stringify(STYLE_DEFAULT[tab])) })
-          }
-        >
-          이 항목 기본값으로
-        </button>
-        <span style={{ flex: 1 }} />
-        <span className="sn-label">이 기기에 저장됨</span>
-        <button type="button" className="sn-btn sn-primary" onClick={onClose}>
-          완료
-        </button>
-      </div>
+      <SnSheetBar onClose={onClose} note="이 기기에 저장됨" />
     </SnOverlay>
   );
 }

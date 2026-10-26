@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { BOOKS, OT_COUNT, PSALMS, chCount } from './bibleRefs';
 import { chKey, type ReadMark } from './bibleMarks';
 import { SnOverlay } from './SnOverlay';
+import { SnSheetBar } from './SnSheetBar';
 
 /**
  * 좁은 화면의 책·장 고르기 — 아래에서 올라오는 시트.
@@ -119,6 +120,7 @@ export function BiblePickSheet({
           </span>
         </div>
       </div>
+      <SnSheetBar onClose={onClose} />
     </SnOverlay>
   );
 }

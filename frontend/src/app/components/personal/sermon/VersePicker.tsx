@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 import {
   BOOKS,
   OT_COUNT,
@@ -17,6 +17,7 @@ import { verseHTML } from './editorCore';
 import { useBible } from './useBible';
 import { useJellyTab } from './microFx';
 import { SnOverlay } from './SnOverlay';
+import { SnSheetBar } from './SnSheetBar';
 
 /**
  * 구절 찾기 창 — 기획서 §5.
@@ -291,20 +292,9 @@ export function VersePicker({ open, target, recent, onClose, onInsert }: VersePi
       aria-label="성경구절 찾기"
       initialFocus="#sn-pq"
     >
-      {/* 폰(699px 이하)에서만 보이는 머리: 닫기 · 제목 · 넣기 */}
+      {/* 폰(699px 이하)에서만 보이는 머리 — 닫기·넣기는 아래 바에 */}
       <div className="sn-pnarrow-head">
-        <button
-          type="button"
-          className="sn-btn sn-icon-only sn-ghost"
-          aria-label="닫기"
-          onClick={onClose}
-        >
-          <X className="sn-icon" />
-        </button>
         <h2>구절 찾기</h2>
-        <button type="button" className="sn-insert-top" disabled={!sel} onClick={doInsert}>
-          넣기
-        </button>
       </div>
       <div ref={tabs.listRef} className="sn-ptabs" role="tablist">
         <span ref={tabs.indRef} className="sn-ptab-ind" aria-hidden />
@@ -443,15 +433,11 @@ export function VersePicker({ open, target, recent, onClose, onInsert }: VersePi
           )}
         </div>
       </div>
-      <div className="sn-pfoot">
-        <span className="sn-keys">Enter 넣기 · ↑↓ 고르기 · Esc 닫기</span>
-        <button type="button" className="sn-btn" onClick={onClose}>
-          취소
-        </button>
+      <SnSheetBar onClose={onClose} note="Enter 넣기 · ↑↓ 고르기 · Esc 닫기">
         <button type="button" className="sn-btn sn-primary" disabled={!sel} onClick={doInsert}>
           넣기
         </button>
-      </div>
+      </SnSheetBar>
     </SnOverlay>
   );
 }

@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Loader2, Search, Share2, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, Search, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SnOverlay } from '../SnOverlay';
+import { SnSheetBar } from '../SnSheetBar';
 import { refShort } from '../bibleRefs';
 import { INKS, type MascotId } from '../sermonLook';
 import { fmtDate, mainRef, noteRefs, plainText, UNTITLED, type SermonNote } from '../sermonTypes';
@@ -132,9 +133,6 @@ export function PinSheet({
     <SnOverlay open={open} onClose={close} className="snp-sheet" aria-labelledby="snp-pin-title">
       <div className="snp-shead">
         <h2 id="snp-pin-title">{editing ? '카드 꾸미기' : '고정할 노트 고르기'}</h2>
-        <button type="button" className="snp-x" aria-label="닫기" onClick={close}>
-          <X className="sn-icon" />
-        </button>
       </div>
 
       {editing ? (
@@ -260,22 +258,6 @@ export function PinSheet({
               >
                 고정 풀기
               </button>
-              <button
-                type="button"
-                className="snp-btn"
-                disabled={sharing}
-                onClick={() => void share()}
-              >
-                {sharing ? (
-                  <Loader2 className="sn-icon animate-spin" aria-hidden />
-                ) : (
-                  <Share2 className="sn-icon" aria-hidden />
-                )}
-                공유
-              </button>
-              <button type="button" className="snp-btn snp-primary" onClick={close}>
-                완료
-              </button>
             </div>
           </div>
 
@@ -332,6 +314,23 @@ export function PinSheet({
           )}
         </div>
       )}
+      <SnSheetBar onClose={close}>
+        {editing && (
+          <button
+            type="button"
+            className="sn-btn sn-primary"
+            disabled={sharing}
+            onClick={() => void share()}
+          >
+            {sharing ? (
+              <Loader2 className="sn-icon animate-spin" aria-hidden />
+            ) : (
+              <Share2 className="sn-icon" aria-hidden />
+            )}
+            카드 공유
+          </button>
+        )}
+      </SnSheetBar>
     </SnOverlay>
   );
 }

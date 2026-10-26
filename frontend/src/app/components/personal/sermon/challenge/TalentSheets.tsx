@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Minus, Plus, X } from 'lucide-react';
+import { Minus, Plus } from 'lucide-react';
 import { formatDate } from '../../../../utils/dateUtils';
 import { SnOverlay } from '../SnOverlay';
+import { SnSheetBar } from '../SnSheetBar';
 import {
   challengeAPI,
   challengeErrorMessage,
@@ -67,14 +68,6 @@ export function LedgerSheet({
         <h2 id="sn-ch-led-h">
           <Coin size={20} /> 달란트 {num(store.wallet?.balance)}
         </h2>
-        <button
-          type="button"
-          className="sn-btn sn-ghost sn-icon-only"
-          aria-label="닫기"
-          onClick={onClose}
-        >
-          <X className="sn-icon" aria-hidden />
-        </button>
       </div>
       <div className="sn-ch-ledger-list">
         {items.map((it) => (
@@ -101,6 +94,7 @@ export function LedgerSheet({
           </button>
         )}
       </div>
+      <SnSheetBar onClose={onClose} />
     </SnOverlay>
   );
 }
@@ -158,14 +152,6 @@ export function ExchangeSheet({
     >
       <div className="sn-ch-sheet-h">
         <h2 id="sn-ch-ex-h">리워드 크레딧 교환</h2>
-        <button
-          type="button"
-          className="sn-btn sn-ghost sn-icon-only"
-          aria-label="닫기"
-          onClick={onClose}
-        >
-          <X className="sn-icon" aria-hidden />
-        </button>
       </div>
       <p>
         {rate}달란트 = 리워드 크레딧 1개. AI 문장 정리처럼 크레딧이 드는 기능에 먼저 쓰여요 (월 무료
@@ -219,14 +205,11 @@ export function ExchangeSheet({
         </p>
       )}
       {msg && <p className={msg.ok ? 'sn-ch-okmsg' : 'sn-ch-warn'}>{msg.text}</p>}
-      <div className="sn-acts">
-        <button type="button" className="sn-btn sn-ghost" onClick={onClose}>
-          닫기
-        </button>
+      <SnSheetBar onClose={onClose}>
         <button type="button" className="sn-btn sn-primary" disabled={busy || max < 1} onClick={go}>
           {busy ? '바꾸는 중…' : '바꾸기'}
         </button>
-      </div>
+      </SnSheetBar>
     </SnOverlay>
   );
 }

@@ -1,5 +1,5 @@
-import { X } from 'lucide-react';
 import { SnOverlay } from './SnOverlay';
+import { SnSheetBar } from './SnSheetBar';
 import { VERSION_REASON_LABEL, type NoteVersion } from './sermonVersions';
 import { hhmm, plainText } from './sermonTypes';
 
@@ -26,14 +26,6 @@ export function VersionHistoryModal({
     <SnOverlay open={open} onClose={onClose} className="sn-verm" aria-labelledby="sn-ver-title">
       <div className="sn-vhead">
         <h2 id="sn-ver-title">버전 기록</h2>
-        <button
-          type="button"
-          className="sn-btn sn-icon-only sn-ghost"
-          aria-label="닫기"
-          onClick={onClose}
-        >
-          <X className="sn-icon" />
-        </button>
       </div>
       <p>
         본문은 고치기 시작할 때, 10분마다, 노트를 닫을 때 자동으로 남아요. 되돌려도 내 생각 메모는
@@ -76,6 +68,7 @@ export function VersionHistoryModal({
           })
         )}
       </div>
+      <SnSheetBar onClose={onClose} />
     </SnOverlay>
   );
 }

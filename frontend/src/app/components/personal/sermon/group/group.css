@@ -1740,15 +1740,21 @@ button.sg-tt-c sup {
   animation: sg-pop 0.35s var(--sg-spring);
 }
 
-/* 바닥 */
-.sg-mfoot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+/* 바닥 — 시트 하단 바. 안내는 좁으면 바 위 한 줄로 */
+.sn-overlay .sg-make .sn-sbar {
   flex-wrap: wrap;
-  padding: 12px 18px 16px 22px;
+  padding: 12px 16px 16px;
   border-top: 1.5px dashed var(--sn-line);
+}
+.sn-overlay .sg-make .sn-sbar-note {
+  display: block;
+  white-space: normal;
+}
+@media (max-width: 699px) {
+  .sn-overlay .sg-make .sn-sbar-note {
+    order: -1;
+    flex-basis: 100%;
+  }
 }
 .sg-hint {
   flex: 1;
@@ -1849,9 +1855,6 @@ button.sg-tt-c sup {
   }
   .sg-pills li:not([data-state='on']) span {
     display: none;
-  }
-  .sg-mfoot {
-    padding: 10px 14px 14px 18px;
   }
   .sg-svc-edit {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px;

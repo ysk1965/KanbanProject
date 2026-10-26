@@ -25,7 +25,8 @@ import { EditorCore, verseHTML } from './editorCore';
 import { SermonPlayer, type SermonPlayerHandle } from './SermonPlayer';
 import { personalFeatureAPI } from '../../../utils/services';
 import { SelectionBubble } from './SelectionBubble';
-import { SnOverlay } from './SnOverlay';
+import { SnOverlay, afterSheetClose } from './SnOverlay';
+import { SnSheetBar } from './SnSheetBar';
 import { ThoughtsPanel, type ThoughtsPanelHandle } from './ThoughtsPanel';
 import { VersePicker, type InsertForm, type PickerTarget } from './VersePicker';
 import { StyleSettingsModal } from './StyleSettingsModal';
@@ -855,7 +856,7 @@ export function SermonEditor({
     void rec.stop();
     store.remove(noteRef.current.id);
     toast('노트를 삭제했어요');
-    onDeleted();
+    afterSheetClose(onDeleted); // 확인창 칸이 기록에서 빠진 뒤에 노트를 닫는다
   };
 
   const onJump = (aid: string | null, label: string | null, t?: number | null) => {
@@ -1486,14 +1487,11 @@ export function SermonEditor({
       >
         <h2 id="sn-cf-title">이 노트를 삭제할까요?</h2>
         <p>삭제한 노트와 생각 메모는 되돌릴 수 없어요.</p>
-        <div className="sn-acts">
-          <button type="button" className="sn-btn" onClick={() => setConfirmDelete(false)}>
-            취소
-          </button>
+        <SnSheetBar onClose={() => setConfirmDelete(false)} closeLabel="취소">
           <button type="button" className="sn-btn sn-danger" onClick={deleteNote}>
             삭제
           </button>
-        </div>
+        </SnSheetBar>
       </SnOverlay>
       <SnOverlay
         open={confirmDelAudio}
@@ -1504,14 +1502,11 @@ export function SermonEditor({
       >
         <h2 id="sn-ca-title">이 설교의 녹음을 지울까요?</h2>
         <p>녹음 파일만 지워지고, 노트와 생각 메모는 그대로 남아요. 되돌릴 수 없어요.</p>
-        <div className="sn-acts">
-          <button type="button" className="sn-btn" onClick={() => setConfirmDelAudio(false)}>
-            취소
-          </button>
+        <SnSheetBar onClose={() => setConfirmDelAudio(false)} closeLabel="취소">
           <button type="button" className="sn-btn sn-danger" onClick={deleteAudio}>
             녹음 지우기
           </button>
-        </div>
+        </SnSheetBar>
       </SnOverlay>
       <span hidden>{noteId}</span>
     </section>

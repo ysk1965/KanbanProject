@@ -2397,6 +2397,8 @@ html.light .sn-scope {
   display: flex;
   align-items: center;
   gap: 10px;
+  /* 닫기(✕)가 아래 바로 내려가 제목만 남아도 머리 높이는 그대로 */
+  min-height: 52px;
   padding: 12px 12px 0 18px;
 }
 .sn-overlay .sn-shead h2 {
@@ -2840,34 +2842,20 @@ html.light .sn-scope {
     max-height: none;
     border-radius: 0;
   }
+  /* 제목만 — 닫기·넣기는 아래 바(SnSheetBar)에 */
   .sn-overlay .sn-pnarrow-head {
     display: flex;
     align-items: center;
-    gap: 6px;
     min-height: 48px;
-    padding: 4px 6px 4px 4px;
+    padding: 4px 18px;
     padding-top: calc(4px + env(safe-area-inset-top, 0px));
     border-bottom: 1px solid var(--sn-line);
     flex-shrink: 0;
   }
   .sn-overlay .sn-pnarrow-head h2 {
-    flex: 1;
     margin: 0;
     font-size: 16px;
     font-weight: 600;
-  }
-  .sn-overlay .sn-pnarrow-head .sn-insert-top {
-    border: 0;
-    background: transparent;
-    color: var(--sn-accent);
-    font-weight: 700;
-    font-size: 15px;
-    min-height: 44px;
-    padding: 0 12px;
-  }
-  .sn-overlay .sn-pnarrow-head .sn-insert-top[disabled] {
-    color: var(--sn-faint);
-    opacity: 1;
   }
   .sn-overlay .sn-pfoot {
     display: none;
@@ -3499,7 +3487,8 @@ html[data-keyboard-open] .sn-overlay {
   font-family: var(--sn-f-poster);
   font-size: clamp(150px, 17vw, 210px);
   color: var(--sn-g2);
-  text-shadow: 0 10px 24px color-mix(in srgb, var(--sn-t1) 25%, transparent);
+  /* 리소 인쇄처럼 g1 판이 살짝 어긋나 찍힌 그림자 — 글자 크기를 따라 em 으로 민다 */
+  text-shadow: 0.05em 0.04em 0 color-mix(in srgb, var(--sn-g1) 80%, transparent);
   display: flex;
   align-items: flex-end;
 }
@@ -5325,7 +5314,10 @@ html[data-keyboard-open] .sn-overlay {
   width: 100%;
   max-height: 82dvh;
   border-radius: 22px 22px 0 0;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+/* 홈 표시줄 여백은 시트 밖이 아니라 맨 아래 바 안에 — 바 배경이 화면 끝까지 닿게 */
+.sn-overlay .sn-bsheet > .sn-sbar {
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 761px) {
   .sn-overlay.sn-bsheet-ov {

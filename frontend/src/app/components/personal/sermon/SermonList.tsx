@@ -1,6 +1,6 @@
 import { useMemo, useState, useSyncExternalStore, type ComponentType, type SVGProps } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Check, LogIn, Mic, Plus, Search, X } from 'lucide-react';
+import { LogIn, Mic, Plus, Search, X } from 'lucide-react';
 import { compareRef, encRef, norm, refLong, refShort, type Ref } from './bibleRefs';
 import type { SyncStatus } from './sermonStore';
 import {
@@ -13,7 +13,6 @@ import {
   plainText,
   thisWeek,
   UNTITLED,
-  type ApplyItem,
   type SermonNote,
 } from './sermonTypes';
 
@@ -117,20 +116,6 @@ function matchQuery(n: SermonNote, q: string): boolean {
   if (hay.includes(lq)) return true;
   return noteRefs(n).some(
     (r) => norm(refShort(r)).startsWith(qn) || norm(refLong(r)).startsWith(qn),
-  );
-}
-
-function Progress({ done, total }: { done: number; total: number }) {
-  const pct = total ? Math.round((done / total) * 100) : 0;
-  return (
-    <div className="sn-prog" role="img" aria-label={`${total}개 중 ${done}개 실천`}>
-      <div className="sn-bar">
-        <i style={{ width: `${pct}%` }} />
-      </div>
-      <span className="sn-mono">
-        {done}/{total}
-      </span>
-    </div>
   );
 }
 
@@ -274,32 +259,6 @@ export function SermonList({
   const storeTrouble = !status.localOk || status.localFull || status.anonymous;
   const syncLine = status.pending ? `변경 ${status.pending}건 올리는 중` : '모든 기기와 맞춰짐';
 
-  const applyRow = ({ n, t }: ApplyItem) => (
-    <div key={`${n.id}|${t.id}`} className="sn-arow" data-checked={!!t.done}>
-      <button
-        type="button"
-        className="sn-ck sn-big"
-        aria-pressed={!!t.done}
-        aria-label={t.done ? '실천 표시 지우기' : '실천했어요'}
-        onClick={() => onToggleApply(n.id, t.id)}
-      >
-        <Check className="sn-icon" style={{ width: 16, height: 16 }} />
-      </button>
-      <div className="sn-abody">
-        <div className="sn-txt">{t.text || ((t.media || []).length ? '(사진·영상 메모)' : '')}</div>
-        <div className="sn-ameta">
-          {fmtDate(n.date)} · {n.title || UNTITLED}
-          {t.done && t.done_at
-            ? ` · ${new Date(t.done_at).getMonth() + 1}.${new Date(t.done_at).getDate()} 실천`
-            : ''}
-        </div>
-      </div>
-      <button type="button" className="sn-btn sn-ghost" onClick={() => onOpen(n.id, t.aid)}>
-        노트 보기
-      </button>
-    </div>
-  );
-
   let body: React.ReactNode;
   if (tab === 'bible' && bibleView === 'read') {
     body = <BibleReader notes={notes} onOpen={onOpen} mascot={mascot} />;
@@ -337,35 +296,6 @@ export function SermonList({
     );
   } else if (tab === 'challenge') {
     const older = allApply.filter((x) => !week.includes(x) && !x.t.done);
-    const done = week.filter((x) => x.t.done).length;
-    const applySection = (
-      <>
-        <div className="sn-apply-head">
-          <div>
-            <h2>이번 주 적용</h2>
-            <p>최근 7일 동안 들은 설교에서 ‘적용’으로 남긴 메모예요. 실천하면 체크하세요.</p>
-          </div>
-          {week.length > 0 && <Progress done={done} total={week.length} />}
-        </div>
-        {week.length ? (
-          <div className="sn-alist">
-            {[...weekLeft, ...week.filter((x) => x.t.done)].map(applyRow)}
-          </div>
-        ) : (
-          <div className="sn-empty">
-            이번 주에 남긴 적용 메모가 없어요.
-            <br />
-            설교를 들으며 생각을 남길 때 ‘적용’ 태그를 고르면 여기 모여요.
-          </div>
-        )}
-        {older.length > 0 && (
-          <>
-            <div className="sn-month">지난 설교에서 아직 남은 적용</div>
-            <div className="sn-alist">{older.map(applyRow)}</div>
-          </>
-        )}
-      </>
-    );
     body = (
       <ChallengeTab
         view={challengeView}
@@ -373,7 +303,10 @@ export function SermonList({
         notes={notes}
         anonymous={status.anonymous}
         onLogin={onLogin}
-        applySection={applySection}
+        apply={{ week: [...weekLeft, ...week.filter((x) => x.t.done)], older }}
+        onToggleApply={onToggleApply}
+        onOpenNote={onOpen}
+        onNew={onNew}
       />
     );
   } else if (noteView === 'thoughts' && !service) {
@@ -662,9 +595,7 @@ export function SermonList({
         aria-label="설교 노트"
       >
         <nav className="sn-side" aria-label="설교 노트 메뉴">
-          <button type="button" className="sn-btn sn-primary" onClick={onNew}>
-            <Plus className="sn-icon" aria-hidden />새 설교 기록
-          </button>
+          {/* 왼쪽 레일 — 하단 바와 같은 탭 색 동그라미 */}
           <div
             ref={jelly.listRef}
             className="sn-tabs"
@@ -672,22 +603,26 @@ export function SermonList({
             aria-orientation="vertical"
             aria-label="갈피 탭"
           >
-            <span ref={jelly.indRef} className="sn-tab-ind" aria-hidden />
+            <span ref={jelly.indRef} className="sn-tab-ind" data-k={tab} aria-hidden />
             {TABS.map(({ k, label, Icon }) => {
-              const badge = tabBadge(k);
+              // 레일 모서리에 붙는 작은 표 — 모임은 요청 수만
+              const badge = k === 'groups' && groupRequests ? String(groupRequests) : tabBadge(k);
               return (
                 <button
                   key={k}
                   type="button"
                   role="tab"
                   data-k={k}
+                  title={tabBadge(k) ? `${label} · ${tabBadge(k)}` : undefined}
                   aria-selected={tab === k}
                   onClick={(e) => {
                     if (tab !== k) playTabVerb(k, e.currentTarget.querySelector('svg'));
                     goTab(k);
                   }}
                 >
-                  <Icon className="sn-icon" aria-hidden />
+                  <span className="sn-tab-chip">
+                    <Icon className="sn-icon" aria-hidden />
+                  </span>
                   {label}
                   {badge && (
                     <span className="sn-tab-badge" data-k={k}>
@@ -698,61 +633,68 @@ export function SermonList({
               );
             })}
           </div>
-          <div className="sn-sub">
-            {tab === 'groups'
-              ? groupNav
-              : subs.map((g, i) => (
-                  <div key={g.title || i} className="sn-nav">
-                    {g.title && <div className="sn-label">{g.title}</div>}
-                    {g.items.map((it) => (
-                      <button key={it.key} type="button" aria-current={it.on} onClick={it.go}>
-                        {it.label}
-                        {it.count !== undefined && <span className="sn-count">{it.count}</span>}
-                      </button>
-                    ))}
-                  </div>
-                ))}
-            {tab === 'challenge' && (
-              <p className="sn-sub-hint">
-                {week.length
-                  ? `이번 주 적용 ${weekDone}/${week.length} 실천`
-                  : '설교를 들으며 ‘적용’으로 남긴 메모가 여기 모여요.'}
-              </p>
-            )}
-            {tab === 'me' && (
-              <div className="sn-nav">
-                {onOpenLook && (
-                  <button type="button" onClick={onOpenLook}>
-                    <Mascot kind={mascot} size={22} />
-                    꾸미기
-                  </button>
-                )}
-                <button type="button" onClick={goStickers}>
-                  모은 설교 스티커
-                  <span className="sn-count">{notes.length}</span>
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="sn-side-foot" data-trouble={storeTrouble}>
-            {storeTrouble ? (
-              <>
-                {storeNote}
-                {status.anonymous && onLogin && (
-                  <div>
-                    <button type="button" className="sn-login-link" onClick={onLogin}>
-                      <LogIn className="sn-icon" style={{ width: 14, height: 14 }} aria-hidden />
-                      로그인
+          {/* 오른쪽 패널 — 고른 탭의 이름과 그 탭 메뉴만 */}
+          <div className="sn-side-panel" data-k={tab}>
+            <h2 className="sn-side-title">{TABS.find((t) => t.k === tab)?.label}</h2>
+            <button type="button" className="sn-btn sn-primary" onClick={onNew}>
+              <Plus className="sn-icon" aria-hidden />새 설교 기록
+            </button>
+            <div className="sn-sub">
+              {tab === 'groups'
+                ? groupNav
+                : subs.map((g, i) => (
+                    <div key={g.title || i} className="sn-nav">
+                      {g.title && <div className="sn-label">{g.title}</div>}
+                      {g.items.map((it) => (
+                        <button key={it.key} type="button" aria-current={it.on} onClick={it.go}>
+                          {it.label}
+                          {it.count !== undefined && <span className="sn-count">{it.count}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+              {tab === 'challenge' && (
+                <p className="sn-sub-hint">
+                  {week.length
+                    ? `이번 주 적용 ${weekDone}/${week.length} 살아 냄`
+                    : '말씀에 하나, 삶에 하나. 이번 주 삶의 갈피를 꽂아요.'}
+                </p>
+              )}
+              {tab === 'me' && (
+                <div className="sn-nav">
+                  {onOpenLook && (
+                    <button type="button" onClick={onOpenLook}>
+                      <Mascot kind={mascot} size={22} />
+                      꾸미기
                     </button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <span className="sn-sync">
-                <i aria-hidden data-pending={status.pending > 0} />
-                {syncLine}
-              </span>
-            )}
+                  )}
+                  <button type="button" onClick={goStickers}>
+                    모은 설교 스티커
+                    <span className="sn-count">{notes.length}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="sn-side-foot" data-trouble={storeTrouble}>
+              {storeTrouble ? (
+                <>
+                  {storeNote}
+                  {status.anonymous && onLogin && (
+                    <div>
+                      <button type="button" className="sn-login-link" onClick={onLogin}>
+                        <LogIn className="sn-icon" style={{ width: 14, height: 14 }} aria-hidden />
+                        로그인
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <span className="sn-sync">
+                  <i aria-hidden data-pending={status.pending > 0} />
+                  {syncLine}
+                </span>
+              )}
+            </div>
           </div>
         </nav>
         <main className="sn-list-main">

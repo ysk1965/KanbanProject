@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Plus, Search, X } from 'lucide-react';
+import { Loader2, Plus, Search } from 'lucide-react';
 import { formatDate } from '../../../../utils/dateUtils';
 import { SnOverlay } from '../SnOverlay';
+import { SnSheetBar } from '../SnSheetBar';
 import {
   challengeAPI,
   challengeErrorCode,
@@ -158,14 +159,6 @@ export function ChurchPicker({
     >
       <div className="sn-ch-sheet-h">
         <h2 id="sn-ch-church-h">소속 교회</h2>
-        <button
-          type="button"
-          className="sn-btn sn-ghost sn-icon-only"
-          aria-label="닫기"
-          onClick={onClose}
-        >
-          <X className="sn-icon" aria-hidden />
-        </button>
       </div>
       {mine && (
         <div className="sn-ch-mine">
@@ -175,6 +168,16 @@ export function ChurchPicker({
             <span className="sn-ch-faint">
               {formatDate(lockedUntil, 'M월 d일')}부터 바꿀 수 있어요
             </span>
+          )}
+          {!adding && (
+            <button
+              type="button"
+              className="sn-btn sn-ghost sn-ch-leave"
+              onClick={leave}
+              disabled={busy}
+            >
+              소속 빼기
+            </button>
           )}
         </div>
       )}
@@ -198,19 +201,6 @@ export function ChurchPicker({
               onChange={(e) => setNewRegion(e.target.value)}
             />
           </label>
-          <div className="sn-acts">
-            <button type="button" className="sn-btn sn-ghost" onClick={() => setAdding(false)}>
-              검색으로
-            </button>
-            <button
-              type="button"
-              className="sn-btn sn-primary"
-              disabled={newName.trim().length < 2 || newRegion.trim().length < 2 || busy}
-              onClick={register}
-            >
-              등록하고 고르기
-            </button>
-          </div>
         </div>
       ) : (
         <>
@@ -270,25 +260,29 @@ export function ChurchPicker({
         </>
       )}
       {err && <p className="sn-ch-warn">{err}</p>}
-      {!adding && (
-        <>
-          <div className="sn-acts">
-            {mine && (
-              <button type="button" className="sn-btn sn-ghost" onClick={leave} disabled={busy}>
-                소속 빼기
-              </button>
-            )}
-            <button
-              type="button"
-              className="sn-btn sn-primary"
-              disabled={!picked || busy}
-              onClick={confirm}
-            >
-              {picked ? `${picked.name}(으)로 정하기` : '교회를 골라 주세요'}
-            </button>
-          </div>
-          <p className="sn-ch-hint">정하고 나면 30일 뒤에 바꿀 수 있어요.</p>
-        </>
+      {!adding && <p className="sn-ch-hint">정하고 나면 30일 뒤에 바꿀 수 있어요.</p>}
+      {adding ? (
+        <SnSheetBar onClose={() => setAdding(false)} closeLabel="검색으로" back>
+          <button
+            type="button"
+            className="sn-btn sn-primary"
+            disabled={newName.trim().length < 2 || newRegion.trim().length < 2 || busy}
+            onClick={register}
+          >
+            등록하고 고르기
+          </button>
+        </SnSheetBar>
+      ) : (
+        <SnSheetBar onClose={onClose}>
+          <button
+            type="button"
+            className="sn-btn sn-primary"
+            disabled={!picked || busy}
+            onClick={confirm}
+          >
+            {picked ? '정하기' : '교회를 골라 주세요'}
+          </button>
+        </SnSheetBar>
       )}
     </SnOverlay>
   );

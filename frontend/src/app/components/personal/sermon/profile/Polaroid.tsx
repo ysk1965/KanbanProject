@@ -4,7 +4,8 @@ import { Mascot } from '../Mascot';
 import type { MascotId } from '../sermonLook';
 import { bookLabel, inkPair, type ProfilePin } from './profileModel';
 
-/** 고정 노트 한 장 — 표지(잉크 두 색 + 무늬 + 책 이름·장), 아래에 제목·내 한 줄(손글씨)·날짜 */
+/** 고정 노트 한 장 — 표지(잉크 두 색 + 무늬 + 책 이름·장), 아래에 제목·내 한 줄(손글씨)·날짜.
+ * 카드를 누르면 꾸미기, 호버 버튼으로 노트 본문에 간다 */
 
 export function PolaroidCover({
   pin,
@@ -58,20 +59,20 @@ export function Polaroid({
   return (
     <article className="snp-pola" data-i={index}>
       <span className="snp-tape" aria-hidden />
-      <button type="button" className="snp-pola-open" onClick={onOpen}>
+      <button type="button" className="snp-pola-open" onClick={onEdit}>
         <PolaroidCover pin={pin} note={note} mascot={mascot} index={index} />
         <span className="snp-pola-t">{note.title || UNTITLED}</span>
         {pin.line && <span className="snp-pola-l">“{pin.line}”</span>}
         <span className="snp-pola-m">{meta}</span>
-        <span className="sn-sr">노트 열기</span>
+        <span className="sn-sr">카드 꾸미기</span>
       </button>
       <button
         type="button"
         className="snp-pola-edit"
-        onClick={onEdit}
-        aria-label={`${note.title || UNTITLED} 카드 꾸미기`}
+        onClick={onOpen}
+        aria-label={`${note.title || UNTITLED} 노트 보러 가기`}
       >
-        꾸미기
+        노트 보러 가기
       </button>
     </article>
   );

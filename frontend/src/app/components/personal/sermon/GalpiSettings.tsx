@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronRight, X } from 'lucide-react';
+import { Check, ChevronRight } from 'lucide-react';
 import { SnOverlay } from './SnOverlay';
+import { SnSheetBar } from './SnSheetBar';
 import { resolveGalpiRule, saveGalpiPrefs, useGalpiPrefs } from './galpiPrefs';
 import { sameService, sundayServices, type SermonNote } from './sermonTypes';
 
@@ -60,12 +61,7 @@ function ServicePicker({
 
   return (
     <SnOverlay open={open} onClose={onClose} className="sn-modal sn-gp" aria-labelledby="sn-gp-h">
-      <div className="sn-gp-h">
-        <h2 id="sn-gp-h">내 주일 예배</h2>
-        <button type="button" className="sn-gp-x" aria-label="닫기" onClick={onClose}>
-          <X className="sn-icon" aria-hidden />
-        </button>
-      </div>
+      <h2 id="sn-gp-h">내 주일 예배</h2>
       <p>이 예배로 쓴 일요일 노트에 갈피가 자동으로 꽂혀요. 직접 꽂은 주는 그대로 둬요.</p>
       <div className="sn-gp-list" role="radiogroup" aria-label="내 주일 예배">
         <GpOption
@@ -106,6 +102,7 @@ function ServicePicker({
           정하기
         </button>
       </form>
+      <SnSheetBar onClose={onClose} />
     </SnOverlay>
   );
 }

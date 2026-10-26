@@ -171,6 +171,43 @@ export interface League {
   last_result?: LeagueResult | null;
 }
 
+/* 이번 주 말씀 필사 — 계약: docs/Tech/sermon-pilsa-api.md */
+export type PilsaReasonApi = 'main' | 'cited' | 'near' | 'next' | 'common';
+
+export interface PilsaChapterDto {
+  b: number;
+  c: number;
+  reason: PilsaReasonApi;
+  verses: number;
+  done?: number[];
+}
+
+export interface PilsaWeek {
+  week: string;
+  ends_at?: string | null;
+  chapters?: PilsaChapterDto[];
+  completed_chapters?: number;
+  week_done?: boolean;
+}
+
+export interface PilsaVerseBody {
+  week: string;
+  b: number;
+  c: number;
+  v: number;
+  chars: number;
+  ms: number;
+}
+
+export interface PilsaVerseResult {
+  b: number;
+  c: number;
+  done?: number[];
+  chapter_done?: boolean;
+  week_done?: boolean;
+  awarded?: number;
+}
+
 const C = '/challenge';
 
 export const challengeAPI = {
@@ -207,6 +244,11 @@ export const challengeAPI = {
       `${C}/rankings?scope=${scope}&board=${board}${groupId ? `&group_id=${encodeURIComponent(groupId)}` : ''}`,
     ),
   league: () => apiClient.get<League>(`${C}/league`),
+
+  pilsaWeek: () => apiClient.get<PilsaWeek>(`${C}/pilsa/week`),
+  putPilsaWeek: (body: { week: string; chapters: Array<Omit<PilsaChapterDto, 'done'>> }) =>
+    apiClient.put<PilsaWeek>(`${C}/pilsa/week`, body),
+  pilsaVerse: (body: PilsaVerseBody) => apiClient.post<PilsaVerseResult>(`${C}/pilsa/verses`, body),
 };
 
 export function challengeErrorCode(e: unknown): string | null {
@@ -236,6 +278,8 @@ export function challengeErrorMessage(e: unknown, fallback = '잠시 후 다시 
       return '교회를 찾을 수 없어요';
     case 'SG002':
       return '모임 멤버만 볼 수 있어요';
+    case 'PIL004':
+      return '너무 빨라요. 한 글자씩 따라 써 주세요';
     default:
       return fallback;
   }
@@ -244,7 +288,7 @@ export function challengeErrorMessage(e: unknown, fallback = '잠시 후 다시 
 /** 서버가 아직 없거나(404·5xx) 연결이 끊긴 실패 — 「아직 준비 중」으로 보여 준다 (CH·SG 업무 오류는 아님) */
 export function isUnavailable(e: unknown): boolean {
   const code = challengeErrorCode(e);
-  if (code && /^(CH|SG)\d/.test(code)) return false;
+  if (code && /^(CH|SG|PIL)\d/.test(code)) return false;
   const status = (e as { status?: number } | null)?.status;
   return status == null || status === 404 || status >= 500;
 }

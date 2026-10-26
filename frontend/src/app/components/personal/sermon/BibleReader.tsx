@@ -32,6 +32,7 @@ import {
   type Highlight,
 } from './bibleHighlights';
 import { HighlightBubble } from './HighlightBubble';
+import { BibleRail } from './BibleRail';
 import { BiblePickSheet } from './BiblePickSheet';
 import { ShareSheet } from './share/ShareSheet';
 import { copyText } from './share/shareImage';
@@ -39,6 +40,7 @@ import type { LineQuote } from './share/shareModel';
 import { newNote, UNTITLED, type SermonNote } from './sermonTypes';
 import { useBible } from './useBible';
 import { Mascot } from './Mascot';
+import { ReadingPaths, ReadingStamp } from './reading/ReadingPaths';
 import type { MascotId } from './sermonLook';
 import './bibleHighlight.css';
 
@@ -67,6 +69,8 @@ const FS_MIN = 14;
 const FS_MAX = 22;
 /** 좁은 화면 — 장 번호 줄 대신 책·장 시트, 보기 설정은 ⚙ 안으로 (sermonNav.css 와 같은 경계) */
 const NARROW = '(max-width: 760px)';
+/** 오른쪽 길잡이 레일이 보이는 넓이 (bibleRail.css 와 같은 경계) */
+const RAIL = '(min-width: 1320px)';
 /** 이만큼 밀면 장을 넘긴다 (px) */
 const SWIPE_MIN = 70;
 const HAND_MAX = 46;
@@ -88,18 +92,20 @@ function loadFs(): number | null {
     return null;
   }
 }
-function useNarrow(): boolean {
-  const [narrow, setNarrow] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia(NARROW).matches,
+function useMq(query: string): boolean {
+  const [hit, setHit] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(query).matches,
   );
   useEffect(() => {
-    const mq = window.matchMedia(NARROW);
-    const on = () => setNarrow(mq.matches);
+    const mq = window.matchMedia(query);
+    const on = () => setHit(mq.matches);
+    on();
     mq.addEventListener('change', on);
     return () => mq.removeEventListener('change', on);
-  }, []);
-  return narrow;
+  }, [query]);
+  return hit;
 }
+const useNarrow = () => useMq(NARROW);
 function loadFlag(key: string): boolean {
   try {
     return localStorage.getItem(key) !== '0';
@@ -209,6 +215,10 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
   const [viewOpen, setViewOpen] = useState(false);
   const [fs, setFs] = useState<number | null>(loadFs);
   const narrow = useNarrow();
+  const wide = useMq(RAIL);
+  /** 레일용 — 지금 화면에 보이는 절 [처음, 끝] */
+  const [seen, setSeen] = useState<[number, number] | null>(null);
+  const flashT = useRef(0);
   const viewRef = useRef<HTMLDivElement>(null);
   const swipeRef = useRef<HTMLDivElement>(null);
   const swipe = useRef<{
@@ -278,6 +288,43 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
 
   const lenOf = useCallback((v: number) => (text[v - 1] || '').length, [text]);
   const verseText = useCallback((v: number) => text[v - 1] || '', [text]);
+
+  // 레일이 보일 때만 — 화면에 걸친 절을 지켜본다
+  useEffect(() => {
+    setSeen(null);
+    const root = textRef.current;
+    if (!wide || !root || typeof IntersectionObserver === 'undefined') return;
+    const on = new Set<number>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          const v = Number((e.target as HTMLElement).dataset.v);
+          if (e.isIntersecting) on.add(v);
+          else on.delete(v);
+        });
+        if (!on.size) return;
+        const vs = [...on];
+        const a = Math.min(...vs);
+        const z = Math.max(...vs);
+        setSeen((p) => (p && p[0] === a && p[1] === z ? p : [a, z]));
+      },
+      { rootMargin: '-56px 0px -48px 0px' },
+    );
+    root.querySelectorAll<HTMLElement>('.sn-bv-row').forEach((r) => io.observe(r));
+    return () => io.disconnect();
+  }, [wide, text, pos.b, pos.c]);
+
+  /** 레일에서 절을 눌렀다 — 그 절로 내리고 잠깐 반짝인다 */
+  const jumpTo = (v: number) => {
+    const row = textRef.current?.querySelector<HTMLElement>(`[data-v="${v}"]`);
+    if (!row) return;
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    row.scrollIntoView({ block: 'center', behavior: calm ? 'auto' : 'smooth' });
+    window.clearTimeout(flashT.current);
+    setFlash(v);
+    flashT.current = window.setTimeout(() => setFlash(null), 1400);
+  };
+  useEffect(() => () => window.clearTimeout(flashT.current), []);
 
   // 모아보기에서 건너온 절 — 그 자리로 내리고 잠깐 반짝인다
   useEffect(() => {
@@ -608,8 +655,10 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
       className="sn-bible"
       data-hand={hand}
       data-hl={showHl}
+      data-rail={wide && !!bible}
       style={fs ? ({ '--sn-bv-fs': `${fs}px` } as CSSProperties) : undefined}
     >
+      <ReadingPaths onGo={go} />
       <div className="sn-bible-bar">
         <button
           type="button"
@@ -918,6 +967,7 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
           )}
 
           <nav className="sn-bible-foot" aria-label="장 이동">
+            <ReadingStamp b={pos.b} c={pos.c} onGo={go} />
             {nextMark && (
               <button
                 type="button"
@@ -982,6 +1032,21 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
           )}
         </article>
       </div>
+      {wide && bible && (
+        <BibleRail
+          b={pos.b}
+          c={pos.c}
+          text={text}
+          list={hand ? list || [] : []}
+          hls={hls}
+          seen={seen}
+          prev={prev}
+          next={next}
+          stepLabel={stepLabel}
+          onGo={go}
+          onJump={jumpTo}
+        />
+      )}
       <ShareSheet
         open={!!card}
         note={card?.note || null}

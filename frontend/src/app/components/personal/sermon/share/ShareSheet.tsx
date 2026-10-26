@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Download, Link2, Loader2, Share2, X } from 'lucide-react';
+import { Check, Download, Link2, Loader2, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SnOverlay } from '../SnOverlay';
+import { SnSheetBar } from '../SnSheetBar';
 import { prefersReducedMotion, useFx, useJellyTab } from '../microFx';
 import { decRef, refShort } from '../bibleRefs';
 import type { MascotId } from '../sermonLook';
@@ -277,14 +278,6 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
     >
       <div className="sn-shead">
         <h2 id="snc-sheet-title">카드로 공유</h2>
-        <button
-          type="button"
-          className="sn-btn sn-icon-only sn-ghost"
-          aria-label="닫기"
-          onClick={onClose}
-        >
-          <X className="sn-icon" />
-        </button>
       </div>
       {shown && (
         <div className="snc-sheet-body">
@@ -389,20 +382,6 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
 
             <div className="snc-acts">
               <button
-                type="button"
-                className="sn-btn sn-primary snc-main"
-                data-tapfx="share"
-                onClick={() => void onShare()}
-                disabled={!!busy || (kind === 'line' && !quote)}
-              >
-                {busy === 'share' ? (
-                  <Loader2 className="sn-icon animate-spin" />
-                ) : (
-                  <Share2 className="sn-icon" />
-                )}
-                공유하기
-              </button>
-              <button
                 ref={saveRef}
                 type="button"
                 className="sn-btn"
@@ -445,6 +424,24 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
             />
           </div>
         </div>
+      )}
+      {shown && (
+        <SnSheetBar onClose={onClose}>
+          <button
+            type="button"
+            className="sn-btn sn-primary snc-main"
+            data-tapfx="share"
+            onClick={() => void onShare()}
+            disabled={!!busy || (kind === 'line' && !quote)}
+          >
+            {busy === 'share' ? (
+              <Loader2 className="sn-icon animate-spin" />
+            ) : (
+              <Share2 className="sn-icon" />
+            )}
+            공유하기
+          </button>
+        </SnSheetBar>
       )}
     </SnOverlay>
   );
