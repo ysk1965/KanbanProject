@@ -356,11 +356,16 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
     if (openId && !store.status.loading && !store.get(openId)) setOpenId(null);
   }, [openId, store, store.status.loading, notes.length]);
 
-  const handleNew = useCallback(() => {
-    const n = store.save(withWorship(newNote(store.all()[0])));
-    setOpenAid(null);
-    setOpenId(n.id);
-  }, [store]);
+  // date: 홈 「들은 예배」에서 지난 주에 기록할 때 (클릭 이벤트가 넘어오는 곳도 있어 문자열만 받는다)
+  const handleNew = useCallback(
+    (date?: unknown) => {
+      const base = newNote(store.all()[0]);
+      const n = store.save(typeof date === 'string' ? { ...base, date } : withWorship(base));
+      setOpenAid(null);
+      setOpenId(n.id);
+    },
+    [store],
+  );
 
   const handleOpen = useCallback((id: string, aid?: string | null) => {
     setOpenAid(aid ?? null);

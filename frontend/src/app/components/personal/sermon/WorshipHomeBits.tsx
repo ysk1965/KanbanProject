@@ -4,6 +4,7 @@ import { GalpiMark } from './GalpiMark';
 import { Mascot } from './Mascot';
 import { saveGalpiPrefs, useGalpiPrefs } from './galpiPrefs';
 import { useSermonGroups } from './group/GroupContext';
+import { dayLabel } from './homeFmt';
 import { todayString, type SermonNote } from './sermonTypes';
 import {
   suggestWorship,
@@ -22,16 +23,20 @@ export function MyDaySlots({
   date,
   weekStart,
   notes,
+  card,
 }: {
   date: string;
   weekStart: string;
   notes: SermonNote[];
+  /** 「들은 예배」 카드 줄 — 카드 모양 칸에 날짜를 붙이고, 지난 날의 빈 자리는 「놓친 예배」로 보여 준다 */
+  card?: boolean;
 }) {
   const prefs = useGalpiPrefs();
   const gctx = useSermonGroups();
   const groupIds = new Set(gctx && !gctx.anonymous ? gctx.store.active().map((g) => g.id) : []);
   const today = todayString();
-  if (date < today) return null;
+  const missed = date < today;
+  if (missed && !card) return null;
   const slots = weekWorshipSlots(prefs.worship, weekStart).filter(
     (x) =>
       x.date === date &&
@@ -44,24 +49,32 @@ export function MyDaySlots({
       {slots.map(({ service: w, start }) => {
         const label = (
           <>
+            {card && <span className="sn-ws-gd">{dayLabel(date)}</span>}
             <span className="sg-tm">{start.replace(/^0/, '')}</span>
             {w.galpi && <GalpiMark size={13} />}
             {worshipLabel(w)}
+            {missed && <small>놓친 예배 · 늦게라도 적기</small>}
           </>
         );
-        return date === today && gctx ? (
+        return (date === today || missed) && gctx ? (
           <button
             key={w.id}
             type="button"
             className="sg-slot sn-wslot"
             data-galpi={w.galpi || undefined}
+            data-miss={missed || undefined}
             onClick={() => gctx.startWorship(w.id, date)}
           >
             {label}
-            <small>이 예배로 쓰기</small>
+            {!missed && <small>이 예배로 쓰기</small>}
           </button>
         ) : (
-          <span key={w.id} className="sg-slot sn-wslot" data-galpi={w.galpi || undefined}>
+          <span
+            key={w.id}
+            className="sg-slot sn-wslot"
+            data-galpi={w.galpi || undefined}
+            data-miss={missed || undefined}
+          >
             {label}
           </span>
         );

@@ -58,7 +58,8 @@ interface SermonListProps {
   notes: SermonNote[];
   status: SyncStatus;
   onOpen: (id: string, aid?: string | null) => void;
-  onNew: () => void;
+  /** date 를 주면 그 날짜로 새 노트 (홈 「들은 예배」의 지난 주 기록) */
+  onNew: (date?: string) => void;
   onToggleApply: (noteId: string, thoughtId: string) => void;
   /** 로그인 전이면 기존 로그인으로 보낸다 (없으면 안내를 그리지 않음) */
   onLogin?: () => void;
@@ -321,7 +322,7 @@ export function SermonList({
           <br />
           본문 구절은 ‘요 15:5’처럼 쓰면 바로 찾아 넣어 드려요.
         </div>
-        <button type="button" className="sn-btn sn-primary" onClick={onNew}>
+        <button type="button" className="sn-btn sn-primary" onClick={() => onNew()}>
           새 설교 기록
         </button>
       </div>
@@ -616,7 +617,7 @@ export function SermonList({
           {/* 오른쪽 패널 — 고른 탭의 이름과 그 탭 메뉴만 */}
           <div className="sn-side-panel" data-k={tab}>
             <h2 className="sn-side-title">{TABS.find((t) => t.k === tab)?.label}</h2>
-            <button type="button" className="sn-btn sn-primary" onClick={onNew}>
+            <button type="button" className="sn-btn sn-primary" onClick={() => onNew()}>
               <Plus className="sn-icon" aria-hidden />새 설교 기록
             </button>
             <div className="sn-sub">
@@ -773,7 +774,12 @@ export function SermonList({
             </>
           )}
           {showFab && (
-            <button type="button" className="sn-fab" aria-label="새 설교 기록" onClick={onNew}>
+            <button
+              type="button"
+              className="sn-fab"
+              aria-label="새 설교 기록"
+              onClick={() => onNew()}
+            >
               <Plus aria-hidden />
               <span>새 기록</span>
             </button>

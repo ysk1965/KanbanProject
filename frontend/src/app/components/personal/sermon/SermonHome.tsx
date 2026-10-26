@@ -28,14 +28,14 @@ import './homeShare.css';
  *    그림은 장 번호만이 아니라 항상 「책 이름 + 장」을 가리킨다.
  *    카드의 다음 행동은 「공유」와 「나눈 곳」 줄 (홈에서는 갈피를 꽂고 빼지 않는다)
  *  - 한 주 동안(WeekPanel): 이번 주 날짜 띠 + 고른 날의 할 일을 카테고리별로 (첫 칸 = 예배 갈피, 설교의 「적용」)
- *  - 이번 주 들은 예배(WeekServices): 이번 주 노트 카드 + 아직 안 쓴 예배 자리
+ *  - 들은 예배(WeekServices): 고른 주(기본 이번 주, 좌우로 주 이동)의 노트 카드 + 아직 안 쓴·놓친 예배 자리
  *  (모은 설교 스티커 = 스티커북은 「나의 갈피」 탭으로 옮김 — MyGalpi.tsx)
  */
 interface SermonHomeProps {
   notes: SermonNote[];
   mascot: MascotId;
   onOpen: (id: string, aid?: string | null) => void;
-  onNew: () => void;
+  onNew: (date?: string) => void;
   onToggleApply: (noteId: string, thoughtId: string) => void;
 }
 
@@ -216,9 +216,8 @@ export function SermonHome({ notes, mascot, onOpen, onNew, onToggleApply }: Serm
 
       <WorshipSuggest notes={notes} />
       <WeekServices
-        notes={weekNotes}
-        days={dayStrs}
-        weekStart={weekStart}
+        notes={notes}
+        thisWeek={weekStart}
         galpi={galpi}
         isGroupNote={isGroupNote}
         highlight={highlight}

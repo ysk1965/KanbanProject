@@ -1,4 +1,5 @@
 import { GalpiMark } from '../GalpiMark';
+import { dayLabel } from '../homeFmt';
 import { loadGalpiPrefs } from '../galpiPrefs';
 import { worshipForGroupService, worshipLabel } from '../worship';
 import { useEffect, useState, useSyncExternalStore } from 'react';
@@ -18,7 +19,16 @@ import './group.css';
  *  - useNoteGroups: 노트가 「모임 노트」(내가 속한 모임 자리에 연결)인지 — 스티커 색을 나누는 기준
  * 모임이 없거나 로그인 전이면 아무것도 그리지 않아 지금 화면과 같다.
  */
-export function GroupDaySlots({ date, notes }: { date: string; notes: SermonNote[] }) {
+export function GroupDaySlots({
+  date,
+  notes,
+  card,
+}: {
+  date: string;
+  notes: SermonNote[];
+  /** 「들은 예배」 카드 줄 — 칸 위에 날짜를 붙인다 */
+  card?: boolean;
+}) {
   const ctx = useSermonGroups();
   const store = ctx?.store;
   useSyncExternalStore(store?.subscribe ?? noopSub, store?.snapshot ?? zero);
@@ -95,6 +105,7 @@ export function GroupDaySlots({ date, notes }: { date: string; notes: SermonNote
               : ctx.startInSlot(g.id, sl.service.id, date)
           }
         >
+          {card && <span className="sn-ws-gd">{dayLabel(date)}</span>}
           {label}
           {people.length > 0 && <Faces people={people} max={3} size={20} />}
         </button>,
