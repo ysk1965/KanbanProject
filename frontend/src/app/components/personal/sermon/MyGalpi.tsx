@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Mascot } from './Mascot';
 import { useGalpiStickers } from './galpiPrefs';
+import { StickerBook } from './StickerBook';
 import { GalpiSettingsRows } from './GalpiSettings';
 import type { MascotId } from './sermonLook';
 import type { SermonNote } from './sermonTypes';
@@ -18,7 +19,7 @@ import { useChallengeUserId } from './challenge/challengeUtil';
 
 /**
  * 「나의 갈피」 — 마이페이지. 기획: https://claude.ai/artifact/1pTWvwGGDy2aA1hYx6xnNA (1단계)
- * 위: 이름표(캐릭터·대표 말씀·소속 교회) / 가운데: 고정한 노트 폴라로이드 3장 / 아래: 챌린지 줄·메뉴
+ * 위: 이름표(캐릭터·대표 말씀·소속 교회) / 가운데: 고정한 노트 폴라로이드 3장 · 모은 설교 스티커(한 해 스티커북) / 아래: 챌린지 줄·메뉴
  * 소속 교회는 챌린지(user_churches)가 원본이라 고르기는 challenge/ChurchPicker 를 그대로 쓴다.
  */
 export function MyGalpi({
@@ -29,7 +30,7 @@ export function MyGalpi({
   syncLine,
   onOpen,
   onLogin,
-  onGoStickers,
+  onGoWorship,
 }: {
   notes: SermonNote[];
   mascot: MascotId;
@@ -38,7 +39,8 @@ export function MyGalpi({
   syncLine: string;
   onOpen: (id: string) => void;
   onLogin?: () => void;
-  onGoStickers: () => void;
+  /** 「내 예배표」 화면으로 */
+  onGoWorship: () => void;
 }) {
   const profile = useProfile();
   const [editing, setEditing] = useState(false);
@@ -52,7 +54,7 @@ export function MyGalpi({
         setChurchOpen(true);
       };
   const streak = useMemo(() => weekStreak(notes), [notes]);
-  const stickerCount = useGalpiStickers(notes).size;
+  const galpi = useGalpiStickers(notes);
   const books = useMemo(() => booksHeard(notes), [notes]);
 
   if (!profile) return null;
@@ -73,6 +75,15 @@ export function MyGalpi({
 
       <PinnedNotes profile={profile} notes={notes} mascot={mascot} onOpen={onOpen} />
 
+      {/* 한 해 스티커북 — 주일마다 그 주 갈피 노트가 스티커로 붙는다 (홈에서 옮겨 옴) */}
+      <section className="sn-sticker-sec" aria-label="모은 설교 스티커">
+        <div className="sn-sec-h">
+          <h4>모은 설교 스티커</h4>
+          <span>주일마다 갈피 노트 한 장</span>
+        </div>
+        <StickerBook notes={notes} galpi={galpi} mascot={mascot} onOpen={onOpen} />
+      </section>
+
       <ChallengeMeRows onLogin={onLogin} />
 
       <div className="sn-me-menu">
@@ -83,13 +94,7 @@ export function MyGalpi({
             <ChevronRight className="sn-icon" aria-hidden />
           </span>
         </button>
-        <button type="button" onClick={onGoStickers}>
-          모은 설교 스티커
-          <span>
-            {stickerCount}장 <ChevronRight className="sn-icon" aria-hidden />
-          </span>
-        </button>
-        <GalpiSettingsRows notes={notes} />
+        <GalpiSettingsRows onOpen={onGoWorship} />
         <div className="sn-me-row">
           기기·동기화
           <span>{anonymous ? '이 기기에만 저장' : syncLine}</span>

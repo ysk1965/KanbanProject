@@ -20,7 +20,6 @@ import { bookName, chapterUnit, dayLabel } from './homeFmt';
 import { useWeekPlan, weekBoard } from './weekPlan';
 import { resolveGalpiRule, useGalpiPrefs } from './galpiPrefs';
 import { ShareSheet } from './share/ShareSheet';
-import { StickerBook } from './StickerBook';
 import './homeShare.css';
 
 /**
@@ -30,7 +29,7 @@ import './homeShare.css';
  *    카드의 다음 행동은 「공유」와 「나눈 곳」 줄 (홈에서는 갈피를 꽂고 빼지 않는다)
  *  - 한 주 동안(WeekPanel): 이번 주 할 일 판 — 설교의 「적용」 + 직접 적은 할 일(한 번 / 매일), 한 날에 ♥ 스티커
  *  - 이번 주 들은 예배(WeekServices): 이번 주 노트 카드 + 아직 안 쓴 예배 자리
- *  - 모은 설교 스티커: 한 해 스티커북(StickerBook) — 주일마다 그 주 갈피 노트가 스티커로 붙는다
+ *  (모은 설교 스티커 = 스티커북은 「나의 갈피」 탭으로 옮김 — MyGalpi.tsx)
  */
 interface SermonHomeProps {
   notes: SermonNote[];
@@ -208,7 +207,6 @@ export function SermonHome({ notes, mascot, onOpen, onNew, onToggleApply }: Serm
           notes={weekNotes}
           isGroupNote={isGroupNote}
           highlight={highlight}
-          mascot={mascot}
           onOpen={onOpen}
           onToggleApply={onToggleApply}
         />
@@ -226,14 +224,6 @@ export function SermonHome({ notes, mascot, onOpen, onNew, onToggleApply }: Serm
         onOpen={onOpen}
         onNew={onNew}
       />
-
-      <div className="sn-sticker-sec">
-        <div className="sn-sec-h">
-          <h4>모은 설교 스티커</h4>
-          <span>주일마다 갈피 노트 한 장</span>
-        </div>
-        <StickerBook notes={notes} galpi={galpi} mascot={mascot} onOpen={onOpen} />
-      </div>
     </div>
   );
 }

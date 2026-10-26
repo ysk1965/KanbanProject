@@ -160,9 +160,11 @@ describe('SermonTab smoke', () => {
     expect(saved.notes[0].thoughts[0].tag).toBe('적용');
     expect(saved.dirty.length).toBe(1);
 
-    // 목록으로 → 한 주 다이어리 (이번 주 적용이 남은 개수로 보인다)
+    // 목록으로 → 한 주 다이어리 (이번 주 적용이 「한 주 동안」 칩으로 보인다)
     fireEvent.click(screen.getByRole('button', { name: '목록으로' }));
-    expect(await screen.findByText('이번 주 1개 남았어요')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: '매일 말씀 한 장 읽기 했어요' }),
+    ).toBeInTheDocument();
     expect(screen.getAllByText('포도나무와 가지').length).toBeGreaterThan(0);
   });
 
@@ -355,5 +357,29 @@ describe('나의 갈피 — 이름표·고정 노트', () => {
     expect(cache.data.pins[0]).toMatchObject({ pattern: 'lines', line: '버티는 게 아니라' });
     // 꾸미기 키도 같이 바뀐다 (카드·초대 페이지가 따라오게)
     expect(JSON.parse(localStorage.getItem('sermon-look-v1') as string).mascot).toBe('bang');
+  });
+});
+
+describe('나의 갈피 — 내 예배표 화면', () => {
+  it('메뉴 줄에서 내 예배표 화면으로 들어가 예배를 넣고, 뒤로 나의 갈피로 돌아온다', async () => {
+    localStorage.clear();
+    authState.currentUser = { id: 'u-ws', name: '은혜', email: 'w@example.com' };
+    authState.isAuthenticated = true;
+    await renderTab();
+    fireEvent.click((await screen.findAllByRole('tab', { name: /나의 갈피/ }))[0]);
+
+    // 메뉴 줄 → 시트가 아니라 탭 안 화면
+    fireEvent.click((await screen.findAllByRole('button', { name: /^내 예배표/ }))[0]);
+    expect(await screen.findByRole('heading', { name: '내 예배표' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText('어느 예배에서 말씀을 들으세요?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '직접 만들게요' }));
+    expect(await screen.findByText(/이 시간에 노트를 열면/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '나의 갈피로' }));
+    expect(
+      (await screen.findAllByRole('button', { name: '이름표 꾸미기' })).length,
+    ).toBeGreaterThan(0);
   });
 });

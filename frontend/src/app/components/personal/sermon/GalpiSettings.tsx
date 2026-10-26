@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react';
-import { ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { GalpiMark } from './GalpiMark';
 import { Mascot } from './Mascot';
-import { SnOverlay } from './SnOverlay';
-import { SnSheetBar } from './SnSheetBar';
 import { saveGalpiPrefs, useGalpiPrefs } from './galpiPrefs';
 import { useSermonGroups } from './group/GroupContext';
 import { ServiceCard, type Pick } from './group/ServicePicker';
@@ -21,56 +19,43 @@ import {
 import './worship.css';
 
 /**
- * 「나의 갈피」 메뉴의 「내 예배표」 한 줄 + 시트. 기획: https://claude.ai/artifact/TGNziM4tRteB8koxfNZGb3 ①②③
- * 예배마다 요일·시각·내 부·자동 채우기·갈피 예배, 짝지은 모임을 보여 준다. 고치면 바로 저장(galpiPrefs).
+ * 「나의 갈피」 메뉴의 「내 예배표」 한 줄. 누르면 「나의 갈피 › 내 예배표」 화면(WorshipPage)으로 간다.
+ * 기획: https://claude.ai/artifact/TGNziM4tRteB8koxfNZGb3 ①②③
  */
-export function GalpiSettingsRows({ notes }: { notes: SermonNote[] }) {
+export function GalpiSettingsRows({ onOpen }: { onOpen: () => void }) {
   const prefs = useGalpiPrefs();
-  const [open, setOpen] = useState(false);
   const star = galpiWorship(prefs.worship);
   const others = prefs.worship.length - (star ? 1 : 0);
   const empty = !prefs.worship.length;
 
   return (
-    <>
-      <button
-        type="button"
-        className="sn-ws-row"
-        data-empty={empty || undefined}
-        onClick={() => setOpen(true)}
-      >
-        내 예배표
-        <span>
-          {empty ? (
-            '정하기'
-          ) : star ? (
-            <>
-              <span className="sn-ws-tag">
-                <GalpiMark size={12} />
-                {worshipLabel(star)}
-              </span>
-              {others > 0 && `외 ${others}`}
-            </>
-          ) : (
-            prefs.worship.map((s) => s.name).join(' · ')
-          )}
-          <ChevronRight className="sn-icon" aria-hidden />
-        </span>
-      </button>
-      <WorshipSheet open={open} notes={notes} onClose={() => setOpen(false)} />
-    </>
+    <button type="button" className="sn-ws-row" data-empty={empty || undefined} onClick={onOpen}>
+      내 예배표
+      <span>
+        {empty ? (
+          '정하기'
+        ) : star ? (
+          <>
+            <span className="sn-ws-tag">
+              <GalpiMark size={12} />
+              {worshipLabel(star)}
+            </span>
+            {others > 0 && `외 ${others}`}
+          </>
+        ) : (
+          prefs.worship.map((s) => s.name).join(' · ')
+        )}
+        <ChevronRight className="sn-icon" aria-hidden />
+      </span>
+    </button>
   );
 }
 
-function WorshipSheet({
-  open,
-  notes,
-  onClose,
-}: {
-  open: boolean;
-  notes: SermonNote[];
-  onClose: () => void;
-}) {
+/**
+ * 「나의 갈피 › 내 예배표」 화면 — 예배마다 요일·시각·내 부·자동 채우기·갈피 예배, 짝지은 모임.
+ * 고치면 바로 저장(galpiPrefs). 예배가 늘수록 시트로는 좁아 탭 안 화면으로 옮겼다.
+ */
+export function WorshipPage({ notes, onBack }: { notes: SermonNote[]; onBack?: () => void }) {
   const prefs = useGalpiPrefs();
   const list = prefs.worship;
   const gctx = useSermonGroups();
@@ -79,10 +64,7 @@ function WorshipSheet({
   const [pick, setPick] = useState<Pick | null>(null);
   const [focusName, setFocusName] = useState(false);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
-  const guess = useMemo(
-    () => (open && !list.length ? suggestWorship(notes) : []),
-    [open, list.length, notes],
-  );
+  const guess = useMemo(() => (!list.length ? suggestWorship(notes) : []), [list.length, notes]);
 
   const save = (next: WorshipService[]) => saveGalpiPrefs({ worship: next });
   const patch = (id: string, p: Partial<WorshipService>) =>
@@ -137,13 +119,15 @@ function WorshipSheet({
   const groupName = (gid: string) => groups.find((g) => g.id === gid)?.name;
 
   return (
-    <SnOverlay
-      open={open}
-      onClose={onClose}
-      className="sn-modal sn-gp sn-ws"
-      aria-labelledby="sn-ws-h"
-    >
-      <h2 id="sn-ws-h">내 예배표</h2>
+    <section className="sn-ws sn-ws-page" aria-labelledby="sn-ws-h">
+      <div className="sn-ws-head">
+        {onBack && (
+          <button type="button" className="sn-ws-back" onClick={onBack} aria-label="나의 갈피로">
+            <ChevronLeft className="sn-icon" aria-hidden />
+          </button>
+        )}
+        <h2 id="sn-ws-h">내 예배표</h2>
+      </div>
 
       {!list.length ? (
         <div className="sn-ws-empty">
@@ -355,7 +339,6 @@ function WorshipSheet({
           ? '직접 꽂은 주가 없으면 갈피 예배로 쓴 노트에 갈피가 꽂혀요.'
           : '갈피는 직접 꽂을 때만 꽂혀요.'}
       </p>
-      <SnSheetBar onClose={onClose} />
-    </SnOverlay>
+    </section>
   );
 }

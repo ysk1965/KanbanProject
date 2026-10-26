@@ -1,41 +1,56 @@
 /* =====================================================================
    홈 「한 주 동안」 할 일 판 (WeekPanel.tsx) + 「이번 주 들은 예배」 (WeekServices.tsx)
-   패널 바탕·태그·n/m 숫자·응원 줄은 sermon.css 의 .sn-plan · .sn-plan-fr · .sn-cheer 를 그대로 쓴다
+   패널 바탕·태그·n/m 숫자는 sermon.css 의 .sn-plan · .sn-plan-fr 를 그대로 쓴다
    ===================================================================== */
 .sermon-app .sn-wp {
   gap: 10px;
+  padding-bottom: 14px;
 }
-.sermon-app .sn-wp-sub {
+.sermon-app .sn-wp-h {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  margin-top: -6px;
-  font-size: 12px;
-  color: var(--sn-faint);
+  gap: 6px;
 }
-.sermon-app .sn-wp-edit {
+.sermon-app .sn-wp-h h4 {
+  flex: 1;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+}
+.sermon-app .sn-wp-pen {
+  flex: none;
+  width: 32px;
+  height: 32px;
   border: 0;
-  border-radius: var(--sn-r-pill);
-  padding: 3px 10px;
+  border-radius: 50%;
   background: transparent;
-  color: var(--sn-muted);
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--sn-faint);
+  display: grid;
+  place-items: center;
+  padding: 0;
 }
-.sermon-app .sn-wp-edit:hover,
-.sermon-app .sn-wp-edit[aria-pressed='true'] {
+.sermon-app .sn-wp-pen:hover,
+.sermon-app .sn-wp-pen[aria-pressed='true'] {
   background: var(--sn-surface-2);
   color: var(--sn-fg);
 }
+.sermon-app .sn-wp-pen .sn-icon {
+  width: 15px;
+  height: 15px;
+}
 
-/* 할 일 칩 (아직 안 한 것) */
+/* 칩 (아직 안 한 것) */
 .sermon-app .sn-wp-items {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   min-width: 0;
   align-items: center;
+}
+.sermon-app .sn-wp-free {
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--sn-g1) 25%, transparent);
 }
 .sermon-app .sn-wp-chip {
   display: inline-flex;
@@ -44,7 +59,7 @@
   max-width: 100%;
   min-width: 0;
   border-radius: var(--sn-r-pill);
-  padding: 3px 10px 3px 3px;
+  padding: 2px 10px 2px 2px;
   background: var(--sn-surface-2);
   font-size: 13px;
   font-weight: 700;
@@ -52,7 +67,8 @@
 .sermon-app .sn-wp-chip[data-plan] {
   background: transparent;
   border: 1.5px dashed color-mix(in srgb, var(--sn-g2) 60%, transparent);
-  padding: 2px 9px 2px 2px;
+  padding: 1px 9px 1px 1px;
+  font-size: 12.5px;
 }
 .sermon-app .sn-wp-chip[data-hl],
 .sermon-app .sn-wp-stkw[data-hl] .sn-stk {
@@ -61,8 +77,8 @@
 }
 .sermon-app .sn-wp-ck {
   flex: none;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 2px solid color-mix(in srgb, var(--sn-g2) 75%, transparent);
   background: var(--sn-surface);
@@ -75,8 +91,8 @@
     background 0.15s;
 }
 .sermon-app .sn-wp-ck .sn-icon {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
 }
 .sermon-app .sn-wp-ck:hover {
   background: color-mix(in srgb, var(--sn-g2) 30%, var(--sn-surface));
@@ -87,8 +103,8 @@
 }
 .sermon-app .sn-wp-from {
   flex: none;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--sn-g1);
 }
@@ -120,11 +136,11 @@
 }
 .sermon-app .sn-wp-x {
   flex: none;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border: 0;
   border-radius: 50%;
-  background: var(--sn-surface-2);
+  background: var(--sn-surface);
   color: var(--sn-muted);
   display: grid;
   place-items: center;
@@ -135,93 +151,109 @@
   color: var(--sn-fg);
 }
 .sermon-app .sn-wp-x .sn-icon {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
 }
 
-/* 「매일」 범례 */
-.sermon-app .sn-wp-leg {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-.sermon-app .sn-wp-leg-l {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--sn-faint);
-  padding-right: 2px;
-}
-.sermon-app .sn-wp-leg-it {
+/* 칩 끝 점선 칩 = 입력칸 */
+.sermon-app .sn-wp-in {
+  flex: 1 1 140px;
+  min-width: 140px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  max-width: 100%;
-  min-width: 0;
   border-radius: var(--sn-r-pill);
-  padding: 3px 8px 3px 4px;
-  background: var(--sn-surface);
-  box-shadow: 0 0 0 1px var(--sn-line);
-  font-size: 12px;
-}
-.sermon-app .sn-wp-leg-it b {
-  flex: none;
-  border-radius: var(--sn-r-pill);
-  padding: 1px 8px;
-  background: var(--c);
-  color: var(--sn-on-ink);
-  font-weight: 900;
-}
-.sermon-app .sn-wp-leg-it em {
-  font-style: normal;
-  color: var(--sn-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-/* 「이번 주 안에」 */
-.sermon-app .sn-wp-tray {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 18px;
-  background: var(--sn-surface);
-  box-shadow: 0 0 0 1px var(--sn-line);
-}
-.sermon-app .sn-wp-tray-h {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--sn-faint);
-}
-.sermon-app .sn-wp-tray-h button {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  border: 0;
-  border-radius: 10px;
-  padding: 3px 8px;
-  background: transparent;
+  padding: 1px 3px 1px 8px;
+  border: 1.5px dashed color-mix(in srgb, var(--sn-g2) 55%, transparent);
   color: var(--sn-t2);
+  cursor: text;
+}
+.sermon-app .sn-wp-in:focus-within {
+  border-style: solid;
+  border-color: var(--sn-g2);
+  background: var(--sn-surface);
+}
+.sermon-app .sn-wp-in > .sn-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+.sermon-app .sn-wp-in input,
+.sermon-app .sn-wp-dayin input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sn-fg);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 0;
+  outline: none;
+}
+.sermon-app .sn-wp-in input::placeholder,
+.sermon-app .sn-wp-dayin input::placeholder {
+  color: var(--sn-faint);
+  font-weight: 400;
+}
+.sermon-app .sn-wp-seg {
+  flex: none;
+  display: inline-flex;
+  padding: 2px;
+  gap: 1px;
+  border-radius: var(--sn-r-pill);
+  background: var(--sn-surface-2);
+}
+.sermon-app .sn-wp-seg button {
+  border: 0;
+  border-radius: var(--sn-r-pill);
+  padding: 2px 8px;
+  background: transparent;
+  color: var(--sn-faint);
   font-size: 12px;
   font-weight: 700;
 }
-.sermon-app .sn-wp-tray-h button:hover {
-  background: color-mix(in srgb, var(--sn-g2) 18%, transparent);
+.sermon-app .sn-wp-seg button[aria-pressed='true'] {
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  box-shadow: 0 1px 3px var(--sn-line-strong);
 }
-.sermon-app .sn-wp-tray-h .sn-icon {
-  width: 13px;
-  height: 13px;
+.sermon-app .sn-wp-seg button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
-.sermon-app .sn-wp-empty {
-  margin: 0;
+.sermon-app .sn-wp-short {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 4px;
   font-size: 12px;
   color: var(--sn-faint);
+}
+.sermon-app .sn-wp-short input {
+  width: 92px;
+  border: 0;
+  border-radius: 8px;
+  padding: 3px 8px;
+  background: var(--sn-surface-2);
+  color: var(--sn-fg);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  outline: none;
+}
+.sermon-app .sn-wp-short input:focus {
+  box-shadow: 0 0 0 2px var(--sn-g2);
+}
+.sermon-app .sn-wp-dayin {
+  grid-column: 1 / -1;
+  display: flex;
+  margin: 4px 0 2px;
+  border-radius: var(--sn-r-pill);
+  padding: 0 4px 0 12px;
+  border: 1.5px solid var(--sn-g2);
+  background: var(--sn-surface);
 }
 
 /* 일~토 줄 + 매일 기둥 */
@@ -232,30 +264,28 @@
 .sermon-app .sn-wp-row,
 .sermon-app .sn-wp-dh {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) auto;
-  column-gap: 10px;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  column-gap: 8px;
   align-items: center;
 }
 .sermon-app .sn-wp-days:not([data-cols]) .sn-wp-row {
-  grid-template-columns: 46px minmax(0, 1fr);
+  grid-template-columns: 56px minmax(0, 1fr);
 }
 .sermon-app .sn-wp-dh {
-  padding-bottom: 4px;
-}
-.sermon-app .sn-wp-dh-l {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--sn-faint);
+  padding: 0 0 4px;
 }
 .sermon-app .sn-wp-row {
-  min-height: 46px;
-  padding: 6px 0;
-  border-top: 1px solid color-mix(in srgb, var(--sn-g1) 25%, transparent);
+  min-height: 38px;
+  padding: 4px 0;
+  border-top: 1px solid color-mix(in srgb, var(--sn-g1) 20%, transparent);
+}
+.sermon-app .sn-wp-dh + .sn-wp-row {
+  border-top-color: transparent;
 }
 .sermon-app .sn-wp-row[data-today] {
   margin: 0 -8px;
-  padding: 6px 8px;
-  border-radius: 14px;
+  padding: 4px 8px;
+  border-radius: 12px;
   border-top-color: transparent;
   background: color-mix(in srgb, var(--sn-g2) 13%, transparent);
 }
@@ -263,60 +293,82 @@
   border-top-color: transparent;
 }
 .sermon-app .sn-wp-dl {
-  display: grid;
-  line-height: 1.15;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
 }
 .sermon-app .sn-wp-dl b {
-  display: flex;
-  align-items: center;
-  gap: 4px;
   font-family: var(--sn-f-poster);
   font-weight: 400;
-  font-size: 21px;
+  font-size: 18px;
+  line-height: 1;
 }
-.sermon-app .sn-wp-dl span {
+.sermon-app .sn-wp-dl > span:not(.sn-wp-dots) {
   font-size: 12px;
   color: var(--sn-faint);
 }
 .sermon-app .sn-wp-row[data-sun] .sn-wp-dl b {
   color: var(--sn-t2);
 }
-.sermon-app .sn-wp-row[data-today] .sn-wp-dl span {
+.sermon-app .sn-wp-row[data-today] .sn-wp-dl > span:not(.sn-wp-dots) {
   color: var(--sn-fg);
   font-weight: 900;
 }
+.sermon-app .sn-wp-row[data-past][data-empty] .sn-wp-dl {
+  opacity: 0.55;
+}
 .sermon-app .sn-wp-row[data-fut] .sn-wp-dl b {
-  opacity: 0.6;
+  opacity: 0.7;
 }
 .sermon-app .sn-wp-dots {
   display: inline-flex;
   gap: 2px;
+  align-self: center;
 }
 .sermon-app .sn-wp-dots i {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--sn-g1);
 }
 .sermon-app .sn-wp-dots i[data-grp] {
   background: var(--sn-g3);
 }
+/* 날짜 줄 「+」: 오늘·빈 앞날만 늘 보이고, 나머지는 올리면 (터치 기기는 늘) */
 .sermon-app .sn-wp-add {
   flex: none;
-  width: 28px;
-  height: 28px;
-  font-size: 15px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px dashed color-mix(in srgb, var(--sn-g1) 55%, transparent);
+  background: transparent;
+  color: var(--sn-t1);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
-.sermon-app .sn-wp-add[data-quiet] {
-  opacity: 0.55;
+.sermon-app .sn-wp-row[data-today] .sn-wp-add,
+.sermon-app .sn-wp-row[data-empty] .sn-wp-add,
+.sermon-app .sn-wp-row:hover .sn-wp-add,
+.sermon-app .sn-wp-add:focus-visible {
+  opacity: 0.8;
 }
-.sermon-app .sn-wp-add[data-quiet]:hover,
-.sermon-app .sn-wp-add[data-quiet]:focus-visible {
+@media (hover: none) {
+  .sermon-app .sn-wp-add {
+    opacity: 0.6;
+  }
+}
+.sermon-app .sn-wp-add:hover {
   opacity: 1;
+  border-style: solid;
+  background: var(--sn-accent-soft);
 }
 .sermon-app .sn-wp-row .sn-stk {
   font-size: 12.5px;
-  padding: 4px 10px;
+  padding: 3px 10px;
 }
 .sermon-app .sn-wp-row .sn-stk[data-fx='stick'] {
   animation: sn-stick 0.45s var(--sn-spring) 0.1s both;
@@ -331,23 +383,36 @@
   place-items: center;
 }
 .sermon-app .sn-wp-hn {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   max-width: 58px;
+  border: 0;
   border-radius: 9px;
-  padding: 3px 5px;
+  padding: 2px 5px;
   background: var(--c);
   color: var(--sn-on-ink);
+  font: inherit;
   font-size: 12px;
   font-weight: 900;
-  line-height: 1.2;
-  text-align: center;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: help;
+}
+.sermon-app .sn-wp-hn[data-del] {
+  cursor: pointer;
+}
+.sermon-app .sn-wp-hn .sn-icon {
+  flex: none;
+  width: 11px;
+  height: 11px;
 }
 .sermon-app .sn-wp-hd {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: 2px solid color-mix(in srgb, var(--c) 80%, transparent);
   background: transparent;
@@ -360,8 +425,8 @@
     background 0.15s;
 }
 .sermon-app .sn-wp-hd .sn-icon {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
 }
 .sermon-app .sn-wp-hd[aria-pressed='true'] {
   background: var(--c);
@@ -377,116 +442,6 @@
   transform: scale(0.82);
 }
 
-/* 적기 */
-.sermon-app .sn-wp-form {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 6px;
-  padding: 8px 8px 8px 12px;
-  border-radius: 16px;
-  background: var(--sn-surface);
-  box-shadow: 0 0 0 2px var(--sn-g2);
-}
-.sermon-app .sn-wp-form-l {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.sermon-app .sn-wp-form input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: var(--sn-fg);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  padding: 6px 0;
-  outline: none;
-}
-.sermon-app .sn-wp-form input::placeholder {
-  color: var(--sn-faint);
-  font-weight: 400;
-}
-.sermon-app .sn-wp-seg {
-  flex: none;
-  display: inline-flex;
-  padding: 3px;
-  gap: 2px;
-  border-radius: var(--sn-r-pill);
-  background: var(--sn-surface-2);
-}
-.sermon-app .sn-wp-seg button {
-  border: 0;
-  border-radius: var(--sn-r-pill);
-  padding: 4px 10px;
-  background: transparent;
-  color: var(--sn-muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-.sermon-app .sn-wp-seg button[aria-pressed='true'] {
-  background: var(--sn-surface);
-  color: var(--sn-fg);
-  box-shadow: 0 1px 3px var(--sn-line-strong);
-}
-.sermon-app .sn-wp-seg button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-.sermon-app .sn-wp-short {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--sn-faint);
-}
-.sermon-app .sn-wp-short input {
-  flex: none;
-  width: 96px;
-  border-radius: 8px;
-  padding: 4px 8px;
-  background: var(--sn-surface-2);
-  font-size: 13px;
-}
-.sermon-app .sn-wp-short input:focus {
-  box-shadow: 0 0 0 2px var(--sn-g2);
-}
-.sermon-app .sn-wp-form-f {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--sn-faint);
-}
-.sermon-app .sn-wp-form-f > span:last-child {
-  display: inline-flex;
-  gap: 4px;
-}
-.sermon-app .sn-wp-cancel,
-.sermon-app .sn-wp-go {
-  border: 0;
-  border-radius: var(--sn-r-pill);
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 700;
-}
-.sermon-app .sn-wp-cancel {
-  background: transparent;
-  color: var(--sn-muted);
-}
-.sermon-app .sn-wp-go {
-  background: var(--sn-t2);
-  color: var(--sn-surface);
-}
-.sermon-app .sn-wp-go:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
 /* ===== 이번 주 들은 예배 ===== */
 .sermon-app .sn-ws {
   display: flex;
@@ -494,8 +449,20 @@
 }
 .sermon-app .sn-ws-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: 232px;
   gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 2px;
+  /* 카드 그림자·강조 테두리가 잘리지 않게 */
+  margin: -6px -6px 0;
+  padding: 6px 6px 10px;
+  scrollbar-width: thin;
+}
+.sermon-app .sn-ws-grid > * {
+  scroll-snap-align: start;
 }
 .sermon-app .sn-ws-card {
   --sc: var(--sn-g1);
@@ -655,7 +622,8 @@
   z-index: 2;
 }
 .sermon-app .sn-ws-new {
-  min-height: 190px;
+  width: 140px;
+  min-height: 0;
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -698,19 +666,16 @@
   }
   .sermon-app .sn-wp-hn {
     max-width: 50px;
-    padding: 3px 3px;
+    padding: 2px 3px;
     letter-spacing: -0.06em;
   }
   .sermon-app .sn-wp-row,
   .sermon-app .sn-wp-dh {
-    grid-template-columns: 40px minmax(0, 1fr) auto;
-    column-gap: 8px;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    column-gap: 6px;
   }
   .sermon-app .sn-ws-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  }
-  .sermon-app .sn-ws-new {
-    min-height: 96px;
+    grid-auto-columns: 200px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

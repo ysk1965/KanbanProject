@@ -41,7 +41,8 @@ import { HighlightList } from './HighlightList';
 import { SermonVerses } from './VerseIndex';
 import { useHighlights } from './bibleHighlights';
 import { MyGalpi } from './MyGalpi';
-import { useGalpiStickers } from './galpiPrefs';
+import { WorshipPage } from './GalpiSettings';
+import { useGalpiPrefs, useGalpiStickers } from './galpiPrefs';
 import { GroupsLanding } from './group/GroupsLanding';
 import { ChallengeTab, type ChallengeView } from './challenge/ChallengeTab';
 import './sermonNav.css';
@@ -173,6 +174,8 @@ export function SermonList({
   const [bibleView, setBibleView] = useState<BibleView>('read');
   const highlights = useHighlights();
   const [challengeView, setChallengeView] = useState<ChallengeView>('home');
+  /** 나의 갈피 안 화면 — 첫 화면 / 내 예배표 */
+  const [meView, setMeView] = useState<'home' | 'worship'>('home');
   const abar = useActionBarHost();
   const [nudgeHidden, setNudgeHidden] = useState(() => nudgeSnoozed());
   const showNudge = status.anonymous && !!onLogin && notes.length > 0 && !nudgeHidden;
@@ -234,6 +237,7 @@ export function SermonList({
       }
       if (t === 'bible') setBibleView('read');
       if (t === 'challenge') setChallengeView('home');
+      if (t === 'me') setMeView('home');
     }
     if (next.toString() !== sp.toString()) setSp(next);
   };
@@ -243,9 +247,11 @@ export function SermonList({
     if (tab !== 'note') goTab('note');
   };
   const stickerCount = useGalpiStickers(notes).size;
+  const worshipCount = useGalpiPrefs().worship.length;
+  // 모은 설교 스티커는 「나의 갈피」 탭 안에 있다
   const goStickers = () => {
-    pickNote('home');
-    setQ('');
+    setMeView('home');
+    if (tab !== 'me') goTab('me');
     window.setTimeout(
       () =>
         document.querySelector('.sermon-app .sn-sticker-sec')?.scrollIntoView({ block: 'start' }),
@@ -283,6 +289,8 @@ export function SermonList({
     body = <HighlightList onRead={() => setBibleView('read')} />;
   } else if (tab === 'groups') {
     body = <GroupsLanding mascot={mascot} />;
+  } else if (tab === 'me' && meView === 'worship') {
+    body = <WorshipPage notes={notes} onBack={() => setMeView('home')} />;
   } else if (tab === 'me') {
     body = (
       <MyGalpi
@@ -293,7 +301,7 @@ export function SermonList({
         syncLine={storeTrouble ? storeNote : syncLine}
         onOpen={onOpen}
         onLogin={onLogin}
-        onGoStickers={goStickers}
+        onGoWorship={() => setMeView('worship')}
       />
     );
   } else if (tab === 'note' && !notes.length && status.restoring) {
@@ -643,6 +651,14 @@ export function SermonList({
                   <button type="button" onClick={goStickers}>
                     모은 설교 스티커
                     <span className="sn-count">{stickerCount}</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-current={meView === 'worship'}
+                    onClick={() => setMeView('worship')}
+                  >
+                    내 예배표
+                    {worshipCount > 0 && <span className="sn-count">{worshipCount}</span>}
                   </button>
                 </div>
               )}
