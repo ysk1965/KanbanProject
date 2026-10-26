@@ -262,3 +262,34 @@ describe('SermonTab smoke', () => {
     expect(screen.getAllByText('로그인 전 메모').length).toBeGreaterThan(0);
   });
 });
+
+describe('SermonTab 핵심 탭', () => {
+  it('다섯 탭으로 오가고, 고른 탭은 주소 ?tab= 에 남는다', async () => {
+    localStorage.clear();
+    authState.currentUser = { id: 'u-tabs', name: '탭테스트', email: 't@example.com' };
+    authState.isAuthenticated = true;
+    await renderTab();
+    expect(await screen.findByText('아직 기록한 설교가 없어요')).toBeInTheDocument();
+
+    const tablist = screen.getAllByRole('tablist', { name: '갈피 탭' })[0];
+    const tabs = Array.from(tablist.querySelectorAll('[role="tab"]')).map((t) => t.textContent);
+    expect(tabs).toEqual(['설교 노트', '모임', '성경 읽기', '챌린지', '나의 갈피']);
+
+    // 나의 갈피 — 프로필 이름 + 내 갈피 (비었을 때 안내)
+    fireEvent.click(screen.getAllByRole('tab', { name: /나의 갈피/ })[0]);
+    expect(await screen.findByText('탭테스트')).toBeInTheDocument();
+    expect(screen.getByText('아직 꽂은 갈피가 없어요.', { exact: false })).toBeInTheDocument();
+
+    // 챌린지 — 이번 주 적용
+    fireEvent.click(screen.getAllByRole('tab', { name: /챌린지/ })[0]);
+    expect(await screen.findByRole('heading', { name: '이번 주 적용' })).toBeInTheDocument();
+
+    // 모임 — 모임이 없을 때 본문 안내
+    fireEvent.click(screen.getAllByRole('tab', { name: /^모임/ })[0]);
+    expect(await screen.findByText('아직 모임이 없어요')).toBeInTheDocument();
+
+    // 설교 노트로 돌아오면 첫 화면
+    fireEvent.click(screen.getAllByRole('tab', { name: /설교 노트/ })[0]);
+    expect(await screen.findByText('아직 기록한 설교가 없어요')).toBeInTheDocument();
+  });
+});

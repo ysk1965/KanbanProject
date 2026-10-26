@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { EditorCore } from './editorCore';
+import { prefersReducedMotion, useFx } from './microFx';
 import { MediaUploadError, deleteMedia, mediaErrorMessage, uploadMedia } from './sermonMedia';
 import {
   THOUGHT_TAGS,
@@ -253,6 +254,8 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
       media: PendingMedia[];
     } | null>(null);
     const [zoom, setZoom] = useState<string | null>(null);
+    // 방금 쓴 생각·되살린 생각은 올라오고, 지우는 생각은 접히고, 실천은 눌려 붙는다 (microFx.ts)
+    const [fx, fire] = useFx(1200);
     // 폰 하단 시트: 반 높이 / 전체 높이, 손잡이를 끌어 닫기
     const [sheet, setSheet] = useState<'half' | 'full'>('half');
     const [dragging, setDragging] = useState(false);
@@ -400,10 +403,12 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
       const media: ThoughtMedia[] = pend
         .filter((m): m is PendingMedia & ThoughtMedia => !!m.id)
         .map(({ id, type, url, thumb }) => ({ id, type, url, thumb }));
+      const id = uid('t');
+      fire(`new:${id}`);
       updateThoughts((prev) => [
         ...prev,
         {
-          id: uid('t'),
+          id,
           tag,
           text: t,
           media,
@@ -424,7 +429,7 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
       core?.afterAdd();
       bumpHint();
       if (hintCount() >= 3) setShowHint(false);
-    }, [text, tag, core, stampNow, updateThoughts, inputRef]);
+    }, [text, tag, core, stampNow, updateThoughts, inputRef, fire]);
 
     // ───────── 수정 ─────────
     const startEdit = (t: Thought) => {
@@ -477,7 +482,12 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
       const i = thoughts.findIndex((x) => x.id === id);
       if (i < 0) return;
       const t = thoughts[i];
-      updateThoughts((prev) => prev.filter((x) => x.id !== id));
+      // 카드가 접히는 걸 본 뒤에 뺀다
+      fire(`out:${id}`);
+      window.setTimeout(
+        () => updateThoughts((prev) => prev.filter((x) => x.id !== id)),
+        prefersReducedMotion() ? 0 : 220,
+      );
       let undone = false;
       toast('생각을 삭제했어요', {
         duration: 5500,
@@ -485,6 +495,7 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
           label: '되돌리기',
           onClick: () => {
             undone = true;
+            fire(`new:${t.id}`);
             updateThoughts((prev) => {
               const arr = [...prev];
               arr.splice(Math.min(i, arr.length), 0, t);
@@ -507,7 +518,10 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
           return { ...x, done: nowDone, done_at: nowDone ? Date.now() : null };
         }),
       );
-      if (nowDone) toast('실천했어요. 이번 주 적용에 표시돼요');
+      if (nowDone) {
+        fire(`ck:${id}`);
+        toast('실천했어요. 이번 주 적용에 표시돼요');
+      }
     };
 
     // ───────── 입력창 포커스/블러 ─────────
@@ -675,6 +689,7 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
                 <div
                   key={t.id}
                   className="sn-th"
+                  data-fx={fx === `new:${t.id}` ? 'new' : fx === `out:${t.id}` ? 'out' : undefined}
                   data-checked={t.tag === '적용' && !!t.done}
                   data-jumpable={can}
                   onMouseEnter={() => {
@@ -692,6 +707,7 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
                       <button
                         type="button"
                         className="sn-ck"
+                        data-fx={fx === `ck:${t.id}` ? 'press' : undefined}
                         aria-pressed={!!t.done}
                         aria-label={t.done ? '실천 표시 지우기' : '실천했어요'}
                         title={t.done ? '실천 표시 지우기' : '실천했어요'}

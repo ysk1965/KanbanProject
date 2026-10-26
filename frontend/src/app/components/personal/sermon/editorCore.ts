@@ -223,8 +223,10 @@ export class EditorCore {
       b.innerHTML = '';
       b.removeAttribute('data-ctx');
     });
-    c.querySelectorAll<HTMLElement>('.sn-pointed,.sn-peeked,.sn-flash').forEach((x) => {
-      x.classList.remove('sn-pointed', 'sn-peeked', 'sn-flash');
+    c.querySelectorAll<HTMLElement>(
+      '.sn-pointed,.sn-peeked,.sn-flash,.sn-landed,.sn-polished',
+    ).forEach((x) => {
+      x.classList.remove('sn-pointed', 'sn-peeked', 'sn-flash', 'sn-landed', 'sn-polished');
       if (!x.className) x.removeAttribute('class');
       x.removeAttribute('data-ptag');
     });
@@ -359,8 +361,24 @@ export class EditorCore {
     s.addRange(r);
     this.lastRange = r.cloneRange();
     el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    this.land(el);
     this.updateEmpty();
     this.cb.onChange();
+  }
+
+  /** 방금 들어간 말씀·구절이 붙는 움직임 한 번 (sermon.css 「마이크로 인터랙션」). 저장 본문엔 남지 않는다 */
+  private land(el: HTMLElement, cls = 'sn-landed') {
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+    const off = () => el.classList.remove(cls);
+    el.addEventListener('animationend', off, { once: true });
+    window.setTimeout(off, 1200);
+  }
+
+  /** 버전 되돌리기 직후 — 본문이 뒤에서 넘어오듯 한 번 */
+  markRestored() {
+    this.land(this.el, 'sn-restored');
   }
 
   private makeChip(ref: Ref): HTMLSpanElement {
@@ -381,6 +399,7 @@ export class EditorCore {
     rng.insertNode(sp);
     rng.insertNode(c);
     this.caretAfter(sp);
+    this.land(c);
     this.updateEmpty();
     this.cb.onChange();
   }
@@ -412,6 +431,7 @@ export class EditorCore {
       rr.insertNode(sp);
       rr.insertNode(c);
       this.caretAfter(sp);
+      this.land(c);
       this.cb.onChange();
     }
   };
@@ -677,6 +697,11 @@ export class EditorCore {
     sel.addRange(range);
     document.execCommand('insertText', false, text);
     this.lastRange = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    // 바뀐 문단을 잠깐 칠해 무엇이 달라졌는지 보여준다
+    const tc = this.lastRange
+      ? (this.topChild(this.lastRange.startContainer) as HTMLElement | null)
+      : null;
+    if (tc && tc.nodeType === 1) this.land(tc, 'sn-polished');
     this.updateEmpty();
     this.cb.onChange();
   }

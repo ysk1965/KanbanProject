@@ -106,6 +106,8 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
   }, [notes]);
   const [hand, setHand] = useState(loadHand);
   const [picker, setPicker] = useState(false);
+  // 장을 넘긴 방향 — 종이가 그쪽에서 넘어온다 (첫 화면은 움직이지 않음)
+  const [turn, setTurn] = useState<'fwd' | 'back' | null>(null);
   const headRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   /** 사용자가 장을 옮겼을 때만 장 머리로 올린다 (처음 열 때·노트가 늦게 도착할 때는 그대로) */
@@ -126,7 +128,10 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
     hadPos.current = true;
     jumped.current = true;
     setPicker(false);
-    setPos({ b, c: Math.min(Math.max(1, c), chCount(b)) });
+    const nc = Math.min(Math.max(1, c), chCount(b));
+    if (b !== pos.b || nc !== pos.c)
+      setTurn(b > pos.b || (b === pos.b && nc > pos.c) ? 'fwd' : 'back');
+    setPos({ b, c: nc });
   };
   const prev =
     pos.c > 1
@@ -239,7 +244,12 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
         })}
       </div>
 
-      <article className="sn-bible-page" aria-label={`${bookName} ${pos.c}${chName(pos.b)}`}>
+      <article
+        key={turn ? `${pos.b}-${pos.c}` : undefined}
+        className="sn-bible-page"
+        data-turn={turn || undefined}
+        aria-label={`${bookName} ${pos.c}${chName(pos.b)}`}
+      >
         <div className="sn-bible-head" ref={headRef}>
           <h2 className="sn-bible-title">
             {bookName} <em>{pos.c}</em>

@@ -1,5 +1,18 @@
-import { useMemo, useState } from 'react';
-import { Check, LogIn, Mic, Plus, Search, X } from 'lucide-react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import {
+  BookOpen,
+  Bookmark,
+  Check,
+  Flag,
+  LogIn,
+  Mic,
+  NotebookPen,
+  Plus,
+  Search,
+  Users,
+  X,
+} from 'lucide-react';
 import { compareRef, encRef, norm, refLong, refShort, type Ref } from './bibleRefs';
 import type { SyncStatus } from './sermonStore';
 import {
@@ -7,13 +20,11 @@ import {
   audioDuration,
   audioPending,
   fmtDate,
-  galpiByWeek,
   mainRef,
   noteRefs,
   plainText,
   thisWeek,
   UNTITLED,
-  weekRangeLabel,
   type ApplyItem,
   type SermonNote,
 } from './sermonTypes';
@@ -28,11 +39,16 @@ import { Mascot } from './Mascot';
 import { SermonHome } from './SermonHome';
 import { useSermonGroups } from './group/GroupContext';
 import { BibleReader } from './BibleReader';
+import { MyGalpi } from './MyGalpi';
+import { GroupsLanding } from './group/GroupsLanding';
+import './sermonNav.css';
 import type { MascotId } from './sermonLook';
 
 /**
- * 노트 목록 — 기획서 §1, §8 이번 주 적용.
- * 왼쪽 내비(새 설교 기록 · 보기 · 예배별 · 저장 상태), 본문(검색 · 이번 주 적용 배너 · 월별 노트).
+ * 노트 목록 — 핵심 탭 다섯 개(설교 노트 · 모임 · 성경 읽기 · 챌린지 · 나의 갈피).
+ * 넓은 화면: 왼쪽 패널 위에 탭 고정, 점선 아래 고른 탭의 세부 목록, 맨 아래 한 줄 저장 상태.
+ * 좁은 화면(760px 이하): 패널을 숨기고 세부 목록은 본문 위 칩 줄, 탭은 하단 바(독립 화면) 또는 본문 위 탭 줄.
+ * 고른 탭은 주소 ?tab= 에 남긴다(설교 노트 = 기본, 모임은 ?group= 이 있어도 모임 탭).
  */
 interface SermonListProps {
   notes: SermonNote[];
@@ -52,8 +68,10 @@ interface SermonListProps {
   groupNav?: React.ReactNode;
   /** 본문을 통째로 바꿔 그림 (모임 홈·설교 자리) */
   main?: React.ReactNode;
-  /** 보기·예배를 누르면 모임 화면에서 빠져나온다 */
-  onLeaveMain?: () => void;
+  /** /sermonnote 독립 화면이면 폰에서 하단 탭 바를 쓴다 (마이스페이스 안에서는 앱 하단 바와 겹쳐 본문 위 탭 줄) */
+  standalone?: boolean;
+  /** 나의 갈피 프로필 이름 */
+  userName?: string;
 }
 
 const NUDGE_KEY = 'sermon-login-nudge-until';
@@ -66,7 +84,21 @@ function nudgeSnoozed(): boolean {
   }
 }
 
-type Nav = 'all' | 'apply' | 'galpi' | 'thoughts' | 'verses' | 'bible';
+export type SermonTabKey = 'note' | 'groups' | 'bible' | 'challenge' | 'me';
+type NoteView = 'home' | 'all' | 'thoughts';
+type BibleView = 'read' | 'verses';
+
+const TABS: Array<{ k: SermonTabKey; label: string; short: string; Icon: typeof NotebookPen }> = [
+  { k: 'note', label: '설교 노트', short: '노트', Icon: NotebookPen },
+  { k: 'groups', label: '모임', short: '모임', Icon: Users },
+  { k: 'bible', label: '성경 읽기', short: '성경', Icon: BookOpen },
+  { k: 'challenge', label: '챌린지', short: '챌린지', Icon: Flag },
+  { k: 'me', label: '나의 갈피', short: '나의 갈피', Icon: Bookmark },
+];
+const TAB_KEYS = new Set<string>(TABS.map((t) => t.k));
+
+const noopSubscribe = () => () => {};
+const zeroSnapshot = () => 0;
 
 function matchQuery(n: SermonNote, q: string): boolean {
   if (!q) return true;
@@ -113,13 +145,37 @@ export function SermonList({
   onOpenLook,
   groupNav,
   main,
-  onLeaveMain,
+  standalone = false,
+  userName,
 }: SermonListProps) {
   const { bible } = useBible();
   // 모임이 있으면 노트가 없어도 「한 주 동안」(모임 자리)을 보여 준다
   const gctx = useSermonGroups();
+  useSyncExternalStore(
+    gctx ? gctx.store.subscribe : noopSubscribe,
+    gctx ? gctx.store.snapshot : zeroSnapshot,
+  );
   const hasGroups = !!gctx && !gctx.anonymous && gctx.store.active().length > 0;
-  const [nav, setNav] = useState<Nav>('all');
+  /** 내가 리더인 모임의 가입 요청 수 — 모임 탭 뱃지 */
+  const groupRequests =
+    gctx && !gctx.anonymous
+      ? gctx.store.groups.reduce(
+          (a, g) =>
+            a +
+            (g.me.role !== 'member' ? g.members.filter((m) => m.status === 'pending').length : 0),
+          0,
+        )
+      : 0;
+  const [sp, setSp] = useSearchParams();
+  const tabParam = sp.get('tab') || '';
+  const tab: SermonTabKey =
+    sp.get('group') || sp.get('session')
+      ? 'groups'
+      : TAB_KEYS.has(tabParam)
+        ? (tabParam as SermonTabKey)
+        : 'note';
+  const [noteView, setNoteView] = useState<NoteView>('home');
+  const [bibleView, setBibleView] = useState<BibleView>('read');
   const [nudgeHidden, setNudgeHidden] = useState(() => nudgeSnoozed());
   const showNudge = status.anonymous && !!onLogin && notes.length > 0 && !nudgeHidden;
   const snoozeNudge = () => {
@@ -143,11 +199,6 @@ export function SermonList({
     notes.forEach((n) => noteRefs(n).forEach((r) => s.add(encRef(r))));
     return s.size;
   }, [notes]);
-  const galpi = useMemo(() => galpiByWeek(notes), [notes]);
-  const galpiWeeks = useMemo(
-    () => [...galpi.entries()].sort((a, b) => b[0].localeCompare(a[0])),
-    [galpi],
-  );
   const services = useMemo(
     () => [...new Set(notes.map((n) => n.service).filter(Boolean))].sort(),
     [notes],
@@ -158,18 +209,47 @@ export function SermonList({
     [notes, service, query],
   );
 
-  const navItems: Array<[Nav, string, string | number]> = [
-    ['all', '전체 노트', notes.length],
-    [
-      'apply',
-      '이번 주 적용',
-      week.length ? `${week.length - weekLeft.length}/${week.length}` : '0',
-    ],
-    ['galpi', '갈피 모아보기', galpiWeeks.length],
-    ['thoughts', '생각 모아보기', thoughtCount],
-    ['verses', '구절 모아보기', refCount],
-    ['bible', '성경 읽기', ''],
-  ];
+  const weekDone = week.length - weekLeft.length;
+
+  /** 탭 바꾸기 — 모임 화면(?group=·?session=)에서도 한 번에 빠져나온다 */
+  const goTab = (t: SermonTabKey) => {
+    const next = new URLSearchParams(sp);
+    next.delete('group');
+    next.delete('session');
+    if (t === 'note') next.delete('tab');
+    else next.set('tab', t);
+    if (t === tab) {
+      // 지금 탭을 다시 누르면 그 탭의 첫 화면으로
+      if (t === 'note') {
+        setNoteView('home');
+        setService(null);
+        setQ('');
+      }
+      if (t === 'bible') setBibleView('read');
+    }
+    if (next.toString() !== sp.toString()) setSp(next);
+  };
+  const pickNote = (v: NoteView, svc: string | null = null) => {
+    setNoteView(v);
+    setService(svc);
+    if (tab !== 'note') goTab('note');
+  };
+  const goStickers = () => {
+    pickNote('home');
+    setQ('');
+    window.setTimeout(
+      () =>
+        document.querySelector('.sermon-app .sn-sticker-sec')?.scrollIntoView({ block: 'start' }),
+      60,
+    );
+  };
+
+  const tabBadge = (k: SermonTabKey): string | null =>
+    k === 'groups' && groupRequests
+      ? `요청 ${groupRequests}`
+      : k === 'challenge' && weekLeft.length
+        ? `${weekDone}/${week.length}`
+        : null;
 
   const storeNote = !status.localOk
     ? '저장 공간을 쓸 수 없어 이 창을 닫으면 사라져요.'
@@ -180,6 +260,9 @@ export function SermonList({
         : status.pending
           ? `기기에 저장된 변경 ${status.pending}건은 연결되면 올라가요.`
           : '노트는 기기에 먼저 저장되고, 다른 기기와 맞춰져요.';
+  /** 평소엔 한 줄 상태, 문제가 있을 때(저장 불가·공간 부족·로그인 전)만 설명을 펼친다 */
+  const storeTrouble = !status.localOk || status.localFull || status.anonymous;
+  const syncLine = status.pending ? `변경 ${status.pending}건 올리는 중` : '모든 기기와 맞춰짐';
 
   const applyRow = ({ n, t }: ApplyItem) => (
     <div key={`${n.id}|${t.id}`} className="sn-arow" data-checked={!!t.done}>
@@ -208,9 +291,25 @@ export function SermonList({
   );
 
   let body: React.ReactNode;
-  if (nav === 'bible' && !service) {
+  if (tab === 'bible' && bibleView === 'read') {
     body = <BibleReader notes={notes} onOpen={onOpen} mascot={mascot} />;
-  } else if (!notes.length && !hasGroups) {
+  } else if (tab === 'groups') {
+    body = <GroupsLanding mascot={mascot} />;
+  } else if (tab === 'me') {
+    body = (
+      <MyGalpi
+        notes={notes}
+        mascot={mascot}
+        name={userName}
+        anonymous={status.anonymous}
+        syncLine={storeTrouble ? storeNote : syncLine}
+        onOpen={onOpen}
+        onOpenLook={onOpenLook}
+        onLogin={onLogin}
+        onGoStickers={goStickers}
+      />
+    );
+  } else if (tab === 'note' && !notes.length && !hasGroups) {
     body = (
       <div className="sn-empty">
         <Mascot kind={mascot} size={96} state="think" />
@@ -225,7 +324,7 @@ export function SermonList({
         </button>
       </div>
     );
-  } else if (nav === 'apply' && !service) {
+  } else if (tab === 'challenge') {
     const older = allApply.filter((x) => !week.includes(x) && !x.t.done);
     const done = week.filter((x) => x.t.done).length;
     body = (
@@ -256,46 +355,7 @@ export function SermonList({
         )}
       </>
     );
-  } else if (nav === 'galpi' && !service) {
-    body = (
-      <>
-        <div className="sn-apply-head">
-          <div>
-            <h2>갈피 모아보기</h2>
-            <p>주마다 갈피를 꽂은 그 주의 중심 설교예요. 지난 갈피도 여기 계속 남아요.</p>
-          </div>
-        </div>
-        {galpiWeeks.length ? (
-          <div className="sn-nlist">
-            {galpiWeeks.map(([w, n]) => {
-              const main = mainRef(n);
-              return (
-                <button key={w} type="button" className="sn-nrow" onClick={() => onOpen(n.id)}>
-                  <span className="sn-nd">{weekRangeLabel(w)}</span>
-                  <span className="sn-nm">
-                    <b>{n.title || UNTITLED}</b>
-                    <span className="sn-ns">
-                      {[fmtDate(n.date), n.preacher, n.service].filter(Boolean).join(' · ')}
-                    </span>
-                  </span>
-                  <span className="sn-nr">{main ? refShort(main) : ''}</span>
-                  <span className="sn-nt">
-                    {(n.thoughts || []).length ? `생각 ${(n.thoughts || []).length}` : ''}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="sn-empty">
-            <Mascot kind={mascot} size={80} state="think" />
-            아직 꽂은 갈피가 없어요.
-            <br />한 주를 붙들고 살 설교를 열고 ‘갈피 꽂기’를 눌러 보세요.
-          </div>
-        )}
-      </>
-    );
-  } else if (nav === 'thoughts' && !service) {
+  } else if (noteView === 'thoughts' && !service) {
     const rows: Array<{ n: SermonNote; t: SermonNote['thoughts'][number] }> = [];
     filtered.forEach((n) =>
       (n.thoughts || []).forEach((t) => {
@@ -327,7 +387,7 @@ export function SermonList({
     ) : (
       <div className="sn-empty">아직 남긴 생각이 없어요.</div>
     );
-  } else if (nav === 'verses' && !service) {
+  } else if (tab === 'bible') {
     const map = new Map<string, { r: Ref; ns: SermonNote[] }>();
     filtered.forEach((n) =>
       noteRefs(n).forEach((r) => {
@@ -379,7 +439,7 @@ export function SermonList({
     ) : (
       <div className="sn-empty">노트에 넣은 구절이 아직 없어요.</div>
     );
-  } else if (!query && !service) {
+  } else if (noteView === 'home' && !query && !service) {
     body = (
       <SermonHome
         notes={notes}
@@ -456,73 +516,184 @@ export function SermonList({
     );
   }
 
+  /* 고른 탭의 세부 목록 — 넓은 화면은 왼쪽 패널 점선 아래, 좁은 화면은 본문 위 칩 줄 */
+  type Sub = { key: string; label: string; count?: string | number; on: boolean; go: () => void };
+  const subs: Array<{ title?: string; items: Sub[] }> =
+    tab === 'note'
+      ? [
+          {
+            items: [
+              {
+                key: 'home',
+                label: '홈',
+                on: noteView === 'home' && !service,
+                go: () => pickNote('home'),
+              },
+              {
+                key: 'all',
+                label: '전체 노트',
+                count: notes.length,
+                on: noteView === 'all' && !service,
+                go: () => pickNote('all'),
+              },
+              {
+                key: 'thoughts',
+                label: '생각 모아보기',
+                count: thoughtCount,
+                on: noteView === 'thoughts' && !service,
+                go: () => pickNote('thoughts'),
+              },
+            ],
+          },
+          ...(services.length
+            ? [
+                {
+                  title: '예배',
+                  items: services.map((sv) => ({
+                    key: `svc:${sv}`,
+                    label: sv,
+                    count: notes.filter((n) => n.service === sv).length,
+                    on: service === sv,
+                    go: () => (service === sv ? pickNote('home') : pickNote('all', sv)),
+                  })),
+                },
+              ]
+            : []),
+        ]
+      : tab === 'bible'
+        ? [
+            {
+              items: [
+                {
+                  key: 'read',
+                  label: '이어 읽기',
+                  on: bibleView === 'read',
+                  go: () => setBibleView('read'),
+                },
+                {
+                  key: 'verses',
+                  label: '설교에서 만난 구절',
+                  count: refCount,
+                  on: bibleView === 'verses',
+                  go: () => setBibleView('verses'),
+                },
+              ],
+            },
+          ]
+        : [];
+
+  const subChip = (it: Sub) => (
+    <button key={it.key} type="button" aria-pressed={it.on} onClick={it.go}>
+      {it.label}
+      {it.count !== undefined && it.count !== '' && <span className="sn-count">{it.count}</span>}
+    </button>
+  );
+
+  const showSearch = tab === 'note' || (tab === 'bible' && bibleView === 'verses');
+  const showFab = tab === 'note' || tab === 'groups';
+
   return (
-    <section className="sn-list" aria-label="노트 목록">
-      <nav className="sn-side" aria-label="노트 분류">
-        <div className="sn-brand">
-          설교 노트 <small>개역한글</small>
-        </div>
+    <section className="sn-list" data-tab={tab} data-standalone={standalone} aria-label="설교 노트">
+      <nav className="sn-side" aria-label="설교 노트 메뉴">
         <button type="button" className="sn-btn sn-primary" onClick={onNew}>
           <Plus className="sn-icon" aria-hidden />새 설교 기록
         </button>
-        <div className="sn-nav">
-          <div className="sn-label">보기</div>
-          {navItems.map(([k, l, c]) => (
-            <button
-              key={k}
-              type="button"
-              aria-current={nav === k && !service && !main}
-              onClick={() => {
-                setNav(k);
-                setService(null);
-                onLeaveMain?.();
-              }}
-            >
-              {l}
-              <span className="sn-count">{c}</span>
-            </button>
-          ))}
-        </div>
-        {services.length > 0 && (
-          <div className="sn-nav">
-            <div className="sn-label">예배</div>
-            {services.map((s) => (
+        <div className="sn-tabs" role="tablist" aria-orientation="vertical" aria-label="갈피 탭">
+          {TABS.map(({ k, label, Icon }) => {
+            const badge = tabBadge(k);
+            return (
               <button
-                key={s}
+                key={k}
                 type="button"
-                aria-current={service === s}
-                onClick={() => {
-                  setService(service === s ? null : s);
-                  setNav('all');
-                  onLeaveMain?.();
-                }}
+                role="tab"
+                aria-selected={tab === k}
+                onClick={() => goTab(k)}
               >
-                {s}
-                <span className="sn-count">{notes.filter((n) => n.service === s).length}</span>
+                <Icon className="sn-icon" aria-hidden />
+                {label}
+                {badge && (
+                  <span className="sn-tab-badge" data-k={k}>
+                    {badge}
+                  </span>
+                )}
               </button>
-            ))}
-          </div>
-        )}
-        {groupNav}
-        {onOpenLook && (
-          <button type="button" className="sn-btn sn-look-btn" onClick={onOpenLook}>
-            <Mascot kind={mascot} size={24} />
-            꾸미기
-          </button>
-        )}
-        <div className="sn-store-note">
-          {storeNote}
-          {status.anonymous && onLogin && (
-            <div>
-              <button type="button" className="sn-login-link" onClick={onLogin}>
-                <LogIn className="sn-icon" style={{ width: 14, height: 14 }} aria-hidden />
-                로그인
+            );
+          })}
+        </div>
+        <div className="sn-sub">
+          {tab === 'groups'
+            ? groupNav
+            : subs.map((g, i) => (
+                <div key={g.title || i} className="sn-nav">
+                  {g.title && <div className="sn-label">{g.title}</div>}
+                  {g.items.map((it) => (
+                    <button key={it.key} type="button" aria-current={it.on} onClick={it.go}>
+                      {it.label}
+                      {it.count !== undefined && <span className="sn-count">{it.count}</span>}
+                    </button>
+                  ))}
+                </div>
+              ))}
+          {tab === 'challenge' && (
+            <p className="sn-sub-hint">
+              {week.length
+                ? `이번 주 적용 ${weekDone}/${week.length} 실천`
+                : '설교를 들으며 ‘적용’으로 남긴 메모가 여기 모여요.'}
+            </p>
+          )}
+          {tab === 'me' && (
+            <div className="sn-nav">
+              {onOpenLook && (
+                <button type="button" onClick={onOpenLook}>
+                  <Mascot kind={mascot} size={22} />
+                  꾸미기
+                </button>
+              )}
+              <button type="button" onClick={goStickers}>
+                모은 설교 스티커
+                <span className="sn-count">{notes.length}</span>
               </button>
             </div>
           )}
         </div>
+        <div className="sn-side-foot" data-trouble={storeTrouble}>
+          {storeTrouble ? (
+            <>
+              {storeNote}
+              {status.anonymous && onLogin && (
+                <div>
+                  <button type="button" className="sn-login-link" onClick={onLogin}>
+                    <LogIn className="sn-icon" style={{ width: 14, height: 14 }} aria-hidden />
+                    로그인
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <span className="sn-sync">
+              <i aria-hidden data-pending={status.pending > 0} />
+              {syncLine}
+            </span>
+          )}
+        </div>
       </nav>
       <main className="sn-list-main">
+        {!standalone && (
+          <div className="sn-tabrow" role="tablist" aria-label="갈피 탭">
+            {TABS.map(({ k, short }) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={tab === k}
+                onClick={() => goTab(k)}
+              >
+                {short}
+                {tabBadge(k) && <span className="sn-dot" aria-label={tabBadge(k) || ''} />}
+              </button>
+            ))}
+          </div>
+        )}
         {showNudge && (
           <div className="sn-nudge" role="status">
             <div className="sn-nudge-text">
@@ -543,11 +714,34 @@ export function SermonList({
             </button>
           </div>
         )}
+        {tab === 'groups' && gctx && !gctx.anonymous && gctx.store.groups.length > 0 && (
+          <div className="sn-subchips" aria-label="내 모임">
+            {gctx.store.groups.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                aria-pressed={sp.get('group') === g.id}
+                onClick={() => gctx.openGroup(g.id)}
+              >
+                {g.name}
+              </button>
+            ))}
+            <button type="button" onClick={gctx.openCreate}>
+              <Plus className="sn-icon" aria-hidden />
+              만들기
+            </button>
+          </div>
+        )}
+        {subs.length > 0 && (
+          <div className="sn-subchips" aria-label="보기">
+            {subs.flatMap((g) => g.items).map(subChip)}
+          </div>
+        )}
         {main ? (
           main
         ) : (
           <>
-            {!(nav === 'bible' && !service) && (
+            {showSearch && (
               <div className="sn-toolbar">
                 <label className="sn-search" htmlFor="sn-q">
                   <Search className="sn-icon" style={{ color: 'var(--sn-muted)' }} aria-hidden />
@@ -566,7 +760,35 @@ export function SermonList({
             <div>{body}</div>
           </>
         )}
+        {showFab && (
+          <button type="button" className="sn-fab" aria-label="새 설교 기록" onClick={onNew}>
+            <Plus aria-hidden />
+          </button>
+        )}
       </main>
+      {standalone && (
+        <nav className="sn-bnav" aria-label="갈피 탭">
+          {TABS.map(({ k, short, Icon }) => {
+            const badge = tabBadge(k);
+            return (
+              <button
+                key={k}
+                type="button"
+                aria-current={tab === k ? 'page' : undefined}
+                onClick={() => goTab(k)}
+              >
+                <Icon aria-hidden />
+                {short}
+                {badge && (
+                  <span className="sn-bnav-badge" data-k={k} aria-label={badge}>
+                    {k === 'challenge' ? badge : ''}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      )}
     </section>
   );
 }

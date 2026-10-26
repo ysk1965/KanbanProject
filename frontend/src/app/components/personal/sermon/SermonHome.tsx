@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Bookmark, Check, Plus } from 'lucide-react';
+import { useMemo, useRef } from 'react';
+import { ArrowRight, Bookmark, Check, MessageCircle, Mic } from 'lucide-react';
 import { BOOKS, PSALMS, refLong, type Ref } from './bibleRefs';
 import { Mascot } from './Mascot';
 import { mascotName, type MascotId } from './sermonLook';
@@ -14,6 +14,7 @@ import {
   type SermonNote,
 } from './sermonTypes';
 import { firstVerseText } from './useBible';
+import { useFirstSeen, useFlip, useFx } from './microFx';
 import { GroupDaySlots, NoteGroupFaces } from './group/GroupWeekBits';
 
 /**
@@ -74,6 +75,13 @@ function josaIGa(word: string): string {
   return (c - 0xac00) % 28 ? '이' : '가';
 }
 
+/** 'yyyy-MM-dd' → '10.25 주일' / '10.28 수요일' */
+function dayLabel(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  return `${m}.${String(d).padStart(2, '0')} ${dow === 0 ? '주일' : `${DOW[dow]}요일`}`;
+}
+
 function fmtMin(sec: number): string {
   const m = Math.max(1, Math.round(sec / 60));
   return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`;
@@ -113,11 +121,36 @@ export function SermonHome({
 
   const stickers = byDate;
 
+  // 누른 순간에만 한 번 움직인다 (microFx.ts)
+  const [fx, fire] = useFx();
+  const todoRef = useRef<HTMLDivElement>(null);
+  const doneSig = week.map((x) => `${x.t.id}:${x.t.done ? 1 : 0}`).join(',');
+  useFlip(todoRef, doneSig);
+  const freshStickers = useFirstSeen(
+    'sn-seen-stickers',
+    stickers.map((n) => n.id),
+  );
+  const toggleApply = (noteId: string, thoughtId: string, wasDone: boolean) => {
+    if (!wasDone) fire(left === 1 ? `all:${thoughtId}` : `apply:${thoughtId}`);
+    onToggleApply(noteId, thoughtId);
+  };
+  const toggleGalpi = (noteId: string) => {
+    fire(weekGalpi ? `unpin:${noteId}` : `pin:${noteId}`);
+    onToggleGalpi(noteId);
+  };
+  const applyFx = fx?.startsWith('apply:') || fx?.startsWith('all:');
+
   return (
     <div className="sn-home">
       <div className="sn-home-top">
         {hero && (
-          <article className="sn-hc" data-galpi={!!weekGalpi}>
+          <article
+            className="sn-hc"
+            data-galpi={!!weekGalpi}
+            data-fx={
+              fx === `pin:${hero.id}` ? 'pin' : fx === `unpin:${hero.id}` ? 'unpin' : undefined
+            }
+          >
             <span className="sn-tape" style={{ left: 44, ['--r' as string]: '-7deg' }} />
             <span className="sn-tape sn-c1" style={{ right: 150, ['--r' as string]: '5deg' }} />
             <span className="sn-hc-peek">
@@ -152,40 +185,63 @@ export function SermonHome({
             </button>
             <div className="sn-hc-body">
               <p className="sn-hc-run">
-                <b>{weekGalpi ? '이번 주 갈피' : heroThisWeek ? '이번 주 설교' : '최근 설교'}</b>
-                <span>{hero.date ? hero.date.slice(5).replace('-', '.') : ''}</span>
-                {hero.service && <span>· {hero.service}</span>}
+                {weekGalpi ? (
+                  <b className="sn-hc-chip">
+                    <Bookmark className="sn-icon" aria-hidden />
+                    이번 주 갈피
+                  </b>
+                ) : (
+                  <b>{heroThisWeek ? '이번 주 설교' : '최근 설교'}</b>
+                )}
+                {hero.date && <span className="sn-hc-date">{dayLabel(hero.date)}</span>}
+                {hero.service && <span>{hero.service}</span>}
               </p>
               <h3>{hero.title || UNTITLED}</h3>
               <p className="sn-hc-who">
                 {hero.preacher && <b>{hero.preacher}</b>}
-                {rec > 0 && <span> · 녹음 {fmtMin(rec)}</span>}
-                {thn > 0 && <span> · 생각 {thn}</span>}
+                {rec > 0 && (
+                  <span>
+                    <Mic className="sn-icon" aria-hidden />
+                    녹음 {fmtMin(rec)}
+                  </span>
+                )}
+                {thn > 0 && (
+                  <span>
+                    <MessageCircle className="sn-icon" aria-hidden />
+                    생각 {thn}개
+                  </span>
+                )}
               </p>
               {ref && quote && (
-                <div className="sn-vq">
-                  <b>{refLong(ref)}</b>
+                <blockquote className="sn-vq">
                   <p>{quote}</p>
-                </div>
+                  <cite>{refLong(ref)}</cite>
+                </blockquote>
               )}
               <div className="sn-hc-acts">
                 <button type="button" className="sn-btn sn-primary" onClick={() => onOpen(hero.id)}>
                   노트 열기
+                  <ArrowRight className="sn-icon" aria-hidden />
                 </button>
                 {heroThisWeek && (
                   <button
                     type="button"
                     className="sn-btn sn-galpi-btn"
                     aria-pressed={!!weekGalpi}
-                    onClick={() => onToggleGalpi(hero.id)}
+                    aria-label={weekGalpi ? '이번 주 갈피에서 빼기' : '이번 주 갈피로 꽂기'}
+                    onClick={() => toggleGalpi(hero.id)}
                   >
                     <Bookmark className="sn-icon" aria-hidden />
-                    {weekGalpi ? '갈피 빼기' : '갈피 꽂기'}
+                    {weekGalpi ? (
+                      <>
+                        <span className="sn-galpi-on">갈피 꽂힘</span>
+                        <span className="sn-galpi-off">갈피 빼기</span>
+                      </>
+                    ) : (
+                      '갈피 꽂기'
+                    )}
                   </button>
                 )}
-                <button type="button" className="sn-btn" onClick={onNew}>
-                  <Plus className="sn-icon" aria-hidden />새 설교 기록
-                </button>
               </div>
             </div>
           </article>
@@ -198,8 +254,11 @@ export function SermonHome({
           <h4>
             한 주 동안
             {week.length > 0 && (
-              <span className="sn-plan-fr">
-                {done}/{week.length}
+              <span className="sn-plan-fr" data-fx={fx?.startsWith('all:') ? 'all' : undefined}>
+                <b key={done} data-fx={applyFx ? 'roll' : undefined}>
+                  {done}
+                </b>
+                /{week.length}
               </span>
             )}
           </h4>
@@ -238,6 +297,7 @@ export function SermonHome({
                       <button
                         key={t.id}
                         type="button"
+                        data-fx={fx?.endsWith(`:${t.id}`) && applyFx ? 'stick' : undefined}
                         className="sn-stk sn-c2"
                         style={{ ['--r' as string]: '2deg' }}
                         onClick={() => onOpen(n.id, t.aid)}
@@ -266,16 +326,22 @@ export function SermonHome({
             })}
           </div>
           {week.length > 0 ? (
-            <div className="sn-todo">
+            <div className="sn-todo" ref={todoRef}>
               {[...week.filter((x) => !x.t.done), ...week.filter((x) => x.t.done)].map(
                 ({ n, t }) => (
-                  <div key={`${n.id}|${t.id}`} className="sn-todo-row" data-checked={!!t.done}>
+                  <div
+                    key={`${n.id}|${t.id}`}
+                    data-flip={`${n.id}|${t.id}`}
+                    className="sn-todo-row"
+                    data-checked={!!t.done}
+                  >
                     <button
                       type="button"
+                      data-fx={applyFx && fx?.endsWith(`:${t.id}`) ? 'press' : undefined}
                       className="sn-ck"
                       aria-pressed={!!t.done}
                       aria-label={t.done ? '실천 표시 지우기' : '실천했어요'}
-                      onClick={() => onToggleApply(n.id, t.id)}
+                      onClick={() => toggleApply(n.id, t.id, !!t.done)}
                     >
                       <Check className="sn-icon" style={{ width: 15, height: 15 }} />
                     </button>
@@ -288,7 +354,7 @@ export function SermonHome({
               )}
             </div>
           ) : null}
-          <div className="sn-cheer">
+          <div className="sn-cheer" data-fx={fx?.startsWith('all:') ? 'all' : undefined}>
             <Mascot kind={mascot} size={50} state={week.length && !left ? 'done' : 'think'} />
             <span>
               {!week.length ? (
@@ -335,6 +401,7 @@ export function SermonHome({
                 <span
                   className="sn-stkr"
                   data-cur={cur}
+                  data-new={freshStickers.has(n.id) || undefined}
                   style={
                     {
                       '--r': `${rot}deg`,
@@ -351,8 +418,19 @@ export function SermonHome({
                     <span className="sn-chn">{r ? r.c : n.date ? +n.date.slice(8) : '·'}</span>
                     {r && <span className="sn-vr">{verseRange(r)}</span>}
                   </span>
+                  {freshStickers.has(n.id) && (
+                    <span className="sn-burst" aria-hidden>
+                      {Array.from({ length: 8 }, (_, k) => (
+                        <i key={k} style={{ ['--a' as string]: `${k * 45}deg` }} />
+                      ))}
+                    </span>
+                  )}
                   {gp ? (
-                    <span className="sn-new" data-galpi="true">
+                    <span
+                      className="sn-new"
+                      data-galpi="true"
+                      data-fx={fx === `pin:${n.id}` ? 'tape' : undefined}
+                    >
                       갈피
                     </span>
                   ) : (

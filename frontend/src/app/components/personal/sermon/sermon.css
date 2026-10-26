@@ -8,6 +8,9 @@
 /* ---------- 1. 잉크 조합 ---------- */
 .sermon-app,
 .sn-scope {
+  /* 움직임 곡선 — 스티커가 눌렸다 붙는 spring, 종이가 미끄러지는 ease (sermon.css 「마이크로 인터랙션」) */
+  --sn-spring: cubic-bezier(0.3, 1.5, 0.5, 1);
+  --sn-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ink-g1: #c3b5f5;
   --ink-g2: #ffb3d1;
   --ink-t1: #5a45b8;
@@ -3398,6 +3401,22 @@ html[data-keyboard-open] .sn-overlay {
   display: flex;
   align-items: flex-end;
 }
+.sermon-app .sn-cover-ch {
+  transition: transform 0.25s ease;
+}
+.sermon-app .sn-cover:hover .sn-cover-ch,
+.sermon-app .sn-cover:focus-visible .sn-cover-ch {
+  transform: translateY(-6px);
+}
+.sermon-app .sn-cover:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--sn-t1) 55%, transparent);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app .sn-cover-ch {
+    transition: none;
+  }
+}
 .sermon-app .sn-cover-ch small {
   font-family: var(--sn-f-ui);
   font-size: 15px;
@@ -3415,13 +3434,15 @@ html[data-keyboard-open] .sn-overlay {
 .sermon-app .sn-hc-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 4px 10px 8px;
+  gap: 12px;
+  /* 표지 글자(26px)와 시작선을 맞춘다 */
+  padding: 4px 26px 10px;
 }
 .sermon-app .sn-hc-run {
   margin: 0;
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
   font-size: 13px;
   color: var(--sn-muted);
@@ -3429,43 +3450,110 @@ html[data-keyboard-open] .sn-overlay {
 .sermon-app .sn-hc-run b {
   color: var(--sn-t2);
 }
+.sermon-app .sn-hc-run .sn-hc-date {
+  color: var(--sn-fg);
+  font-weight: 700;
+}
+.sermon-app .sn-hc-run span + span::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--sn-faint);
+}
+.sermon-app .sn-hc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px 2px 8px;
+  border-radius: var(--sn-r-pill);
+  background: color-mix(in srgb, var(--sn-g2) 32%, transparent);
+}
+.sermon-app .sn-hc-chip .sn-icon {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+}
 .sermon-app .sn-hc h3 {
   margin: 0;
   font-size: clamp(23px, 2.4vw, 30px);
-  font-weight: 900;
-  line-height: 1.25;
-  letter-spacing: -0.05em;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
   text-wrap: balance;
 }
 .sermon-app .sn-hc-who {
-  margin: -2px 0 0;
+  margin: -4px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
   font-size: 14px;
   color: var(--sn-muted);
 }
 .sermon-app .sn-hc-who b {
   color: var(--sn-fg);
 }
-.sermon-app .sn-vq {
-  border-left: 3px solid var(--sn-g1);
-  padding: 1px 0 1px 12px;
+.sermon-app .sn-hc-who span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
-.sermon-app .sn-vq b {
-  display: block;
-  font-size: 12.5px;
-  color: var(--sn-t1);
+.sermon-app .sn-hc-who .sn-icon {
+  width: 15px;
+  height: 15px;
+}
+.sermon-app .sn-vq {
+  position: relative;
+  margin: 0;
+  max-width: 46em;
+  padding: 14px 18px 14px 46px;
+  border-radius: 16px;
+  background: var(--sn-verse-bg);
+}
+.sermon-app .sn-vq::before {
+  content: '\201C';
+  position: absolute;
+  left: 14px;
+  top: 2px;
+  font-family: var(--sn-f-serif);
+  font-size: 44px;
+  line-height: 1;
+  color: color-mix(in srgb, var(--sn-t1) 50%, transparent);
 }
 .sermon-app .sn-vq p {
-  margin: 2px 0 0;
+  margin: 0;
   font-family: var(--sn-f-serif);
-  font-size: 14.5px;
-  line-height: 1.7;
-  color: var(--sn-muted);
+  font-size: 15px;
+  line-height: 1.75;
+  color: color-mix(in srgb, var(--sn-fg) 82%, transparent);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sermon-app .sn-vq cite {
+  display: block;
+  margin-top: 6px;
+  font-style: normal;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--sn-t1);
 }
 .sermon-app .sn-hc-acts {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 2px;
+}
+.sermon-app .sn-galpi-off {
+  display: none;
+}
+.sermon-app .sn-galpi-btn:hover .sn-galpi-on,
+.sermon-app .sn-galpi-btn:focus-visible .sn-galpi-on {
+  display: none;
+}
+.sermon-app .sn-galpi-btn:hover .sn-galpi-off,
+.sermon-app .sn-galpi-btn:focus-visible .sn-galpi-off {
+  display: inline;
 }
 
 /* 한 주 동안 */
@@ -3852,8 +3940,12 @@ html[data-keyboard-open] .sn-overlay {
   transform-origin: 50% 100%;
   animation: sn-m-float 3.2s ease-in-out infinite;
 }
-.sn-m[data-jump='1'] .sn-m-body {
+/* 누를 때마다 뛴다 — 같은 키프레임을 번갈아 걸어야 매번 다시 시작된다 */
+.sn-m[data-jump='a'] .sn-m-body {
   animation: sn-m-hop 0.7s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.sn-m[data-jump='b'] .sn-m-body {
+  animation: sn-m-hop2 0.7s cubic-bezier(0.3, 1.6, 0.5, 1);
 }
 .sn-m .sn-m-shadow {
   fill: var(--sn-eye, #2a2733);
@@ -3931,7 +4023,8 @@ html[data-keyboard-open] .sn-overlay {
 .sn-m[data-state='done'] .sn-m-fx path {
   transform-box: fill-box;
   transform-origin: center;
-  animation: sn-m-pop 1s ease-out infinite;
+  /* 반짝임은 세 번만 — 계속 반짝이면 홈·꾸미기 화면이 시끄럽다 */
+  animation: sn-m-pop 1s ease-out 3 both;
 }
 .sn-m[data-state='done'] .sn-m-fx path:nth-child(2) {
   fill: var(--sn-g2, #ffb3d1);
@@ -4010,6 +4103,20 @@ html[data-keyboard-open] .sn-overlay {
   }
 }
 @keyframes sn-m-hop {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    transform: scale(1.12, 0.86);
+  }
+  60% {
+    transform: translateY(-22%) scale(0.94, 1.08);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes sn-m-hop2 {
   0% {
     transform: translateY(0) scale(1);
   }
@@ -4491,5 +4598,393 @@ html[data-keyboard-open] .sn-overlay {
 @media (prefers-reduced-motion: reduce) {
   .sermon-app .sn-hand {
     transition: none;
+  }
+}
+
+/* =====================================================================
+   마이크로 인터랙션 — 누른 그 순간에만 한 번 움직인다 (microFx.ts)
+   재료는 「모임 만들기」(group.css) 와 같다: 눌렸다 붙는 스티커 · 테이프 · 꽂히는 갈피 · 종이 넘김.
+   예배 중 화면(노트·생각)에는 반복 애니메이션을 두지 않는다. 움직임 줄이기면 모두 멈춘다.
+   ===================================================================== */
+@keyframes sn-press {
+  0% {
+    transform: scale(0.9) rotate(0);
+  }
+  60% {
+    transform: scale(1.08) rotate(-4deg);
+  }
+}
+@keyframes sn-stick {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-12deg);
+  }
+}
+@keyframes sn-pop {
+  from {
+    transform: scale(0.5);
+  }
+}
+@keyframes sn-pop2 {
+  from {
+    transform: scale(0.5);
+  }
+}
+@keyframes sn-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes sn-fold {
+  to {
+    opacity: 0;
+    transform: translateX(14px) scale(0.96);
+  }
+}
+@keyframes sn-roll {
+  from {
+    opacity: 0;
+    transform: translateY(-60%);
+  }
+}
+@keyframes sn-wake {
+  0% {
+    transform: scale(0.9);
+  }
+  45% {
+    transform: scale(1.12) rotate(-6deg);
+  }
+}
+@keyframes sn-tape-in {
+  from {
+    opacity: 0;
+    transform: rotate(12deg) scaleX(0.2);
+  }
+}
+/* 갈피가 위에서 쑥 꽂혔다 살짝 늘어나 멈춘다 / 뺄 때는 위로 빠진다 */
+@keyframes sn-slip-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-14px) scaleY(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(2px) scaleY(1.12);
+  }
+}
+@keyframes sn-slip-out {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+@keyframes sn-land {
+  0% {
+    opacity: 0.2;
+    transform: translateY(-6px);
+    box-shadow: 0 0 0 3px var(--sn-t2);
+  }
+  50% {
+    opacity: 1;
+    transform: none;
+    box-shadow: 0 0 0 3px var(--sn-t2);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+@keyframes sn-chip-land {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+}
+@keyframes sn-polish {
+  0%,
+  45% {
+    background-color: color-mix(in srgb, var(--sn-g1) 45%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+@keyframes sn-turn-back {
+  from {
+    opacity: 0.3;
+    transform: translateX(-16px);
+  }
+}
+@keyframes sn-sticker-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-46px) rotate(calc(var(--r, 0deg) + 24deg)) scale(1.35);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(4px) rotate(calc(var(--r, 0deg) - 2deg)) scale(0.94, 1.04);
+  }
+  75% {
+    transform: translateY(-2px) rotate(calc(var(--r, 0deg) + 1deg)) scale(1.02, 0.98);
+  }
+}
+@keyframes sn-spark {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--a)) translateY(0) scale(0.4);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(-92px) scale(1);
+  }
+}
+
+/* ── 적용 체크: 체크 표시가 선으로 그려지고 동그라미가 눌렸다 붙는다 ── */
+.sermon-app .sn-ck svg path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  transition: stroke-dashoffset 0.28s var(--sn-ease) 0.06s;
+}
+.sermon-app .sn-ck[aria-pressed='true'] svg path {
+  stroke-dashoffset: 0;
+}
+.sermon-app .sn-ck {
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+.sermon-app .sn-ck[data-fx='press'] {
+  animation: sn-press 0.45s var(--sn-spring);
+}
+.sermon-app .sn-ck:active {
+  transform: scale(0.92);
+}
+.sermon-app .sn-todo-row .sn-todo-t {
+  transition: opacity 0.3s;
+}
+/* 실천한 적용이 오늘 칸에 스티커로 붙는다 */
+.sermon-app .sn-day-it .sn-stk[data-fx='stick'] {
+  animation: sn-stick 0.45s var(--sn-spring) 0.15s both;
+}
+/* n/m 의 n 이 굴러 올라가고, 다 채우면 숫자 묶음이 톡 */
+.sermon-app .sn-plan-fr b {
+  display: inline-block;
+  font-weight: inherit;
+}
+.sermon-app .sn-plan-fr b[data-fx='roll'] {
+  animation: sn-roll 0.3s var(--sn-ease);
+}
+.sermon-app .sn-plan-fr {
+  display: inline-block;
+}
+.sermon-app .sn-plan-fr[data-fx='all'] {
+  animation: sn-press 0.5s var(--sn-spring) 0.2s;
+}
+.sermon-app .sn-cheer[data-fx='all'] > span {
+  animation: sn-rise 0.35s var(--sn-ease) 0.25s both;
+}
+
+/* ── 갈피 꽂기 ── */
+.sermon-app .sn-hc[data-fx='pin'] .sn-galpi-btn .sn-icon {
+  transform-origin: top center;
+  animation: sn-slip-in 0.55s var(--sn-spring);
+}
+.sermon-app .sn-hc[data-fx='unpin'] .sn-galpi-btn .sn-icon {
+  animation: sn-slip-out 0.35s var(--sn-ease);
+}
+.sermon-app .sn-hc[data-fx='pin'] .sn-hc-chip {
+  animation: sn-stick 0.4s var(--sn-spring) 0.2s both;
+}
+.sermon-app .sn-hc[data-fx='pin'] .sn-hc-chip .sn-icon {
+  transform-origin: top center;
+  animation: sn-slip-in 0.55s var(--sn-spring) 0.3s both;
+}
+.sermon-app .sn-new[data-fx='tape'] {
+  transform-origin: left center;
+  animation: sn-tape-in 0.4s var(--sn-spring) 0.35s both;
+}
+.sermon-app .sn-galpi-btn:active {
+  transform: scale(0.96);
+}
+
+/* ── 새 설교 스티커: 이 기기에서 처음 볼 때 한 번 떨어져 붙고 반짝 ── */
+.sermon-app .sn-stkr[data-new] {
+  animation: sn-sticker-drop 0.75s var(--sn-spring) both;
+}
+.sermon-app .sn-stkr[data-new][data-cur='true'] {
+  animation:
+    sn-sticker-drop 0.75s var(--sn-spring) both,
+    sn-wob 4s ease-in-out 0.75s infinite;
+}
+.sermon-app .sn-burst {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.sermon-app .sn-burst i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px;
+  background: var(--sn-g2);
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  opacity: 0;
+  animation: sn-spark 0.9s var(--sn-ease) 0.42s both;
+}
+.sermon-app .sn-burst i:nth-child(even) {
+  background: var(--sn-g1);
+  width: 8px;
+  height: 8px;
+  margin: -4px;
+}
+
+/* ── 오늘 칸 + ── */
+.sermon-app button.sn-slot {
+  transition:
+    transform 0.2s var(--sn-spring),
+    border-color 0.15s;
+}
+.sermon-app button.sn-slot:hover {
+  border-style: solid;
+  transform: rotate(-3deg) scale(1.05);
+}
+.sermon-app button.sn-slot:active {
+  transform: scale(0.94);
+}
+
+/* ── 노트: 저장됨 점이 한 번 톡 ── */
+.sermon-app .sn-save-state[data-st='ok'][data-fx='a']::before {
+  animation: sn-pop 0.4s var(--sn-spring);
+}
+.sermon-app .sn-save-state[data-st='ok'][data-fx='b']::before {
+  animation: sn-pop2 0.4s var(--sn-spring);
+}
+.sermon-app .sn-save-state::before {
+  transition: background 0.2s;
+}
+
+/* ── 설교 시간 버튼: 켜고 멈출 때 색이 스미고 점이 한 번 톡 (기록 중엔 정지) ── */
+.sermon-app .sn-rec {
+  transition:
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s;
+}
+.sermon-app .sn-rec:active {
+  transform: scale(0.97);
+}
+.sermon-app .sn-rec[data-state='run'] .sn-dot,
+.sermon-app .sn-rec[data-state='run'] .sn-mic {
+  animation: sn-pop 0.4s var(--sn-spring);
+}
+.sermon-app .sn-rec[data-state='pause'] .sn-dot {
+  animation: sn-pop2 0.4s var(--sn-spring);
+}
+
+/* ── 말씀·구절이 들어오면 제자리에 붙는다 / AI 정리한 문단은 잠깐 칠해진다 / 되돌리면 뒤에서 넘어온다 ── */
+.sermon-app .sn-editor .sn-vblock.sn-landed {
+  animation: sn-land 1s var(--sn-ease);
+}
+.sermon-app .sn-editor .sn-vchip.sn-landed {
+  display: inline-block;
+  animation: sn-chip-land 0.4s var(--sn-spring);
+}
+.sermon-app .sn-editor .sn-polished {
+  border-radius: 6px;
+  animation: sn-polish 1.1s ease-out;
+}
+.sermon-app .sn-editor.sn-restored {
+  animation: sn-turn-back 0.35s var(--sn-ease);
+}
+
+/* ── 내 생각: 새 카드는 올라오고, 지우면 접히고, 보내기는 준비되면 깨어난다 ── */
+.sermon-app .sn-th[data-fx='new'] {
+  animation: sn-rise 0.32s var(--sn-ease) both;
+}
+.sermon-app .sn-th[data-fx='out'] {
+  animation: sn-fold 0.22s ease-in forwards;
+  pointer-events: none;
+}
+.sermon-app .sn-compose .sn-send {
+  transition: background 0.15s;
+}
+.sermon-app .sn-compose .sn-send[data-empty='false'] {
+  animation: sn-wake 0.45s var(--sn-spring);
+}
+.sermon-app .sn-compose .sn-send:active {
+  transform: scale(0.9);
+}
+.sermon-app .sn-tseg button {
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.sermon-app .sn-tseg button[aria-pressed='true'] {
+  animation: sn-pop 0.3s var(--sn-spring);
+}
+@media (max-width: 899px) {
+  /* 시트를 놓으면 살짝 지나쳤다 자리 잡는다 (끄는 동안은 손가락을 그대로 따른다) */
+  .sermon-app .sn-aside {
+    transition: height 0.34s var(--sn-spring);
+  }
+  .sermon-app .sn-aside[data-dragging='true'] {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app .sn-ck,
+  .sermon-app .sn-ck svg path,
+  .sermon-app .sn-day-it .sn-stk,
+  .sermon-app .sn-plan-fr,
+  .sermon-app .sn-plan-fr b,
+  .sermon-app .sn-cheer > span,
+  .sermon-app .sn-hc .sn-icon,
+  .sermon-app .sn-hc-chip,
+  .sermon-app .sn-new,
+  .sermon-app .sn-stkr[data-new],
+  .sermon-app button.sn-slot,
+  .sermon-app .sn-save-state::before,
+  .sermon-app .sn-rec,
+  .sermon-app .sn-rec .sn-dot,
+  .sermon-app .sn-rec .sn-mic,
+  .sermon-app .sn-editor.sn-restored,
+  .sermon-app .sn-editor .sn-landed,
+  .sermon-app .sn-editor .sn-polished,
+  .sermon-app .sn-th,
+  .sermon-app .sn-compose .sn-send,
+  .sermon-app .sn-tseg button,
+  .sermon-app .sn-aside {
+    animation: none !important;
+    transition: none !important;
+  }
+  .sermon-app .sn-burst {
+    display: none;
+  }
+}
+
+/* 성경 장 넘김 — 다음 장은 오른쪽에서, 이전 장은 왼쪽에서 */
+@keyframes sn-turn-fwd {
+  from {
+    opacity: 0;
+    transform: translateX(22px);
+  }
+}
+.sermon-app .sn-bible-page[data-turn='fwd'] {
+  animation: sn-turn-fwd 0.32s var(--sn-ease);
+}
+.sermon-app .sn-bible-page[data-turn='back'] {
+  animation: sn-turn-back 0.32s var(--sn-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app .sn-bible-page {
+    animation: none !important;
   }
 }

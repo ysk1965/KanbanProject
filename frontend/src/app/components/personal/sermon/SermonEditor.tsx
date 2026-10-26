@@ -822,6 +822,7 @@ export function SermonEditor({
     core.snapNow();
     saveVersion(userId, noteRef.current.id, noteRef.current.title, core.serialize(), 'restore');
     core.setBody(v.body);
+    core.markRestored();
     core.snapNow();
     setVersions(null);
     toast('그 시점으로 되돌렸어요', {
@@ -852,6 +853,13 @@ export function SermonEditor({
 
   const sync = syncLabel(store.status);
   void syncTick;
+  // 올리는 중 → 저장됨 으로 바뀌는 순간에만 점이 한 번 톡 (계속 움직이는 표시는 예배 중에 거슬린다)
+  const prevSyncSt = useRef(sync.state);
+  const [savedTick, setSavedTick] = useState(0);
+  useEffect(() => {
+    if (prevSyncSt.current === 'wait' && sync.state === 'ok') setSavedTick((n) => n + 1);
+    prevSyncSt.current = sync.state;
+  }, [sync.state]);
   const dockBtn = (e: React.MouseEvent) => e.preventDefault();
 
   return (
@@ -873,7 +881,11 @@ export function SermonEditor({
         </button>
         <div className="sn-ttl">
           <b data-show={topTitleShow}>{title || '새 설교'}</b>
-          <span className="sn-save-state" data-st={sync.state}>
+          <span
+            className="sn-save-state"
+            data-st={sync.state}
+            data-fx={savedTick ? (savedTick % 2 ? 'a' : 'b') : undefined}
+          >
             {sync.text}
           </span>
         </div>
@@ -1183,8 +1195,8 @@ export function SermonEditor({
                           type="button"
                           className="sn-act"
                           onClick={() => {
+                            // 들어간 자리로 스크롤되고 말씀이 붙는 게 보이므로 토스트는 생략
                             coreRef.current?.insertBlock(r);
-                            toast('본문 말씀을 노트에 넣었어요');
                           }}
                         >
                           노트에 넣기
@@ -1243,7 +1255,6 @@ export function SermonEditor({
                 onInsertVerse={(r) => {
                   rememberRef(r);
                   coreRef.current?.insertBlock(r);
-                  toast('말씀을 노트에 넣었어요');
                 }}
               />
             </div>

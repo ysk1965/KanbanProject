@@ -81,7 +81,7 @@ export function Mascot({ kind, state = 'idle', size = 64, className = '', label 
     <span
       className={`sn-m ${className}`}
       data-state={state}
-      data-jump={jump % 2}
+      data-jump={jump ? (jump % 2 ? 'a' : 'b') : undefined}
       style={style}
       role={label ? 'img' : undefined}
       aria-label={label}

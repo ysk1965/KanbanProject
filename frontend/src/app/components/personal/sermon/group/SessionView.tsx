@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Loader2, Lock, PenLine, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { decRef, encRef, finalRef, parseRef, refLong } from '../bibleRefs';
@@ -13,6 +13,7 @@ import {
 import { compareCounts, compareHighlights, groupHeat } from './compare';
 import { faceColor, initial, josa, shareFieldsOf, type GroupStore } from './groupStore';
 import { weekStartOf } from './sessionMatch';
+import { useFx } from '../microFx';
 import './group.css';
 
 /**
@@ -75,6 +76,22 @@ export function SessionView({
   const others = shares.filter((s) => s.user_id !== me);
   const heat = useMemo(() => groupHeat(shares.map((s) => s.fields)), [shares]);
   const iWrote = !!myNote || shares.some((s) => s.user_id === me);
+
+  // 잠겨 있던 비교가, 한 줄 쓰고 돌아오면 블러가 걷히며 열린다 — 이 기기에서 한 번만
+  const lockKey = `sg-locked:${sessionId}`;
+  const [reveal, setReveal] = useState(false);
+  useLayoutEffect(() => {
+    if (!detail) return;
+    try {
+      if (!iWrote && others.length) localStorage.setItem(lockKey, '1');
+      else if (iWrote && localStorage.getItem(lockKey)) {
+        localStorage.removeItem(lockKey);
+        if (others.length) setReveal(true);
+      }
+    } catch {
+      /* 기록 못 하면 걷히는 장면만 빠진다 */
+    }
+  }, [detail, iWrote, others.length, lockKey]);
 
   if (!group) {
     return (
@@ -296,13 +313,15 @@ export function SessionView({
           </div>
         </div>
       ) : others.length ? (
-        <ShareGrid
-          shares={others}
-          me={me}
-          heat={heat}
-          onReact={react}
-          onCompare={(id) => setCmpWith(id)}
-        />
+        <div className={reveal ? 'sg-reveal' : undefined}>
+          <ShareGrid
+            shares={others}
+            me={me}
+            heat={heat}
+            onReact={react}
+            onCompare={(id) => setCmpWith(id)}
+          />
+        </div>
       ) : (
         <div className="sg-empty">
           아직 다른 사람의 노트가 없어요.
@@ -350,6 +369,21 @@ function ShareGrid({
   onReact: (s: SessionShare, item: string, kind: ReactionKind) => void;
   onCompare: (shareId: string) => void;
 }) {
+  // 누르는 즉시 톡 — 숫자는 서버 응답 뒤 굴러 바뀐다
+  const [fx, fire] = useFx(600);
+  const press = (sh: SessionShare, item: string, kind: ReactionKind) => {
+    fire(`${sh.id}|${item}|${kind}`);
+    onReact(sh, item, kind);
+  };
+  const num = (n?: number) =>
+    n ? (
+      <>
+        {' '}
+        <span key={n} className="sg-rc">
+          {n}
+        </span>
+      </>
+    ) : null;
   return (
     <div className="sg-shares">
       {shares.map((sh) => {
@@ -398,10 +432,11 @@ function ShareGrid({
                               key={x.kind}
                               type="button"
                               aria-pressed={!!c?.mine}
-                              onClick={() => onReact(sh, t.id, x.kind)}
+                              data-fx={fx === `${sh.id}|${t.id}|${x.kind}` || undefined}
+                              onClick={() => press(sh, t.id, x.kind)}
                             >
                               {x.label}
-                              {c?.count ? ` ${c.count}` : ''}
+                              {num(c?.count)}
                             </button>
                           );
                         })}
@@ -417,9 +452,10 @@ function ShareGrid({
                     <button
                       type="button"
                       aria-pressed={!!count('note', 'amen')?.mine}
-                      onClick={() => onReact(sh, 'note', 'amen')}
+                      data-fx={fx === `${sh.id}|note|amen` || undefined}
+                      onClick={() => press(sh, 'note', 'amen')}
                     >
-                      아멘{count('note', 'amen')?.count ? ` ${count('note', 'amen')!.count}` : ''}
+                      아멘{num(count('note', 'amen')?.count)}
                     </button>
                   )}
                   <button type="button" onClick={() => onCompare(sh.id)}>

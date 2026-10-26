@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Link2, Loader2, Share2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { SnOverlay } from '../SnOverlay';
+import { useFx } from '../microFx';
 import { decRef, refShort } from '../bibleRefs';
 import type { MascotId } from '../sermonLook';
 import type { SermonNote } from '../sermonTypes';
@@ -68,6 +69,8 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
   const [custom, setCustom] = useState<LineQuote | null>(null);
   const [busy, setBusy] = useState<'share' | 'save' | null>(null);
   const shotRef = useRef<HTMLDivElement>(null);
+  // 옵션을 바꾸면 미리보기 카드가 살짝 흔들리고, 저장하면 들렸다 내려앉는다 (sermon.css 「마이크로 인터랙션」)
+  const [fx, fire, fxN] = useFx(700);
 
   // 열 때마다 처음 상태로 (선택 버블에서 열었으면 그 문장)
   useEffect(() => {
@@ -111,6 +114,14 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
   );
   const link = shown ? cardUrl(shown) : '';
 
+  const optSig = `${kind}|${fmt}|${showPreacher}|${pickId}`;
+  const lastSig = useRef(optSig);
+  useEffect(() => {
+    if (lastSig.current === optSig) return;
+    lastSig.current = optSig;
+    if (open) fire('bump');
+  }, [optSig, open, fire]);
+
   const makeBlob = useCallback(async () => {
     const el = shotRef.current;
     if (!el) throw new Error('card not mounted');
@@ -142,6 +153,7 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
     setBusy('save');
     try {
       downloadBlob(await makeBlob(), cardFileName(shown.title));
+      fire('saved');
       toast('이미지를 저장했어요');
     } catch (e) {
       console.error('sermon card save failed', e);
@@ -149,7 +161,7 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
     } finally {
       setBusy(null);
     }
-  }, [shown, busy, makeBlob]);
+  }, [shown, busy, makeBlob, fire]);
 
   const onCopy = useCallback(async () => {
     if (!link) return;
@@ -180,7 +192,10 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
       {shown && (
         <div className="snc-sheet-body">
           <div className="snc-stage" data-fmt={fmt}>
-            <div className="snc-stage-card">
+            <div
+              className="snc-stage-card"
+              data-fx={fx ? `${fx}-${fxN % 2 ? 'a' : 'b'}` : undefined}
+            >
               <ShareCard data={shown} fmt={fmt} mascot={mascot} showPreacher={showPreacher} />
             </div>
           </div>

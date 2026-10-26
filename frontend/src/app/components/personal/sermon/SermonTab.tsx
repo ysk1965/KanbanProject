@@ -217,6 +217,8 @@ interface BodyProps {
 function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const rootRef = useRef<HTMLDivElement>(null);
+  const { currentUser } = useAuth();
+  const userName = anonymous ? undefined : currentUser?.name ? String(currentUser.name) : undefined;
 
   const store = useMemo(() => new SermonStore(userId), [userId]);
   const [, setTick] = useState(0);
@@ -431,7 +433,8 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
             onOpenLook={() => setLookOpen(true)}
             groupNav={groups.groupNav}
             main={groups.main}
-            onLeaveMain={groups.leaveMain}
+            standalone={standalone}
+            userName={userName}
           />
         )}
         {groups.overlays}

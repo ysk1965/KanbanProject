@@ -826,3 +826,35 @@
 .snc[data-fmt='story'] .snc-verse span {
   -webkit-line-clamp: 4;
 }
+
+/* 미리보기 카드 — 옵션을 바꾸면 살짝 흔들리고, 저장하면 들렸다 내려앉는다 */
+@keyframes snc-bump-a {
+  40% {
+    transform: rotate(-1.5deg) scale(1.025);
+  }
+}
+@keyframes snc-bump-b {
+  40% {
+    transform: rotate(1.5deg) scale(1.025);
+  }
+}
+@keyframes snc-lift {
+  40% {
+    transform: translateY(-8px);
+    filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.22));
+  }
+}
+.snc-stage-card[data-fx='bump-a'] {
+  animation: snc-bump-a 0.4s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.snc-stage-card[data-fx='bump-b'] {
+  animation: snc-bump-b 0.4s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.snc-stage-card[data-fx^='saved'] {
+  animation: snc-lift 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .snc-stage-card {
+    animation: none !important;
+  }
+}
