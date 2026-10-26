@@ -269,10 +269,8 @@
   font-family: 'Hahmlet', 'Noto Serif KR', serif;
 }
 .snc-body mark {
-  background: linear-gradient(
-    transparent 56%,
-    color-mix(in srgb, var(--c-g2) 75%, transparent) 56%
-  );
+  background: linear-gradient(transparent 56%, color-mix(in srgb, var(--c-g2) 75%, transparent) 56%)
+    no-repeat 0 0 / 100% 100%;
   font-weight: 700;
 }
 .snc-body[data-serif='true'] mark {
@@ -856,5 +854,249 @@
 @media (prefers-reduced-motion: reduce) {
   .snc-stage-card {
     animation: none !important;
+  }
+}
+
+/* ───────── 시트 움직임 (ShareSheet switchKind · pick · flyToSave) ─────────
+ * 카드 안 요소는 위 「.snc *」 규칙으로 멈춰 있다(이미지 캡처용) — 미리보기(.snc-stage-card)에서만 !important 로 푼다.
+ */
+.snc-stage {
+  position: relative;
+}
+.snc-ghost {
+  position: absolute;
+  z-index: 2;
+  margin: 0;
+  pointer-events: none;
+  transform-origin: 50% 60%;
+}
+.snc-ghost-fly {
+  filter: drop-shadow(0 18px 24px rgba(40, 20, 60, 0.22));
+}
+
+/* 종류 탭: 받침이 미끄러져 가고, 「밑줄」을 고르면 글자 밑에 형광펜이 그어진다 */
+.snc-tabs {
+  position: relative;
+}
+.snc-tabs > button {
+  position: relative;
+  z-index: 1;
+  transition: color 0.2s;
+}
+.snc-tab-ind,
+.snc-chip-ind {
+  position: absolute;
+  top: 0;
+  z-index: 0;
+  border-radius: 99px;
+  pointer-events: none;
+  opacity: 0;
+}
+.snc-tab-ind[data-ready='true'],
+.snc-chip-ind[data-ready='true'] {
+  opacity: 1;
+}
+.snc-tab-ind {
+  background: var(--sn-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+.snc-tabs:has(> .snc-tab-ind[data-ready='true']) button[aria-selected='true'] {
+  background: transparent;
+  box-shadow: none;
+}
+.snc-tab-l {
+  position: relative;
+  display: inline-block;
+}
+.snc-tab-l::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  bottom: 1px;
+  z-index: -1;
+  height: 0.45em;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--sn-g2) 70%, transparent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.35s var(--sn-ease) 0.12s;
+}
+.snc-tabs button[aria-selected='true'] .snc-tab-l::after {
+  transform: none;
+}
+
+/* 크기 칩: 칠한 받침이 옆 칩으로 옮겨 간다 */
+.snc-chips {
+  position: relative;
+}
+.snc-chips > button {
+  position: relative;
+  z-index: 1;
+  transition:
+    color 0.2s,
+    border-color 0.2s;
+}
+.snc-chip-ind {
+  background: var(--sn-accent);
+}
+.snc-chips:has(> .snc-chip-ind[data-ready='true']) button[aria-pressed='true'] {
+  background: transparent;
+  border-color: transparent;
+}
+
+/* 설교자 이름 스위치: 누르는 동안 손잡이가 늘어나고 튕기며 건너간다 */
+.snc-sw::after {
+  transition:
+    transform 0.32s var(--sn-spring),
+    width 0.16s var(--sn-ease);
+}
+.snc-toggle:active .snc-sw::after {
+  width: 21px;
+}
+.snc-toggle:active input:checked + .snc-sw::after {
+  transform: translateX(11px);
+}
+
+/* 표지↔밑줄: 새 카드가 뒤에서 올라오고, 표지는 장 번호가 탁 · 밑줄은 형광펜이 쓱 */
+@keyframes snc-deal-l {
+  from {
+    opacity: 0.4;
+    transform: translate(6%, 3%) scale(0.9) rotate(5deg);
+  }
+}
+@keyframes snc-deal-r {
+  from {
+    opacity: 0.4;
+    transform: translate(-6%, 3%) scale(0.9) rotate(-5deg);
+  }
+}
+@keyframes snc-ch-stamp {
+  from {
+    opacity: 0;
+    transform: scale(1.35) rotate(-6deg);
+  }
+}
+@keyframes snc-pill-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6cqw) rotate(-8deg);
+  }
+  to {
+    transform: rotate(3deg);
+  }
+}
+@keyframes snc-peek-in {
+  from {
+    transform: translateY(-12cqw);
+  }
+}
+@keyframes snc-hl {
+  from {
+    background-size: 0% 100%;
+  }
+}
+@keyframes snc-qm-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-20deg);
+  }
+}
+@keyframes snc-swap {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.snc-stage-card[data-fx^='deal-line'] {
+  animation: snc-deal-l 0.52s cubic-bezier(0.3, 1.35, 0.5, 1) 0.06s backwards;
+}
+.snc-stage-card[data-fx^='deal-cover'] {
+  animation: snc-deal-r 0.52s cubic-bezier(0.3, 1.35, 0.5, 1) 0.06s backwards;
+}
+.snc-stage-card[data-fx^='deal-cover'] .snc-ch {
+  animation: snc-ch-stamp 0.55s var(--sn-spring) 0.18s both !important;
+}
+.snc-stage-card[data-fx^='deal-cover'] .snc-pill {
+  animation: snc-pill-drop 0.5s var(--sn-spring) 0.32s both !important;
+}
+.snc-stage-card[data-fx^='deal-cover'] .snc-peek {
+  animation: snc-peek-in 0.6s var(--sn-spring) 0.42s both !important;
+}
+.snc-stage-card[data-fx^='deal-line'] .snc-qm {
+  animation: snc-qm-in 0.5s var(--sn-spring) 0.1s both !important;
+}
+.snc-stage-card[data-fx^='deal-line'] .snc-body mark,
+.snc-stage-card[data-fx^='pick'] .snc-body mark {
+  animation: snc-hl 0.6s var(--sn-ease) 0.22s both !important;
+}
+.snc-stage-card[data-fx^='pick'] .snc-body {
+  animation: snc-swap 0.28s var(--sn-ease) !important;
+}
+
+/* 오른쪽 안내·문장 목록은 바뀔 때 차례로 올라온다 */
+@keyframes snc-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.snc-ctl .snc-hint,
+.snc-picks > * {
+  animation: snc-rise 0.32s var(--sn-ease) both;
+}
+.snc-picks > :nth-child(2) {
+  animation-delay: 40ms;
+}
+.snc-picks > :nth-child(3) {
+  animation-delay: 80ms;
+}
+.snc-picks > :nth-child(4) {
+  animation-delay: 120ms;
+}
+.snc-picks > :nth-child(n + 5) {
+  animation-delay: 160ms;
+}
+
+/* 저장·복사 끝: 체크가 그려지며 톡 */
+@keyframes snc-done {
+  0% {
+    transform: scale(0.5) rotate(-20deg);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+}
+@keyframes snc-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+}
+.snc-acts .sn-btn[data-done] {
+  border-color: transparent;
+  background: var(--sn-accent-soft);
+  color: var(--sn-accent);
+}
+.snc-acts .sn-btn[data-done] .sn-icon {
+  animation: snc-done 0.4s var(--sn-spring);
+}
+.snc-acts .sn-btn[data-done] .sn-icon path {
+  stroke-dasharray: 24;
+  animation: snc-draw 0.35s var(--sn-ease) 0.05s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snc-ghost {
+    display: none;
+  }
+  .snc-stage-card,
+  :root .snc-stage-card[data-fx] .snc *,
+  .snc-ctl *,
+  .snc-tab-ind,
+  .snc-chip-ind,
+  .snc-tab-l::after,
+  .snc-sw::after {
+    animation: none !important;
+    transition: none !important;
   }
 }

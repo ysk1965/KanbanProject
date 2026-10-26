@@ -20,6 +20,7 @@ import { useGroupWiring } from './group/useGroupWiring';
 import { loadBible } from './useBible';
 import { useSermonProfile } from './profile/useSermonProfile';
 import { ProfileContext } from './profile/ProfileContext';
+import { installTapFx } from './microFx';
 import './sermon.css';
 
 /**
@@ -116,6 +117,7 @@ export default function SermonTab({ standalone = false }: SermonTabProps) {
   // 인증 확인이 끝나기 전에는 저장소를 만들지 않는다 (익명 → 사용자로 두 번 띄우지 않기 위해)
   const authReady = !authLoading;
   const userId = isAuthenticated && currentUser?.id ? currentUser.id : ANONYMOUS_USER;
+  useEffect(installTapFx, []);
   const anonymous = userId === ANONYMOUS_USER;
 
   const { canInstall, install, iosHint, dismissIos } = useInstallHint(standalone);
@@ -217,8 +219,16 @@ interface BodyProps {
   strip: (mascot: MascotId) => React.ReactNode;
 }
 
+const BACK_LABEL: Record<string, string> = {
+  groups: '모임',
+  bible: '성경',
+  challenge: '챌린지',
+  me: '나의 갈피',
+};
+
 function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const rootRef = useRef<HTMLDivElement>(null);
   const { currentUser } = useAuth();
   const userName = anonymous ? undefined : currentUser?.name ? String(currentUser.name) : undefined;
@@ -268,14 +278,35 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
   );
 
   // URL 동기화 (마이 스페이스에서는 tab=sermon 도 같이 적는다)
+  // 노트를 여는 순간만 방문 기록에 쌓아, 시스템 뒤로(안드로이드 버튼·스와이프)가 목록으로 돌아오게 한다
+  const prevOpen = useRef(openId);
+  const pushedNote = useRef(false);
   useEffect(() => {
+    const opening = !prevOpen.current && !!openId;
+    prevOpen.current = openId;
     const next = new URLSearchParams(searchParams);
     if (!standalone) next.set(PARAM_TAB, 'sermon');
     if (openId) next.set(PARAM_NOTE, openId);
     else next.delete(PARAM_NOTE);
-    if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
+    if (next.toString() === searchParams.toString()) return;
+    setSearchParams(next, { replace: !opening });
+    if (opening) pushedNote.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openId, standalone]);
+  // 뒤로·앞으로 가기로 주소가 바뀌면 열린 노트도 따라간다
+  const urlNote = searchParams.get(PARAM_NOTE);
+  useEffect(() => {
+    if (!urlNote) pushedNote.current = false;
+    prevOpen.current = urlNote;
+    setOpenId(urlNote);
+  }, [urlNote]);
+  /** 닫기 — 여기서 쌓은 기록이면 한 칸 뒤로, 딥링크로 바로 들어왔으면 목록으로 바꿔치기 */
+  const closeNote = useCallback(() => {
+    if (pushedNote.current) {
+      pushedNote.current = false;
+      navigate(-1);
+    } else setOpenId(null);
+  }, [navigate]);
 
   // 다른 기기 수정과 겹치면 그쪽 내용을 사본 노트로 남겼다고 알린다
   useEffect(
@@ -402,11 +433,17 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
   });
 
   const editing = !!(openId && openNote);
+  // 편집기 하단 뒤로의 도착지 — 모임 설교 자리에서 열었으면 모임 이름, 아니면 원래 탭
+  const fromGroup = searchParams.get('session') ? searchParams.get('group') : null;
+  const backLabel =
+    (fromGroup && groups.ctx.store.get(fromGroup)?.name) ||
+    BACK_LABEL[searchParams.get(PARAM_TAB) || ''] ||
+    '노트';
 
   return (
     <GroupContext.Provider value={groups.ctx}>
       <ProfileContext.Provider value={profile}>
-        <div ref={rootRef} className="sermon-app">
+        <div ref={rootRef} className="sermon-app" data-standalone={standalone || undefined}>
           {!editing && strip(look.mascot)}
           {editing ? (
             <SermonEditor
@@ -416,8 +453,9 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
               userId={userId}
               style={style}
               onStyleChange={onStyleChange}
-              onBack={() => setOpenId(null)}
-              onDeleted={() => setOpenId(null)}
+              onBack={closeNote}
+              onDeleted={closeNote}
+              backLabel={backLabel}
               initialAid={openAid}
               canAttach={!anonymous}
               onLogin={onLogin}

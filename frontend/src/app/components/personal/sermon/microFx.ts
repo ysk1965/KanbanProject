@@ -98,12 +98,24 @@ export function useFirstSeen(storageKey: string, ids: string[]): Set<string> {
 const JELLY_LEAD = '220ms cubic-bezier(0.3, 1.3, 0.5, 1)';
 const JELLY_TAIL = '380ms cubic-bezier(0.3, 1.2, 0.5, 1) 90ms';
 
+interface JellyOpts {
+  /** 'y' = 세로 목록(top/bottom), 'x' = 가로 줄(left/right) */
+  axis?: 'x' | 'y';
+  /** 표시가 따라갈 항목 — 기본은 탭 */
+  item?: string;
+  /** 목록이 나중에 그려지는 곳(모달 등) — 이 값이 바뀌면 다시 자리를 잡는다 */
+  dep?: unknown;
+}
+
 /**
- * 세로 탭 목록의 「말랑 늘어나기」 표시. 표시 요소의 top/bottom 을 따로 움직여
- * 가는 방향 끝이 먼저 늘어나고 반대 끝이 따라온다.
+ * 탭 목록의 「말랑 늘어나기」 표시. 표시 요소의 양 끝을 따로 움직여
+ * 가는 방향 끝이 먼저 늘어나고 반대 끝이 따라온다. 목록은 position: relative 여야 한다.
  * 첫 렌더·크기 변화(뱃지, 좁은 화면에서 돌아옴)에는 움직이지 않고 제자리로만 옮긴다.
  */
-export function useJellyTab(active: number) {
+export function useJellyTab(
+  active: number,
+  { axis = 'y', item = '[role="tab"]', dep }: JellyOpts = {},
+) {
   const listRef = useRef<HTMLDivElement>(null);
   const indRef = useRef<HTMLSpanElement>(null);
   const prev = useRef<number | null>(null);
@@ -113,22 +125,30 @@ export function useJellyTab(active: number) {
     const list = listRef.current;
     const ind = indRef.current;
     if (!list || !ind) return;
+    const [a, b] = axis === 'y' ? (['top', 'bottom'] as const) : (['left', 'right'] as const);
     const place = (from: number | null) => {
-      const btn = list.querySelectorAll<HTMLElement>('[role="tab"]')[active];
-      if (!btn || !list.offsetHeight) return; // 좁은 화면에서는 왼쪽 패널이 숨는다
-      const top = btn.offsetTop;
-      const bottom = list.offsetHeight - top - btn.offsetHeight;
-      const key = `${top}/${bottom}`;
+      const btn = list.querySelectorAll<HTMLElement>(item)[active];
+      if (!btn || !list.offsetHeight) return; // 좁은 화면에서는 숨는 목록도 있다
+      const start = axis === 'y' ? btn.offsetTop : btn.offsetLeft;
+      const end =
+        axis === 'y'
+          ? list.offsetHeight - start - btn.offsetHeight
+          : list.clientWidth - start - btn.offsetWidth;
+      const key = `${start}/${end}`;
       if (key === placed.current) return;
       placed.current = key;
       ind.style.transition =
         from === null || from === active || prefersReducedMotion()
           ? 'none'
           : active > from
-            ? `bottom ${JELLY_LEAD}, top ${JELLY_TAIL}`
-            : `top ${JELLY_LEAD}, bottom ${JELLY_TAIL}`;
-      ind.style.top = `${top}px`;
-      ind.style.bottom = `${bottom}px`;
+            ? `${b} ${JELLY_LEAD}, ${a} ${JELLY_TAIL}`
+            : `${a} ${JELLY_LEAD}, ${b} ${JELLY_TAIL}`;
+      ind.style[a] = `${start}px`;
+      ind.style[b] = `${end}px`;
+      if (axis === 'x') {
+        ind.style.top = `${btn.offsetTop}px`;
+        ind.style.height = `${btn.offsetHeight}px`;
+      }
       ind.dataset.ready = 'true';
     };
     place(prev.current);
@@ -137,7 +157,36 @@ export function useJellyTab(active: number) {
     const ro = new ResizeObserver(() => place(null));
     ro.observe(list);
     return () => ro.disconnect();
-  }, [active]);
+  }, [active, axis, item, dep]);
 
   return { listRef, indRef };
+}
+
+/**
+ * 고르는 버튼(라디오·탭·켜고 끄는 버튼)을 누르면 한 번 톡 — sermon.css 「누르면 톡」.
+ * 화면마다 data-fx 를 다는 대신 문서에 한 번만 걸어 두고, 누른 버튼에 data-tap 을 잠깐 단다.
+ * 이미 자기 움직임이 있는 곳(하단·옆 탭, 적용 체크, 모임 탭)과 data-notap 아래는 건너뛴다.
+ */
+const TAP_SEL = '[role="radio"], [role="tab"], [role="switch"], [aria-pressed], [data-tapfx]';
+const TAP_SKIP = '[data-notap], .sn-bnav, .sn-tabs, .sn-ck, .sg-itabs';
+let tapInstalled = false;
+export function installTapFx() {
+  if (tapInstalled || typeof document === 'undefined') return;
+  tapInstalled = true;
+  const timers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
+  document.addEventListener('click', (e) => {
+    if (prefersReducedMotion()) return;
+    const el = (e.target as Element | null)?.closest?.<HTMLElement>(TAP_SEL);
+    if (!el || el.closest(TAP_SKIP) || !el.closest('.sermon-app, .sn-scope')) return;
+    if ((el as HTMLButtonElement).disabled) return;
+    // 줄 전체 버튼(설정 행·문장 고르기 등)은 커졌다 줄면 어색해서 뺀다
+    if (el.offsetWidth > 260 && !el.dataset.tapfx) return;
+    // a/b 를 번갈아 달아 연달아 눌러도 다시 움직인다
+    el.dataset.tap = el.dataset.tap === 'a' ? 'b' : 'a';
+    clearTimeout(timers.get(el));
+    timers.set(
+      el,
+      setTimeout(() => delete el.dataset.tap, 700),
+    );
+  });
 }

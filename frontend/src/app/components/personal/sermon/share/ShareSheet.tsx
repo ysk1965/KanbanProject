@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Link2, Loader2, Share2, X } from 'lucide-react';
+import { Check, Download, Link2, Loader2, Share2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { SnOverlay } from '../SnOverlay';
-import { useFx } from '../microFx';
+import { prefersReducedMotion, useFx, useJellyTab } from '../microFx';
 import { decRef, refShort } from '../bibleRefs';
 import type { MascotId } from '../sermonLook';
 import type { SermonNote } from '../sermonTypes';
@@ -69,8 +69,19 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
   const [custom, setCustom] = useState<LineQuote | null>(null);
   const [busy, setBusy] = useState<'share' | 'save' | null>(null);
   const shotRef = useRef<HTMLDivElement>(null);
-  // 옵션을 바꾸면 미리보기 카드가 살짝 흔들리고, 저장하면 들렸다 내려앉는다 (sermon.css 「마이크로 인터랙션」)
-  const [fx, fire, fxN] = useFx(700);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const saveRef = useRef<HTMLButtonElement>(null);
+  // 옵션을 바꾸면 미리보기 카드가 살짝 흔들리고, 표지↔밑줄은 카드가 넘어가고,
+  // 문장을 바꾸면 형광펜을 다시 긋는다 (shareCard.css 「시트 움직임」)
+  const [fx, fire, fxN] = useFx(1100);
+  // 저장·복사가 끝나면 버튼이 잠깐 체크로
+  const [done, flashDone] = useFx(1800);
+  const tabs = useJellyTab(kind === 'line' ? 1 : 0, { axis: 'x', dep: open && !!note });
+  const chips = useJellyTab(fmt === 'story' ? 1 : 0, {
+    axis: 'x',
+    item: 'button',
+    dep: open && !!note,
+  });
 
   // 열 때마다 처음 상태로 (선택 버블에서 열었으면 그 문장)
   useEffect(() => {
@@ -114,13 +125,96 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
   );
   const link = shown ? cardUrl(shown) : '';
 
-  const optSig = `${kind}|${fmt}|${showPreacher}|${pickId}`;
+  // 종류·문장은 따로 움직인다 (switchKind / pick)
+  const optSig = `${fmt}|${showPreacher}`;
   const lastSig = useRef(optSig);
   useEffect(() => {
     if (lastSig.current === optSig) return;
     lastSig.current = optSig;
     if (open) fire('bump');
   }, [optSig, open, fire]);
+
+  /** 지금 카드를 떼어 내 옆으로 넘기고, 새 카드가 뒤에서 올라온다 */
+  const switchKind = useCallback(
+    (next: CardKind) => {
+      if (next === kind) return;
+      const stage = stageRef.current;
+      const card = stage?.querySelector<HTMLElement>('.snc-stage-card');
+      if (stage && card && !prefersReducedMotion() && typeof card.animate === 'function') {
+        const sr = stage.getBoundingClientRect();
+        const cr = card.getBoundingClientRect();
+        const ghost = card.cloneNode(true) as HTMLElement;
+        ghost.removeAttribute('data-fx');
+        ghost.classList.add('snc-ghost');
+        ghost.setAttribute('aria-hidden', 'true');
+        Object.assign(ghost.style, {
+          left: `${cr.left - sr.left}px`,
+          top: `${cr.top - sr.top}px`,
+          width: `${cr.width}px`,
+        });
+        stage.appendChild(ghost);
+        const dir = next === 'line' ? 1 : -1;
+        ghost
+          .animate(
+            [
+              { transform: 'none', opacity: 1 },
+              { transform: `translate(${-dir * 34}%, -4%) rotate(${-dir * 9}deg)`, opacity: 0 },
+            ],
+            { duration: 340, easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)', fill: 'forwards' },
+          )
+          .finished.finally(() => ghost.remove());
+      }
+      setKind(next);
+      fire(`deal-${next}`);
+    },
+    [kind, fire],
+  );
+
+  const pick = useCallback(
+    (id: string) => {
+      setPickId(id);
+      fire('pick');
+    },
+    [fire],
+  );
+
+  /** 저장한 카드가 작아지며 저장 버튼 속으로 들어간다 */
+  const flyToSave = useCallback(() => {
+    const stage = stageRef.current;
+    const card = stage?.querySelector<HTMLElement>('.snc-stage-card');
+    const btn = saveRef.current?.querySelector('svg') ?? saveRef.current;
+    if (!stage || !card || !btn || prefersReducedMotion() || typeof card.animate !== 'function')
+      return;
+    const sr = stage.getBoundingClientRect();
+    const cr = card.getBoundingClientRect();
+    const br = btn.getBoundingClientRect();
+    const ghost = card.cloneNode(true) as HTMLElement;
+    ghost.removeAttribute('data-fx');
+    ghost.classList.add('snc-ghost', 'snc-ghost-fly');
+    ghost.setAttribute('aria-hidden', 'true');
+    Object.assign(ghost.style, {
+      left: `${cr.left - sr.left}px`,
+      top: `${cr.top - sr.top}px`,
+      width: `${cr.width}px`,
+    });
+    stage.appendChild(ghost);
+    const dx = br.left + br.width / 2 - (cr.left + cr.width / 2);
+    const dy = br.top + br.height / 2 - (cr.top + cr.height / 2);
+    ghost
+      .animate(
+        [
+          { transform: 'none', opacity: 0.95 },
+          {
+            transform: `translate(${dx * 0.3}px, ${dy * 0.3 - 40}px) scale(0.5) rotate(-6deg)`,
+            opacity: 0.95,
+            offset: 0.45,
+          },
+          { transform: `translate(${dx}px, ${dy}px) scale(0.04)`, opacity: 0.2 },
+        ],
+        { duration: 650, easing: 'cubic-bezier(0.5, 0, 0.6, 1)', fill: 'forwards' },
+      )
+      .finished.finally(() => ghost.remove());
+  }, []);
 
   const makeBlob = useCallback(async () => {
     const el = shotRef.current;
@@ -153,7 +247,8 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
     setBusy('save');
     try {
       downloadBlob(await makeBlob(), cardFileName(shown.title));
-      fire('saved');
+      flyToSave();
+      window.setTimeout(() => flashDone('save'), prefersReducedMotion() ? 0 : 600);
       toast('이미지를 저장했어요');
     } catch (e) {
       console.error('sermon card save failed', e);
@@ -161,12 +256,14 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
     } finally {
       setBusy(null);
     }
-  }, [shown, busy, makeBlob, fire]);
+  }, [shown, busy, makeBlob, flyToSave, flashDone]);
 
   const onCopy = useCallback(async () => {
     if (!link) return;
-    toast((await copyText(link)) ? '카드 링크를 복사했어요' : '복사하지 못했어요');
-  }, [link]);
+    const ok = await copyText(link);
+    if (ok) flashDone('copy');
+    toast(ok ? '카드 링크를 복사했어요' : '복사하지 못했어요');
+  }, [link, flashDone]);
 
   const noRef = !!note && !coverData(note).ref;
 
@@ -191,7 +288,7 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
       </div>
       {shown && (
         <div className="snc-sheet-body">
-          <div className="snc-stage" data-fmt={fmt}>
+          <div ref={stageRef} className="snc-stage" data-fmt={fmt}>
             <div
               className="snc-stage-card"
               data-fx={fx ? `${fx}-${fxN % 2 ? 'a' : 'b'}` : undefined}
@@ -201,22 +298,24 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
           </div>
 
           <div className="snc-ctl">
-            <div className="snc-tabs" role="tablist" aria-label="카드 종류">
+            <div ref={tabs.listRef} className="snc-tabs" role="tablist" aria-label="카드 종류">
+              <span ref={tabs.indRef} className="snc-tab-ind" aria-hidden />
               <button
                 type="button"
                 role="tab"
                 aria-selected={kind === 'cover'}
-                onClick={() => setKind('cover')}
+                onClick={() => switchKind('cover')}
               >
                 표지
               </button>
               <button
                 type="button"
                 role="tab"
+                data-k="line"
                 aria-selected={kind === 'line'}
-                onClick={() => setKind('line')}
+                onClick={() => switchKind('line')}
               >
-                밑줄
+                <span className="snc-tab-l">밑줄</span>
               </button>
             </div>
 
@@ -235,7 +334,7 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
                     q={custom}
                     label="고른 문장"
                     checked={pickId === 'custom' || (!pickId && !!custom)}
-                    onPick={() => setPickId('custom')}
+                    onPick={() => pick('custom')}
                   />
                 )}
                 {candidates.map((c, i) => (
@@ -245,7 +344,7 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
                     label={c.marked ? undefined : '밑줄 없는 문단'}
                     first={!c.marked && (i === 0 || candidates[i - 1].marked)}
                     checked={pickId === c.id || (!pickId && !custom && i === 0)}
-                    onPick={() => setPickId(c.id)}
+                    onPick={() => pick(c.id)}
                   />
                 ))}
                 {!custom && !candidates.length && (
@@ -264,7 +363,8 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
 
             <div className="snc-row">
               <span className="snc-lbl">크기</span>
-              <div className="snc-chips">
+              <div ref={chips.listRef} className="snc-chips">
+                <span ref={chips.indRef} className="snc-chip-ind" aria-hidden />
                 {FMTS.map((f) => (
                   <button
                     key={f.id}
@@ -291,6 +391,7 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
               <button
                 type="button"
                 className="sn-btn sn-primary snc-main"
+                data-tapfx="share"
                 onClick={() => void onShare()}
                 disabled={!!busy || (kind === 'line' && !quote)}
               >
@@ -302,21 +403,30 @@ export function ShareSheet({ open, note, mascot, initialQuote, onClose }: ShareS
                 공유하기
               </button>
               <button
+                ref={saveRef}
                 type="button"
                 className="sn-btn"
+                data-done={done === 'save' || undefined}
                 onClick={() => void onSave()}
                 disabled={!!busy || (kind === 'line' && !quote)}
               >
                 {busy === 'save' ? (
                   <Loader2 className="sn-icon animate-spin" />
+                ) : done === 'save' ? (
+                  <Check className="sn-icon" />
                 ) : (
                   <Download className="sn-icon" />
                 )}
-                이미지 저장
+                {done === 'save' ? '저장했어요' : '이미지 저장'}
               </button>
-              <button type="button" className="sn-btn" onClick={() => void onCopy()}>
-                <Link2 className="sn-icon" />
-                링크 복사
+              <button
+                type="button"
+                className="sn-btn"
+                data-done={done === 'copy' || undefined}
+                onClick={() => void onCopy()}
+              >
+                {done === 'copy' ? <Check className="sn-icon" /> : <Link2 className="sn-icon" />}
+                {done === 'copy' ? '복사했어요' : '링크 복사'}
               </button>
             </div>
             <p className="snc-note">

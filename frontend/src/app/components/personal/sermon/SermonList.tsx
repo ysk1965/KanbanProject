@@ -28,6 +28,7 @@ import { useJellyTab } from './microFx';
 import { BibleTabIcon, ChallengeTabIcon, GroupsTabIcon, MeTabIcon, NoteTabIcon } from './TabIcons';
 import { playTabVerb } from './tabMotion';
 import { SermonBottomNav } from './SermonBottomNav';
+import { ActionBarHostProvider, useActionBarHost } from './SnActionBar';
 import { SermonHome } from './SermonHome';
 import { useSermonGroups } from './group/GroupContext';
 import { BibleReader } from './BibleReader';
@@ -175,10 +176,15 @@ export function SermonList({
         ? (tabParam as SermonTabKey)
         : 'note';
   const jelly = useJellyTab(TABS.findIndex((t) => t.k === tab));
+  const rowTab = useJellyTab(
+    TABS.findIndex((t) => t.k === tab),
+    { axis: 'x' },
+  );
   const [noteView, setNoteView] = useState<NoteView>('home');
   const [bibleView, setBibleView] = useState<BibleView>('read');
   const highlights = useHighlights();
   const [challengeView, setChallengeView] = useState<ChallengeView>('home');
+  const abar = useActionBarHost();
   const [nudgeHidden, setNudgeHidden] = useState(() => nudgeSnoozed());
   const showNudge = status.anonymous && !!onLogin && notes.length > 0 && !nudgeHidden;
   const snoozeNudge = () => {
@@ -532,7 +538,15 @@ export function SermonList({
   }
 
   /* 고른 탭의 세부 목록 — 넓은 화면은 왼쪽 패널 점선 아래, 좁은 화면은 본문 위 칩 줄 */
-  type Sub = { key: string; label: string; count?: string | number; on: boolean; go: () => void };
+  type Sub = {
+    key: string;
+    label: string;
+    /** 좁은 화면 칩 줄에 쓰는 짧은 이름 */
+    short?: string;
+    count?: string | number;
+    on: boolean;
+    go: () => void;
+  };
   const subs: Array<{ title?: string; items: Sub[] }> =
     tab === 'note'
       ? [
@@ -588,6 +602,7 @@ export function SermonList({
                 {
                   key: 'verses',
                   label: '설교에서 만난 구절',
+                  short: '설교 구절',
                   count: refCount,
                   on: bibleView === 'verses',
                   go: () => setBibleView('verses'),
@@ -595,6 +610,7 @@ export function SermonList({
                 {
                   key: 'highlights',
                   label: '내 형광펜',
+                  short: '형광펜',
                   count: highlights.count,
                   on: bibleView === 'highlights',
                   go: () => setBibleView('highlights'),
@@ -625,201 +641,218 @@ export function SermonList({
 
   const subChip = (it: Sub) => (
     <button key={it.key} type="button" aria-pressed={it.on} onClick={it.go}>
-      {it.label}
+      {it.short || it.label}
       {it.count !== undefined && it.count !== '' && <span className="sn-count">{it.count}</span>}
     </button>
   );
 
+  /** 탭 안의 상세 화면(모임 설교 자리 · 게임) — 칩 줄·새 기록 버튼을 빼고 하단은 동작 바 */
+  const deep =
+    !!sp.get('session') ||
+    (tab === 'challenge' && (challengeView === 'rain' || challengeView === 'books'));
   const showSearch = tab === 'note' || (tab === 'bible' && bibleView === 'verses');
-  const showFab = tab === 'note' || tab === 'groups';
+  const showFab = !deep && (tab === 'note' || tab === 'groups');
 
   return (
-    <section className="sn-list" data-tab={tab} data-standalone={standalone} aria-label="설교 노트">
-      <nav className="sn-side" aria-label="설교 노트 메뉴">
-        <button type="button" className="sn-btn sn-primary" onClick={onNew}>
-          <Plus className="sn-icon" aria-hidden />새 설교 기록
-        </button>
-        <div
-          ref={jelly.listRef}
-          className="sn-tabs"
-          role="tablist"
-          aria-orientation="vertical"
-          aria-label="갈피 탭"
-        >
-          <span ref={jelly.indRef} className="sn-tab-ind" aria-hidden />
-          {TABS.map(({ k, label, Icon }) => {
-            const badge = tabBadge(k);
-            return (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                data-k={k}
-                aria-selected={tab === k}
-                onClick={(e) => {
-                  if (tab !== k) playTabVerb(k, e.currentTarget.querySelector('svg'));
-                  goTab(k);
-                }}
-              >
-                <Icon className="sn-icon" aria-hidden />
-                {label}
-                {badge && (
-                  <span className="sn-tab-badge" data-k={k}>
-                    {badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <div className="sn-sub">
-          {tab === 'groups'
-            ? groupNav
-            : subs.map((g, i) => (
-                <div key={g.title || i} className="sn-nav">
-                  {g.title && <div className="sn-label">{g.title}</div>}
-                  {g.items.map((it) => (
-                    <button key={it.key} type="button" aria-current={it.on} onClick={it.go}>
-                      {it.label}
-                      {it.count !== undefined && <span className="sn-count">{it.count}</span>}
-                    </button>
-                  ))}
-                </div>
-              ))}
-          {tab === 'challenge' && (
-            <p className="sn-sub-hint">
-              {week.length
-                ? `이번 주 적용 ${weekDone}/${week.length} 실천`
-                : '설교를 들으며 ‘적용’으로 남긴 메모가 여기 모여요.'}
-            </p>
-          )}
-          {tab === 'me' && (
-            <div className="sn-nav">
-              {onOpenLook && (
-                <button type="button" onClick={onOpenLook}>
-                  <Mascot kind={mascot} size={22} />
-                  꾸미기
+    <ActionBarHostProvider value={standalone ? abar.host : null}>
+      <section
+        className="sn-list"
+        data-tab={tab}
+        data-standalone={standalone}
+        aria-label="설교 노트"
+      >
+        <nav className="sn-side" aria-label="설교 노트 메뉴">
+          <button type="button" className="sn-btn sn-primary" onClick={onNew}>
+            <Plus className="sn-icon" aria-hidden />새 설교 기록
+          </button>
+          <div
+            ref={jelly.listRef}
+            className="sn-tabs"
+            role="tablist"
+            aria-orientation="vertical"
+            aria-label="갈피 탭"
+          >
+            <span ref={jelly.indRef} className="sn-tab-ind" aria-hidden />
+            {TABS.map(({ k, label, Icon }) => {
+              const badge = tabBadge(k);
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  data-k={k}
+                  aria-selected={tab === k}
+                  onClick={(e) => {
+                    if (tab !== k) playTabVerb(k, e.currentTarget.querySelector('svg'));
+                    goTab(k);
+                  }}
+                >
+                  <Icon className="sn-icon" aria-hidden />
+                  {label}
+                  {badge && (
+                    <span className="sn-tab-badge" data-k={k}>
+                      {badge}
+                    </span>
+                  )}
                 </button>
-              )}
-              <button type="button" onClick={goStickers}>
-                모은 설교 스티커
-                <span className="sn-count">{notes.length}</span>
-              </button>
-            </div>
-          )}
-        </div>
-        <div className="sn-side-foot" data-trouble={storeTrouble}>
-          {storeTrouble ? (
-            <>
-              {storeNote}
-              {status.anonymous && onLogin && (
-                <div>
-                  <button type="button" className="sn-login-link" onClick={onLogin}>
-                    <LogIn className="sn-icon" style={{ width: 14, height: 14 }} aria-hidden />
-                    로그인
+              );
+            })}
+          </div>
+          <div className="sn-sub">
+            {tab === 'groups'
+              ? groupNav
+              : subs.map((g, i) => (
+                  <div key={g.title || i} className="sn-nav">
+                    {g.title && <div className="sn-label">{g.title}</div>}
+                    {g.items.map((it) => (
+                      <button key={it.key} type="button" aria-current={it.on} onClick={it.go}>
+                        {it.label}
+                        {it.count !== undefined && <span className="sn-count">{it.count}</span>}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+            {tab === 'challenge' && (
+              <p className="sn-sub-hint">
+                {week.length
+                  ? `이번 주 적용 ${weekDone}/${week.length} 실천`
+                  : '설교를 들으며 ‘적용’으로 남긴 메모가 여기 모여요.'}
+              </p>
+            )}
+            {tab === 'me' && (
+              <div className="sn-nav">
+                {onOpenLook && (
+                  <button type="button" onClick={onOpenLook}>
+                    <Mascot kind={mascot} size={22} />
+                    꾸미기
                   </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <span className="sn-sync">
-              <i aria-hidden data-pending={status.pending > 0} />
-              {syncLine}
-            </span>
-          )}
-        </div>
-      </nav>
-      <main className="sn-list-main">
-        {!standalone && (
-          <div className="sn-tabrow" role="tablist" aria-label="갈피 탭">
-            {TABS.map(({ k, short }) => (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                aria-selected={tab === k}
-                onClick={() => goTab(k)}
-              >
-                {short}
-                {tabBadge(k) && <span className="sn-dot" aria-label={tabBadge(k) || ''} />}
-              </button>
-            ))}
-          </div>
-        )}
-        {showNudge && (
-          <div className="sn-nudge" role="status">
-            <div className="sn-nudge-text">
-              <b>지금은 이 기기에만 저장되고 있어요.</b> 로그인하면 다른 기기에서도 보이고,
-              사진·영상도 붙일 수 있어요. 적어 둔 노트는 그대로 옮겨져요.
-            </div>
-            <button type="button" className="sn-btn sn-primary" onClick={onLogin}>
-              <LogIn className="sn-icon" aria-hidden />
-              로그인
-            </button>
-            <button
-              type="button"
-              className="sn-x"
-              aria-label="일주일 동안 보지 않기"
-              onClick={snoozeNudge}
-            >
-              <X className="sn-icon" style={{ width: 16, height: 16 }} />
-            </button>
-          </div>
-        )}
-        {tab === 'groups' && gctx && !gctx.anonymous && gctx.store.groups.length > 0 && (
-          <div className="sn-subchips" aria-label="내 모임">
-            {gctx.store.groups.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                aria-pressed={sp.get('group') === g.id}
-                onClick={() => gctx.openGroup(g.id)}
-              >
-                {g.name}
-              </button>
-            ))}
-            <button type="button" onClick={gctx.openCreate}>
-              <Plus className="sn-icon" aria-hidden />
-              만들기
-            </button>
-          </div>
-        )}
-        {subs.length > 0 && (
-          <div className="sn-subchips" aria-label="보기">
-            {subs.flatMap((g) => g.items).map(subChip)}
-          </div>
-        )}
-        {main ? (
-          main
-        ) : (
-          <>
-            {showSearch && (
-              <div className="sn-toolbar">
-                <label className="sn-search" htmlFor="sn-q">
-                  <Search className="sn-icon" style={{ color: 'var(--sn-muted)' }} aria-hidden />
-                  <span className="sn-sr">검색</span>
-                  <input
-                    id="sn-q"
-                    type="search"
-                    placeholder="제목, 설교자, 구절(예: 요 15), 내 생각 검색"
-                    autoComplete="off"
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                  />
-                </label>
+                )}
+                <button type="button" onClick={goStickers}>
+                  모은 설교 스티커
+                  <span className="sn-count">{notes.length}</span>
+                </button>
               </div>
             )}
-            <div>{body}</div>
-          </>
+          </div>
+          <div className="sn-side-foot" data-trouble={storeTrouble}>
+            {storeTrouble ? (
+              <>
+                {storeNote}
+                {status.anonymous && onLogin && (
+                  <div>
+                    <button type="button" className="sn-login-link" onClick={onLogin}>
+                      <LogIn className="sn-icon" style={{ width: 14, height: 14 }} aria-hidden />
+                      로그인
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <span className="sn-sync">
+                <i aria-hidden data-pending={status.pending > 0} />
+                {syncLine}
+              </span>
+            )}
+          </div>
+        </nav>
+        <main className="sn-list-main">
+          {!standalone && (
+            <div ref={rowTab.listRef} className="sn-tabrow" role="tablist" aria-label="갈피 탭">
+              <span ref={rowTab.indRef} className="sn-seg-ind" aria-hidden />
+              {TABS.map(({ k, short }) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === k}
+                  onClick={() => goTab(k)}
+                >
+                  {short}
+                  {tabBadge(k) && <span className="sn-dot" aria-label={tabBadge(k) || ''} />}
+                </button>
+              ))}
+            </div>
+          )}
+          {showNudge && (
+            <div className="sn-nudge" role="status">
+              <div className="sn-nudge-text">
+                <b>지금은 이 기기에만 저장되고 있어요.</b> 로그인하면 다른 기기에서도 보이고,
+                사진·영상도 붙일 수 있어요. 적어 둔 노트는 그대로 옮겨져요.
+              </div>
+              <button type="button" className="sn-btn sn-primary" onClick={onLogin}>
+                <LogIn className="sn-icon" aria-hidden />
+                로그인
+              </button>
+              <button
+                type="button"
+                className="sn-x"
+                aria-label="일주일 동안 보지 않기"
+                onClick={snoozeNudge}
+              >
+                <X className="sn-icon" style={{ width: 16, height: 16 }} />
+              </button>
+            </div>
+          )}
+          {!deep && tab === 'groups' && gctx && !gctx.anonymous && gctx.store.groups.length > 0 && (
+            <div className="sn-subchips" aria-label="내 모임">
+              {gctx.store.groups.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  aria-pressed={sp.get('group') === g.id}
+                  onClick={() => gctx.openGroup(g.id)}
+                >
+                  {g.name}
+                </button>
+              ))}
+              <button type="button" onClick={gctx.openCreate}>
+                <Plus className="sn-icon" aria-hidden />
+                만들기
+              </button>
+            </div>
+          )}
+          {!deep && subs.length > 0 && (
+            <div className="sn-subchips" aria-label="보기">
+              {subs.flatMap((g) => g.items).map(subChip)}
+            </div>
+          )}
+          {main ? (
+            main
+          ) : (
+            <>
+              {showSearch && (
+                <div className="sn-toolbar">
+                  <label className="sn-search" htmlFor="sn-q">
+                    <Search className="sn-icon" style={{ color: 'var(--sn-muted)' }} aria-hidden />
+                    <span className="sn-sr">검색</span>
+                    <input
+                      id="sn-q"
+                      type="search"
+                      placeholder="제목, 설교자, 구절(예: 요 15), 내 생각 검색"
+                      autoComplete="off"
+                      value={q}
+                      onChange={(e) => setQ(e.target.value)}
+                    />
+                  </label>
+                </div>
+              )}
+              <div>{body}</div>
+            </>
+          )}
+          {showFab && (
+            <button type="button" className="sn-fab" aria-label="새 설교 기록" onClick={onNew}>
+              <Plus aria-hidden />
+              <span>새 기록</span>
+            </button>
+          )}
+        </main>
+        {standalone && (
+          <div className="sn-bdock" data-away={abar.active}>
+            <SermonBottomNav tabs={TABS} tab={tab} badge={tabBadge} onGo={goTab} />
+            <div ref={abar.slotRef} className="sn-abar-slot" />
+          </div>
         )}
-        {showFab && (
-          <button type="button" className="sn-fab" aria-label="새 설교 기록" onClick={onNew}>
-            <Plus aria-hidden />
-            <span>새 기록</span>
-          </button>
-        )}
-      </main>
-      {standalone && <SermonBottomNav tabs={TABS} tab={tab} badge={tabBadge} onGo={goTab} />}
-    </section>
+      </section>
+    </ActionBarHostProvider>
   );
 }

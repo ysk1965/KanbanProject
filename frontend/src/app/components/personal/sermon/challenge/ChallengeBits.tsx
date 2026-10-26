@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import './challenge.css';
 
 /** 달란트 동전 */
@@ -15,26 +14,10 @@ export function Coin({ size = 20 }: { size?: number }) {
   );
 }
 
-/** 게임·랭킹 화면 머리 — 뒤로 + 제목 + 오른쪽 */
-export function PanelHead({
-  title,
-  onBack,
-  right,
-}: {
-  title: string;
-  onBack: () => void;
-  right?: ReactNode;
-}) {
+/** 게임·랭킹 화면 머리 — 제목 + 오른쪽 (뒤로는 SnActionBar) */
+export function PanelHead({ title, right }: { title: string; right?: ReactNode }) {
   return (
     <div className="sn-ch-head">
-      <button
-        type="button"
-        className="sn-btn sn-ghost sn-icon-only"
-        aria-label="챌린지 홈으로"
-        onClick={onBack}
-      >
-        <ArrowLeft className="sn-icon" aria-hidden />
-      </button>
       <h2>{title}</h2>
       {right && <div className="sn-ch-head-r">{right}</div>}
     </div>

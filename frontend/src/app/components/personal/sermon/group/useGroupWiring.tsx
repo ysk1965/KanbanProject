@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { SetURLSearchParams } from 'react-router-dom';
+import { useNavigate, type SetURLSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { SnOverlay } from '../SnOverlay';
@@ -95,13 +95,23 @@ export function useGroupWiring({
     },
     [setOpenId, setView],
   );
+  /** 여기서 연 설교 자리 — 닫을 때 기록을 한 칸 되돌린다 (시스템 뒤로와 같은 곳으로) */
+  const pushedSession = useRef<string | null>(null);
+  const navigate = useNavigate();
   const openSession = useCallback(
     (sid: string, gid: string) => {
       setOpenId(null);
       setView({ group: gid, session: sid });
+      pushedSession.current = sid;
     },
     [setOpenId, setView],
   );
+  const closeSession = useCallback(() => {
+    if (pushedSession.current && pushedSession.current === searchParams.get('session')) {
+      pushedSession.current = null;
+      navigate(-1);
+    } else setView({ session: null }, false);
+  }, [navigate, searchParams, setView]);
   const leaveMain = useCallback(() => {
     if (searchParams.get('group') || searchParams.get('session'))
       setView({ group: null, session: null });
@@ -355,7 +365,7 @@ export function useGroupWiring({
         groupId={groupView}
         sessionId={sessionView}
         notes={notes}
-        onBack={() => setView({ session: null })}
+        onBack={closeSession}
         onOpenNote={(id) => setOpenId(id)}
         onWriteHere={(d) => writeHere(groupView, d)}
       />

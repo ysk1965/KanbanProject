@@ -464,6 +464,38 @@
   .sermon-app .sn-subchips button[aria-pressed='true'] .sn-count {
     color: inherit;
   }
+  /* 성경 탭 — 칩 대신 밑줄 글자 탭 (아래 읽기 줄과 무게가 겹치지 않게) */
+  .sermon-app .sn-list[data-tab='bible'] .sn-subchips {
+    gap: 18px;
+    border-bottom: 1px solid var(--sn-line);
+  }
+  .sermon-app .sn-list[data-tab='bible'] .sn-subchips button,
+  .sermon-app .sn-list[data-tab='bible'] .sn-subchips button[aria-pressed='true'] {
+    position: relative;
+    gap: 4px;
+    min-height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--sn-muted);
+  }
+  .sermon-app .sn-list[data-tab='bible'] .sn-subchips button[aria-pressed='true'] {
+    color: var(--sn-fg);
+  }
+  .sermon-app .sn-list[data-tab='bible'] .sn-subchips button .sn-count {
+    color: var(--sn-faint);
+  }
+  .sermon-app .sn-list[data-tab='bible'] .sn-subchips button[aria-pressed='true']::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2.5px;
+    border-radius: 2px;
+    background: var(--sn-fg);
+  }
   .sermon-app .sn-fab {
     display: inline-flex;
     align-items: center;

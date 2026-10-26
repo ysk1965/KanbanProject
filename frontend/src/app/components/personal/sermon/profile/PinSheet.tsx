@@ -1,10 +1,20 @@
-import { useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, Search, X } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, Loader2, Search, Share2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { SnOverlay } from '../SnOverlay';
 import { refShort } from '../bibleRefs';
 import { INKS, type MascotId } from '../sermonLook';
 import { fmtDate, mainRef, noteRefs, plainText, UNTITLED, type SermonNote } from '../sermonTypes';
+import { CARD_BRAND } from '../share/ShareCard';
+import { cardShareText, cardUrl, coverData } from '../share/shareModel';
+import {
+  CARD_RENDER_WIDTH,
+  cardFileName,
+  cardToBlob,
+  copyText,
+  downloadBlob,
+  shareImage,
+} from '../share/shareImage';
 import { PolaroidCover } from './Polaroid';
 import {
   MAX_PINS,
@@ -38,6 +48,8 @@ export function PinSheet({
 }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  const [sharing, setSharing] = useState(false);
+  const shotRef = useRef<HTMLDivElement>(null);
   const id = editId ?? picked;
   const pins = profile.data.pins;
   const pin = id ? pins.find((p) => p.note_id === id) : undefined;
@@ -86,7 +98,35 @@ export function PinSheet({
     setPicked(noteId);
   };
 
+  /** 꾸민 카드를 그대로 이미지로 — 파일 공유를 못 하는 브라우저는 저장 + 링크 복사 */
+  const share = async () => {
+    if (!note || !shotRef.current || sharing) return;
+    setSharing(true);
+    try {
+      const blob = await cardToBlob(shotRef.current);
+      const name = cardFileName(note.title || UNTITLED);
+      const data = coverData(note);
+      const link = cardUrl(data);
+      const res = await shareImage(blob, name, cardShareText(data), link);
+      if (res === 'unsupported') {
+        downloadBlob(blob, name);
+        const ok = await copyText(link);
+        toast(ok ? '이미지를 저장하고 카드 링크를 복사했어요' : '이미지를 저장했어요');
+      }
+    } catch (e) {
+      console.error('pin card share failed', e);
+      toast('카드를 만들지 못했어요. 다시 시도해 주세요');
+    } finally {
+      setSharing(false);
+    }
+  };
+
   const editing = !!(pin && note);
+  const shotMeta = note
+    ? [fmtDate(note.date), note.service, note.preacher].filter(Boolean).join(' · ')
+    : '';
+  // 이미지 캡처는 line-clamp 말줄임이 안 찍혀서 글자 수로 자른다
+  const shotTitle = note ? clip(note.title || UNTITLED, 44) : '';
 
   return (
     <SnOverlay open={open} onClose={close} className="snp-sheet" aria-labelledby="snp-pin-title">
@@ -220,9 +260,39 @@ export function PinSheet({
               >
                 고정 풀기
               </button>
+              <button
+                type="button"
+                className="snp-btn"
+                disabled={sharing}
+                onClick={() => void share()}
+              >
+                {sharing ? (
+                  <Loader2 className="sn-icon animate-spin" aria-hidden />
+                ) : (
+                  <Share2 className="sn-icon" aria-hidden />
+                )}
+                공유
+              </button>
               <button type="button" className="snp-btn snp-primary" onClick={close}>
                 완료
               </button>
+            </div>
+          </div>
+
+          {/* 공유 이미지용 — 화면 밖에 고정 폭으로 그린다 */}
+          <div className="snp-shot" aria-hidden>
+            <div ref={shotRef} className="snp-shot-card" style={{ width: CARD_RENDER_WIDTH }}>
+              <div className="snp-pola snp-pola-static">
+                <span className="snp-tape" />
+                <PolaroidCover pin={pin} note={note} mascot={mascot} />
+                <span className="snp-pola-t">{shotTitle}</span>
+                {pin.line && <span className="snp-pola-l">“{pin.line}”</span>}
+                {shotMeta && <span className="snp-pola-m">{shotMeta}</span>}
+              </div>
+              <div className="snp-shot-brand">
+                <b>설교 노트</b>
+                <span>{CARD_BRAND}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -264,4 +334,8 @@ export function PinSheet({
       )}
     </SnOverlay>
   );
+}
+
+function clip(t: string, max: number): string {
+  return t.length > max ? t.slice(0, max).trimEnd() + '…' : t;
 }

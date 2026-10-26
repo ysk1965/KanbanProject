@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Loader2, LogIn, PenLine } from 'lucide-react';
+import { Check, Loader2, LogIn, PenLine } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { decRef, refLong } from '../bibleRefs';
 import { Mascot } from '../Mascot';
 import { applyInk, loadLook } from '../sermonLook';
-import { fmtDate, todayString } from '../sermonTypes';
+import { todayString } from '../sermonTypes';
 import { weekStartOf } from './sessionMatch';
 import { ensureSermonFonts } from '../share/fonts';
 import { startPath } from '../share/shareModel';
 import { groupErrorMessage, sermonGroupAPI, type InvitePreview } from './groupApi';
 import { groupStoreFor } from './groupStore';
-import { kindName, meetLabel, slotsLabel } from './servicePresets';
+import { GroupSticker, stickerTilt, stickerTone } from './GroupSticker';
+import { DOW_KO, kindName, meetLabel, slotsLabel } from './servicePresets';
 import '../sermon.css';
 import './group.css';
 
@@ -125,49 +126,84 @@ export default function GroupJoinPage() {
           </div>
         ) : (
           <>
-            <div className="sg-hero">
-              <div>
-                <small>
-                  {kindName(preview.kind)}
-                  {preview.leader_name ? ` · 리더 ${preview.leader_name}` : ''} ·{' '}
-                  {preview.member_count}명
-                  {preview.meet_dow != null
-                    ? ` · ${meetLabel(preview.meet_dow, preview.meet_time)} 모임`
-                    : ''}
-                </small>
-                <h1 style={{ fontSize: 24 }}>{preview.name}</h1>
-                <p>
-                  {preview.services
-                    .filter((s) => s.active)
-                    .map((s) => s.name)
-                    .join(' · ')}
-                  을 같이 기록해요
-                </p>
+            <section className="sg-invite">
+              <span className="sg-cover-tape" aria-hidden />
+              <GroupSticker
+                name={preview.name}
+                kind={kindName(preview.kind)}
+                sub={preview.services
+                  .filter((s) => s.active)
+                  .map((s) => s.name)
+                  .slice(0, 2)
+                  .join(' · ')}
+                size={176}
+                tone={stickerTone(preview.group_id)}
+                tilt={stickerTilt(preview.group_id)}
+              >
+                <Mascot kind={look.mascot} size={56} className="sg-stk-m" />
+              </GroupSticker>
+              <p className="sg-hand sg-invite-hi">
+                {preview.leader_name
+                  ? `${preview.leader_name} 님이 「${preview.name}」에 초대했어요`
+                  : `「${preview.name}」에 초대받았어요`}
+              </p>
+              <h1>같은 설교, 같이 꽂아요</h1>
+              <div className="sg-cover-chips">
+                <span className="sg-tagchip">{preview.member_count}명</span>
+                {preview.services
+                  .filter((s) => s.active)
+                  .map((s) => (
+                    <span key={s.id} className="sg-tagchip">
+                      {s.name}
+                    </span>
+                  ))}
+                {preview.meet_dow != null && (
+                  <span className="sg-tagchip" data-tone="2">
+                    {meetLabel(preview.meet_dow, preview.meet_time)} 모임
+                  </span>
+                )}
               </div>
-            </div>
+            </section>
 
             {(preview.this_week || []).length > 0 && (
-              <div className="sg-list">
-                {(preview.this_week || []).map((s) => {
+              <section className="sg-week">
+                <div className="sg-wkh">
+                  <b>이번 주 설교 자리</b>
+                  <span className="sg-hand">참여하면 내 노트도 여기 붙어요</span>
+                </div>
+                {(preview.this_week || []).map((s, idx) => {
                   const r = (s.refs || []).map(decRef).find(Boolean);
+                  const [y, m, d] = s.date.split('-').map(Number);
+                  const title = s.title || (r ? refLong(r) : '');
                   return (
                     <div
                       key={`${s.service_id}${s.date}${s.name}`}
-                      className="sg-card"
-                      style={{ gridTemplateColumns: 'minmax(0,1fr) auto' }}
+                      className="sg-dcard"
+                      data-static
+                      data-empty={!s.recorded_count || undefined}
+                      style={{ ['--i' as string]: idx }}
                     >
-                      <span className="sg-ti">
-                        <small>
-                          {fmtDate(s.date)} ·{' '}
+                      <span className="sg-dnum">
+                        <b>{d}</b>
+                        <small>{DOW_KO[new Date(y, m - 1, d).getDay()]}</small>
+                      </span>
+                      <span className="sg-dbody">
+                        <small className="sg-dsvc">
                           {s.name || preview.services.find((x) => x.id === s.service_id)?.name}
                         </small>
-                        <b>{s.title || (r ? refLong(r) : '설교 정보 아직')}</b>
+                        <b className="sg-dttl" data-ph={!title || undefined}>
+                          {title || '아직 제목 없는 설교'}
+                        </b>
+                        <span className="sg-hand sg-dhand">
+                          {s.recorded_count
+                            ? `${s.recorded_count}명이 꽂았어요`
+                            : '아직 비어 있어요'}
+                        </span>
                       </span>
-                      <span className="sg-note">{s.recorded_count}명 기록</span>
                     </div>
                   );
                 })}
-              </div>
+              </section>
             )}
             <p className="sg-note">멤버들의 노트는 참여한 뒤에 보여요.</p>
 
@@ -182,8 +218,9 @@ export default function GroupJoinPage() {
                 모임 홈 열기
               </button>
             ) : preview.my_status === 'pending' ? (
-              <div className="sg-empty" style={{ padding: 12 }}>
-                리더 승인을 기다리는 중이에요.
+              <div className="sg-quiet">
+                <Mascot kind={look.mascot} size={60} state="think" />
+                <p className="sg-hand">리더 승인을 기다리는 중이에요</p>
                 <button type="button" className="sn-btn" onClick={() => navigate('/sermonnote')}>
                   내 노트로
                 </button>
@@ -200,7 +237,10 @@ export default function GroupJoinPage() {
                 </button>
               </>
             ) : (
-              <div className="sg-share">
+              <div className="sg-setcard">
+                <h3>
+                  <span className="sg-label-stk">참여</span>모임에서 이렇게 불려요
+                </h3>
                 <label className="sg-field" htmlFor="sg-join-name">
                   모임에서 쓸 내 이름
                   <input
@@ -216,13 +256,16 @@ export default function GroupJoinPage() {
                     <span style={{ fontWeight: 500 }}>
                       · 안 드리는 예배는 끄면 그 시간 노트가 모임에 붙지 않아요
                     </span>
-                    <div className="sg-chips">
+                    <div className="sg-svstk">
                       {preview.services
                         .filter((s) => s.active)
-                        .map((s) => (
+                        .map((s, i) => (
                           <button
                             key={s.id}
                             type="button"
+                            className="sg-sv"
+                            data-tone={i % 2 ? 2 : 1}
+                            title={slotsLabel(s)}
                             aria-pressed={!muted.includes(s.id)}
                             onClick={() =>
                               setMuted((m) =>
@@ -230,8 +273,10 @@ export default function GroupJoinPage() {
                               )
                             }
                           >
+                            <span className="sg-sv-bx" aria-hidden>
+                              <Check size={12} strokeWidth={3} />
+                            </span>
                             {s.name}
-                            <small>{slotsLabel(s)}</small>
                           </button>
                         ))}
                     </div>

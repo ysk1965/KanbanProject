@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type TouchEvent,
+} from 'react';
 import {
   ChevronDown,
   ChevronLeft,
@@ -6,6 +14,7 @@ import {
   Highlighter,
   Loader2,
   PenLine,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { BOOKS, OT_COUNT, PSALMS, chCount, encRef, refLong, refShort, type Ref } from './bibleRefs';
@@ -23,6 +32,7 @@ import {
   type Highlight,
 } from './bibleHighlights';
 import { HighlightBubble } from './HighlightBubble';
+import { BiblePickSheet } from './BiblePickSheet';
 import { ShareSheet } from './share/ShareSheet';
 import { copyText } from './share/shareImage';
 import type { LineQuote } from './share/shareModel';
@@ -51,6 +61,14 @@ interface BibleReaderProps {
 const POS_KEY = 'sermon-bible-pos';
 const HAND_KEY = 'sermon-bible-hand';
 const HL_KEY = 'sermon-bible-hl';
+const FS_KEY = 'sermon-bible-fs';
+const TIP_KEY = 'sermon-bible-swipe-tip';
+const FS_MIN = 14;
+const FS_MAX = 22;
+/** 좁은 화면 — 장 번호 줄 대신 책·장 시트, 보기 설정은 ⚙ 안으로 (sermonNav.css 와 같은 경계) */
+const NARROW = '(max-width: 760px)';
+/** 이만큼 밀면 장을 넘긴다 (px) */
+const SWIPE_MIN = 70;
 const HAND_MAX = 46;
 
 function loadPos(): { b: number; c: number } | null {
@@ -61,6 +79,26 @@ function loadPos(): { b: number; c: number } | null {
     /* ignore */
   }
   return null;
+}
+function loadFs(): number | null {
+  try {
+    const n = Number(localStorage.getItem(FS_KEY));
+    return n >= FS_MIN && n <= FS_MAX ? n : null;
+  } catch {
+    return null;
+  }
+}
+function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(NARROW).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW);
+    const on = () => setNarrow(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return narrow;
 }
 function loadFlag(key: string): boolean {
   try {
@@ -168,6 +206,18 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
   const [hand, setHand] = useState(() => loadFlag(HAND_KEY));
   const [showHl, setShowHl] = useState(() => loadFlag(HL_KEY));
   const [picker, setPicker] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [fs, setFs] = useState<number | null>(loadFs);
+  const narrow = useNarrow();
+  const viewRef = useRef<HTMLDivElement>(null);
+  const swipeRef = useRef<HTMLDivElement>(null);
+  const swipe = useRef<{
+    x: number;
+    y: number;
+    t: number;
+    axis: 'x' | 'y' | null;
+    dx: number;
+  } | null>(null);
   // 장을 넘긴 방향 — 종이가 그쪽에서 넘어온다 (첫 화면은 움직이지 않음)
   const [turn, setTurn] = useState<'fwd' | 'back' | null>(null);
   const headRef = useRef<HTMLDivElement>(null);
@@ -215,6 +265,9 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
         ? { b: pos.b + 1, c: 1 }
         : null;
   const nextMark = nextMarked(marks, pos.b, pos.c);
+  /** 같은 책이면 「72편」, 책이 바뀌면 「잠언 1장」 */
+  const stepLabel = (r: { b: number; c: number }) =>
+    r.b === pos.b ? `${r.c}${chName(r.b)}` : `${BOOKS[r.b][0]} ${r.c}${chName(r.b)}`;
 
   const list = marks.get(chKey(pos.b, pos.c));
   const hls = showHl ? hlStore.inChapter(pos.b, pos.c) : [];
@@ -408,6 +461,103 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
     });
   };
 
+  // ⚙ 보기 설정 — 바깥을 누르거나 Esc 로 닫기
+  useEffect(() => {
+    if (!viewOpen) return;
+    const down = (e: PointerEvent) => {
+      if (!viewRef.current?.contains(e.target as Node)) setViewOpen(false);
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setViewOpen(false);
+    };
+    document.addEventListener('pointerdown', down);
+    document.addEventListener('keydown', key);
+    return () => {
+      document.removeEventListener('pointerdown', down);
+      document.removeEventListener('keydown', key);
+    };
+  }, [viewOpen]);
+
+  // 좁은 화면 첫 방문 — 좌우로 넘길 수 있다고 한 번만 알려 준다
+  useEffect(() => {
+    if (!narrow || !bible) return;
+    try {
+      if (localStorage.getItem(TIP_KEY)) return;
+      localStorage.setItem(TIP_KEY, '1');
+    } catch {
+      return;
+    }
+    toast('본문을 좌우로 밀면 장을 넘길 수 있어요');
+  }, [narrow, bible]);
+
+  const stepFs = (d: number) => {
+    setFs((f) => {
+      const n = Math.min(FS_MAX, Math.max(FS_MIN, (f ?? (narrow ? 16 : 17)) + d));
+      save(FS_KEY, String(n));
+      return n;
+    });
+  };
+
+  /*
+   * 좌우 스와이프 — 터치에서만 (마우스 끌기는 글자 고르기).
+   * 처음 10px 움직인 방향으로 가로/세로를 정하고, 세로면 그대로 스크롤.
+   * 형광펜 버블이 떠 있거나 글자를 고르는 중이면 넘기지 않는다.
+   */
+  const settle = (animate: boolean) => {
+    const el = pageRef.current;
+    if (el) {
+      el.style.transition = animate ? 'transform 0.2s var(--sn-ease)' : '';
+      el.style.transform = '';
+    }
+    if (swipeRef.current) swipeRef.current.dataset.peek = '';
+  };
+  const selecting = () => {
+    const sel = window.getSelection();
+    return !!sel && !sel.isCollapsed;
+  };
+  const onTouchStart = (e: TouchEvent) => {
+    swipe.current = null;
+    if (e.touches.length !== 1 || pick || selecting()) return;
+    const t = e.touches[0];
+    swipe.current = { x: t.clientX, y: t.clientY, t: performance.now(), axis: null, dx: 0 };
+  };
+  const onTouchMove = (e: TouchEvent) => {
+    const s = swipe.current;
+    if (!s) return;
+    if (e.touches.length !== 1 || selecting()) {
+      swipe.current = null;
+      settle(true);
+      return;
+    }
+    const t = e.touches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (!s.axis) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      s.axis = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'x' : 'y';
+    }
+    if (s.axis !== 'x') return;
+    s.dx = dx;
+    const blocked = (dx > 0 && !prev) || (dx < 0 && !next);
+    const el = pageRef.current;
+    if (el) {
+      el.style.transition = 'none';
+      el.style.transform = `translateX(${blocked ? dx * 0.25 : dx}px)`;
+    }
+    if (swipeRef.current)
+      swipeRef.current.dataset.peek = dx > 40 && prev ? 'prev' : dx < -40 && next ? 'next' : '';
+  };
+  const onTouchEnd = () => {
+    const s = swipe.current;
+    swipe.current = null;
+    if (!s || s.axis !== 'x') return;
+    const fast = Math.abs(s.dx) / Math.max(1, performance.now() - s.t) > 0.5;
+    const far = Math.abs(s.dx) > SWIPE_MIN || (fast && Math.abs(s.dx) > 30);
+    const to = far ? (s.dx < 0 ? next : prev) : null;
+    settle(!to);
+    if (to) go(to.b, to.c);
+  };
+
   const toggleHl = () => {
     setPick(null);
     setShowHl((h) => {
@@ -454,16 +604,48 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
   );
 
   return (
-    <div className="sn-bible" data-hand={hand} data-hl={showHl}>
+    <div
+      className="sn-bible"
+      data-hand={hand}
+      data-hl={showHl}
+      style={fs ? ({ '--sn-bv-fs': `${fs}px` } as CSSProperties) : undefined}
+    >
       <div className="sn-bible-bar">
+        <button
+          type="button"
+          className="sn-bible-step"
+          aria-label="이전 장"
+          disabled={!prev}
+          onClick={() => prev && go(prev.b, prev.c)}
+        >
+          <ChevronLeft className="sn-icon" aria-hidden />
+        </button>
         <button
           type="button"
           className="sn-bible-book"
           aria-expanded={picker}
+          aria-haspopup={narrow ? 'dialog' : undefined}
           onClick={() => setPicker((p) => !p)}
         >
-          {bookName}
+          {narrow ? (
+            <>
+              {bookName} {pos.c}
+              {chName(pos.b)}
+              <small>/{chCount(pos.b)}</small>
+            </>
+          ) : (
+            bookName
+          )}
           <ChevronDown className="sn-icon" aria-hidden />
+        </button>
+        <button
+          type="button"
+          className="sn-bible-step"
+          aria-label="다음 장"
+          disabled={!next}
+          onClick={() => next && go(next.b, next.c)}
+        >
+          <ChevronRight className="sn-icon" aria-hidden />
         </button>
         <span className="sn-sp" />
         <button
@@ -487,9 +669,62 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
           형광펜
         </button>
         <span className="sn-label sn-hide-sm">개역한글</span>
+        <div className="sn-bible-view" ref={viewRef}>
+          <button
+            type="button"
+            className="sn-bible-step"
+            aria-label="보기 설정"
+            aria-expanded={viewOpen}
+            aria-haspopup="true"
+            onClick={() => setViewOpen((v) => !v)}
+          >
+            <SlidersHorizontal className="sn-icon" aria-hidden />
+          </button>
+          {viewOpen && (
+            <div className="sn-bible-viewpop" role="group" aria-label="보기 설정">
+              <button type="button" role="switch" aria-checked={hand} onClick={toggleHand}>
+                <span>
+                  손글씨
+                  <small>설교 노트의 생각을 여백에</small>
+                </span>
+                <i aria-hidden />
+              </button>
+              <button type="button" role="switch" aria-checked={showHl} onClick={toggleHl}>
+                <span>
+                  형광펜
+                  <small>내가 칠한 구절</small>
+                </span>
+                <i aria-hidden />
+              </button>
+              <div className="sn-bible-fs">
+                <span>글자 크기</span>
+                <span className="sn-sp" />
+                <button
+                  type="button"
+                  aria-label="글자 작게"
+                  disabled={(fs ?? 16) <= FS_MIN}
+                  onClick={() => stepFs(-1)}
+                >
+                  가−
+                </button>
+                <button
+                  type="button"
+                  aria-label="글자 크게"
+                  disabled={(fs ?? 16) >= FS_MAX}
+                  onClick={() => stepFs(1)}
+                >
+                  가+
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="sn-bible-prog" aria-hidden>
+        <i style={{ width: `${(pos.c / chCount(pos.b)) * 100}%` }} />
       </div>
 
-      {picker && (
+      {picker && !narrow && (
         <div className="sn-bpick">
           <div className="sn-label">구약</div>
           {bookGrid(0, OT_COUNT)}
@@ -520,193 +755,233 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
         })}
       </div>
 
-      <article
-        key={turn ? `${pos.b}-${pos.c}` : undefined}
-        ref={pageRef}
-        className="sn-bible-page"
-        data-turn={turn || undefined}
-        aria-label={`${bookName} ${pos.c}${chName(pos.b)}`}
+      <BiblePickSheet
+        open={picker && narrow}
+        onClose={() => setPicker(false)}
+        pos={pos}
+        marks={marks}
+        counts={counts}
+        hlChaptersOf={(b) => (showHl ? hlStore.chaptersOf(b) : new Set<number>())}
+        onGo={go}
+      />
+
+      <div
+        className="sn-bible-swipe"
+        ref={swipeRef}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={() => {
+          swipe.current = null;
+          settle(true);
+        }}
       >
-        <div className="sn-bible-head" ref={headRef}>
-          <h2 className="sn-bible-title">
-            {bookName} <em>{pos.c}</em>
-          </h2>
-          <span className="sn-label">
-            {text.length ? `${text.length}절` : ''}
-            {list?.length
-              ? ` · 설교 ${new Set(list.map((m) => m.note.id)).size}편이 지나간 장`
-              : ''}
-            {hls.length ? ` · 내 형광펜 ${hls.length}` : ''}
+        {prev && (
+          <span className="sn-bible-peek" data-side="prev" aria-hidden>
+            <ChevronLeft className="sn-icon" />
+            {stepLabel(prev)}
           </span>
-        </div>
-        {hand && whole.length > 0 && (
-          <div className="sn-bv-hands sn-bible-whole">
-            {whole.map((m) => (
-              <Hand key={`${m.note.id}|w`} m={m} onOpen={onOpen} />
-            ))}
-          </div>
         )}
-
-        {!bible ? (
-          failed ? (
-            <div className="sn-empty">
-              성경 본문을 불러오지 못했어요. 연결을 확인하고 다시 열어 주세요.
-            </div>
-          ) : (
-            <div className="sn-bible-loading" role="status" aria-label="불러오는 중">
-              <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--sn-accent)' }} />
-            </div>
-          )
-        ) : (
-          <div className="sn-bible-text" ref={textRef}>
-            {text.map((t, i) => {
-              const v = i + 1;
-              const on = marksOn(list, v);
-              const starts = on.filter((m) => m.ref.v1 === v);
-              const kind = on.some((m) => m.kind === 'main')
-                ? 'main'
-                : on.length
-                  ? 'quote'
-                  : undefined;
-              const segs = hls.length ? segmentsFor(hls, v, t.length) : null;
-              const memos = hls.filter((h) => h.v2 === v && h.memo.trim());
-              const picked =
-                !!pick &&
-                !pick.target &&
-                v >= pick.range.v1 &&
-                v <= pick.range.v2 &&
-                isWhole(pick.range, lenOf);
-              return (
-                <div
-                  key={v}
-                  className="sn-bv-row"
-                  data-v={v}
-                  data-pick={picked || undefined}
-                  data-flash={flash === v || undefined}
-                >
-                  <p className="sn-bv" data-mark={kind}>
-                    <span className="sn-bv-n">{v}</span>
-                    <span className="sn-bv-t" onClick={(e) => tapVerse(v, e.currentTarget)}>
-                      {segs
-                        ? segs.map((g) =>
-                            g.top || g.ul ? (
-                              <span
-                                key={g.from}
-                                className="sn-hl"
-                                data-c={g.top?.color || undefined}
-                                data-ul={g.ul || undefined}
-                                data-memo={!!g.top?.memo || undefined}
-                                data-sel={
-                                  (!!pick?.target && g.top?.id === pick.target) || undefined
-                                }
-                              >
-                                {t.slice(g.from, g.to)}
-                              </span>
-                            ) : (
-                              t.slice(g.from, g.to)
-                            ),
-                          )
-                        : t}
-                    </span>
-                  </p>
-                  {((hand && starts.length > 0) || memos.length > 0) && (
-                    <div className="sn-bv-hands">
-                      {hand &&
-                        starts.map((m) => (
-                          <Hand
-                            key={`${m.note.id}|${m.ref.v1}-${m.ref.v2}`}
-                            m={m}
-                            onOpen={onOpen}
-                          />
-                        ))}
-                      {memos.map((h) => (
-                        <button
-                          key={h.id}
-                          type="button"
-                          className="sn-hand sn-hand-mine"
-                          onClick={(e) => openMemo(h, e.currentTarget)}
-                          aria-label={`내 메모: ${h.memo} — 고치기`}
-                        >
-                          <span className="sn-hand-line">
-                            <span
-                              className="sn-hand-dot"
-                              data-c={h.color || undefined}
-                              aria-hidden
-                            />
-                            {clip(h.memo, HAND_MAX)}
-                          </span>
-                          <span className="sn-hand-src">
-                            내 형광펜 ·{' '}
-                            {refShort({ b: h.b, c: h.c, v1: h.v1, v2: h.v2, whole: false })}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        {next && (
+          <span className="sn-bible-peek" data-side="next" aria-hidden>
+            {stepLabel(next)}
+            <ChevronRight className="sn-icon" />
+          </span>
         )}
-
-        <nav className="sn-bible-foot" aria-label="장 이동">
-          <button
-            type="button"
-            className="sn-btn sn-ghost"
-            disabled={!prev}
-            onClick={() => prev && go(prev.b, prev.c)}
-          >
-            <ChevronLeft className="sn-icon" aria-hidden />
-            {prev ? `${BOOKS[prev.b][1]} ${prev.c}` : '처음'}
-          </button>
-          {nextMark ? (
-            <button
-              type="button"
-              className="sn-chip sn-bible-nextmark"
-              onClick={() => go(nextMark.b, nextMark.c)}
-            >
-              <Mascot kind={mascot} size={20} />
-              다음 손글씨 {BOOKS[nextMark.b][1]} {nextMark.c}
-            </button>
-          ) : (
-            <span />
+        <article
+          key={turn ? `${pos.b}-${pos.c}` : undefined}
+          ref={pageRef}
+          className="sn-bible-page"
+          data-turn={turn || undefined}
+          aria-label={`${bookName} ${pos.c}${chName(pos.b)}`}
+        >
+          <div className="sn-bible-head" ref={headRef}>
+            <h2 className="sn-bible-title">
+              {bookName} <em>{pos.c}</em>
+            </h2>
+            <span className="sn-label">
+              {text.length ? `${text.length}절` : ''}
+              {list?.length
+                ? ` · 설교 ${new Set(list.map((m) => m.note.id)).size}편이 지나간 장`
+                : ''}
+              {hls.length ? ` · 내 형광펜 ${hls.length}` : ''}
+            </span>
+          </div>
+          {hand && whole.length > 0 && (
+            <div className="sn-bv-hands sn-bible-whole">
+              {whole.map((m) => (
+                <Hand key={`${m.note.id}|w`} m={m} onOpen={onOpen} />
+              ))}
+            </div>
           )}
-          <button
-            type="button"
-            className="sn-btn sn-primary"
-            disabled={!next}
-            onClick={() => next && go(next.b, next.c)}
-          >
-            {next ? `${BOOKS[next.b][1]} ${next.c}` : '끝'}
-            <ChevronRight className="sn-icon" aria-hidden />
-          </button>
-        </nav>
-        {pick && (
-          <HighlightBubble
-            x={pick.x}
-            y={pick.y}
-            color={target?.color ?? null}
-            ul={!!target?.ul}
-            memo={target?.memo || ''}
-            canClear={overlapping.length > 0}
-            memoFirst={pick.memoFirst}
-            label={`${pickLabel}|${pick.target || ''}`}
-            onColor={applyColor}
-            onUnderline={applyUnderline}
-            onMemo={applyMemo}
-            onCard={cardPick}
-            onCopy={() => void copyPick()}
-            onClear={clearPick}
-            onClose={() => setPick(null)}
-          />
-        )}
-        {!marks.size && (
-          <p className="sn-bible-hint">
-            설교 노트에 넣은 구절은 여기 성경에 손글씨로 남아요. 본문 구절이나 설교 중 구절을 넣어
-            보세요.
-          </p>
-        )}
-      </article>
+
+          {!bible ? (
+            failed ? (
+              <div className="sn-empty">
+                성경 본문을 불러오지 못했어요. 연결을 확인하고 다시 열어 주세요.
+              </div>
+            ) : (
+              <div className="sn-bible-loading" role="status" aria-label="불러오는 중">
+                <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--sn-accent)' }} />
+              </div>
+            )
+          ) : (
+            <div className="sn-bible-text" ref={textRef}>
+              {text.map((t, i) => {
+                const v = i + 1;
+                const on = marksOn(list, v);
+                const starts = on.filter((m) => m.ref.v1 === v);
+                const kind = on.some((m) => m.kind === 'main')
+                  ? 'main'
+                  : on.length
+                    ? 'quote'
+                    : undefined;
+                const segs = hls.length ? segmentsFor(hls, v, t.length) : null;
+                const memos = hls.filter((h) => h.v2 === v && h.memo.trim());
+                const picked =
+                  !!pick &&
+                  !pick.target &&
+                  v >= pick.range.v1 &&
+                  v <= pick.range.v2 &&
+                  isWhole(pick.range, lenOf);
+                return (
+                  <div
+                    key={v}
+                    className="sn-bv-row"
+                    data-v={v}
+                    data-pick={picked || undefined}
+                    data-flash={flash === v || undefined}
+                  >
+                    <p className="sn-bv" data-mark={kind}>
+                      <span className="sn-bv-n">{v}</span>
+                      <span className="sn-bv-t" onClick={(e) => tapVerse(v, e.currentTarget)}>
+                        {segs
+                          ? segs.map((g) =>
+                              g.top || g.ul ? (
+                                <span
+                                  key={g.from}
+                                  className="sn-hl"
+                                  data-c={g.top?.color || undefined}
+                                  data-ul={g.ul || undefined}
+                                  data-memo={!!g.top?.memo || undefined}
+                                  data-sel={
+                                    (!!pick?.target && g.top?.id === pick.target) || undefined
+                                  }
+                                >
+                                  {t.slice(g.from, g.to)}
+                                </span>
+                              ) : (
+                                t.slice(g.from, g.to)
+                              ),
+                            )
+                          : t}
+                      </span>
+                    </p>
+                    {((hand && starts.length > 0) || memos.length > 0) && (
+                      <div className="sn-bv-hands">
+                        {hand &&
+                          starts.map((m) => (
+                            <Hand
+                              key={`${m.note.id}|${m.ref.v1}-${m.ref.v2}`}
+                              m={m}
+                              onOpen={onOpen}
+                            />
+                          ))}
+                        {memos.map((h) => (
+                          <button
+                            key={h.id}
+                            type="button"
+                            className="sn-hand sn-hand-mine"
+                            onClick={(e) => openMemo(h, e.currentTarget)}
+                            aria-label={`내 메모: ${h.memo} — 고치기`}
+                          >
+                            <span className="sn-hand-line">
+                              <span
+                                className="sn-hand-dot"
+                                data-c={h.color || undefined}
+                                aria-hidden
+                              />
+                              {clip(h.memo, HAND_MAX)}
+                            </span>
+                            <span className="sn-hand-src">
+                              내 형광펜 ·{' '}
+                              {refShort({ b: h.b, c: h.c, v1: h.v1, v2: h.v2, whole: false })}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <nav className="sn-bible-foot" aria-label="장 이동">
+            {nextMark && (
+              <button
+                type="button"
+                className="sn-bible-nextmark"
+                onClick={() => go(nextMark.b, nextMark.c)}
+              >
+                <Mascot kind={mascot} size={22} />
+                <span>다음 손글씨</span>
+                <b>
+                  {BOOKS[nextMark.b][0]} {nextMark.c}
+                  {chName(nextMark.b)}
+                </b>
+                <span className="sn-sp" />
+                <ChevronRight className="sn-icon" aria-hidden />
+              </button>
+            )}
+            <div className="sn-bible-pn">
+              <button
+                type="button"
+                className="sn-btn sn-ghost"
+                disabled={!prev}
+                onClick={() => prev && go(prev.b, prev.c)}
+              >
+                <ChevronLeft className="sn-icon" aria-hidden />
+                {prev ? stepLabel(prev) : '처음'}
+              </button>
+              <button
+                type="button"
+                className="sn-btn sn-primary"
+                disabled={!next}
+                onClick={() => next && go(next.b, next.c)}
+              >
+                {next ? stepLabel(next) : '끝'}
+                <ChevronRight className="sn-icon" aria-hidden />
+              </button>
+            </div>
+          </nav>
+          {pick && (
+            <HighlightBubble
+              x={pick.x}
+              y={pick.y}
+              color={target?.color ?? null}
+              ul={!!target?.ul}
+              memo={target?.memo || ''}
+              canClear={overlapping.length > 0}
+              memoFirst={pick.memoFirst}
+              label={`${pickLabel}|${pick.target || ''}`}
+              onColor={applyColor}
+              onUnderline={applyUnderline}
+              onMemo={applyMemo}
+              onCard={cardPick}
+              onCopy={() => void copyPick()}
+              onClear={clearPick}
+              onClose={() => setPick(null)}
+            />
+          )}
+          {!marks.size && (
+            <p className="sn-bible-hint">
+              설교 노트에 넣은 구절은 여기 성경에 손글씨로 남아요. 본문 구절이나 설교 중 구절을 넣어
+              보세요.
+            </p>
+          )}
+        </article>
+      </div>
       <ShareSheet
         open={!!card}
         note={card?.note || null}

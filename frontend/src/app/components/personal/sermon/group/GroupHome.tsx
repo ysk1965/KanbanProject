@@ -739,6 +739,7 @@ function Members({
               <button
                 type="button"
                 className="sn-btn sn-primary"
+                data-tapfx="share"
                 onClick={() => void shareInvite(group)}
               >
                 <Share2 className="sn-icon" />

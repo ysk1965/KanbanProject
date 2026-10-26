@@ -15,6 +15,7 @@ import {
 } from './bibleRefs';
 import { verseHTML } from './editorCore';
 import { useBible } from './useBible';
+import { useJellyTab } from './microFx';
 import { SnOverlay } from './SnOverlay';
 
 /**
@@ -40,9 +41,19 @@ const FORMS: Array<[Exclude<InsertForm, 'meta'>, string]> = [
   ['thought', '생각 패널에'],
 ];
 
+const PTABS: Array<[Tab, string]> = [
+  ['quick', '빠른 입력'],
+  ['book', '책 · 장 선택'],
+  ['recent', '최근 구절'],
+];
+
 export function VersePicker({ open, target, recent, onClose, onInsert }: VersePickerProps) {
   const { bible } = useBible();
   const [tab, setTab] = useState<Tab>('quick');
+  const tabs = useJellyTab(
+    PTABS.findIndex(([k]) => k === tab),
+    { axis: 'x', dep: open },
+  );
   const [q, setQ] = useState('');
   const [list, setList] = useState<Suggestion[]>([]);
   const [idx, setIdx] = useState(0);
@@ -295,14 +306,9 @@ export function VersePicker({ open, target, recent, onClose, onInsert }: VersePi
           넣기
         </button>
       </div>
-      <div className="sn-ptabs" role="tablist">
-        {(
-          [
-            ['quick', '빠른 입력'],
-            ['book', '책 · 장 선택'],
-            ['recent', '최근 구절'],
-          ] as Array<[Tab, string]>
-        ).map(([k, l]) => (
+      <div ref={tabs.listRef} className="sn-ptabs" role="tablist">
+        <span ref={tabs.indRef} className="sn-ptab-ind" aria-hidden />
+        {PTABS.map(([k, l]) => (
           <button
             key={k}
             type="button"

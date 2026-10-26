@@ -14,6 +14,7 @@ import {
 } from './sermonStyle';
 import { esc } from './sermonTypes';
 import { getBible } from './useBible';
+import { useJellyTab } from './microFx';
 
 /**
  * 서식 설정 창 — 기획서 §7.
@@ -41,6 +42,10 @@ function previewHTML(): string {
 
 export function StyleSettingsModal({ open, style, onChange, onClose }: StyleSettingsModalProps) {
   const [tab, setTab] = useState<StyleGroup>('bold');
+  const tabs = useJellyTab((Object.keys(STYLE_UI) as StyleGroup[]).indexOf(tab), {
+    axis: 'x',
+    dep: open,
+  });
   const previewRef = useRef<HTMLDivElement>(null);
 
   // 포털 밖이라 .sermon-app 의 변수가 닿지 않는다 → 미리보기 상자에 직접 적용
@@ -66,7 +71,8 @@ export function StyleSettingsModal({ open, style, onChange, onClose }: StyleSett
           <X className="sn-icon" />
         </button>
       </div>
-      <div className="sn-ptabs" role="tablist">
+      <div ref={tabs.listRef} className="sn-ptabs" role="tablist">
+        <span ref={tabs.indRef} className="sn-ptab-ind" aria-hidden />
         {(Object.keys(STYLE_UI) as StyleGroup[]).map((k) => (
           <button
             key={k}

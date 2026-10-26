@@ -3,6 +3,7 @@ import { LogIn } from 'lucide-react';
 import { prefersReducedMotion } from '../microFx';
 import { challengeAPI, challengeErrorMessage, type BooksFinish } from './challengeApi';
 import { Coin, PanelHead } from './ChallengeBits';
+import { SnActionBar } from '../SnActionBar';
 import { num } from './challengeUtil';
 import { useChallengeStore } from './challengeStore';
 import {
@@ -154,9 +155,9 @@ export function BooksGame({
 
   return (
     <div className="sn-ch-game" ref={rootRef}>
+      <SnActionBar backLabel="챌린지" onBack={onBack} />
       <PanelHead
         title="66권 줄 세우기"
-        onBack={onBack}
         right={
           phase === 'play' || phase === 'finishing' ? (
             <span className="sn-ch-clock sn-mono" aria-label="걸린 시간">

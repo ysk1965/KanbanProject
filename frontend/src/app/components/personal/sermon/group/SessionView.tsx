@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Loader2, Lock, PenLine, Send } from 'lucide-react';
+import { Loader2, Lock, PenLine, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { decRef, encRef, finalRef, parseRef, refLong } from '../bibleRefs';
-import { fmtDate, type SermonNote } from '../sermonTypes';
+import { Mascot } from '../Mascot';
+import { loadLook, type MascotId } from '../sermonLook';
+import { type SermonNote } from '../sermonTypes';
 import {
   groupErrorMessage,
   sermonGroupAPI,
@@ -12,8 +14,10 @@ import {
 } from './groupApi';
 import { compareCounts, compareHighlights, groupHeat } from './compare';
 import { faceColor, initial, josa, shareFieldsOf, type GroupStore } from './groupStore';
+import { DOW_KO } from './servicePresets';
 import { weekStartOf } from './sessionMatch';
 import { useFx } from '../microFx';
+import { SnActionBar } from '../SnActionBar';
 import './group.css';
 
 /**
@@ -51,6 +55,7 @@ export function SessionView({
   const [failed, setFailed] = useState<string | null>(null);
   const [cmpWith, setCmpWith] = useState<string | null>(null);
   const [editInfo, setEditInfo] = useState(false);
+  const [mascot] = useState<MascotId>(() => loadLook().mascot);
 
   const load = useCallback(async () => {
     try {
@@ -103,7 +108,7 @@ export function SessionView({
   if (failed) {
     return (
       <div className="sg-page">
-        <BackBar onBack={onBack} label={group.name} />
+        <SnActionBar backLabel={group.name} onBack={onBack} />
         <div className="sg-empty">{failed}</div>
       </div>
     );
@@ -111,7 +116,7 @@ export function SessionView({
   if (!detail) {
     return (
       <div className="sg-page" role="status" aria-label="불러오는 중">
-        <BackBar onBack={onBack} label={group.name} />
+        <SnActionBar backLabel={group.name} onBack={onBack} />
         <div className="sg-empty">
           <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--sn-accent)' }} />
         </div>
@@ -127,6 +132,12 @@ export function SessionView({
   const writtenCount = activeMembers.filter(
     (m) => states.has(m.user_id) || (m.user_id === me && iWrote),
   ).length;
+
+  const title = s.title || (ref ? refLong(ref) : '');
+  const sub = [s.title && ref ? refLong(ref) : '', s.preacher || ''].filter(Boolean).join(' · ');
+  const [yy, mo, dd] = s.date.split('-').map(Number);
+  const dow = DOW_KO[new Date(yy, mo - 1, dd).getDay()];
+  const canEdit = !(s.locked && group.me.role !== 'leader');
 
   const react = async (share: SessionShare, item: string, kind: ReactionKind) => {
     try {
@@ -170,47 +181,68 @@ export function SessionView({
 
   const cmpShare = others.find((x) => x.id === cmpWith) || null;
 
+  /** 주요 동작 — 본문 표지와 하단 동작 바에 같이 (하단 바가 있으면 표지 쪽은 CSS 로 숨김) */
+  const primary = (cls = '') =>
+    myNote ? (
+      <button
+        type="button"
+        className={`sn-btn sn-primary${cls}`}
+        onClick={() => onOpenNote(myNote.id)}
+      >
+        내 노트 열기
+      </button>
+    ) : (
+      <button
+        type="button"
+        className={`sn-btn sn-primary${cls}`}
+        onClick={() => onWriteHere(detail)}
+      >
+        이 설교로 쓰기
+      </button>
+    );
+
   return (
     <div className="sg-page">
-      <BackBar onBack={onBack} label={group.name} />
-      <div className="sg-hero">
-        <div style={{ minWidth: 0 }}>
+      <SnActionBar backLabel={group.name} onBack={onBack} primary={primary()} />
+      <header className="sg-cover sg-scover">
+        <span className="sg-cover-tape" aria-hidden />
+        <span className="sg-sdate" aria-hidden>
+          <small>{Number(s.date.slice(5, 7))}월</small>
+          <b>{Number(s.date.slice(8, 10))}</b>
+          <span>{dow}</span>
+        </span>
+        <div className="sg-cover-in">
           <small>
-            {group.name} · {fmtDate(s.date)} {svcName}
-            {s.updated_by_name ? ` · ${josa(s.updated_by_name, '이', '가')} 채움` : ''}
+            {group.name} · {svcName}
             {s.locked ? ' · 잠김' : ''}
           </small>
-          <h2>{s.title || (ref ? refLong(ref) : '설교 정보가 아직 없어요')}</h2>
-          <p>
-            {[ref ? refLong(ref) : '', s.preacher || ''].filter(Boolean).join(' · ')}
-            {(ref || s.preacher) && ' · '}
-            <b>
-              {activeMembers.length}명 중 {writtenCount}명 기록
-            </b>
-          </p>
+          <h2 data-ph={!title || undefined}>{title || '아직 제목 없는 설교'}</h2>
+          {sub && <span className="sg-dref">{sub}</span>}
+          {s.updated_by_name ? (
+            <span className="sg-hand">{josa(s.updated_by_name, '이', '가')} 채워 줬어요</span>
+          ) : (
+            !title &&
+            canEdit && (
+              <button
+                type="button"
+                className="sg-hand sg-hand-btn"
+                onClick={() => setEditInfo(true)}
+              >
+                ✎ 제목·본문 아는 사람이 적어 주세요
+              </button>
+            )
+          )}
         </div>
-        <div className="sg-row">
-          {!(s.locked && group.me.role !== 'leader') && (
+        <div className="sg-scover-acts">
+          {canEdit && (
             <button type="button" className="sn-btn" onClick={() => setEditInfo((v) => !v)}>
               {s.locked ? <Lock className="sn-icon" /> : <PenLine className="sn-icon" />}
               설교 정보 {s.title ? '고치기' : '채우기'}
             </button>
           )}
-          {myNote ? (
-            <button
-              type="button"
-              className="sn-btn sn-primary"
-              onClick={() => onOpenNote(myNote.id)}
-            >
-              내 노트 열기
-            </button>
-          ) : (
-            <button type="button" className="sn-btn sn-primary" onClick={() => onWriteHere(detail)}>
-              이 설교로 쓰기
-            </button>
-          )}
+          {primary(' sn-abar-dup')}
         </div>
-      </div>
+      </header>
 
       {editInfo && (
         <InfoEditor
@@ -224,57 +256,67 @@ export function SessionView({
         />
       )}
 
-      <div className="sg-members" aria-label="멤버 기록 현황">
-        {activeMembers.map((m) => {
-          const st =
-            m.user_id === me ? (iWrote ? 'written' : 'none') : states.get(m.user_id) || 'none';
-          const share = shares.find((x) => x.user_id === m.user_id);
-          const n =
-            share && myFields && m.user_id !== me
-              ? compareCounts(compareHighlights(myFields, share.fields)).both
-              : 0;
-          return (
-            <button
-              key={m.user_id}
-              type="button"
-              className="sg-mem"
-              data-state={st}
-              data-me={m.user_id === me || undefined}
-              onClick={() => {
-                if (m.user_id === me) return;
-                if (st === 'none') void poke(m.user_id, m.display_name);
-                else if (share) setCmpWith(share.id);
-              }}
-              aria-label={
-                m.user_id === me
-                  ? '나'
-                  : st === 'none'
-                    ? `${m.display_name} 아직 · 같이 써요 보내기`
-                    : `${josa(m.display_name, '과', '와')} 비교`
-              }
-            >
-              <span className="sg-av" style={{ background: faceColor(m.user_id) }}>
-                {initial(m.display_name)}
-                {st !== 'none' && <span className="sg-st" aria-hidden />}
-              </span>
-              {m.user_id === me ? '나' : m.display_name}
-              <span className={`sg-lab${st !== 'none' ? ' w' : ''}`}>
-                {st === 'none'
-                  ? m.user_id === me
-                    ? '아직'
-                    : '같이 써요'
-                  : st === 'private'
-                    ? '나만 보기'
-                    : m.user_id === me
-                      ? '기록함'
-                      : iWrote && n
-                        ? `${n}곳 겹침`
-                        : '기록함'}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <section className="sg-mstrip" aria-label="멤버 기록 현황">
+        <div className="sg-mstrip-h">
+          <b>
+            {activeMembers.length}명 중 <em>{writtenCount}명</em> 기록
+          </b>
+          {writtenCount < activeMembers.length && (
+            <span className="sg-hand">아직인 얼굴을 누르면 같이 쓰자고 보내요</span>
+          )}
+        </div>
+        <div className="sg-members">
+          {activeMembers.map((m) => {
+            const st =
+              m.user_id === me ? (iWrote ? 'written' : 'none') : states.get(m.user_id) || 'none';
+            const share = shares.find((x) => x.user_id === m.user_id);
+            const n =
+              share && myFields && m.user_id !== me
+                ? compareCounts(compareHighlights(myFields, share.fields)).both
+                : 0;
+            return (
+              <button
+                key={m.user_id}
+                type="button"
+                className="sg-mem"
+                data-state={st}
+                data-me={m.user_id === me || undefined}
+                onClick={() => {
+                  if (m.user_id === me) return;
+                  if (st === 'none') void poke(m.user_id, m.display_name);
+                  else if (share) setCmpWith(share.id);
+                }}
+                aria-label={
+                  m.user_id === me
+                    ? '나'
+                    : st === 'none'
+                      ? `${m.display_name} 아직 · 같이 써요 보내기`
+                      : `${josa(m.display_name, '과', '와')} 비교`
+                }
+              >
+                <span className="sg-av" style={{ background: faceColor(m.user_id) }}>
+                  {initial(m.display_name)}
+                  {st !== 'none' && <span className="sg-st" aria-hidden />}
+                </span>
+                {m.user_id === me ? '나' : m.display_name}
+                <span className={`sg-lab${st !== 'none' ? ' w' : ''}`}>
+                  {st === 'none'
+                    ? m.user_id === me
+                      ? '아직'
+                      : '같이 써요'
+                    : st === 'private'
+                      ? '나만 보기'
+                      : m.user_id === me
+                        ? '기록함'
+                        : iWrote && n
+                          ? `${n}곳 겹침`
+                          : '기록함'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       {cmpShare && (
         <ComparePanel
@@ -300,6 +342,7 @@ export function SessionView({
             />
           </div>
           <div className="sg-blur-ov">
+            <Mascot kind={mascot} size={56} state="think" />
             <span>
               {others.length}명이 이 설교를 기록했어요
               {heat.size > 0 && ` · 가장 많이 밑줄 그은 곳 ${topRefLabel(heat)}`}
@@ -323,9 +366,16 @@ export function SessionView({
           />
         </div>
       ) : (
-        <div className="sg-empty">
-          아직 다른 사람의 노트가 없어요.
-          <span className="sg-note">멤버 얼굴을 누르면 같이 쓰자고 보낼 수 있어요.</span>
+        <div className="sg-quiet">
+          <Mascot kind={mascot} size={64} state={iWrote ? 'idle' : 'think'} />
+          <p className="sg-hand">
+            {iWrote ? '내가 먼저 꽂았어요' : '아직 아무도 이 설교를 쓰지 않았어요'}
+          </p>
+          <p className="sg-note">
+            {iWrote
+              ? '다른 사람이 쓰면 여기에 노트가 모여요. 멤버 얼굴을 누르면 같이 쓰자고 보낼 수 있어요.'
+              : '한 줄만 써도 이 자리에 붙어요.'}
+          </p>
         </div>
       )}
     </div>
@@ -343,17 +393,6 @@ function topRefLabel(heat: Map<string, number>): string {
   });
   const r = decRef(best);
   return r ? refLong(r) : '';
-}
-
-function BackBar({ onBack, label }: { onBack: () => void; label: string }) {
-  return (
-    <div className="sg-row">
-      <button type="button" className="sn-btn sn-ghost" onClick={onBack}>
-        <ArrowLeft className="sn-icon" />
-        {label}
-      </button>
-    </div>
-  );
 }
 
 function ShareGrid({
@@ -497,7 +536,7 @@ function ComparePanel({
     return r ? refLong(r) : ref;
   };
   return (
-    <section className="sg-share" aria-label={`${josa(name, '과', '와')} 나 비교`}>
+    <section className="sg-share sg-cmpcard" aria-label={`${josa(name, '과', '와')} 나 비교`}>
       <div className="sg-share-h">
         <span className="sg-faces" style={{ ['--f' as string]: '24px' }}>
           <i style={{ background: 'var(--sn-t1)' }}>나</i>
@@ -622,7 +661,10 @@ function InfoEditor({
   };
 
   return (
-    <div className="sg-share">
+    <div className="sg-setcard">
+      <h3>
+        <span className="sg-label-stk">설교 정보</span>모임 모두에게 채워져요
+      </h3>
       <p className="sg-note">
         한 사람이 적으면 모임 모두의 노트에 채워져요. 내 노트 제목은 따로 그대로 남아요.
       </p>

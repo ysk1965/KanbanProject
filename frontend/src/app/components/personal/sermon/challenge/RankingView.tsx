@@ -15,6 +15,7 @@ import {
 import { Coin, SoonNote } from './ChallengeBits';
 import { isKstMonday, leftLabel, num, rankName } from './challengeUtil';
 import { useChallengeStore } from './challengeStore';
+import { useJellyTab } from '../microFx';
 import { ChurchPicker } from './ChurchPicker';
 import { NicknameSheet } from './NicknameSheet';
 import { fmtMs } from './books';
@@ -92,6 +93,10 @@ export function RankingView({
   const groups = gctx && !gctx.anonymous ? gctx.store.active() : [];
 
   const [scope, setScope] = useState<Scope>('league');
+  const seg = useJellyTab(
+    SCOPES.findIndex((s) => s.k === scope),
+    { axis: 'x' },
+  );
   const [board, setBoard] = useState<RankBoard>('talent');
   const [groupId, setGroupId] = useState<string | null>(null);
   const [data, setData] = useState<Rankings | League | null>(null);
@@ -270,7 +275,8 @@ export function RankingView({
   return (
     <div className="sn-rank">
       <div className="sn-rank-top">
-        <div className="sn-ch-seg" role="tablist" aria-label="랭킹 범위">
+        <div ref={seg.listRef} className="sn-ch-seg" role="tablist" aria-label="랭킹 범위">
+          <span ref={seg.indRef} className="sn-seg-ind" aria-hidden />
           {SCOPES.map((s) => (
             <button
               key={s.k}

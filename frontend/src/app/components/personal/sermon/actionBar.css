@@ -1,0 +1,166 @@
+/* ── 동작 바 (SnActionBar) ──
+ * 기본: 본문 맨 위 한 줄. 독립 화면 + 760px 이하: 하단 탭 바 자리로 아래에서 올라오고 탭 바는 내려간다.
+ * 뒤로는 언제나 왼쪽 끝, 주요 동작은 오른쪽 끝. */
+.sermon-app .sn-abar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sermon-app .sn-abar-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  max-width: 60%;
+  min-height: 44px;
+  padding: 0 14px 0 10px;
+  border: 0;
+  border-radius: var(--sn-r-pill);
+  background: transparent;
+  color: var(--sn-fg);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.sermon-app .sn-abar-back:hover {
+  background: var(--sn-surface-2);
+}
+.sermon-app .sn-abar-back:focus-visible {
+  outline: 2px solid var(--sn-accent);
+  outline-offset: 2px;
+}
+.sermon-app .sn-abar-back .sn-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+.sermon-app .sn-abar-to {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sermon-app .sn-abar-mid {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sermon-app .sn-abar-main {
+  display: flex;
+  margin-left: auto;
+}
+.sermon-app .sn-abar-slot {
+  display: none;
+}
+
+/* 편집기 하단 뒤로 · 키보드 「완료」 — 기본은 숨김 */
+.sermon-app .sn-dock-back,
+.sermon-app .sn-dock-done {
+  display: none;
+}
+.sermon-app .sn-edit[data-kb='1'] .sn-dock-done {
+  display: inline-flex;
+  order: 9;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  /* 하단 자리: 탭 바가 흐름을 잡고, 동작 바는 그 위에 겹쳐 올라온다 */
+  .sermon-app .sn-bdock {
+    position: relative;
+    flex: none;
+  }
+  .sermon-app .sn-bdock .sn-bnav {
+    transition:
+      transform 0.32s var(--sn-ease),
+      opacity 0.2s,
+      visibility 0s;
+  }
+  .sermon-app .sn-bdock[data-away='true'] .sn-bnav {
+    transform: translateY(calc(100% + 30px));
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      transform 0.32s var(--sn-ease),
+      opacity 0.2s,
+      visibility 0s 0.32s;
+  }
+  .sermon-app .sn-abar-slot {
+    display: block;
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .sermon-app .sn-abar[data-at='bottom'] {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    gap: 6px;
+    padding: 0 max(12px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px)
+      max(12px, env(safe-area-inset-left, 0px));
+    background: var(--sn-bg);
+    border-top: 1px solid var(--sn-line);
+    box-shadow: 0 -6px 12px color-mix(in srgb, var(--sn-fg) 6%, transparent);
+    pointer-events: auto;
+    animation: sn-abar-up 0.42s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+  }
+  .sermon-app .sn-abar[data-at='bottom'][data-kb] {
+    display: none;
+  }
+  .sermon-app .sn-abar[data-at='bottom'] .sn-abar-back {
+    min-height: 48px;
+    background: var(--sn-surface-2);
+  }
+  .sermon-app .sn-abar[data-at='bottom'] .sn-abar-main .sn-btn {
+    min-height: 48px;
+    padding-inline: 20px;
+    border-radius: var(--sn-r-pill);
+    font-size: 15px;
+  }
+  /* 하단 바에 주요 동작이 올라가면 본문 쪽 같은 버튼은 숨긴다 */
+  .sermon-app[data-standalone] .sn-abar-dup {
+    display: none;
+  }
+
+  /* 편집기: 위쪽 뒤로를 빼고 서식 바 둘째 줄 왼쪽 끝에 */
+  .sermon-app[data-standalone] .sn-topbar .sn-top-back {
+    display: none;
+  }
+  .sermon-app[data-standalone] .sn-dock-back {
+    display: inline-flex;
+    max-width: 40%;
+    background: var(--sn-surface-2);
+  }
+  .sermon-app[data-standalone] .sn-dock .sn-versefield {
+    flex: 1 1 0;
+  }
+  .sermon-app[data-standalone] .sn-dock .sn-versefield .sn-vf-h {
+    display: none;
+  }
+  .sermon-app[data-standalone] .sn-edit[data-kb='1'] .sn-dock-back {
+    display: none;
+  }
+}
+
+@keyframes sn-abar-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app .sn-abar[data-at='bottom'] {
+    animation: none;
+  }
+  .sermon-app .sn-bdock .sn-bnav,
+  .sermon-app .sn-bdock[data-away='true'] .sn-bnav {
+    transition: none;
+  }
+}

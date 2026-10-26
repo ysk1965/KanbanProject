@@ -453,6 +453,7 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
                     <button
                       type="button"
                       className="sn-btn sn-primary"
+                      data-tapfx="share"
                       onClick={() => void shareInvite(created)}
                     >
                       <Share2 className="sn-icon" />

@@ -10,6 +10,7 @@ import {
   type RainRules,
 } from './challengeApi';
 import { Coin, PanelHead } from './ChallengeBits';
+import { SnActionBar } from '../SnActionBar';
 import { num } from './challengeUtil';
 import { useChallengeStore } from './challengeStore';
 import {
@@ -391,9 +392,9 @@ export function RainGame({
 
   return (
     <div className="sn-ch-game" ref={rootRef}>
+      <SnActionBar backLabel="챌린지" onBack={quit} />
       <PanelHead
         title="말씀 산성비"
-        onBack={quit}
         right={
           practice && phase !== 'pick' ? <span className="sn-ch-pill">연습 판</span> : undefined
         }

@@ -42,7 +42,7 @@ export function ChallengeTab({
   if (view === 'ranking')
     return (
       <div className="sn-ch-home">
-        <PanelHead title="랭킹" onBack={home} />
+        <PanelHead title="랭킹" />
         <RankingView userId={userId} anonymous={anon} onLogin={onLogin} />
       </div>
     );

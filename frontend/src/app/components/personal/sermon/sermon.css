@@ -3152,7 +3152,16 @@ html[data-keyboard-open] .sn-overlay {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--sn-accent);
+  margin: 0 2px;
+  padding: 0 11px;
+  min-height: 26px;
+  border-radius: 999px;
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  font-weight: 700;
+}
+.sn-scope.sn-bubble .sn-bubble-ai:hover {
+  background: color-mix(in srgb, var(--sn-accent) 86%, var(--sn-bg));
 }
 
 /* AI 문장 정리 결과 카드 — 버블 자리에 대신 뜬다 */
@@ -4557,7 +4566,7 @@ html[data-keyboard-open] .sn-overlay {
   gap: 8px;
   padding: 3px 0;
   font-family: var(--sn-f-serif);
-  font-size: 17px;
+  font-size: var(--sn-bv-fs, 17px);
   line-height: 1.95;
   color: var(--sn-fg);
 }
@@ -4653,19 +4662,49 @@ html[data-keyboard-open] .sn-overlay {
 }
 .sermon-app .sn-bible-foot {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 10px;
   margin-top: 18px;
-  padding-top: 14px;
+  padding-top: 16px;
   border-top: 1px dashed var(--sn-line-strong);
 }
+/* 다음 손글씨 — 가로 꽉 찬 띠 한 줄 */
 .sermon-app .sn-bible-nextmark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: var(--sn-r-ctl);
+  background: color-mix(in srgb, var(--sn-g2) 28%, var(--sn-surface));
+  color: var(--sn-fg);
+  font-size: 13px;
+  text-align: left;
+}
+.sermon-app .sn-bible-nextmark b {
   font-family: var(--sn-f-hand);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--sn-t2);
+}
+.sermon-app .sn-bible-nextmark .sn-icon {
+  color: var(--sn-t2);
+}
+/* 이전·다음 — 1 : 1.4 두 칸, 줄바꿈 없음 */
+.sermon-app .sn-bible-pn {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 8px;
+}
+.sermon-app .sn-bible-pn .sn-btn {
+  justify-content: center;
+  min-height: 48px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.sermon-app .sn-bible-pn .sn-ghost {
+  border: 1px solid var(--sn-line-strong);
 }
 .sermon-app .sn-bible-hint {
   margin: 10px 0 0;
@@ -4678,7 +4717,7 @@ html[data-keyboard-open] .sn-overlay {
     grid-template-columns: minmax(0, 1fr);
   }
   .sermon-app .sn-bv {
-    font-size: 16px;
+    font-size: var(--sn-bv-fs, 16px);
     grid-template-columns: 22px minmax(0, 1fr);
   }
   .sermon-app .sn-bv-row .sn-bv-hands {
@@ -5063,6 +5102,383 @@ html[data-keyboard-open] .sn-overlay {
   }
 }
 
+/* 성경 읽기 — 좁은 화면 전용 요소 (넓은 화면에서는 숨김) */
+.sermon-app .sn-bible-step,
+.sermon-app .sn-bible-view,
+.sermon-app .sn-bible-prog {
+  display: none;
+}
+.sermon-app .sn-bible-swipe {
+  position: relative;
+}
+.sermon-app .sn-bible-peek {
+  position: absolute;
+  top: 160px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: var(--sn-r-pill);
+  border: 1px solid var(--sn-line-strong);
+  background: var(--sn-surface);
+  color: var(--sn-t1);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.sermon-app .sn-bible-peek .sn-icon {
+  width: 14px;
+  height: 14px;
+}
+.sermon-app .sn-bible-peek[data-side='prev'] {
+  left: 0;
+}
+.sermon-app .sn-bible-peek[data-side='next'] {
+  right: 0;
+}
+.sermon-app .sn-bible-swipe[data-peek='prev'] .sn-bible-peek[data-side='prev'],
+.sermon-app .sn-bible-swipe[data-peek='next'] .sn-bible-peek[data-side='next'] {
+  opacity: 1;
+}
+@media (max-width: 760px) {
+  .sermon-app .sn-bible {
+    gap: 6px;
+  }
+  /* 위 조작부 한 줄: ‹ 시편 73편 ▾ › ⚙ */
+  .sermon-app .sn-bible-bar {
+    gap: 2px;
+    margin: 0 -8px;
+  }
+  .sermon-app .sn-bible-bar .sn-sp,
+  .sermon-app .sn-bible-bar .sn-bible-handtog,
+  .sermon-app .sn-bible-strip {
+    display: none;
+  }
+  .sermon-app .sn-bible-step {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: var(--sn-r-ctl);
+    background: transparent;
+    color: var(--sn-fg);
+  }
+  .sermon-app .sn-bible-step:disabled {
+    opacity: 0.3;
+  }
+  .sermon-app .sn-bible-step[aria-expanded='true'] {
+    background: var(--sn-surface-2);
+  }
+  .sermon-app .sn-bible-book,
+  .sermon-app .sn-bible-book[aria-expanded='true'] {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--sn-r-ctl);
+    background: transparent;
+    color: var(--sn-fg);
+    font-size: 16px;
+    white-space: nowrap;
+  }
+  .sermon-app .sn-bible-book small {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--sn-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .sermon-app .sn-bible-book .sn-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--sn-muted);
+  }
+  .sermon-app .sn-bible-view {
+    display: block;
+    position: relative;
+  }
+  .sermon-app .sn-bible-prog {
+    display: block;
+    height: 2px;
+    margin: 0 4px 4px;
+    border-radius: 2px;
+    background: var(--sn-line);
+    overflow: hidden;
+  }
+  .sermon-app .sn-bible-prog i {
+    display: block;
+    height: 100%;
+    background: var(--sn-t1);
+    transition: width 0.3s var(--sn-ease);
+  }
+  /* 본문은 종이 위에 바로 — 카드 안 카드 없앰 */
+  .sermon-app .sn-bible-page {
+    padding: 8px 2px 8px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .sermon-app .sn-bible-swipe {
+    touch-action: pan-y;
+  }
+}
+/* ⚙ 보기 설정 */
+.sermon-app .sn-bible-viewpop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  width: 232px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-radius: var(--sn-r-ovl);
+  border: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+  box-shadow: var(--sn-shadow);
+}
+.sermon-app .sn-bible-viewpop [role='switch'] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--sn-r-ctl);
+  background: transparent;
+  color: var(--sn-fg);
+  font-size: 14px;
+  text-align: left;
+}
+.sermon-app .sn-bible-viewpop [role='switch'] > span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.sermon-app .sn-bible-viewpop small {
+  font-size: 12px;
+  color: var(--sn-faint);
+}
+.sermon-app .sn-bible-viewpop [role='switch'] i {
+  position: relative;
+  flex: none;
+  width: 38px;
+  height: 22px;
+  border-radius: var(--sn-r-pill);
+  background: var(--sn-line-strong);
+  transition: background-color 0.2s;
+}
+.sermon-app .sn-bible-viewpop [role='switch'] i::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s var(--sn-ease);
+}
+.sermon-app .sn-bible-viewpop [aria-checked='true'] i {
+  background: var(--sn-t1);
+}
+.sermon-app .sn-bible-viewpop [aria-checked='true'] i::after {
+  transform: translateX(16px);
+}
+.sermon-app .sn-bible-fs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 10px 4px;
+  border-top: 1px solid var(--sn-line);
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-bible-fs button {
+  width: 44px;
+  height: 36px;
+  border-radius: var(--sn-r-ctl);
+  border: 1px solid var(--sn-line-strong);
+  background: transparent;
+  color: var(--sn-fg);
+  font-size: 13px;
+  font-weight: 700;
+}
+.sermon-app .sn-bible-fs button:disabled {
+  opacity: 0.35;
+}
+/* 책·장 시트 (BiblePickSheet) — body 포털이라 .sn-overlay 아래 */
+.sn-overlay.sn-bsheet-ov {
+  align-items: flex-end;
+  padding: 0;
+}
+.sn-overlay .sn-bsheet {
+  width: 100%;
+  max-height: 82dvh;
+  border-radius: 22px 22px 0 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (min-width: 761px) {
+  .sn-overlay.sn-bsheet-ov {
+    align-items: center;
+    padding: 16px;
+  }
+  .sn-overlay .sn-bsheet {
+    width: min(520px, 100%);
+    border-radius: var(--sn-r-ovl);
+  }
+}
+.sn-overlay .sn-bsheet-grab {
+  width: 36px;
+  height: 4px;
+  margin: 8px auto 2px;
+  border-radius: 2px;
+  background: var(--sn-line-strong);
+}
+.sn-overlay .sn-bsheet-seg {
+  display: flex;
+  gap: 4px;
+  margin: 8px 16px 10px;
+  padding: 3px;
+  border-radius: var(--sn-r-ctl);
+  background: var(--sn-surface-2);
+}
+.sn-overlay .sn-bsheet-seg button {
+  flex: 1;
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--sn-muted);
+  font-size: 13px;
+}
+.sn-overlay .sn-bsheet-seg button[aria-pressed='true'] {
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.sn-overlay .sn-bsheet-body {
+  overflow-y: auto;
+  padding: 0 16px 18px;
+}
+.sn-overlay .sn-bsheet-books {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.sn-overlay .sn-bsheet-books button {
+  position: relative;
+  min-height: 40px;
+  border: 0;
+  border-radius: var(--sn-r-ctl);
+  background: var(--sn-surface-2);
+  color: var(--sn-fg);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.sn-overlay .sn-bsheet-books button[data-has='true']::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sn-t2);
+}
+.sn-overlay .sn-bsheet-books button[aria-pressed='true'] {
+  background: var(--sn-fg);
+  color: var(--sn-surface);
+  font-weight: 700;
+}
+.sn-overlay .sn-bsheet-label {
+  margin: 16px 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--sn-faint);
+}
+.sn-overlay .sn-bsheet-ch {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+.sn-overlay .sn-bsheet-ch button {
+  position: relative;
+  height: 44px;
+  border: 1px solid var(--sn-line);
+  border-radius: var(--sn-r-ctl);
+  background: transparent;
+  color: var(--sn-fg);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.sn-overlay .sn-bsheet-ch button[data-hl='true'] {
+  background: color-mix(in srgb, var(--sn-hl-yellow) 70%, transparent);
+}
+.sn-overlay .sn-bsheet-ch button[data-has='true'] {
+  font-weight: 700;
+}
+.sn-overlay .sn-bsheet-ch button[data-has='true']::after,
+.sn-overlay .sn-bsheet-legend i[data-k='hand'] {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  width: 14px;
+  height: 3px;
+  margin-left: -7px;
+  border-radius: 2px;
+  background: var(--sn-t2);
+}
+.sn-overlay .sn-bsheet-ch button[aria-current='true'] {
+  border-color: var(--sn-t1);
+  background: var(--sn-t1);
+  color: #fff;
+  font-weight: 700;
+}
+.sn-overlay .sn-bsheet-ch button[aria-current='true']::after {
+  background: var(--sn-g2);
+}
+.sn-overlay .sn-bsheet-legend {
+  display: flex;
+  gap: 14px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sn-overlay .sn-bsheet-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sn-overlay .sn-bsheet-legend i {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+.sn-overlay .sn-bsheet-legend i[data-k='hand'] {
+  position: static;
+  margin: 0;
+}
+.sn-overlay .sn-bsheet-legend i[data-k='hl'] {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--sn-hl-yellow);
+}
+
 /* 성경 장 넘김 — 다음 장은 오른쪽에서, 이전 장은 왼쪽에서 */
 @keyframes sn-turn-fwd {
   from {
@@ -5079,5 +5495,167 @@ html[data-keyboard-open] .sn-overlay {
 @media (prefers-reduced-motion: reduce) {
   .sermon-app .sn-bible-page {
     animation: none !important;
+  }
+}
+
+/* =====================================================================
+   고르기 · 누르기 공통 (microFx.ts useJellyTab / installTapFx)
+   - 알약 탭·밑줄 탭: 받침이 말랑하게 늘어나며 옮겨 간다 (.sn-seg-ind / .sn-ptab-ind)
+   - 고르는 버튼: 누른 그 버튼만 한 번 톡 (data-tap)
+   - 버튼: 누르는 동안 살짝 눌린다 / 스위치: 누르는 동안 손잡이가 늘어난다
+   ===================================================================== */
+.sermon-app .sn-ch-seg,
+.sermon-app .sn-tabrow,
+.sn-overlay .sn-ptabs {
+  position: relative;
+}
+.sermon-app .sn-ch-seg > button,
+.sermon-app .sn-tabrow > button,
+.sn-overlay .sn-ptabs > button {
+  position: relative;
+  z-index: 1;
+  transition: color 0.2s;
+}
+.sermon-app .sn-seg-ind,
+.sn-overlay .sn-ptab-ind {
+  position: absolute;
+  top: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+.sermon-app .sn-seg-ind[data-ready='true'],
+.sn-overlay .sn-ptab-ind[data-ready='true'] {
+  opacity: 1;
+}
+.sermon-app .sn-seg-ind {
+  border-radius: var(--sn-r-pill);
+}
+/* 랭킹 범위 */
+.sermon-app .sn-ch-seg > .sn-seg-ind {
+  background: var(--sn-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+.sermon-app .sn-ch-seg:has(> .sn-seg-ind[data-ready='true']) > button[aria-selected='true'] {
+  background: transparent;
+  box-shadow: none;
+}
+/* 좁은 화면 갈피 탭 줄 */
+.sermon-app .sn-tabrow > .sn-seg-ind {
+  background: var(--sn-fg);
+}
+.sermon-app .sn-tabrow:has(> .sn-seg-ind[data-ready='true']) > button[aria-selected='true'] {
+  background: transparent;
+}
+/* 서식·구절 찾기 밑줄 탭 */
+.sn-overlay .sn-ptab-ind {
+  border-bottom: 2px solid var(--sn-accent);
+}
+.sn-overlay .sn-ptabs:has(> .sn-ptab-ind[data-ready='true']) > button[aria-selected='true'] {
+  border-bottom-color: transparent;
+}
+
+@keyframes sn-tap {
+  0% {
+    scale: 0.9;
+  }
+  55% {
+    scale: 1.06;
+  }
+  100% {
+    scale: 1;
+  }
+}
+@keyframes sn-tap2 {
+  0% {
+    scale: 0.9;
+  }
+  55% {
+    scale: 1.06;
+  }
+  100% {
+    scale: 1;
+  }
+}
+.sermon-app [data-tap='a'],
+.sn-scope [data-tap='a'] {
+  animation: sn-tap 0.36s var(--sn-spring);
+}
+.sermon-app [data-tap='b'],
+.sn-scope [data-tap='b'] {
+  animation: sn-tap2 0.36s var(--sn-spring);
+}
+/* 탭은 덜 튄다 — 받침이 움직이는 게 주인공 */
+.sermon-app [role='tab'][data-tap],
+.sn-scope [role='tab'][data-tap] {
+  animation-duration: 0.28s;
+}
+
+/* :where — 버튼마다 따로 정한 transition 이 있으면 그쪽이 이긴다 */
+:where(.sermon-app, .sn-scope) .sn-btn {
+  transition-property: scale, background-color, border-color, color, box-shadow;
+  transition-duration: 0.18s;
+  transition-timing-function: var(--sn-spring);
+}
+:where(.sermon-app, .sn-scope) .sn-btn:active:not(:disabled) {
+  scale: 0.96;
+}
+
+/* 갈피 설정 스위치 */
+.sermon-app .sn-me-menu [role='switch'] .sn-gp-sw::after {
+  transition:
+    transform 0.32s var(--sn-spring),
+    width 0.16s var(--sn-ease);
+}
+.sermon-app .sn-me-menu [role='switch']:active .sn-gp-sw::after {
+  width: 24px;
+}
+.sermon-app .sn-me-menu [role='switch']:active .sn-gp-sw[data-on='true']::after {
+  transform: translateX(10px);
+}
+
+/* 공유·보내기 버튼(data-tapfx="share"): 버튼은 그대로, 아이콘의 세 점이 바깥으로 퍼졌다 돌아온다 */
+@keyframes sn-node-1 {
+  40% {
+    transform: translate(2px, -2px);
+  }
+}
+@keyframes sn-node-2 {
+  40% {
+    transform: translate(-2px, 0);
+  }
+}
+@keyframes sn-node-3 {
+  40% {
+    transform: translate(2px, 2px);
+  }
+}
+:is(.sermon-app, .sn-scope) [data-tapfx='share'][data-tap] {
+  animation: none;
+}
+:is(.sermon-app, .sn-scope) [data-tapfx='share'][data-tap] svg circle:nth-of-type(1) {
+  animation: sn-node-1 0.42s var(--sn-spring);
+}
+:is(.sermon-app, .sn-scope) [data-tapfx='share'][data-tap] svg circle:nth-of-type(2) {
+  animation: sn-node-2 0.42s var(--sn-spring);
+}
+:is(.sermon-app, .sn-scope) [data-tapfx='share'][data-tap] svg circle:nth-of-type(3) {
+  animation: sn-node-3 0.42s var(--sn-spring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app [data-tap],
+  .sn-scope [data-tap],
+  .sermon-app .sn-btn,
+  .sn-scope .sn-btn,
+  .sermon-app .sn-seg-ind,
+  .sn-overlay .sn-ptab-ind,
+  .sermon-app .sn-me-menu .sn-gp-sw::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .sermon-app .sn-btn:active,
+  .sn-scope .sn-btn:active {
+    scale: none;
   }
 }

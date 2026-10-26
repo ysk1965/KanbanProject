@@ -127,7 +127,7 @@ describe('챌린지 탭 (서버 없음)', () => {
     expect(input.value).toBe('');
 
     // 뒤로 → 홈, 랭킹 칩
-    fireEvent.click(screen.getByRole('button', { name: '챌린지 홈으로' }));
+    fireEvent.click(screen.getByRole('button', { name: /돌아가기.*챌린지/ }));
     expect(await screen.findByRole('button', { name: /66권 줄 세우기/ })).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button', { name: '랭킹' })[0]);
     expect(await screen.findByText('랭킹은 아직 준비 중이에요.')).toBeInTheDocument();

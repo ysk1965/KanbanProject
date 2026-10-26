@@ -57,6 +57,7 @@ import { sermonAudioStore } from './sermonAudioStore';
 import { VersionTracker, listVersions, saveVersion, type NoteVersion } from './sermonVersions';
 import { firstVerseText, useBible } from './useBible';
 import { Mascot } from './Mascot';
+import './actionBar.css';
 import type { MascotId } from './sermonLook';
 import { loadGalpiPrefs, resolveGalpiRule } from './galpiPrefs';
 import { useProfile } from './profile/ProfileContext';
@@ -73,6 +74,8 @@ interface SermonEditorProps {
   style: SermonStyle;
   onStyleChange: (s: SermonStyle) => void;
   onBack: () => void;
+  /** 하단 뒤로의 도착지 이름 (독립 화면 폰) — "노트", "6팀" 등 */
+  backLabel?: string;
   /** 노트 삭제 후 목록으로 */
   onDeleted: () => void;
   /** 열면서 바로 이동할 연결 위치 */
@@ -207,6 +210,7 @@ export function SermonEditor({
   style,
   onStyleChange,
   onBack,
+  backLabel = '노트',
   onDeleted,
   initialAid,
   canAttach,
@@ -884,7 +888,7 @@ export function SermonEditor({
       <header className="sn-topbar">
         <button
           type="button"
-          className="sn-btn sn-icon-only"
+          className="sn-btn sn-icon-only sn-top-back"
           aria-label="목록으로"
           onClick={onBack}
         >
@@ -1360,6 +1364,19 @@ export function SermonEditor({
                 <span className="sn-hide-sm">서식</span>
               </button>
             </div>
+            {/* 독립 화면 폰: 뒤로는 하단 왼쪽 (키보드가 열리면 「완료」로 바뀐다) */}
+            <button type="button" className="sn-abar-back sn-dock-back" onClick={onBack}>
+              <ArrowLeft className="sn-icon" aria-hidden />
+              <span className="sn-sr">돌아가기: </span>
+              <span className="sn-abar-to">{backLabel}</span>
+            </button>
+            <button
+              type="button"
+              className="sn-btn sn-dock-done"
+              onClick={() => (document.activeElement as HTMLElement | null)?.blur()}
+            >
+              완료
+            </button>
             <button
               type="button"
               className="sn-versefield"

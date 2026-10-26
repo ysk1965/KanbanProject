@@ -689,6 +689,40 @@
   gap: 10px;
   min-width: 0;
 }
+/* 꾸민 카드 공유 이미지 — 화면 밖에서 360px 로 그려 찍는다 */
+.sn-overlay .snp-shot {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  pointer-events: none;
+}
+.sn-overlay .snp-shot-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 36px 34px 20px;
+  background: var(--sn-bg);
+}
+.sn-overlay .snp-shot-card .snp-pola-static {
+  transform: rotate(-1.5deg);
+}
+.sn-overlay .snp-shot-card .snp-cover-bk {
+  font-size: 34px;
+}
+.sn-overlay .snp-shot-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--sn-faint);
+}
+.sn-overlay .snp-shot-brand b {
+  color: var(--sn-fg);
+  font-weight: 700;
+}
+.sn-overlay .snp-shot-brand span {
+  margin-left: auto;
+}
 @media (max-width: 560px) {
   .sn-overlay .snp-pin-edit {
     grid-template-columns: 1fr;
