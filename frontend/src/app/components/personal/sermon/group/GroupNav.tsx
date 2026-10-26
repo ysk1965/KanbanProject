@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import type { GroupStore } from './groupStore';
+import { stickerTone } from './GroupSticker';
 
 /** 「모임」 탭 왼쪽 패널 — 내 모임, 모임 만들기 (모임이 없을 때 안내는 본문 GroupsLanding) */
 export function GroupNav({
@@ -30,6 +31,7 @@ export function GroupNav({
             aria-current={current === g.id}
             onClick={() => onOpen(g.id)}
           >
+            <i className="sg-navdot" data-tone={stickerTone(g.id)} aria-hidden />
             {g.name}
             <span className="sn-count">
               {g.me.status === 'pending'

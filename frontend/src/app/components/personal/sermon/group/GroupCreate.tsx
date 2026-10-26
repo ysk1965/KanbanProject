@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, Copy, Loader2, Plus, Share2, X } from 'lucide-react';
+import { Check, Copy, Loader2, Share2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { SnOverlay } from '../SnOverlay';
 import { Mascot, type MascotState } from '../Mascot';
@@ -12,18 +12,15 @@ import {
   type GroupService,
   type SermonGroup,
 } from './groupApi';
-import {
-  DOW_KO,
-  GROUP_KINDS,
-  SERVICE_PRESETS,
-  kindName,
-  newServiceId,
-  slotsLabel,
-} from './servicePresets';
+import { DOW_KO, GROUP_KINDS, SERVICE_PRESETS, kindName } from './servicePresets';
 import { weekSlots, weekStartOf } from './sessionMatch';
 import { faceColor, initial, type GroupStore } from './groupStore';
 import { inviteUrl, shareInvite } from './inviteLink';
+import { GroupSticker } from './GroupSticker';
+import { ServicePicker } from './ServicePicker';
 import './group.css';
+
+export { ServiceEditor } from './ServicePicker';
 
 /**
  * 모임 만들기 = 「모임 스티커」 한 장 만들기.
@@ -95,14 +92,6 @@ const KIND_ART: Record<GroupKind, ReactNode> = {
   ),
 };
 
-/** 한 주 시간표 줄 — 시작 시각으로 나눈다 */
-const BANDS = [
-  { id: 'dawn', name: '새벽', test: (t: string) => t < '07:00' },
-  { id: 'am', name: '오전', test: (t: string) => t >= '07:00' && t < '12:00' },
-  { id: 'pm', name: '오후', test: (t: string) => t >= '12:00' && t < '18:00' },
-  { id: 'eve', name: '저녁', test: (t: string) => t >= '18:00' },
-] as const;
-
 export function GroupCreate({ open, store, defaultName = '', onClose, onCreated }: Props) {
   const [step, setStep] = useState(1);
   const [dir, setDir] = useState<'fwd' | 'back'>('fwd');
@@ -151,27 +140,8 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
     return weekSlots(fake, ws);
   }, [services]);
 
-  /** 한 주 시간표 칸: band × 요일 → 그 칸에 놓인 예배들 */
-  const grid = useMemo(() => {
-    const cells = new Map<string, GroupService[]>();
-    services.forEach((s) => {
-      if (!s.active) return;
-      s.slots.forEach((sl) => {
-        const band = BANDS.find((b) => b.test(sl.start));
-        if (!band) return;
-        const key = `${band.id}-${sl.dow}`;
-        const arr = cells.get(key) || [];
-        if (!arr.includes(s)) arr.push(s);
-        cells.set(key, arr);
-      });
-    });
-    const used = BANDS.filter((b) => [...cells.keys()].some((k) => k.startsWith(`${b.id}-`)));
-    return { cells, bands: used.length ? used : BANDS.filter((b) => b.id !== 'dawn') };
-  }, [services]);
-
   const canNext1 = name.trim().length > 0 && myName.trim().length > 0;
   const activeCount = services.filter((s) => s.active).length;
-  const svcTone = (id: string) => (services.findIndex((s) => s.id === id) % 2 === 0 ? 1 : 2);
 
   const go = (to: number) => {
     setDir(to > step ? 'fwd' : 'back');
@@ -216,9 +186,6 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
     }
   };
 
-  const updateService = (id: string, patch: Partial<GroupService>) =>
-    setServices((ss) => ss.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-
   const stickerName = (created?.name ?? name).trim();
   const stickerSub =
     step === 1
@@ -247,16 +214,13 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
         : [`${mascotName(mascot)}가 `, '한 주 동안', '에 붙여 뒀어요'];
 
   const sticker = (
-    <div className="sg-stk" data-bump={bump % 2} data-drop={step === 3 || undefined}>
-      <span className="sg-die" aria-hidden />
-      <span className="sg-stk-face" aria-hidden />
-      <div className="sg-stk-in">
-        <span className="sg-stk-kind">{kindName(created?.kind ?? kind)}</span>
-        <span className="sg-stk-name" data-ph={!stickerName || undefined}>
-          {stickerName || '모임 이름'}
-        </span>
-        <span className="sg-stk-sub">{stickerSub}</span>
-      </div>
+    <GroupSticker
+      name={stickerName}
+      kind={kindName(created?.kind ?? kind)}
+      sub={stickerSub}
+      data-bump={bump % 2}
+      data-drop={step === 3 || undefined}
+    >
       <Mascot kind={mascot} state={mascotState} size={60} className="sg-stk-m" />
       {step === 3 && (
         <span className="sg-burst" aria-hidden>
@@ -265,7 +229,7 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
           ))}
         </span>
       )}
-    </div>
+    </GroupSticker>
   );
 
   return (
@@ -450,99 +414,13 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
               <p className="sg-note">
                 이 시간에 쓴 노트는 모임과 같은 설교로 자동으로 모여요. 나중에 바꿀 수 있어요.
               </p>
-              <div className="sg-svstk" role="group" aria-label="같이 드리는 예배">
-                {services.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    className="sg-sv"
-                    data-tone={svcTone(s.id)}
-                    aria-pressed={s.active}
-                    title={slotsLabel(s) || '시간 없음'}
-                    onClick={() => {
-                      updateService(s.id, { active: !s.active });
-                      if (s.active && editing === s.id) setEditing(null);
-                      poke();
-                    }}
-                  >
-                    <span className="sg-sv-bx" aria-hidden>
-                      <Check size={12} strokeWidth={3} />
-                    </span>
-                    {s.name}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="sg-sv sg-sv-add"
-                  onClick={() => {
-                    const id = newServiceId(services);
-                    setServices((ss) => [
-                      ...ss,
-                      {
-                        id,
-                        name: '새 예배',
-                        active: true,
-                        slots: [{ dow: 0, start: '11:00', end: '12:20' }],
-                      },
-                    ]);
-                    setEditing(id);
-                    poke();
-                  }}
-                >
-                  <Plus size={14} aria-hidden />
-                  예배 추가
-                </button>
-              </div>
-              <div className="sg-tt-wrap">
-                <div
-                  className="sg-tt"
-                  style={{ gridTemplateRows: `auto repeat(${grid.bands.length}, 38px)` }}
-                >
-                  <span />
-                  {[...DOW_KO].map((d, i) => (
-                    <span key={d} className="sg-tt-h" data-sun={i === 0 || undefined}>
-                      {d}
-                    </span>
-                  ))}
-                  {grid.bands.map((b) => (
-                    <Band key={b.id} name={b.name}>
-                      {[0, 1, 2, 3, 4, 5, 6].map((dow) => {
-                        const list = grid.cells.get(`${b.id}-${dow}`) || [];
-                        const s = list[0];
-                        if (!s) return <span key={dow} className="sg-tt-c" />;
-                        return (
-                          <button
-                            key={`${dow}-${s.id}`}
-                            type="button"
-                            className="sg-tt-c"
-                            data-tone={svcTone(s.id)}
-                            data-on
-                            aria-pressed={editing === s.id}
-                            aria-label={`${DOW_KO[dow]}요일 ${b.name} ${list.map((x) => x.name).join(', ')} — 시간 고치기`}
-                            onClick={() => setEditing(editing === s.id ? null : s.id)}
-                          >
-                            {s.name.slice(0, 2)}
-                            {list.length > 1 && <sup>+{list.length - 1}</sup>}
-                          </button>
-                        );
-                      })}
-                    </Band>
-                  ))}
-                </div>
-              </div>
-              <p className="sg-note sg-tt-hint">
-                칸을 누르면 그 예배의 이름·시간을 고칠 수 있어요.
-              </p>
-              <div className="sg-unfold" data-open={!!editing || undefined}>
-                <div>
-                  {editing && services.some((s) => s.id === editing) && (
-                    <ServiceEditor
-                      service={services.find((s) => s.id === editing)!}
-                      onChange={(next) => updateService(editing, next)}
-                    />
-                  )}
-                </div>
-              </div>
+              <ServicePicker
+                services={services}
+                onChange={setServices}
+                editing={editing}
+                onEditing={setEditing}
+                onPoke={poke}
+              />
               <div className="sg-mf">
                 <span className="sg-lb">참여 승인</span>
                 <div className="sg-chips">
@@ -654,98 +532,5 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
         </div>
       </div>
     </SnOverlay>
-  );
-}
-
-/** 시간표 한 줄 — 줄 이름 + 7칸 (grid 의 display:contents) */
-function Band({ name, children }: { name: string; children: ReactNode }) {
-  return (
-    <>
-      <span className="sg-tt-r">{name}</span>
-      {children}
-    </>
-  );
-}
-
-/** 예배 하나의 이름·시간 고치기 */
-export function ServiceEditor({
-  service,
-  onChange,
-}: {
-  service: GroupService;
-  onChange: (next: Partial<GroupService>) => void;
-}) {
-  const setSlot = (i: number, patch: Partial<GroupService['slots'][number]>) =>
-    onChange({ slots: service.slots.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
-  return (
-    <div
-      className="sg-form"
-      style={{ padding: 12, borderRadius: 14, background: 'var(--sn-surface-2)' }}
-    >
-      <label className="sg-field" htmlFor={`sg-svc-${service.id}`}>
-        예배 이름
-        <input
-          id={`sg-svc-${service.id}`}
-          value={service.name}
-          maxLength={20}
-          onChange={(e) => onChange({ name: e.target.value })}
-        />
-      </label>
-      {service.slots.map((sl, i) => (
-        <div key={i} className="sg-svc-edit">
-          <select
-            aria-label="요일"
-            value={sl.dow}
-            onChange={(e) => setSlot(i, { dow: Number(e.target.value) })}
-          >
-            {[...DOW_KO].map((d, k) => (
-              <option key={d} value={k}>
-                {d}요일
-              </option>
-            ))}
-          </select>
-          <input
-            type="time"
-            aria-label="시작"
-            value={sl.start}
-            onChange={(e) => setSlot(i, { start: e.target.value })}
-          />
-          <input
-            type="time"
-            aria-label="끝"
-            value={sl.end}
-            onChange={(e) => setSlot(i, { end: e.target.value })}
-          />
-          <input
-            aria-label="부"
-            placeholder="2부"
-            maxLength={10}
-            value={sl.part || ''}
-            onChange={(e) => setSlot(i, { part: e.target.value || null })}
-          />
-          <button
-            type="button"
-            className="sn-btn sn-icon-only sn-ghost"
-            aria-label="이 시간 지우기"
-            disabled={service.slots.length <= 1}
-            onClick={() => onChange({ slots: service.slots.filter((_, j) => j !== i) })}
-          >
-            <X className="sn-icon" />
-          </button>
-        </div>
-      ))}
-      {service.slots.length < 10 && (
-        <button
-          type="button"
-          className="sg-chip"
-          style={{ alignSelf: 'flex-start' }}
-          onClick={() =>
-            onChange({ slots: [...service.slots, { ...service.slots[service.slots.length - 1] }] })
-          }
-        >
-          + 시간 추가 (1부·2부처럼)
-        </button>
-      )}
-    </div>
   );
 }
