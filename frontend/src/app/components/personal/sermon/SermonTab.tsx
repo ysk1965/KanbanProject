@@ -11,7 +11,8 @@ import { applyStyle, loadStyle, persistStyle, type SermonStyle } from './sermonS
 import { applyInk, type MascotId, type SermonLook } from './sermonLook';
 import { Mascot } from './Mascot';
 import { LookModal } from './LookModal';
-import { esc, galpiRivals, newNote, toggleApplyDone, type SermonNote } from './sermonTypes';
+import { esc, galpiToggle, newNote, toggleApplyDone, type SermonNote } from './sermonTypes';
+import { loadGalpiPrefs, resolveGalpiRule } from './galpiPrefs';
 import { clearStart, readStart } from './share/shareModel';
 import { FirstSticker } from './share/FirstSticker';
 import { GroupContext } from './group/GroupContext';
@@ -331,15 +332,17 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
     (noteId: string) => {
       const n = store.get(noteId);
       if (!n) return;
-      if (n.bookmarked_at) {
-        store.save({ ...n, bookmarked_at: null });
-        toast('갈피를 뺐어요');
-        return;
-      }
-      const rivals = galpiRivals(store.all(), n);
-      rivals.forEach((r) => store.save({ ...r, bookmarked_at: null }));
-      store.save({ ...n, bookmarked_at: Date.now() });
-      toast(rivals.length ? '이 설교로 갈피를 옮겼어요' : '갈피를 꽂았어요');
+      const all = store.all();
+      const t = galpiToggle(all, n, resolveGalpiRule(loadGalpiPrefs(), all));
+      t.rivals.forEach((r) => store.save(r));
+      store.save({ ...n, bookmarked_at: t.bookmarked_at });
+      toast(
+        !t.on
+          ? '이번 주는 갈피를 뺐어요'
+          : t.moved
+            ? '이 설교로 갈피를 옮겼어요'
+            : '갈피를 꽂았어요',
+      );
     },
     [store],
   );

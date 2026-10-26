@@ -1,6 +1,8 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import type { SermonNote } from '../sermonTypes';
 import { Faces } from './Faces';
+import type { SermonGroup } from './groupApi';
+import type { GroupStore } from './groupStore';
 import { useSermonGroups } from './GroupContext';
 import { dowOf, slotPhase, weekSlots, weekStartOf } from './sessionMatch';
 import './group.css';
@@ -8,7 +10,9 @@ import './group.css';
 /**
  * 「한 주 동안」 날짜 칸에 붙는 모임 조각.
  *  - GroupDaySlots: 그날의 모임 예배 자리(점선 스티커)와 모이는 날 표시. 내가 이미 쓴 자리는 그리지 않는다(내 스티커가 대신)
- *  - NoteGroupFaces: 내 노트 스티커 끝에 같은 자리를 채운 멤버 얼굴
+ *  - NoteGroupFaces: 내 노트 스티커 끝에 모임 이름과 같은 자리를 채운 멤버 얼굴(2명까지, 넘치면 +n)
+ *  - NoteGroupsWith: 표지 카드의 「같이 들은 모임」 — 갈피 노트를 여러 모임과 함께 들었을 때 모임마다 쓴 사람
+ *  - useNoteGroups: 노트가 「모임 노트」(내가 속한 모임 자리에 연결)인지 — 스티커 색을 나누는 기준
  * 모임이 없거나 로그인 전이면 아무것도 그리지 않아 지금 화면과 같다.
  */
 export function GroupDaySlots({ date, notes }: { date: string; notes: SermonNote[] }) {
@@ -95,11 +99,38 @@ export function GroupDaySlots({ date, notes }: { date: string; notes: SermonNote
   return out.length ? <>{out}</> : null;
 }
 
+/** 노트가 연결된, 내가 속한 모임들 (꺼진 연결·나간 모임 제외) */
+function linkedGroups(note: SermonNote, store: GroupStore): SermonGroup[] {
+  const out: SermonGroup[] = [];
+  for (const l of note.groups || []) {
+    if (l.off) continue;
+    const g = store.get(l.group_id);
+    if (g && g.me.status === 'active' && !out.includes(g)) out.push(g);
+  }
+  return out;
+}
+
+/** 「한 주 동안」 색 구분용 — 모임이 있는지, 노트가 모임 노트인지 */
+export function useNoteGroups(): {
+  hasGroups: boolean;
+  isGroupNote: (note: SermonNote) => boolean;
+} {
+  const ctx = useSermonGroups();
+  const store = ctx?.store;
+  useSyncExternalStore(store?.subscribe ?? noopSub, store?.snapshot ?? zero);
+  if (!ctx || !store || ctx.anonymous) return { hasGroups: false, isGroupNote: () => false };
+  return {
+    hasGroups: store.active().length > 0,
+    isGroupNote: (note) => linkedGroups(note, store).length > 0,
+  };
+}
+
 export function NoteGroupFaces({ note }: { note: SermonNote }) {
   const ctx = useSermonGroups();
   const store = ctx?.store;
   useSyncExternalStore(store?.subscribe ?? noopSub, store?.snapshot ?? zero);
   if (!ctx || !store || ctx.anonymous) return null;
+  const groups = linkedGroups(note, store);
   const people: Array<{ user_id: string; display_name: string }> = [];
   for (const l of note.groups || []) {
     if (l.off || !l.session_id) continue;
@@ -117,7 +148,49 @@ export function NoteGroupFaces({ note }: { note: SermonNote }) {
         }),
       );
   }
-  return people.length ? <Faces people={people} max={2} size={20} /> : null;
+  if (!groups.length) return null;
+  return (
+    <>
+      <span className="sn-grp-n">
+        {groups[0].name}
+        {groups.length > 1 && ` +${groups.length - 1}`}
+      </span>
+      {people.length > 0 && <Faces people={people} max={2} size={20} />}
+    </>
+  );
+}
+
+export function NoteGroupsWith({ note }: { note: SermonNote }) {
+  const ctx = useSermonGroups();
+  const store = ctx?.store;
+  useSyncExternalStore(store?.subscribe ?? noopSub, store?.snapshot ?? zero);
+  if (!ctx || !store || ctx.anonymous) return null;
+  const rows = linkedGroups(note, store).map((g) => {
+    const l = (note.groups || []).find((x) => x.group_id === g.id && !x.off);
+    const sess = l?.session_id
+      ? store.weekCached(g.id, weekStartOf(l.date))?.sessions.find((x) => x.id === l.session_id)
+      : undefined;
+    const people = (sess?.members || [])
+      .filter((m) => m.user_id !== g.me.user_id)
+      .map((m) => ({
+        user_id: m.user_id,
+        display_name: g.members.find((x) => x.user_id === m.user_id)?.display_name || '?',
+      }));
+    return { g, people };
+  });
+  if (!rows.length) return null;
+  return (
+    <p className="sn-hc-with">
+      같이 들은 모임
+      {rows.map(({ g, people }) => (
+        <span key={g.id} className="sn-hc-grp">
+          {people.length > 0 && <Faces people={people} max={2} size={20} />}
+          {g.name}
+          {people.length > 0 && <small>{people.length}명</small>}
+        </span>
+      ))}
+    </p>
+  );
 }
 
 const noopSub = () => () => undefined;

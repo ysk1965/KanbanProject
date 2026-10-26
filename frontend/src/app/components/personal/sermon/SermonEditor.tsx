@@ -40,7 +40,9 @@ import {
   audioPending,
   fmtDate,
   fmtTime,
-  galpiRivals,
+  galpiByWeek,
+  galpiToggle,
+  isGalpi,
   isLocalId,
   noteRefs,
   plainText,
@@ -56,6 +58,7 @@ import { VersionTracker, listVersions, saveVersion, type NoteVersion } from './s
 import { firstVerseText, useBible } from './useBible';
 import { Mascot } from './Mascot';
 import type { MascotId } from './sermonLook';
+import { loadGalpiPrefs, resolveGalpiRule } from './galpiPrefs';
 import { useProfile } from './profile/ProfileContext';
 
 /**
@@ -326,19 +329,23 @@ export function SermonEditor({
   );
 
   // ───────── 갈피 (그 주의 중심 설교) ─────────
-  const [galpiOn, setGalpiOn] = useState(() => !!note.bookmarked_at);
+  const [galpiOn, setGalpiOn] = useState(() => {
+    const all = store.all();
+    return isGalpi(note, galpiByWeek(all, resolveGalpiRule(loadGalpiPrefs(), all)));
+  });
   const toggleGalpi = useCallback(() => {
-    if (noteRef.current.bookmarked_at) {
-      setGalpiOn(false);
-      patchNote({ bookmarked_at: null });
-      toast('갈피를 뺐어요');
-      return;
-    }
-    const rivals = galpiRivals(store.all(), noteRef.current);
-    rivals.forEach((r) => store.save({ ...r, bookmarked_at: null }));
-    setGalpiOn(true);
-    patchNote({ bookmarked_at: Date.now() });
-    toast(rivals.length ? '이 설교로 갈피를 옮겼어요' : '이 주의 갈피를 꽂았어요');
+    const all = store.all();
+    const t = galpiToggle(all, noteRef.current, resolveGalpiRule(loadGalpiPrefs(), all));
+    t.rivals.forEach((r) => store.save(r));
+    setGalpiOn(t.on);
+    patchNote({ bookmarked_at: t.bookmarked_at });
+    toast(
+      !t.on
+        ? '이번 주는 갈피를 뺐어요'
+        : t.moved
+          ? '이 설교로 갈피를 옮겼어요'
+          : '이 주의 갈피를 꽂았어요',
+    );
   }, [patchNote, store]);
 
   const updateThoughts = useCallback(

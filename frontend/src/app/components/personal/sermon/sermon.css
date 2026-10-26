@@ -21,6 +21,9 @@
   --ink-desk: #f3ecf3;
   --ink-card: #fffdfe;
   --ink-card2: #f6eff6;
+  /* 모임 노트 스티커 색 — g1·g2 와 겹치지 않게 잉크마다 고른다 */
+  --ink-g3: #a9dfc6;
+  --ink-g3d: #b5e6cf;
 }
 html[data-sn-ink='strawberry'] .sermon-app,
 html[data-sn-ink='strawberry'] .sn-scope {
@@ -34,6 +37,8 @@ html[data-sn-ink='strawberry'] .sn-scope {
   --ink-desk: #f2eae8;
   --ink-card: #fffdfc;
   --ink-card2: #f7eff0;
+  --ink-g3: #a9dfc6;
+  --ink-g3d: #b5e6cf;
 }
 html[data-sn-ink='mint'] .sermon-app,
 html[data-sn-ink='mint'] .sn-scope {
@@ -47,6 +52,8 @@ html[data-sn-ink='mint'] .sn-scope {
   --ink-desk: #eaedef;
   --ink-card: #fdfefe;
   --ink-card2: #eef1f3;
+  --ink-g3: #ffd98a;
+  --ink-g3d: #ffe19f;
 }
 html[data-sn-ink='peach'] .sermon-app,
 html[data-sn-ink='peach'] .sn-scope {
@@ -60,6 +67,8 @@ html[data-sn-ink='peach'] .sn-scope {
   --ink-desk: #f3ebdf;
   --ink-card: #fffcf7;
   --ink-card2: #f7efe3;
+  --ink-g3: #a9dfc6;
+  --ink-g3d: #b5e6cf;
 }
 html[data-sn-ink='lilac'] .sermon-app,
 html[data-sn-ink='lilac'] .sn-scope {
@@ -73,6 +82,8 @@ html[data-sn-ink='lilac'] .sn-scope {
   --ink-desk: #ece8ee;
   --ink-card: #fefdfe;
   --ink-card2: #f1edf3;
+  --ink-g3: #a9d4f2;
+  --ink-g3d: #b6dcf5;
 }
 html[data-sn-ink='lemon'] .sermon-app,
 html[data-sn-ink='lemon'] .sn-scope {
@@ -86,6 +97,8 @@ html[data-sn-ink='lemon'] .sn-scope {
   --ink-desk: #ebf1f1;
   --ink-card: #fefffe;
   --ink-card2: #eef5f4;
+  --ink-g3: #cbb8f0;
+  --ink-g3d: #d4c4f3;
 }
 html[data-sn-ink='blueberry'] .sermon-app,
 html[data-sn-ink='blueberry'] .sn-scope {
@@ -99,6 +112,8 @@ html[data-sn-ink='blueberry'] .sn-scope {
   --ink-desk: #eceef6;
   --ink-card: #fefeff;
   --ink-card2: #f0f1f8;
+  --ink-g3: #a9dfc6;
+  --ink-g3d: #b5e6cf;
 }
 html[data-sn-ink='mono'] .sermon-app,
 html[data-sn-ink='mono'] .sn-scope {
@@ -112,6 +127,8 @@ html[data-sn-ink='mono'] .sn-scope {
   --ink-desk: #ececeb;
   --ink-card: #ffffff;
   --ink-card2: #f0f0ef;
+  --ink-g3: #b9d6c8;
+  --ink-g3d: #c4ddd1;
 }
 html[data-sn-ink='monopink'] .sermon-app,
 html[data-sn-ink='monopink'] .sn-scope {
@@ -125,6 +142,8 @@ html[data-sn-ink='monopink'] .sn-scope {
   --ink-desk: #ececeb;
   --ink-card: #ffffff;
   --ink-card2: #f0f0ef;
+  --ink-g3: #b9d6c8;
+  --ink-g3d: #c4ddd1;
 }
 
 /* ---------- 2. 다크 (기본) = 밤 종이 ---------- */
@@ -132,6 +151,7 @@ html[data-sn-ink='monopink'] .sn-scope {
 .sn-scope {
   --sn-g1: var(--ink-g1d);
   --sn-g2: var(--ink-g2d);
+  --sn-g3: var(--ink-g3d);
   --sn-t1: var(--ink-g1d);
   --sn-t2: var(--ink-g2d);
   --sn-desk: #0f0e14;
@@ -212,6 +232,7 @@ html.light .sermon-app,
 html.light .sn-scope {
   --sn-g1: var(--ink-g1);
   --sn-g2: var(--ink-g2);
+  --sn-g3: var(--ink-g3);
   --sn-t1: var(--ink-t1);
   --sn-t2: var(--ink-t2);
   --sn-desk: var(--ink-desk);
@@ -3270,6 +3291,78 @@ html[data-keyboard-open] .sn-overlay {
   background: var(--sn-g2);
   color: var(--sn-on-ink);
   box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--sn-t1) 55%, transparent);
+}
+.sermon-app .sn-stk.sn-c3 {
+  background: var(--sn-g3);
+  color: var(--sn-on-ink);
+  box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--sn-g3) 90%, #000 10%);
+}
+/* 갈피 노트 표시 — 스티커 앞 갈피 리본 (✦ 대신) */
+.sermon-app .sn-rib {
+  flex: none;
+  width: 10px;
+  height: 15px;
+  background: var(--sn-t2);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%);
+}
+.sermon-app .sn-stk .sn-grp-n {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 7px;
+  border-radius: var(--sn-r-pill);
+  background: rgba(255, 255, 255, 0.55);
+}
+/* 표지 카드 「같이 들은 모임」 */
+.sermon-app .sn-hc-with {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-hc-grp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 4px;
+  border-radius: var(--sn-r-pill);
+  background: var(--sn-g3);
+  color: var(--sn-on-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+.sermon-app .sn-hc-grp:not(:has(.sg-faces)) {
+  padding-left: 10px;
+}
+.sermon-app .sn-hc-grp small {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+.sermon-app .sn-hc-grp .sg-faces i {
+  border-color: var(--sn-g3);
+}
+/* 「한 주 동안」 범례 (모임이 있을 때만) */
+.sermon-app .sn-plan-lg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: -4px;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-plan-lg span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.sermon-app .sn-plan-lg i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
 }
 .sermon-app button.sn-stk:hover {
   transform: rotate(0deg) translateY(-1px);

@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { Check, Copy, Link2Off, Loader2, Plus, Share2, Trash2, UserMinus } from 'lucide-react';
 import { toast } from 'sonner';
 import { decRef, refLong } from '../bibleRefs';
-import { fmtDate, todayString, type SermonNote } from '../sermonTypes';
+import { fmtDate, galpiByWeek, todayString, type SermonNote } from '../sermonTypes';
+import { resolveGalpiRule, useGalpiPrefs } from '../galpiPrefs';
 import {
   groupErrorMessage,
   sermonGroupAPI,
@@ -170,12 +171,15 @@ function WeekList({
   onOpened: (s: SessionSummary) => void;
 }) {
   const [opening, setOpening] = useState(false);
+  const galpiPrefs = useGalpiPrefs();
   const [name, setName] = useState('');
   const [date, setDate] = useState(todayString());
   const now = new Date();
   const slots = useMemo(() => weekSlots(group, start), [group, start]);
   const memberName = new Map(group.members.map((m) => [m.user_id, m.display_name]));
-  const galpiByNote = new Set(notes.filter((n) => n.bookmarked_at).map((n) => n.id));
+  const galpiByNote = new Set(
+    [...galpiByWeek(notes, resolveGalpiRule(galpiPrefs, notes)).values()].map((n) => n.id),
+  );
 
   type Row = {
     key: string;

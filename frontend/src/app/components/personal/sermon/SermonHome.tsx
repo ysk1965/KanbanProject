@@ -6,6 +6,7 @@ import { mascotName, type MascotId } from './sermonLook';
 import {
   audioDuration,
   galpiByWeek,
+  isAutoGalpi,
   isGalpi,
   mainRef,
   todayString,
@@ -15,7 +16,13 @@ import {
 } from './sermonTypes';
 import { firstVerseText } from './useBible';
 import { useFirstSeen, useFlip, useFx } from './microFx';
-import { GroupDaySlots, NoteGroupFaces } from './group/GroupWeekBits';
+import {
+  GroupDaySlots,
+  NoteGroupFaces,
+  NoteGroupsWith,
+  useNoteGroups,
+} from './group/GroupWeekBits';
+import { resolveGalpiRule, useGalpiPrefs } from './galpiPrefs';
 
 /**
  * 노트 목록의 첫 화면 「한 주 다이어리」.
@@ -103,7 +110,11 @@ export function SermonHome({
     () => [...notes].sort((a, b) => (b.date || '').localeCompare(a.date || '')),
     [notes],
   );
-  const galpi = useMemo(() => galpiByWeek(notes), [notes]);
+  const galpiPrefs = useGalpiPrefs();
+  const galpi = useMemo(
+    () => galpiByWeek(notes, resolveGalpiRule(galpiPrefs, notes)),
+    [notes, galpiPrefs],
+  );
   const weekGalpi = galpi.get(weekStart);
   const hero = weekGalpi ?? byDate[0];
   const heroThisWeek = !!hero && (hero.date || '') >= weekStart && (hero.date || '') <= today;
@@ -111,6 +122,9 @@ export function SermonHome({
   const quote = ref ? firstVerseText(ref) : '';
   const thn = hero ? (hero.thoughts || []).length : 0;
   const rec = hero ? audioDuration(hero) : 0;
+
+  // 「한 주 동안」 스티커 색: 개인 노트 = c1, 모임 노트 = c3, 갈피 노트는 앞에 갈피 리본
+  const { hasGroups, isGroupNote } = useNoteGroups();
 
   const done = week.filter((x) => x.t.done).length;
   const left = week.length - done;
@@ -188,7 +202,7 @@ export function SermonHome({
                 {weekGalpi ? (
                   <b className="sn-hc-chip">
                     <Bookmark className="sn-icon" aria-hidden />
-                    이번 주 갈피
+                    이번 주 갈피{isAutoGalpi(weekGalpi, galpi) && ' · 자동'}
                   </b>
                 ) : (
                   <b>{heroThisWeek ? '이번 주 설교' : '최근 설교'}</b>
@@ -212,6 +226,7 @@ export function SermonHome({
                   </span>
                 )}
               </p>
+              <NoteGroupsWith note={hero} />
               {ref && quote && (
                 <blockquote className="sn-vq">
                   <p>{quote}</p>
@@ -262,6 +277,22 @@ export function SermonHome({
               </span>
             )}
           </h4>
+          {hasGroups && (
+            <div className="sn-plan-lg" aria-label="스티커 색">
+              <span>
+                <i style={{ background: 'var(--sn-g1)' }} />
+                개인
+              </span>
+              <span>
+                <i style={{ background: 'var(--sn-g3)' }} />
+                모임
+              </span>
+              <span>
+                <span className="sn-rib" />
+                갈피
+              </span>
+            </div>
+          )}
           <div className="sn-days">
             {days.map((d) => {
               const ds = ymd(d);
@@ -285,11 +316,16 @@ export function SermonHome({
                       <button
                         key={n.id}
                         type="button"
-                        className="sn-stk sn-c1"
+                        className={`sn-stk ${isGroupNote(n) ? 'sn-c3' : 'sn-c1'}`}
                         style={{ ['--r' as string]: '-2deg' }}
                         onClick={() => onOpen(n.id)}
                       >
-                        ✦ {n.title || UNTITLED}
+                        {isGalpi(n, galpi) ? (
+                          <span className="sn-rib" role="img" aria-label="갈피" />
+                        ) : (
+                          '✦'
+                        )}{' '}
+                        {n.title || UNTITLED}
                         <NoteGroupFaces note={n} />
                       </button>
                     ))}

@@ -238,27 +238,103 @@ export function weekOf(ds: string | null | undefined): string {
 }
 
 /**
- * 주(일요일) → 그 주 갈피 노트.
- * 한 주에 갈피가 둘 이상 남아 있으면(다른 기기에서 동시에 꽂았거나 날짜를 옮긴 경우) 늦게 꽂은 쪽.
+ * 자동 갈피 규칙 (사용자 설정 galpiPrefs.ts → resolveGalpiRule).
+ *  - auto: 직접 꽂은 노트가 없는 주에 그 주 일요일 노트로 자동 갈피
+ *  - service: 「내 주일 예배」 이름. 그 예배로 쓴 일요일 노트를 먼저 고른다
  */
-export function galpiByWeek(notes: SermonNote[]): Map<string, SermonNote> {
-  const out = new Map<string, SermonNote>();
+export interface GalpiRule {
+  auto: boolean;
+  service: string | null;
+}
+
+/** '주일 2부' 와 '주일2부' 를 같은 예배로 본다 */
+export function sameService(a: string | null | undefined, b: string | null | undefined): boolean {
+  const k = (x: string | null | undefined) => (x || '').replace(/\s+/g, '');
+  return !!k(a) && k(a) === k(b);
+}
+
+/** 최근 weeks 주 동안 일요일 노트의 예배 — 많이 쓴 순서(같으면 최근에 쓴 쪽) */
+export function sundayServices(
+  notes: SermonNote[],
+  today: string = todayString(),
+  weeks = 8,
+): Array<{ service: string; count: number }> {
+  const from = weekOf(today);
+  const [y, m, d] = from.split('-').map(Number);
+  const since = from ? weekOf(ymdOf(new Date(y, m - 1, d - 7 * (weeks - 1)))) : '';
+  const acc = new Map<string, { service: string; count: number; last: string }>();
   notes.forEach((n) => {
-    if (!n.bookmarked_at) return;
+    const svc = (n.service || '').trim();
+    if (!svc || !n.date || n.date !== weekOf(n.date) || n.date < since || n.date > today) return;
+    const key = svc.replace(/\s+/g, '');
+    const cur = acc.get(key);
+    if (cur) {
+      cur.count += 1;
+      if (n.date > cur.last) cur.last = n.date;
+    } else acc.set(key, { service: svc, count: 1, last: n.date });
+  });
+  return [...acc.values()]
+    .sort((a, b) => b.count - a.count || b.last.localeCompare(a.last))
+    .map(({ service, count }) => ({ service, count }));
+}
+
+function ymdOf(t: Date): string {
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+}
+
+/** 자동 갈피 후보끼리 — 생각이 많은 쪽, 같으면 본문이 긴 쪽, 같으면 먼저 쓴 쪽 */
+function richer(a: SermonNote, b: SermonNote): SermonNote {
+  const d =
+    (b.thoughts || []).length - (a.thoughts || []).length ||
+    (b.body || '').length - (a.body || '').length ||
+    (a.created_at || 0) - (b.created_at || 0);
+  return d > 0 ? b : a;
+}
+
+/**
+ * 주(일요일) → 그 주 갈피 노트.
+ *  1) 직접 꽂은 노트 (bookmarked_at > 0). 둘 이상 남아 있으면(다른 기기에서 동시에 꽂았거나 날짜를 옮긴 경우) 늦게 꽂은 쪽
+ *  2) rule.auto 면: 그 주 일요일에 「내 주일 예배」로 쓴 노트
+ *  3) 없으면 그 주 일요일 노트 중 생각이 가장 많은 노트
+ * 갈피를 뺀 노트(bookmarked_at === 0)가 있는 주는 자동으로 꽂지 않는다(「이번 주는 갈피 빼기」).
+ */
+export function galpiByWeek(notes: SermonNote[], rule?: GalpiRule): Map<string, SermonNote> {
+  const out = new Map<string, SermonNote>();
+  const off = new Set<string>();
+  const sundays = new Map<string, SermonNote[]>();
+  notes.forEach((n) => {
     const w = weekOf(n.date);
     if (!w) return;
-    const cur = out.get(w);
-    if (!cur || (cur.bookmarked_at || 0) < n.bookmarked_at) out.set(w, n);
+    if (n.bookmarked_at) {
+      const cur = out.get(w);
+      if (!cur || (cur.bookmarked_at || 0) < n.bookmarked_at) out.set(w, n);
+    } else if (n.bookmarked_at === 0) {
+      off.add(w);
+    } else if (n.date === w) {
+      sundays.set(w, [...(sundays.get(w) || []), n]);
+    }
   });
+  if (rule?.auto) {
+    sundays.forEach((list, w) => {
+      if (out.has(w) || off.has(w)) return;
+      const main = rule.service ? list.filter((n) => sameService(n.service, rule.service)) : [];
+      out.set(w, (main.length ? main : list).reduce(richer));
+    });
+  }
   return out;
 }
 
 /** 노트가 자기 주의 갈피인지 */
 export function isGalpi(n: SermonNote, byWeek: Map<string, SermonNote>): boolean {
-  return !!n.bookmarked_at && byWeek.get(weekOf(n.date))?.id === n.id;
+  return byWeek.get(weekOf(n.date))?.id === n.id;
 }
 
-/** 같은 주에서 갈피를 빼야 할 다른 노트들 (갈피를 꽂을 때 함께 저장) */
+/** 직접 꽂지 않고 규칙으로 꽂힌 갈피인지 */
+export function isAutoGalpi(n: SermonNote, byWeek: Map<string, SermonNote>): boolean {
+  return isGalpi(n, byWeek) && !n.bookmarked_at;
+}
+
+/** 같은 주에서 직접 꽂은 갈피를 빼야 할 다른 노트들 (갈피를 꽂을 때 함께 저장) */
 export function galpiRivals(
   notes: SermonNote[],
   target: Pick<SermonNote, 'id' | 'date'>,
@@ -266,6 +342,27 @@ export function galpiRivals(
   const w = weekOf(target.date);
   if (!w) return [];
   return notes.filter((n) => n.id !== target.id && n.bookmarked_at && weekOf(n.date) === w);
+}
+
+/**
+ * 갈피 꽂기/빼기. 저장할 것을 돌려준다(호출하는 쪽이 저장).
+ *  - 꽂기: target 에 지금 시각, 같은 주의 다른 직접 갈피는 null
+ *  - 빼기: target 에 0(그 주 자동 갈피도 끔), 같은 주의 다른 직접 갈피도 null
+ * moved = 같은 주에 다른 갈피(직접이든 자동이든)가 있었는지
+ */
+export function galpiToggle(
+  notes: SermonNote[],
+  target: SermonNote,
+  rule: GalpiRule,
+  now: number = Date.now(),
+): { on: boolean; moved: boolean; bookmarked_at: number; rivals: SermonNote[] } {
+  const all = notes.some((n) => n.id === target.id)
+    ? notes.map((n) => (n.id === target.id ? target : n))
+    : [...notes, target];
+  const cur = galpiByWeek(all, rule).get(weekOf(target.date));
+  const on = cur?.id !== target.id;
+  const rivals = galpiRivals(all, target).map((r) => ({ ...r, bookmarked_at: null }));
+  return { on, moved: on && !!cur, bookmarked_at: on ? now : 0, rivals };
 }
 
 /** '10.25 – 10.31' */

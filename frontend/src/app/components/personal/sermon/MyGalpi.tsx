@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Mascot } from './Mascot';
+import { GalpiSettingsRows } from './GalpiSettings';
 import type { MascotId } from './sermonLook';
 import type { SermonNote } from './sermonTypes';
 import { Nametag } from './profile/Nametag';
@@ -86,6 +87,7 @@ export function MyGalpi({
             {notes.length}장 <ChevronRight className="sn-icon" aria-hidden />
           </span>
         </button>
+        <GalpiSettingsRows notes={notes} />
         <div className="sn-me-row">
           기기·동기화
           <span>{anonymous ? '이 기기에만 저장' : syncLine}</span>

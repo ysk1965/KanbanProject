@@ -108,6 +108,9 @@
 .sermon-app .sn-stk .sg-faces i {
   border-color: var(--sn-g1);
 }
+.sermon-app .sn-stk.sn-c3 .sg-faces i {
+  border-color: var(--sn-g3);
+}
 
 /* ── 모임 공용 화면 ── */
 .sg-page {
