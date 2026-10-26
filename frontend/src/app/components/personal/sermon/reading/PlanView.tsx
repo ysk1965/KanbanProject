@@ -5,7 +5,7 @@ import { Faces } from '../group/Faces';
 import { todayString } from '../sermonTypes';
 import { readingAPI, readingErrorMessage, type PlanDay, type PlanDetail } from './readingApi';
 import { refreshMine } from './readingStore';
-import { chaptersLabel, md, mdDow } from './readingPlan';
+import { chaptersLabel, md, mdDow, withYear } from './readingPlan';
 import './reading.css';
 
 /**
@@ -74,7 +74,7 @@ export function PlanView({ plan, onRead, onChange, onEnded }: Props) {
       <div className="rp-head">
         <h3>{plan.title}</h3>
         <span>
-          {md(plan.start_date)} – {md(plan.end_date)} · {plan.total_days}일
+          {md(plan.start_date)} – {withYear(plan.end_date, plan.start_date)} · {plan.total_days}일
         </span>
       </div>
 

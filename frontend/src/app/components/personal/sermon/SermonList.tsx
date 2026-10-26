@@ -51,8 +51,6 @@ interface SermonListProps {
   onOpen: (id: string, aid?: string | null) => void;
   onNew: () => void;
   onToggleApply: (noteId: string, thoughtId: string) => void;
-  /** 갈피 꽂기/빼기 (그 주의 중심 설교) */
-  onToggleGalpi: (noteId: string) => void;
   /** 로그인 전이면 기존 로그인으로 보낸다 (없으면 안내를 그리지 않음) */
   onLogin?: () => void;
   /** 꾸미기에서 고른 마스코트 */
@@ -125,7 +123,6 @@ export function SermonList({
   onOpen,
   onNew,
   onToggleApply,
-  onToggleGalpi,
   onLogin,
   mascot = 'galpi',
   onOpenLook,
@@ -411,7 +408,6 @@ export function SermonList({
         onOpen={onOpen}
         onNew={onNew}
         onToggleApply={onToggleApply}
-        onToggleGalpi={onToggleGalpi}
       />
     );
   } else if (!filtered.length) {

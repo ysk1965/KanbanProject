@@ -22,23 +22,36 @@ export function GroupReading({ group, mascot, onRead }: Props) {
   const [sheet, setSheet] = useState(false);
   const isLeader = group.me.role === 'leader' || group.me.role === 'co_leader';
 
-  const load = useCallback(() => {
-    setFailed(false);
-    readingAPI
-      .ofGroup(group.id, todayString())
-      .then((r) => setPlan(r.plan || null))
-      .catch(() => setFailed(true));
-  }, [group.id]);
+  const load = useCallback(
+    (signal?: { cancelled: boolean }) => {
+      setFailed(false);
+      const fetchOnce = () => readingAPI.ofGroup(group.id, todayString());
+      // 배포 롤링·인스턴스 기동 중엔 첫 요청만 튕기는 일이 있어 한 번은 조용히 다시 묻는다
+      fetchOnce()
+        .catch(() => new Promise((r) => setTimeout(r, 800)).then(fetchOnce))
+        .then((r) => {
+          if (!signal?.cancelled) setPlan(r.plan || null);
+        })
+        .catch(() => {
+          if (!signal?.cancelled) setFailed(true);
+        });
+    },
+    [group.id],
+  );
 
   useEffect(() => {
-    load();
+    const signal = { cancelled: false };
+    load(signal);
+    return () => {
+      signal.cancelled = true;
+    };
   }, [load]);
 
   if (failed) {
     return (
       <div className="rp-empty">
         <p>통독 길을 불러오지 못했어요.</p>
-        <button type="button" className="sn-btn sn-ghost" onClick={load}>
+        <button type="button" className="sn-btn sn-ghost" onClick={() => load()}>
           다시 불러오기
         </button>
       </div>

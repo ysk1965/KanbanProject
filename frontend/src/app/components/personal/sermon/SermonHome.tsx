@@ -1,13 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
 import { ArrowRight, Check, MessageCircle, Mic, Share2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { BOOKS, PSALMS, refLong, type Ref } from './bibleRefs';
 import { Mascot } from './Mascot';
 import { mascotName, type MascotId } from './sermonLook';
 import {
   audioDuration,
   galpiByWeek,
-  isAutoGalpi,
   isGalpi,
   mainRef,
   todayString,
@@ -26,7 +24,7 @@ import './homeShare.css';
  * 노트 목록의 첫 화면 「한 주 다이어리」.
  *  - 이번 주 설교 카드(표지형): 이번 주 갈피(그 주의 중심 설교)가 있으면 그 설교, 없으면 최근 설교.
  *    그림은 장 번호만이 아니라 항상 「책 이름 + 장」을 가리킨다.
- *    카드의 다음 행동은 「공유」와 「나눈 곳」 줄 — 갈피는 표지 리본으로만 보이고 리본을 눌러 꽂고 뺀다
+ *    카드의 다음 행동은 「공유」와 「나눈 곳」 줄 (홈에서는 갈피를 꽂고 빼지 않는다)
  *  - 한 주 동안: 일~토 칸에 그날 들은 설교와 실천한 적용이 스티커로 붙는다
  *  - 모은 설교 스티커: 지난 설교가 칼선 도장 스티커로 쌓이고, 다음 주일 자리는 마스코트가 기다린다
  */
@@ -37,7 +35,6 @@ interface SermonHomeProps {
   onOpen: (id: string, aid?: string | null) => void;
   onNew: () => void;
   onToggleApply: (noteId: string, thoughtId: string) => void;
-  onToggleGalpi: (noteId: string) => void;
 }
 
 const DOW = '일월화수목금토';
@@ -93,15 +90,7 @@ function fmtMin(sec: number): string {
   return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`;
 }
 
-export function SermonHome({
-  notes,
-  week,
-  mascot,
-  onOpen,
-  onNew,
-  onToggleApply,
-  onToggleGalpi,
-}: SermonHomeProps) {
+export function SermonHome({ notes, week, mascot, onOpen, onNew, onToggleApply }: SermonHomeProps) {
   const today = todayString();
   const days = useMemo(() => weekDays(), []);
   const weekStart = ymd(days[0]);
@@ -147,11 +136,6 @@ export function SermonHome({
     if (!wasDone) fire(left === 1 ? `all:${thoughtId}` : `apply:${thoughtId}`);
     onToggleApply(noteId, thoughtId);
   };
-  const toggleGalpi = (noteId: string) => {
-    fire(weekGalpi ? `unpin:${noteId}` : `pin:${noteId}`);
-    onToggleGalpi(noteId);
-    toast(weekGalpi ? '이번 주는 갈피를 뺐어요' : '이번 주 갈피를 꽂았어요');
-  };
   const [shareOpen, setShareOpen] = useState(false);
   const applyFx = fx?.startsWith('apply:') || fx?.startsWith('all:');
 
@@ -159,29 +143,9 @@ export function SermonHome({
     <div className="sn-home">
       <div className="sn-home-top">
         {hero && (
-          <article
-            className="sn-hc"
-            data-galpi={!!weekGalpi}
-            data-fx={
-              fx === `pin:${hero.id}` ? 'pin' : fx === `unpin:${hero.id}` ? 'unpin' : undefined
-            }
-          >
+          <article className="sn-hc" data-galpi={!!weekGalpi}>
             <span className="sn-tape" style={{ left: 44, ['--r' as string]: '-7deg' }} />
             <span className="sn-tape sn-c1" style={{ right: 150, ['--r' as string]: '5deg' }} />
-            {heroThisWeek && (
-              <button
-                type="button"
-                className="sn-hc-rib"
-                aria-pressed={!!weekGalpi}
-                aria-label={weekGalpi ? '이번 주 갈피에서 빼기' : '이번 주 갈피로 꽂기'}
-                title={
-                  weekGalpi
-                    ? `이번 주 갈피${isAutoGalpi(weekGalpi, galpi) ? ' · 자동' : ''} · 누르면 빼요`
-                    : '이번 주 갈피로 꽂기'
-                }
-                onClick={() => toggleGalpi(hero.id)}
-              />
-            )}
             <span className="sn-hc-peek">
               <Mascot kind={mascot} size={84} state={left === 0 && week.length ? 'done' : 'idle'} />
             </span>
@@ -465,11 +429,7 @@ export function SermonHome({
                     </span>
                   )}
                   {gp ? (
-                    <span
-                      className="sn-new"
-                      data-galpi="true"
-                      data-fx={fx === `pin:${n.id}` ? 'tape' : undefined}
-                    >
+                    <span className="sn-new" data-galpi="true">
                       갈피
                     </span>
                   ) : (

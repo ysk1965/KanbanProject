@@ -14,6 +14,7 @@ import {
   buildPlan,
   mdDow,
   type RestDow,
+  withYear,
   type TemplateId,
 } from './readingPlan';
 import './reading.css';
@@ -162,7 +163,7 @@ export function PlanSheet({ open, groupId, groupName, onClose, onCreated }: Prop
             <>
               <b>{built.title}</b> · {built.days.length}일, {built.chapters}장
               <br />
-              {mdDow(built.days[0].date)} 시작 → {mdDow(last.date)} 끝
+              {mdDow(built.days[0].date)} 시작 → {withYear(last.date, built.days[0].date, mdDow)} 끝
             </>
           ) : (
             '400일을 넘어요. 범위를 줄이거나 하루 장 수를 늘려 주세요.'

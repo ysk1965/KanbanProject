@@ -166,6 +166,12 @@ export function md(ds: string): string {
   return `${m}.${d}`;
 }
 
+/** 기준 날짜와 해가 다르면 앞에 연도를 붙인다 — 1년 1독 끝이 「12.24」로 올해처럼 읽히지 않게 */
+export function withYear(ds: string, refDs: string, fmt: (ds: string) => string = md): string {
+  const y = ds.slice(0, 4);
+  return y === refDs.slice(0, 4) ? fmt(ds) : `${y}.${fmt(ds)}`;
+}
+
 export const REST_OPTIONS: Array<[RestDow, string]> = [
   [6, '토요일 쉼'],
   [0, '주일 쉼'],

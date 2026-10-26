@@ -12,8 +12,7 @@ import { applyStyle, loadStyle, persistStyle, type SermonStyle } from './sermonS
 import { applyInk, type MascotId, type SermonLook } from './sermonLook';
 import { Mascot } from './Mascot';
 import { LookModal } from './LookModal';
-import { esc, galpiToggle, newNote, toggleApplyDone, type SermonNote } from './sermonTypes';
-import { loadGalpiPrefs, resolveGalpiRule } from './galpiPrefs';
+import { esc, newNote, toggleApplyDone, type SermonNote } from './sermonTypes';
 import { clearStart, readStart } from './share/shareModel';
 import { FirstSticker } from './share/FirstSticker';
 import { GroupContext } from './group/GroupContext';
@@ -365,25 +364,6 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
     [store],
   );
 
-  const handleToggleGalpi = useCallback(
-    (noteId: string) => {
-      const n = store.get(noteId);
-      if (!n) return;
-      const all = store.all();
-      const t = galpiToggle(all, n, resolveGalpiRule(loadGalpiPrefs(), all));
-      t.rivals.forEach((r) => store.save(r));
-      store.save({ ...n, bookmarked_at: t.bookmarked_at });
-      toast(
-        !t.on
-          ? '이번 주는 갈피를 뺐어요'
-          : t.moved
-            ? '이 설교로 갈피를 옮겼어요'
-            : '갈피를 꽂았어요',
-      );
-    },
-    [store],
-  );
-
   // 공유받은 카드에서 「나도 기록하기」 → /sermonnote?start=1&… : 같은 설교 정보로 새 노트를 연다
   // 첫 스티커는 노트 사본을 들고 있는다 (로그인 상태면 곧 서버 id 로 바뀌므로)
   const [firstNote, setFirstNote] = useState<SermonNote | null>(null);
@@ -483,7 +463,6 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
               onOpen={handleOpen}
               onNew={handleNew}
               onToggleApply={handleToggleApply}
-              onToggleGalpi={handleToggleGalpi}
               onLogin={onLogin}
               mascot={look.mascot}
               onOpenLook={() => setLookOpen(true)}
