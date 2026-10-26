@@ -43,27 +43,31 @@ interface Props {
 const STEPS = ['이름·종류', '같이 드리는 예배', '초대'] as const;
 const TITLES = ['어떤 모임이에요?', '언제 같이 들어요?', '모임 스티커 완성!'] as const;
 
-/** 종류 그림 — 잉크 두 색으로만 그린다 (잉크 조합을 바꾸면 같이 바뀐다) */
+/**
+ * 종류 그림 — 잉크 두 색으로만 그린다 (잉크 조합을 바꾸면 같이 바뀐다).
+ * className 은 group.css 「종류 그림 움직임」의 부품 이름 — 고르거나 올려 보면 종류마다 다르게 움직인다.
+ */
 const KIND_ART: Record<GroupKind, ReactNode> = {
   church: (
     <>
-      <circle cx="14" cy="17" r="6" fill="var(--sn-g1)" />
-      <circle cx="26" cy="13" r="6" fill="var(--sn-g2)" />
-      <circle cx="20" cy="25" r="6" fill="var(--sn-g1)" opacity=".8" />
+      <circle className="k-a" cx="14" cy="17" r="6" fill="var(--sn-g1)" />
+      <circle className="k-b" cx="26" cy="13" r="6" fill="var(--sn-g2)" />
+      <circle className="k-c" cx="20" cy="25" r="6" fill="var(--sn-g1)" opacity=".8" />
     </>
   ),
   study: (
     <>
-      <path d="M6 11c5-2 10-2 14 1v18c-4-3-9-3-14-1z" fill="var(--sn-g1)" />
-      <path d="M34 11c-5-2-10-2-14 1v18c4-3 9-3 14-1z" fill="var(--sn-g2)" />
-      <path d="M24 12v14l2-2 2 2V11" fill="var(--sn-t2)" />
+      <path className="k-l" d="M6 11c5-2 10-2 14 1v18c-4-3-9-3-14-1z" fill="var(--sn-g1)" />
+      <path className="k-r" d="M34 11c-5-2-10-2-14 1v18c4-3 9-3 14-1z" fill="var(--sn-g2)" />
+      <path className="k-mark" d="M24 12v14l2-2 2 2V11" fill="var(--sn-t2)" />
     </>
   ),
   family: (
     <>
-      <path d="M7 19L20 8l13 11v13H7z" fill="var(--sn-g2)" />
-      <rect x="16" y="22" width="8" height="10" rx="3" fill="var(--sn-g1)" />
+      <path className="k-house" d="M7 19L20 8l13 11v13H7z" fill="var(--sn-g2)" />
+      <rect className="k-door" x="16" y="22" width="8" height="10" rx="3" fill="var(--sn-g1)" />
       <path
+        className="k-heart"
         d="M20 15.5c-1.6-2-4.4-.6-3.3 1.6L20 20l3.3-2.9c1.1-2.2-1.7-3.6-3.3-1.6z"
         fill="var(--sn-t2)"
       />
@@ -71,21 +75,22 @@ const KIND_ART: Record<GroupKind, ReactNode> = {
   ),
   friend: (
     <>
-      <circle cx="15" cy="20" r="9" fill="var(--sn-g1)" />
-      <circle cx="25" cy="20" r="9" fill="var(--sn-g2)" opacity=".85" />
+      <circle className="k-l" cx="15" cy="20" r="9" fill="var(--sn-g1)" />
+      <circle className="k-r" cx="25" cy="20" r="9" fill="var(--sn-g2)" opacity=".85" />
     </>
   ),
   team: (
     <>
       <path
+        className="k-stem"
         d="M16 28V11l14-3v16"
         stroke="var(--sn-t1)"
         strokeWidth="2.6"
         fill="none"
         strokeLinejoin="round"
       />
-      <ellipse cx="12.5" cy="28" rx="5" ry="4" fill="var(--sn-g2)" />
-      <ellipse cx="26.5" cy="25" rx="5" ry="4" fill="var(--sn-g1)" />
+      <ellipse className="k-n1" cx="12.5" cy="28" rx="5" ry="4" fill="var(--sn-g2)" />
+      <ellipse className="k-n2" cx="26.5" cy="25" rx="5" ry="4" fill="var(--sn-g1)" />
     </>
   ),
 };
@@ -355,7 +360,13 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
                         setApproval(k.approval);
                       }}
                     >
-                      <svg viewBox="0 0 40 40" aria-hidden>
+                      {/* key 가 바뀌면 다시 그려져서, 고를 때마다 움직임이 처음부터 다시 나온다 */}
+                      <svg
+                        key={kind === k.id ? 'on' : 'off'}
+                        viewBox="0 0 40 40"
+                        data-kind={k.id}
+                        aria-hidden
+                      >
                         {KIND_ART[k.id]}
                       </svg>
                       <b>{k.name}</b>

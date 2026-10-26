@@ -999,10 +999,16 @@ button.sg-card:hover {
     border-color 0.2s,
     box-shadow 0.25s;
 }
+/* 그림은 38px, 둘레 4px 는 고르면 깔리는 종이 받침 자리 (배경 잉크에 그림이 묻히지 않게) */
 .sg-kind svg {
-  width: 38px;
-  height: 38px;
-  transition: transform 0.35s var(--sg-spring);
+  width: 46px;
+  height: 46px;
+  padding: 4px;
+  border-radius: 50%;
+  overflow: visible;
+  transition:
+    transform 0.35s var(--sg-spring),
+    background 0.2s;
 }
 .sg-kind b {
   font-size: 14px;
@@ -1018,8 +1024,8 @@ button.sg-card:hover {
   transform: translateY(-2px);
   border-color: var(--sn-line-strong);
 }
-.sg-kind:hover svg {
-  transform: rotate(-8deg) scale(1.08);
+.sg-kind:not([aria-checked='true']):hover svg {
+  transform: scale(1.06);
 }
 .sg-kind:active {
   transform: scale(0.95);
@@ -1037,7 +1043,9 @@ button.sg-card:hover {
   opacity: 0.75;
 }
 .sg-kind[aria-checked='true'] svg {
-  animation: sg-wiggle 0.5s ease-in-out;
+  background: var(--sn-surface);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--sn-t1) 25%, transparent);
+  animation: sg-chip-in 0.45s var(--sg-spring);
 }
 .sg-kind[aria-checked='true']::after {
   content: '';
@@ -1060,12 +1068,146 @@ button.sg-card:hover {
     transform: scale(1.06) rotate(-3deg);
   }
 }
-@keyframes sg-wiggle {
-  25% {
-    transform: rotate(-10deg);
+@keyframes sg-chip-in {
+  0% {
+    transform: scale(0.7);
   }
   60% {
-    transform: rotate(8deg);
+    transform: scale(1.1);
+  }
+}
+
+/* ── 종류 그림 움직임 — 올려 보거나 고르면 한 번씩 (svg 에 key 를 줘서 고를 때마다 다시 나온다) ──
+   교회 모임: 흩어져 있던 셋이 모인다 · 성경공부: 책이 펼쳐지고 갈피가 꽂힌다
+   가족: 하트가 두근 · 친구: 둘이 다가와 부딪히고 · 사역팀: 음표가 차례로 통통 */
+.sg-kind svg * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.sg-kind:is([aria-checked='true'], :hover) [data-kind='church'] :is(.k-a, .k-b, .k-c) {
+  animation: sg-k-gather 0.6s var(--sg-spring) backwards;
+  animation-delay: var(--d, 0s);
+}
+[data-kind='church'] .k-a {
+  --dx: -6px;
+  --dy: -2px;
+}
+[data-kind='church'] .k-b {
+  --dx: 6px;
+  --dy: -5px;
+  --d: 0.06s;
+}
+[data-kind='church'] .k-c {
+  --dx: 0px;
+  --dy: 6px;
+  --d: 0.12s;
+}
+.sg-kind:is([aria-checked='true'], :hover) [data-kind='study'] :is(.k-l, .k-r) {
+  animation: sg-k-open 0.5s var(--sg-spring) backwards;
+}
+[data-kind='study'] .k-l {
+  transform-origin: right center;
+}
+[data-kind='study'] .k-r {
+  transform-origin: left center;
+}
+.sg-kind:is([aria-checked='true'], :hover) [data-kind='study'] .k-mark {
+  animation: sg-k-drop 0.45s var(--sg-spring) 0.25s backwards;
+}
+.sg-kind:is([aria-checked='true'], :hover) [data-kind='family'] .k-heart {
+  animation: sg-k-beat 0.8s ease-out;
+}
+.sg-kind:is([aria-checked='true'], :hover) [data-kind='family'] :is(.k-house, .k-door) {
+  transform-origin: center bottom;
+  animation: sg-k-squash 0.45s var(--sg-spring);
+}
+.sg-kind:is([aria-checked='true'], :hover) [data-kind='friend'] :is(.k-l, .k-r) {
+  animation: sg-k-meet 0.65s var(--sg-spring);
+}
+[data-kind='friend'] .k-l {
+  --dx: -5px;
+}
+[data-kind='friend'] .k-r {
+  --dx: 5px;
+}
+.sg-kind:is([aria-checked='true'], :hover) [data-kind='team'] :is(.k-n1, .k-n2) {
+  animation: sg-k-hop 0.5s ease-out;
+}
+.sg-kind:is([aria-checked='true'], :hover) [data-kind='team'] .k-n2 {
+  animation-delay: 0.18s;
+}
+.sg-kind:is([aria-checked='true'], :hover) [data-kind='team'] .k-stem {
+  transform-origin: left bottom;
+  animation: sg-k-sway 0.7s ease-in-out;
+}
+@keyframes sg-k-gather {
+  0% {
+    transform: translate(var(--dx), var(--dy)) scale(0.5);
+    opacity: 0;
+  }
+  60% {
+    transform: translate(calc(var(--dx) * -0.15), calc(var(--dy) * -0.15)) scale(1.12);
+  }
+}
+@keyframes sg-k-open {
+  0% {
+    transform: scaleX(0.1);
+  }
+  65% {
+    transform: scaleX(1.08);
+  }
+}
+@keyframes sg-k-drop {
+  0% {
+    transform: translateY(-9px);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(1px);
+    opacity: 1;
+  }
+}
+@keyframes sg-k-beat {
+  20% {
+    transform: scale(1.45);
+  }
+  40% {
+    transform: scale(0.95);
+  }
+  60% {
+    transform: scale(1.25);
+  }
+}
+@keyframes sg-k-squash {
+  35% {
+    transform: scale(1.06, 0.9);
+  }
+}
+@keyframes sg-k-meet {
+  0% {
+    transform: translateX(var(--dx));
+  }
+  45% {
+    transform: translateX(calc(var(--dx) * -0.45)) scale(1.06);
+  }
+  70% {
+    transform: translateX(calc(var(--dx) * 0.15));
+  }
+}
+@keyframes sg-k-hop {
+  35% {
+    transform: translateY(-5px) scale(0.95, 1.08);
+  }
+  60% {
+    transform: translateY(0) scale(1.1, 0.88);
+  }
+}
+@keyframes sg-k-sway {
+  30% {
+    transform: rotate(-7deg);
+  }
+  65% {
+    transform: rotate(4deg);
   }
 }
 @keyframes sg-tape-in {
