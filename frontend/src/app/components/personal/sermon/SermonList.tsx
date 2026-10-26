@@ -371,7 +371,6 @@ export function SermonList({
     body = (
       <SermonHome
         notes={notes}
-        week={week}
         mascot={mascot}
         onOpen={onOpen}
         onNew={onNew}

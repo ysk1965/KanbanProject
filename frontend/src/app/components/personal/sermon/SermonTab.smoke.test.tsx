@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeAll } from 'vitest';
+import { describe, expect, it, vi, beforeAll, onTestFinished } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -162,7 +162,7 @@ describe('SermonTab smoke', () => {
 
     // 목록으로 → 한 주 다이어리 (이번 주 적용이 남은 개수로 보인다)
     fireEvent.click(screen.getByRole('button', { name: '목록으로' }));
-    expect(await screen.findByText('1개 남았어요')).toBeInTheDocument();
+    expect(await screen.findByText('이번 주 1개 남았어요')).toBeInTheDocument();
     expect(screen.getAllByText('포도나무와 가지').length).toBeGreaterThan(0);
   });
 
@@ -247,9 +247,15 @@ describe('SermonTab smoke', () => {
       updated_at: 'y',
       content: {},
     });
-    (
-      services.personalFeatureAPI.listDocs as unknown as ReturnType<typeof vi.fn>
-    ).mockResolvedValueOnce([]);
+    // 「한 주 동안」 저장소(sermon_plan)도 목록을 부르므로 기능 키로 나눠 답한다
+    const listDocs = services.personalFeatureAPI.listDocs as unknown as ReturnType<typeof vi.fn>;
+    listDocs.mockImplementation((key: string) =>
+      key === 'sermon' ? Promise.resolve([]) : Promise.reject(new TypeError('Failed to fetch')),
+    );
+    onTestFinished(() => {
+      listDocs.mockReset();
+      listDocs.mockRejectedValue(new TypeError('Failed to fetch'));
+    });
 
     await renderTab();
     // 익명 노트가 계정 저장소로 옮겨져 서버에 생성되고, 응답받은 서버 id 로 바뀐다

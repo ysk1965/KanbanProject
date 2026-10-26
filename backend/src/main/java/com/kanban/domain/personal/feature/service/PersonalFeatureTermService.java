@@ -30,6 +30,8 @@ public class PersonalFeatureTermService {
     public static final String FEATURE_TIMETABLE = "timetable";
     /** 설교 노트 — content.preacher / content.service 를 추천 용어로 기억한다. */
     public static final String FEATURE_SERMON = "sermon";
+    /** 설교 노트 홈 「한 주 동안」 직접 적은 할 일 — 한 주(일~토) = 문서 하나, title = 그 주 일요일. 추천 용어 없음. */
+    public static final String FEATURE_SERMON_PLAN = "sermon_plan";
 
     /** 열당 추천 최대 개수 — 프런트가 문서를 열 때 한 번에 받아 메모리에 둔다. */
     private static final int MAX_PER_FIELD = 300;

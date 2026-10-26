@@ -13,7 +13,8 @@ import { applyStyle, loadStyle, persistStyle, type SermonStyle } from './sermonS
 import { applyInk, type MascotId, type SermonLook } from './sermonLook';
 import { Mascot } from './Mascot';
 import { LookModal } from './LookModal';
-import { esc, newNote, toggleApplyDone, type SermonNote } from './sermonTypes';
+import { esc, newNote, todayString, toggleApplyDone, weekOf, type SermonNote } from './sermonTypes';
+import { WeekPlanContext, WeekPlanStore } from './weekPlan';
 import { clearStart, readStart } from './share/shareModel';
 import { FirstSticker } from './share/FirstSticker';
 import { GroupContext } from './group/GroupContext';
@@ -242,6 +243,12 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
   const userName = anonymous ? undefined : currentUser?.name ? String(currentUser.name) : undefined;
 
   const store = useMemo(() => new SermonStore(userId), [userId]);
+  // 홈 「한 주 동안」에 직접 적은 할 일 (weekPlan.ts) — 이번 주 문서를 받아 오고, 바뀐 주는 서버로
+  const plans = useMemo(() => new WeekPlanStore(userId, anonymous), [userId, anonymous]);
+  useEffect(() => {
+    void plans.load(weekOf(todayString()));
+    return () => plans.dispose();
+  }, [plans]);
   const [, setTick] = useState(0);
   const [openId, setOpenId] = useState<string | null>(() => searchParams.get(PARAM_NOTE));
   const [openAid, setOpenAid] = useState<string | null>(null);
@@ -439,65 +446,67 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
   return (
     <GroupContext.Provider value={groups.ctx}>
       <ProfileContext.Provider value={profile}>
-        <div ref={rootRef} className="sermon-app" data-standalone={standalone || undefined}>
-          {!editing && strip(look.mascot, netChip)}
-          {editing ? (
-            <SermonEditor
-              key={openNote.id}
-              note={openNote}
-              store={store}
-              userId={userId}
-              style={style}
-              onStyleChange={onStyleChange}
-              onBack={closeNote}
-              onDeleted={closeNote}
-              backLabel={backLabel}
-              initialAid={openAid}
-              canAttach={!anonymous}
-              onLogin={onLogin}
+        <WeekPlanContext.Provider value={plans}>
+          <div ref={rootRef} className="sermon-app" data-standalone={standalone || undefined}>
+            {!editing && strip(look.mascot, netChip)}
+            {editing ? (
+              <SermonEditor
+                key={openNote.id}
+                note={openNote}
+                store={store}
+                userId={userId}
+                style={style}
+                onStyleChange={onStyleChange}
+                onBack={closeNote}
+                onDeleted={closeNote}
+                backLabel={backLabel}
+                initialAid={openAid}
+                canAttach={!anonymous}
+                onLogin={onLogin}
+                mascot={look.mascot}
+                groupBand={groups.band}
+              />
+            ) : openId && store.status.loading ? (
+              <div
+                style={{ flex: 1, display: 'grid', placeItems: 'center' }}
+                role="status"
+                aria-label="불러오는 중"
+              >
+                <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--sn-accent)' }} />
+              </div>
+            ) : (
+              <SermonList
+                notes={notes}
+                status={store.status}
+                onOpen={handleOpen}
+                onNew={handleNew}
+                onToggleApply={handleToggleApply}
+                onLogin={onLogin}
+                mascot={look.mascot}
+                onOpenLook={() => setLookOpen(true)}
+                groupNav={groups.groupNav}
+                main={groups.main}
+                standalone={standalone}
+                userName={userName}
+              />
+            )}
+            {groups.overlays}
+            <FirstSticker
+              open={!!firstNote}
+              note={firstNote}
               mascot={look.mascot}
-              groupBand={groups.band}
-            />
-          ) : openId && store.status.loading ? (
-            <div
-              style={{ flex: 1, display: 'grid', placeItems: 'center' }}
-              role="status"
-              aria-label="불러오는 중"
-            >
-              <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--sn-accent)' }} />
-            </div>
-          ) : (
-            <SermonList
-              notes={notes}
-              status={store.status}
-              onOpen={handleOpen}
-              onNew={handleNew}
-              onToggleApply={handleToggleApply}
               onLogin={onLogin}
-              mascot={look.mascot}
-              onOpenLook={() => setLookOpen(true)}
-              groupNav={groups.groupNav}
-              main={groups.main}
-              standalone={standalone}
-              userName={userName}
+              onClose={() => setFirstNote(null)}
             />
-          )}
-          {groups.overlays}
-          <FirstSticker
-            open={!!firstNote}
-            note={firstNote}
-            mascot={look.mascot}
-            onLogin={onLogin}
-            onClose={() => setFirstNote(null)}
-          />
-          <OfflineEntrySheet status={store.status} anonymous={anonymous} mascot={look.mascot} />
-          <LookModal
-            open={lookOpen}
-            look={look}
-            onChange={onLookChange}
-            onClose={() => setLookOpen(false)}
-          />
-        </div>
+            <OfflineEntrySheet status={store.status} anonymous={anonymous} mascot={look.mascot} />
+            <LookModal
+              open={lookOpen}
+              look={look}
+              onChange={onLookChange}
+              onClose={() => setLookOpen(false)}
+            />
+          </div>
+        </WeekPlanContext.Provider>
       </ProfileContext.Provider>
     </GroupContext.Provider>
   );

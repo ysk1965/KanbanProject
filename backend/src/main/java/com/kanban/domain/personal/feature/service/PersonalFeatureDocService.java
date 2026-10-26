@@ -33,8 +33,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class PersonalFeatureDocService {
 
     /** 서버가 아는 기능. 새 기능은 여기 한 줄 + 프런트 레지스트리 한 줄. */
-    public static final Set<String> FEATURE_KEYS =
-            Set.of(PersonalFeatureTermService.FEATURE_TIMETABLE, PersonalFeatureTermService.FEATURE_SERMON);
+    public static final Set<String> FEATURE_KEYS = Set.of(
+            PersonalFeatureTermService.FEATURE_TIMETABLE,
+            PersonalFeatureTermService.FEATURE_SERMON,
+            PersonalFeatureTermService.FEATURE_SERMON_PLAN);
 
     /** content 직렬화 크기 상한 — 자동 저장이 800ms마다 오므로 너무 큰 문서는 애초에 막는다. */
     public static final int MAX_CONTENT_BYTES = 256 * 1024;
@@ -42,8 +44,10 @@ public class PersonalFeatureDocService {
     /** 사용자 × 기능당 살아 있는 문서 상한 — 기본값. 기능별 예외는 {@link #DOC_LIMITS} */
     public static final int MAX_DOCS_PER_FEATURE = 200;
 
-    /** 기능별 상한 — 설교 노트는 매주 몇 장씩 쌓이므로 넉넉히 */
-    public static final Map<String, Integer> DOC_LIMITS = Map.of(PersonalFeatureTermService.FEATURE_SERMON, 5000);
+    /** 기능별 상한 — 설교 노트는 매주 몇 장씩 쌓이므로 넉넉히, 「한 주 동안」은 한 주에 한 장 (20년치) */
+    public static final Map<String, Integer> DOC_LIMITS = Map.of(
+            PersonalFeatureTermService.FEATURE_SERMON, 5000,
+            PersonalFeatureTermService.FEATURE_SERMON_PLAN, 1100);
 
     private static final String DUPLICATE_SUFFIX = " (복사본)";
     private static final int TITLE_MAX_LENGTH = 200;
