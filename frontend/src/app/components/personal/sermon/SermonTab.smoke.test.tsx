@@ -63,6 +63,7 @@ vi.mock('./useBible', async () => {
   return {
     BIBLE_URL: '/bible/krv.json',
     getBible: () => bible,
+    hasStoredBible: () => Promise.resolve(true),
     loadBible: () => Promise.resolve(bible),
     useBible: () => ({ bible, failed: false }),
     verses: (r: { b: number; c: number; v1: number; v2: number }) => {
