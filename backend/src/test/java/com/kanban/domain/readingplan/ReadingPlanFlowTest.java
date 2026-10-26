@@ -43,6 +43,9 @@ class ReadingPlanFlowTest {
     @Autowired
     UserRepository userRepository;
 
+    @Autowired
+    ReadingCheckRepository checkRepository;
+
     @Test
     @DisplayName("모임 길 — 리더·함께 리더만 만들고, active 길은 모임당 하나")
     void groupPlanCreate() {
@@ -214,6 +217,46 @@ class ReadingPlanFlowTest {
         assertThat(detail.getToday().getUnread())
                 .extracting(ReadingPlanResponse.Person::getUserId)
                 .containsExactly(member);
+        // 사람별 줄 — members 순서의 번호로 그날 다 읽은 사람
+        assertThat(detail.getMembers())
+                .extracting(ReadingPlanResponse.Member::getUserId)
+                .containsExactly(leader, member);
+        assertThat(detail.getMembers())
+                .extracting(ReadingPlanResponse.Member::getDoneDays)
+                .containsExactly(1, 0);
+        assertThat(detail.getMembers())
+                .extracting(ReadingPlanResponse.Member::getMe)
+                .containsExactly(null, true);
+        assertThat(detail.getDays().get(0).getReaders()).containsExactly(0);
+        assertThat(detail.getDays().get(0).getLate()).isNull();
+        assertThat(detail.getDays().get(1).getReaders()).isNull();
+    }
+
+    @Test
+    @DisplayName("모임 길 상세 — 이틀 이상 늦게 마저 찍은 날은 late")
+    void groupLate() {
+        String leader = newUser("리더");
+        String member = newUser("멤버");
+        String groupId = newGroup(leader, member);
+        ReadingPlanResponse.PlanDetail p = planService.create(leader, plan(groupId, day(TODAY, "40:1")));
+
+        planService.manualCheck(leader, p.getId(), 1, manual(true));
+        checkRepository.save(ReadingCheck.builder()
+                .planId(p.getId())
+                .dayNo(1)
+                .userId(member)
+                .chapter("40:1")
+                .via(ReadingCheck.VIA_MANUAL)
+                .readAt(TODAY.plusDays(2).atTime(9, 0))
+                .build());
+
+        ReadingPlanResponse.Day day = planService
+                .groupPlan(leader, groupId, TODAY.toString())
+                .getPlan()
+                .getDays()
+                .get(0);
+        assertThat(day.getReaders()).containsExactly(0, 1);
+        assertThat(day.getLate()).containsExactly(1);
     }
 
     // ───────────────── 픽스처 ─────────────────

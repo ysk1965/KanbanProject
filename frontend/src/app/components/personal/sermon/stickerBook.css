@@ -1,0 +1,356 @@
+/* 「모은 설교 스티커」 한 해 스티커북 (StickerBook.tsx). 토큰은 .sermon-app / .sn-scope 의 --sn-* */
+.snb-book {
+  --snb-die: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M98.00 50.00 L93.35 56.23 L96.06 63.52 L89.84 68.20 L90.38 75.95 L83.10 78.68 L81.43 86.28 L73.68 86.85 L69.94 93.66 L62.34 92.03 L56.83 97.51 L50.00 93.80 L43.17 97.51 L37.66 92.03 L30.06 93.66 L26.32 86.85 L18.57 86.28 L16.90 78.68 L9.62 75.95 L10.16 68.20 L3.94 63.52 L6.65 56.23 L2.00 50.00 L6.65 43.77 L3.94 36.48 L10.16 31.80 L9.62 24.05 L16.90 21.32 L18.57 13.72 L26.32 13.15 L30.06 6.34 L37.66 7.97 L43.17 2.49 L50.00 6.20 L56.83 2.49 L62.34 7.97 L69.94 6.34 L73.68 13.15 L81.43 13.72 L83.10 21.32 L90.38 24.05 L89.84 31.80 L96.06 36.48 L93.35 43.77Z' fill='black' stroke='black' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E");
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.snb-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.snb-num {
+  font-family: var(--sn-f-poster);
+  font-size: 48px;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: var(--sn-fg);
+  font-variant-numeric: tabular-nums;
+}
+.snb-num small {
+  font-size: 22px;
+  color: var(--sn-muted);
+}
+.snb-prog {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.snb-cap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--sn-muted);
+}
+.snb-yr {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+}
+.snb-yr button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--sn-r-pill);
+  background: transparent;
+  color: var(--sn-fg);
+}
+.snb-yr button:hover:not(:disabled) {
+  background: var(--sn-accent-soft);
+}
+.snb-yr button:disabled {
+  opacity: 0.3;
+}
+.snb-bar {
+  height: 10px;
+  border-radius: var(--sn-r-pill);
+  background: color-mix(in srgb, var(--sn-fg) 7%, transparent);
+  overflow: hidden;
+}
+.snb-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--sn-g1), var(--sn-g2));
+  transition: width 0.6s var(--sn-ease);
+}
+.snb-streak {
+  font-size: 13px;
+  font-weight: 900;
+  padding: 5px 12px;
+  border-radius: var(--sn-r-pill);
+  background: color-mix(in srgb, var(--sn-g2) 40%, var(--sn-surface));
+  color: var(--sn-fg);
+  transform: rotate(-3deg);
+}
+
+/* 달: 한 줄에 「n월 · 주일 칸 4~5개 · 채운 수」. 넓으면 두 줄 묶음 */
+.snb-months {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 8px 14px;
+}
+.snb-mo {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 18px;
+  background: var(--sn-surface);
+}
+.snb-mo[data-done] {
+  background: color-mix(in srgb, var(--sn-g3) 30%, var(--sn-surface));
+}
+.snb-mo[data-future] {
+  opacity: 0.55;
+}
+.snb-mo-n {
+  font-family: var(--sn-f-poster);
+  font-weight: 400;
+  font-size: 16px;
+  letter-spacing: -0.03em;
+}
+.snb-mo-c {
+  font-size: 12px;
+  text-align: right;
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+}
+.snb-mo[data-done] .snb-mo-c {
+  color: var(--sn-fg);
+  font-weight: 900;
+}
+.snb-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  justify-items: center;
+}
+.snb-cell {
+  width: 100%;
+  max-width: 48px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+}
+button.snb-cell {
+  cursor: pointer;
+}
+button.snb-cell:focus-visible {
+  outline: 2px solid var(--sn-accent);
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+.snb-slot {
+  border-radius: 50%;
+  border: 1.5px dashed var(--sn-line-strong);
+  scale: 0.86;
+}
+.snb-slot i {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+}
+.snb-slot[data-future] {
+  border-style: dotted;
+  opacity: 0.6;
+}
+.snb-slot[data-future] i {
+  opacity: 0.7;
+}
+.snb-slot[data-wait] {
+  border-color: color-mix(in srgb, var(--sn-g2) 80%, transparent);
+  border-width: 2px;
+  scale: 1;
+  overflow: hidden;
+  animation: snb-breathe 2.6s ease-in-out infinite;
+}
+@keyframes snb-breathe {
+  50% {
+    scale: 1.06;
+  }
+}
+
+/* 스티커: 칼선 톱니 + 망점 얼굴 + 책 약어 */
+.snb-stk {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  transform: rotate(var(--r, 0deg));
+  filter: drop-shadow(0 3px 4px color-mix(in srgb, var(--sn-t1) 24%, transparent));
+  transition: transform 0.25s var(--sn-spring);
+  container-type: inline-size;
+}
+button.snb-cell:hover .snb-stk,
+button.snb-cell:focus-visible .snb-stk {
+  transform: rotate(0deg) translateY(-2px) scale(1.08);
+}
+.snb-die {
+  position: absolute;
+  inset: 0;
+  background: var(--sn-die);
+  -webkit-mask: var(--snb-die) center / 100% 100% no-repeat;
+  mask: var(--snb-die) center / 100% 100% no-repeat;
+}
+.snb-face {
+  position: absolute;
+  inset: 9%;
+  border-radius: 50%;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 0.95;
+  background: color-mix(in srgb, var(--a) 34%, var(--sn-surface));
+}
+.snb-face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--b) 75%, transparent) 30%,
+    transparent 36%
+  );
+  background-size: 6px 6px;
+  mix-blend-mode: var(--sn-blend);
+  opacity: 0.6;
+  z-index: -1;
+}
+.snb-face::after {
+  content: '';
+  position: absolute;
+  inset: -20% 42% 34% -30%;
+  border-radius: 50%;
+  background: var(--a);
+  mix-blend-mode: var(--sn-blend);
+  opacity: 0.45;
+  z-index: -1;
+}
+.snb-bk {
+  font-family: var(--sn-f-poster);
+  font-size: max(12px, 27cqi);
+  letter-spacing: -0.04em;
+  color: var(--sn-t1);
+  white-space: nowrap;
+}
+.snb-svc {
+  font-size: max(12px, 11cqi);
+  font-weight: 900;
+  color: var(--sn-t2);
+  margin-bottom: 3px;
+}
+/* 직접 꽂은 갈피: 가름끈 */
+.snb-pin {
+  position: absolute;
+  top: -3%;
+  right: 4%;
+  width: 18%;
+  height: 26%;
+  background: var(--sn-t2);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%);
+  transform: rotate(10deg);
+}
+.snb-stk[data-new] {
+  animation: sn-sticker-drop 0.75s var(--sn-spring) both;
+}
+
+/* 뒷면 시트 */
+.sn-overlay .snb-sheet {
+  width: min(440px, 100%);
+}
+.snb-peek-h {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 8px;
+}
+.snb-stk[data-big] {
+  width: 96px;
+  flex-shrink: 0;
+}
+.snb-stk[data-big] .snb-bk {
+  font-size: 17px;
+}
+.snb-peek-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--sn-muted);
+  min-width: 0;
+}
+.sn-overlay .snb-peek-t {
+  margin: 6px 0 0;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+.snb-peek-q {
+  margin: 0;
+  font-family: var(--sn-f-hand);
+  font-size: 20px;
+  line-height: 1.3;
+  color: var(--sn-t2);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.snb-others {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.snb-others button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+  text-align: left;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--sn-fg) 5%, transparent);
+  color: var(--sn-fg);
+}
+.snb-others button:hover {
+  background: var(--sn-accent-soft);
+}
+.snb-others b {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.snb-others span {
+  grid-row: 2;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.snb-others .sn-icon {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  color: var(--sn-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .snb-slot[data-wait],
+  .snb-stk[data-new] {
+    animation: none;
+  }
+}
+@media (max-width: 380px) {
+  .snb-mo {
+    grid-template-columns: 30px minmax(0, 1fr) 30px;
+    padding: 6px 8px;
+  }
+}

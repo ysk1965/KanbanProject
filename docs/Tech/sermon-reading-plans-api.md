@@ -74,12 +74,17 @@ JSON 필드는 snake_case, null 필드는 키가 빠진다(Jackson non_null).
     {
       "day_no": 1, "date": "2026-10-18", "chapters": ["40:1"],
       "done_count": 6,                // 그날 장을 모두 찍은 사람 수 (나의 길이면 0/1)
-      "my_chapters": ["40:1"]         // 내가 찍은 장 (없으면 [])
+      "my_chapters": ["40:1"],        // 내가 찍은 장 (없으면 [])
+      "readers": [0, 2],              // 그날 장을 모두 찍은 멤버 번호(members 순서). 없으면 키 생략
+      "late": [2]                     // readers 중 마지막 도장이 그날+2일 이후(UTC)인 멤버. 없으면 키 생략
     }
   ],
   "member_count": 6,                  // 모임 active 멤버 수 (나의 길 = 1)
   "team_done": 45,                    // 모든 사람의 (날, 장) 도장 수 합계
   "team_total": 96,                   // member_count × 전체 장 수
+  "members": [                        // 사람별 줄 — 모임 active 멤버(가입순), 나의 길은 주인 한 명
+    { "user_id": "…", "display_name": "유상건", "profile_image": "…", "done_days": 8, "me": true }  // me 는 본인만
+  ],
   "today": {                          // today_day_no 가 있을 때만
     "read": [ { "user_id": "…", "display_name": "김하은", "profile_image": "…" } ],
     "unread": [ { "user_id": "…", "display_name": "최", "profile_image": "…" } ]

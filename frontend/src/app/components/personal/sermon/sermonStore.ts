@@ -1178,6 +1178,45 @@ function contentOf(n: SermonNote): SermonContent {
 
 /* ───────── 저장 상태 문구 ───────── */
 
+/** 연결이 끊긴 상태인가 — 스토어가 서버에 못 닿았거나 브라우저가 오프라인 */
+export function isOffline(s: SyncStatus): boolean {
+  return s.online === false || (typeof navigator !== 'undefined' && navigator.onLine === false);
+}
+
+function agoText(ms: number): string {
+  const min = Math.floor(ms / 60_000);
+  if (min < 1) return '방금';
+  if (min < 60) return `${min}분 전`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}시간 전`;
+  return `${Math.floor(h / 24)}일 전`;
+}
+
+/**
+ * 홈 사이드바·나의 갈피·이름표의 한 줄 동기화 상태.
+ * 연결이 끊겼으면 변경이 없어도 '맞춰짐'이라 하지 않고, 남은 변경은 '올리는 중' 대신 '기다리는 중'.
+ * 문제 상황(저장 불가·공간 부족·로그인 전·한도)은 SermonList 의 storeNote 가 따로 말한다.
+ */
+export function homeSyncLine(
+  s: SyncStatus,
+  now = Date.now(),
+): { text: string; sub: string | null; state: 'ok' | 'wait' | 'off' } {
+  if (isOffline(s)) {
+    const sub = s.lastSync ? `마지막 맞춤 ${agoText(now - s.lastSync)}` : null;
+    if (s.slow) return { text: '연결이 느려요 · 잠시 뒤 다시 맞춰요', sub, state: 'off' };
+    return {
+      text: s.pending
+        ? `연결 끊김 · 변경 ${s.pending}건 기다리는 중`
+        : '연결 끊김 · 이 기기에 저장 중',
+      sub,
+      state: 'off',
+    };
+  }
+  if (s.pending) return { text: `변경 ${s.pending}건 올리는 중`, sub: null, state: 'wait' };
+  if (s.loading || s.restoring) return { text: '맞추는 중…', sub: null, state: 'wait' };
+  return { text: '모든 기기와 맞춰짐', sub: null, state: 'ok' };
+}
+
 export function syncLabel(s: SyncStatus): { text: string; state: 'ok' | 'wait' | 'warn' } {
   if (!s.localOk) {
     return { text: '저장 공간을 쓸 수 없어 창을 닫으면 사라져요', state: 'warn' };

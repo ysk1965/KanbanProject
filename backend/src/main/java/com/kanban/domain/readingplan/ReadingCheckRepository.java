@@ -14,7 +14,8 @@ public interface ReadingCheckRepository extends JpaRepository<ReadingCheck, Stri
 
     List<ReadingCheck> findByPlanIdAndDayNoAndUserId(String planId, int dayNo, String userId);
 
-    /** [day_no, user_id, 도장 수] — 길 하나의 날·사람별 집계 */
-    @Query("SELECT c.dayNo, c.userId, COUNT(c) FROM ReadingCheck c WHERE c.planId = :planId GROUP BY c.dayNo, c.userId")
-    List<Object[]> countByDayAndUser(@Param("planId") String planId);
+    /** [day_no, user_id, 도장 수, 마지막 도장 시각(UTC)] — 길 하나의 날·사람별 집계 */
+    @Query("SELECT c.dayNo, c.userId, COUNT(c), MAX(c.readAt) FROM ReadingCheck c WHERE c.planId = :planId"
+            + " GROUP BY c.dayNo, c.userId")
+    List<Object[]> statsByDayAndUser(@Param("planId") String planId);
 }

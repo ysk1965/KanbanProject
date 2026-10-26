@@ -14,10 +14,11 @@ import {
   type SermonNote,
 } from './sermonTypes';
 import { firstVerseText } from './useBible';
-import { useFirstSeen, useFlip, useFx } from './microFx';
+import { useFlip, useFx } from './microFx';
 import { GroupDaySlots, NoteGroupFaces, NoteShareRow, useNoteGroups } from './group/GroupWeekBits';
 import { resolveGalpiRule, useGalpiPrefs } from './galpiPrefs';
 import { ShareSheet } from './share/ShareSheet';
+import { StickerBook } from './StickerBook';
 import './homeShare.css';
 
 /**
@@ -26,7 +27,7 @@ import './homeShare.css';
  *    그림은 장 번호만이 아니라 항상 「책 이름 + 장」을 가리킨다.
  *    카드의 다음 행동은 「공유」와 「나눈 곳」 줄 (홈에서는 갈피를 꽂고 빼지 않는다)
  *  - 한 주 동안: 일~토 칸에 그날 들은 설교와 실천한 적용이 스티커로 붙는다
- *  - 모은 설교 스티커: 지난 설교가 칼선 도장 스티커로 쌓이고, 다음 주일 자리는 마스코트가 기다린다
+ *  - 모은 설교 스티커: 한 해 스티커북(StickerBook) — 주일마다 그 주 갈피 노트가 스티커로 붙는다
  */
 interface SermonHomeProps {
   notes: SermonNote[];
@@ -71,13 +72,6 @@ function chapterUnit(r: Ref): string {
   return r.b === PSALMS ? '편' : '장';
 }
 
-/** 받침이 있으면 '이', 없으면 '가' */
-function josaIGa(word: string): string {
-  const c = word.charCodeAt(word.length - 1);
-  if (c < 0xac00 || c > 0xd7a3) return '가';
-  return (c - 0xac00) % 28 ? '이' : '가';
-}
-
 /** 'yyyy-MM-dd' → '10.25 주일' / '10.28 수요일' */
 function dayLabel(date: string): string {
   const [y, m, d] = date.split('-').map(Number);
@@ -118,20 +112,11 @@ export function SermonHome({ notes, week, mascot, onOpen, onNew, onToggleApply }
   const left = week.length - done;
   const name = mascotName(mascot);
 
-  const nextSunday = new Date(days[0]);
-  nextSunday.setDate(days[0].getDate() + 7);
-
-  const stickers = byDate;
-
   // 누른 순간에만 한 번 움직인다 (microFx.ts)
   const [fx, fire] = useFx();
   const todoRef = useRef<HTMLDivElement>(null);
   const doneSig = week.map((x) => `${x.t.id}:${x.t.done ? 1 : 0}`).join(',');
   useFlip(todoRef, doneSig);
-  const freshStickers = useFirstSeen(
-    'sn-seen-stickers',
-    stickers.map((n) => n.id),
-  );
   const toggleApply = (noteId: string, thoughtId: string, wasDone: boolean) => {
     if (!wasDone) fire(left === 1 ? `all:${thoughtId}` : `apply:${thoughtId}`);
     onToggleApply(noteId, thoughtId);
@@ -384,78 +369,9 @@ export function SermonHome({ notes, week, mascot, onOpen, onNew, onToggleApply }
       <div className="sn-sticker-sec">
         <div className="sn-sec-h">
           <h4>모은 설교 스티커</h4>
-          <span>{notes.length}장</span>
+          <span>주일마다 갈피 노트 한 장</span>
         </div>
-        <div className="sn-stickers">
-          {stickers.map((n, i) => {
-            const r = mainRef(n);
-            const gp = isGalpi(n, galpi);
-            const cur = n.id === hero?.id && heroThisWeek;
-            const ab = i % 2 ? ['var(--sn-g1)', 'var(--sn-g2)'] : ['var(--sn-g2)', 'var(--sn-g1)'];
-            const rot = [-6, 4, -2, 5, -4, 3][i % 6];
-            return (
-              <button
-                key={n.id}
-                type="button"
-                className="sn-badge"
-                onClick={() => onOpen(n.id)}
-                aria-label={`${n.title || UNTITLED} 노트 열기`}
-              >
-                <span
-                  className="sn-stkr"
-                  data-cur={cur}
-                  data-new={freshStickers.has(n.id) || undefined}
-                  style={
-                    {
-                      '--r': `${rot}deg`,
-                      '--a': ab[0],
-                      '--b': ab[1],
-                    } as React.CSSProperties
-                  }
-                >
-                  <span className="sn-die" />
-                  <span className="sn-face">
-                    <span className="sn-ht" />
-                    <span className="sn-svc">{n.service || '설교'}</span>
-                    <span className="sn-bkn">{r ? bookName(r) : '설교'}</span>
-                    <span className="sn-chn">{r ? r.c : n.date ? +n.date.slice(8) : '·'}</span>
-                    {r && <span className="sn-vr">{verseRange(r)}</span>}
-                  </span>
-                  {freshStickers.has(n.id) && (
-                    <span className="sn-burst" aria-hidden>
-                      {Array.from({ length: 8 }, (_, k) => (
-                        <i key={k} style={{ ['--a' as string]: `${k * 45}deg` }} />
-                      ))}
-                    </span>
-                  )}
-                  {gp ? (
-                    <span className="sn-new" data-galpi="true">
-                      갈피
-                    </span>
-                  ) : (
-                    cur && <span className="sn-new">이번 주</span>
-                  )}
-                </span>
-                <b className="sn-badge-t">{n.title || UNTITLED}</b>
-                <span className="sn-badge-m">
-                  {n.date ? n.date.slice(5).replace('-', '.') : ''}
-                  {n.preacher ? ` · ${n.preacher}` : ''}
-                </span>
-              </button>
-            );
-          })}
-          <div className="sn-badge sn-badge-empty">
-            <span className="sn-stkr">
-              <span className="sn-die" />
-              <Mascot kind={mascot} size={92} state="sleep" />
-            </span>
-            <b className="sn-badge-t">다음 주일</b>
-            <span className="sn-badge-m">
-              {nextSunday.getMonth() + 1}.{nextSunday.getDate()} · {name}
-              {josaIGa(name)} 기다리는 중
-            </span>
-          </div>
-        </div>
+        <StickerBook notes={notes} galpi={galpi} mascot={mascot} onOpen={onOpen} />
       </div>
     </div>
   );

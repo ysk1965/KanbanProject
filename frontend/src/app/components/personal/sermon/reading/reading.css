@@ -581,3 +581,143 @@
     transform: none;
   }
 }
+
+/* ---------- 모임 길: 사람마다 한 줄 (TeamRows) ---------- */
+.rp-team-nav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rp-team-nav button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--sn-muted);
+  cursor: pointer;
+}
+.rp-team-nav button:hover:not(:disabled) {
+  background: var(--sn-surface-2);
+  color: var(--sn-fg);
+}
+.rp-team-nav button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.rp-team-scroll {
+  overflow-x: auto;
+  margin: 4px -4px 0;
+  padding: 0 4px 4px;
+}
+.rp-team {
+  display: grid;
+  gap: 6px 4px;
+  align-items: center;
+  min-width: max-content;
+}
+.rp-trow {
+  display: contents;
+}
+.rp-tw {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 8px;
+  background: var(--sn-surface);
+  font-size: 13px;
+  white-space: nowrap;
+  min-width: 0;
+}
+.rp-tw b {
+  font-weight: 500;
+  max-width: 7em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rp-trow[data-me] .rp-tw b {
+  font-weight: 700;
+}
+.rp-tw small {
+  font-size: 12px;
+  color: var(--sn-t2);
+  font-weight: 700;
+}
+.rp-face {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+}
+.rp-th {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--sn-faint);
+  font-variant-numeric: tabular-nums;
+}
+.rp-th small {
+  font-size: 12px;
+  opacity: 0.8;
+}
+.rp-th[data-now] {
+  color: var(--sn-t2);
+  font-weight: 700;
+}
+.rp-tc {
+  justify-self: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--sn-g1) 16%, var(--sn-surface-2));
+}
+.rp-tc[data-fut] {
+  background: transparent;
+  border: 1.5px dashed var(--sn-line);
+}
+.rp-tc[data-r='on'] {
+  background: var(--sn-g1);
+}
+.rp-tc[data-r='me'] {
+  background: var(--sn-g2);
+  transform: rotate(-6deg);
+}
+.rp-tc[data-r='late'] {
+  background: var(--sn-surface);
+  box-shadow: inset 0 0 0 3px var(--sn-g1);
+}
+.rp-tn {
+  padding-left: 6px;
+  font-size: 12px;
+  color: var(--sn-faint);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.rp-team-more {
+  display: block;
+  margin: 4px auto 0;
+}
+.rp-legend i[data-k='late'] {
+  box-shadow: inset 0 0 0 2.5px var(--sn-g1);
+}
+.rp-legend i[data-k='yet'] {
+  background: color-mix(in srgb, var(--sn-g1) 16%, var(--sn-surface-2));
+}

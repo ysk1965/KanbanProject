@@ -64,6 +64,28 @@ describe('PlanView', () => {
     expect(onRead).toHaveBeenLastCalledWith('40:2');
   });
 
+  it('모임 길은 사람마다 한 줄 — 나를 맨 위, 늦게 읽은 날은 따로', () => {
+    const p = plan();
+    p.members = [
+      { user_id: 'u1', display_name: '유상건', done_days: 1, me: true },
+      { user_id: 'u2', display_name: '김하은', done_days: 3 },
+      { user_id: 'u3', display_name: '박준', done_days: 1 },
+    ];
+    p.days[0] = { ...p.days[0], readers: [0, 1, 2], late: [2] };
+    p.days[1] = { ...p.days[1], readers: [1] };
+    p.days[2] = { ...p.days[2], readers: [1] };
+    const { container } = render(
+      <PlanView plan={p} onRead={() => {}} onChange={() => {}} onEnded={() => {}} />,
+    );
+    expect(container.querySelector('.rp-trail')).toBeNull();
+    const names = [...container.querySelectorAll('.rp-tw b')].map((b) => b.textContent);
+    expect(names).toEqual(['유상건', '김하은', '박준']);
+    expect(container.querySelectorAll('.rp-tc[data-r="me"]')).toHaveLength(1);
+    expect(container.querySelectorAll('.rp-tc[data-r="late"]')).toHaveLength(1);
+    expect(container.querySelectorAll('.rp-tc[data-r="on"]')).toHaveLength(3);
+    expect(screen.getAllByText('3/3일')).toHaveLength(1);
+  });
+
   it('길 끝내기는 한 번 더 묻는다', () => {
     render(<PlanView plan={plan()} onRead={() => {}} onChange={() => {}} onEnded={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: '길 끝내기' }));

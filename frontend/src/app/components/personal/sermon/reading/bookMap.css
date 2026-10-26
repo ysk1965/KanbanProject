@@ -1,0 +1,369 @@
+/*
+ * 「함께 걸은 길」 책 지도 — 토큰은 sermon.css(--sn-*)만 쓴다.
+ * 칸은 g1 잉크로 진하기를 칠하고, 오늘·내가 멈춘 곳은 t2(분홍 계열) 하나로 표시한다.
+ */
+.bm {
+  --bm-track: color-mix(in srgb, var(--sn-g1) 16%, var(--sn-surface));
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+
+.bm-now {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 14px;
+  flex-wrap: wrap;
+}
+.bm-where small {
+  display: block;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.bm-where strong {
+  font-family: var(--sn-f-poster);
+  font-weight: 400;
+  font-size: 24px;
+  line-height: 1.15;
+}
+.bm-where strong span {
+  font-family: var(--sn-f-ui);
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--sn-muted);
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.bm-mile {
+  font-size: 12px;
+  color: var(--sn-fg);
+  border: 1.5px dashed var(--sn-line-strong);
+  border-radius: var(--sn-r-pill);
+  padding: 5px 12px;
+}
+.bm-mile b {
+  color: var(--sn-t2);
+}
+
+/* 묶음 줄 */
+.bm-rows {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bm-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+.bm-row[data-today] {
+  padding-top: 22px;
+}
+.bm-name {
+  font-size: 12px;
+  line-height: 1.25;
+}
+.bm-name b {
+  display: block;
+  font-weight: 700;
+  color: var(--sn-fg);
+}
+.bm-name span {
+  color: var(--sn-faint);
+}
+.bm-bar {
+  display: flex;
+  gap: 2px;
+  padding-top: 1px;
+}
+.bm-seg {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 2px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.bm-seg:focus-visible,
+.bm-cell:focus-visible,
+.bm-go:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--sn-accent-soft);
+}
+.bm-fill {
+  display: block;
+  height: 18px;
+  border-radius: 6px;
+  background: var(--bm-track);
+}
+.bm-seg[data-full] .bm-fill {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sn-t1) 30%, transparent);
+}
+.bm-seg[aria-pressed='true'] .bm-fill {
+  box-shadow:
+    0 0 0 1.5px var(--sn-surface),
+    0 0 0 3px var(--sn-fg);
+}
+.bm-lab {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--sn-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.bm-seg[data-full] .bm-lab {
+  color: var(--sn-t1);
+  font-weight: 700;
+}
+.bm-seg[data-hide] .bm-lab,
+.bm-seg:has(.bm-me) .bm-lab {
+  visibility: hidden;
+}
+.bm-ring {
+  position: absolute;
+  top: -3px;
+  min-width: 8px;
+  height: 24px;
+  border: 2px solid var(--sn-t2);
+  border-radius: 8px;
+  pointer-events: none;
+}
+.bm-tag {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) rotate(-3deg);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--sn-on-ink);
+  background: var(--sn-g2);
+  border-radius: var(--sn-r-pill);
+  padding: 0 8px;
+  white-space: nowrap;
+}
+.bm-tag::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: var(--sn-g2);
+}
+.bm-me {
+  position: absolute;
+  top: 20px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+.bm-me i {
+  width: 0;
+  height: 0;
+  border: 5px solid transparent;
+  border-bottom-color: var(--sn-t2);
+}
+.bm-me span {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--sn-t2);
+  background: var(--sn-surface);
+  padding: 0 3px;
+  white-space: nowrap;
+}
+
+.bm-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.bm-legend > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bm-ramp {
+  width: 64px;
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--bm-track), var(--sn-g1));
+}
+.bm-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.bm-key i {
+  width: 14px;
+  height: 10px;
+  border: 2px solid var(--sn-t2);
+  border-radius: 4px;
+}
+.bm-key i[data-k='me'] {
+  width: 0;
+  height: 0;
+  border: 5px solid transparent;
+  border-bottom-color: var(--sn-t2);
+  border-radius: 0;
+  margin-top: -4px;
+}
+
+/* 누른 책의 장 칸 */
+.bm-book {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--sn-line-strong);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bm-book-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 10px;
+  flex-wrap: wrap;
+}
+.bm-book-head b {
+  font-family: var(--sn-f-poster);
+  font-weight: 400;
+  font-size: 18px;
+  color: var(--sn-fg);
+}
+.bm-book-head span {
+  font-size: 12px;
+  color: var(--sn-muted);
+  margin-left: 6px;
+}
+.bm-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-t1);
+  background: color-mix(in srgb, var(--sn-g1) 18%, var(--sn-surface));
+  border: 1px solid color-mix(in srgb, var(--sn-g1) 60%, transparent);
+  border-radius: var(--sn-r-pill);
+  padding: 6px 10px 6px 12px;
+  min-height: 32px;
+  cursor: pointer;
+}
+.bm-go .sn-icon {
+  width: 14px;
+  height: 14px;
+}
+.bm-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+  gap: 4px;
+}
+.bm-cell {
+  position: relative;
+  aspect-ratio: 1;
+  max-width: 100%;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-muted);
+  background: var(--bm-track);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.bm-cell[data-ink] {
+  color: var(--sn-on-ink);
+}
+.bm-cell[data-future] {
+  background: transparent;
+  border: 1.5px dashed var(--sn-line-strong);
+  color: var(--sn-faint);
+}
+.bm-cell[data-out] {
+  background: transparent;
+  color: var(--sn-faint);
+  opacity: 0.5;
+}
+.bm-cell[data-today] {
+  box-shadow:
+    0 0 0 2px var(--sn-surface),
+    0 0 0 4px var(--sn-t2);
+}
+.bm-cell[data-mine]::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sn-g2);
+  border: 2px solid var(--sn-surface);
+}
+.bm-hand {
+  margin: 0;
+  font-family: var(--sn-f-hand);
+  font-size: 17px;
+  color: var(--sn-t2);
+}
+
+/* 좁은 화면 — 묶음 이름을 막대 위로 */
+@media (max-width: 520px) {
+  .bm-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .bm-name {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+  }
+  .bm-name b {
+    display: inline;
+  }
+  .bm-row[data-today] {
+    padding-top: 0;
+  }
+  .bm-row[data-today] .bm-bar {
+    margin-top: 22px;
+  }
+  .bm-where strong {
+    font-size: 22px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bm-tag {
+    transform: translateX(-50%);
+  }
+}
+
+/* 모임 길 — 책 지도 아래 사람마다 줄 */
+.rp-team-box {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--sn-line-strong);
+}

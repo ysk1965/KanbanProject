@@ -3804,170 +3804,6 @@ html[data-keyboard-open] .sn-overlay {
   font-size: 13px;
   color: var(--sn-muted);
 }
-.sermon-app .sn-stickers {
-  display: flex;
-  gap: 22px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
-  scroll-padding-inline: 8px;
-  /* 회전·그림자·'이번 주' 꼬리표가 잘리지 않게 안쪽 여백 */
-  padding: 14px 8px 12px;
-  margin: -14px -8px 0;
-}
-.sermon-app .sn-badge {
-  width: 164px;
-  flex-shrink: 0;
-  scroll-snap-align: start;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  text-align: center;
-  color: inherit;
-}
-.sermon-app .sn-stkr {
-  position: relative;
-  width: 148px;
-  height: 148px;
-  display: grid;
-  place-items: center;
-  transform: rotate(var(--r, 0deg));
-  filter: drop-shadow(0 10px 12px color-mix(in srgb, var(--sn-t1) 22%, transparent));
-  transition: transform 0.25s cubic-bezier(0.3, 1.5, 0.5, 1);
-}
-.sermon-app button.sn-badge:hover .sn-stkr,
-.sermon-app button.sn-badge:focus-visible .sn-stkr {
-  transform: rotate(0deg) translateY(-4px) scale(1.03);
-}
-.sermon-app .sn-die {
-  position: absolute;
-  inset: 0;
-  background: var(--sn-die);
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M98.00 50.00 L93.35 56.23 L96.06 63.52 L89.84 68.20 L90.38 75.95 L83.10 78.68 L81.43 86.28 L73.68 86.85 L69.94 93.66 L62.34 92.03 L56.83 97.51 L50.00 93.80 L43.17 97.51 L37.66 92.03 L30.06 93.66 L26.32 86.85 L18.57 86.28 L16.90 78.68 L9.62 75.95 L10.16 68.20 L3.94 63.52 L6.65 56.23 L2.00 50.00 L6.65 43.77 L3.94 36.48 L10.16 31.80 L9.62 24.05 L16.90 21.32 L18.57 13.72 L26.32 13.15 L30.06 6.34 L37.66 7.97 L43.17 2.49 L50.00 6.20 L56.83 2.49 L62.34 7.97 L69.94 6.34 L73.68 13.15 L81.43 13.72 L83.10 21.32 L90.38 24.05 L89.84 31.80 L96.06 36.48 L93.35 43.77Z' fill='black' stroke='black' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E")
-    center / 100% 100% no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M98.00 50.00 L93.35 56.23 L96.06 63.52 L89.84 68.20 L90.38 75.95 L83.10 78.68 L81.43 86.28 L73.68 86.85 L69.94 93.66 L62.34 92.03 L56.83 97.51 L50.00 93.80 L43.17 97.51 L37.66 92.03 L30.06 93.66 L26.32 86.85 L18.57 86.28 L16.90 78.68 L9.62 75.95 L10.16 68.20 L3.94 63.52 L6.65 56.23 L2.00 50.00 L6.65 43.77 L3.94 36.48 L10.16 31.80 L9.62 24.05 L16.90 21.32 L18.57 13.72 L26.32 13.15 L30.06 6.34 L37.66 7.97 L43.17 2.49 L50.00 6.20 L56.83 2.49 L62.34 7.97 L69.94 6.34 L73.68 13.15 L81.43 13.72 L83.10 21.32 L90.38 24.05 L89.84 31.80 L96.06 36.48 L93.35 43.77Z' fill='black' stroke='black' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E")
-    center / 100% 100% no-repeat;
-}
-.sermon-app .sn-face {
-  position: absolute;
-  inset: 13px;
-  border-radius: 50%;
-  overflow: hidden;
-  isolation: isolate;
-  background: color-mix(in srgb, var(--a) 26%, var(--sn-surface));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  line-height: 0.9;
-}
-.sermon-app .sn-face::before {
-  content: '';
-  position: absolute;
-  inset: 6px;
-  border-radius: 50%;
-  border: 1.5px dashed color-mix(in srgb, var(--sn-t1) 30%, transparent);
-  z-index: 1;
-}
-.sermon-app .sn-face .sn-ht {
-  --ic: var(--b);
-  width: 120px;
-  height: 120px;
-  right: -56px;
-  top: -50px;
-  --ds: 8px;
-  opacity: 0.55;
-}
-.sermon-app .sn-svc {
-  position: relative;
-  z-index: 3;
-  font-size: 10px;
-  font-weight: 900;
-  color: var(--sn-t2);
-  margin-bottom: 4px;
-}
-.sermon-app .sn-bkn {
-  position: relative;
-  z-index: 3;
-  font-family: var(--sn-f-poster);
-  font-size: 19px;
-  color: var(--sn-t1);
-  margin-bottom: 2px;
-}
-.sermon-app .sn-chn {
-  position: relative;
-  z-index: 2;
-  font-family: var(--sn-f-poster);
-  font-size: 50px;
-  color: var(--a);
-  mix-blend-mode: var(--sn-blend);
-  text-shadow: 3px 3px 0 color-mix(in srgb, var(--b) 55%, transparent);
-}
-.sermon-app .sn-vr {
-  position: relative;
-  z-index: 3;
-  font-size: 10.5px;
-  font-weight: 700;
-  margin-top: 3px;
-  padding: 1px 8px;
-  border-radius: var(--sn-r-pill);
-  background: var(--sn-surface);
-}
-.sermon-app .sn-new {
-  position: absolute;
-  right: -6px;
-  top: 4px;
-  z-index: 5;
-  font-size: 11.5px;
-  font-weight: 900;
-  padding: 3px 9px;
-  border-radius: var(--sn-r-pill);
-  background: var(--sn-t2);
-  color: var(--sn-accent-ink);
-  transform: rotate(12deg);
-  box-shadow: 0 0 0 3px var(--sn-die);
-}
-.sermon-app .sn-stkr[data-cur='true'] {
-  animation: sn-wob 4s ease-in-out infinite;
-}
-@keyframes sn-wob {
-  0%,
-  100% {
-    transform: rotate(var(--r));
-  }
-  50% {
-    transform: rotate(calc(var(--r) + 4deg));
-  }
-}
-.sermon-app .sn-badge-t {
-  font-size: 14px;
-  font-weight: 900;
-  letter-spacing: -0.045em;
-  line-height: 1.35;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.sermon-app .sn-badge-m {
-  font-size: 12px;
-  color: var(--sn-muted);
-  margin-top: -4px;
-}
-.sermon-app .sn-badge-empty .sn-stkr {
-  filter: none;
-}
-.sermon-app .sn-badge-empty .sn-die {
-  background: none;
-  -webkit-mask: none;
-  mask: none;
-  border-radius: 50%;
-  border: 2px dashed var(--sn-line-strong);
-}
 .sermon-app .sn-look-btn {
   justify-content: flex-start;
   background: var(--sn-surface);
@@ -3996,13 +3832,6 @@ html[data-keyboard-open] .sn-overlay {
   }
   .sermon-app .sn-plan {
     padding: 18px 14px;
-  }
-  .sermon-app .sn-badge {
-    width: 144px;
-  }
-  .sermon-app .sn-stkr {
-    width: 132px;
-    height: 132px;
   }
   .sermon-app .sn-hc-peek {
     right: 18px;
@@ -4336,12 +4165,8 @@ html[data-keyboard-open] .sn-overlay {
 
 @media (prefers-reduced-motion: reduce) {
   .sn-m *,
-  .sn-m .sn-m-body,
-  .sermon-app .sn-stkr[data-cur='true'] {
+  .sn-m .sn-m-body {
     animation: none !important;
-  }
-  .sermon-app .sn-stkr {
-    transition: none;
   }
 }
 
@@ -4359,10 +4184,6 @@ html[data-keyboard-open] .sn-overlay {
 }
 .sermon-app .sn-galpi-btn[aria-pressed='true'] .sn-icon {
   fill: currentColor;
-}
-.sermon-app .sn-new[data-galpi='true'] {
-  background: var(--sn-g2);
-  color: var(--sn-on-ink);
 }
 .sermon-app .sn-meta-galpi {
   min-height: 32px;
@@ -4850,20 +4671,6 @@ html[data-keyboard-open] .sn-overlay {
     transform: translateY(-2px) rotate(calc(var(--r, 0deg) + 1deg)) scale(1.02, 0.98);
   }
 }
-@keyframes sn-spark {
-  0% {
-    opacity: 1;
-    transform: rotate(var(--a)) translateY(0) scale(0.4);
-  }
-  70% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: rotate(var(--a)) translateY(-92px) scale(1);
-  }
-}
-
 /* ── 적용 체크: 체크 표시가 선으로 그려지고 동그라미가 눌렸다 붙는다 ── */
 .sermon-app .sn-ck svg path {
   stroke-dasharray: 24;
@@ -4924,46 +4731,8 @@ html[data-keyboard-open] .sn-overlay {
   transform-origin: top center;
   animation: sn-slip-in 0.55s var(--sn-spring) 0.3s both;
 }
-.sermon-app .sn-new[data-fx='tape'] {
-  transform-origin: left center;
-  animation: sn-tape-in 0.4s var(--sn-spring) 0.35s both;
-}
 .sermon-app .sn-galpi-btn:active {
   transform: scale(0.96);
-}
-
-/* ── 새 설교 스티커: 이 기기에서 처음 볼 때 한 번 떨어져 붙고 반짝 ── */
-.sermon-app .sn-stkr[data-new] {
-  animation: sn-sticker-drop 0.75s var(--sn-spring) both;
-}
-.sermon-app .sn-stkr[data-new][data-cur='true'] {
-  animation:
-    sn-sticker-drop 0.75s var(--sn-spring) both,
-    sn-wob 4s ease-in-out 0.75s infinite;
-}
-.sermon-app .sn-burst {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-}
-.sermon-app .sn-burst i {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 10px;
-  height: 10px;
-  margin: -5px;
-  background: var(--sn-g2);
-  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
-  opacity: 0;
-  animation: sn-spark 0.9s var(--sn-ease) 0.42s both;
-}
-.sermon-app .sn-burst i:nth-child(even) {
-  background: var(--sn-g1);
-  width: 8px;
-  height: 8px;
-  margin: -4px;
 }
 
 /* ── 오늘 칸 + ── */
@@ -5069,8 +4838,6 @@ html[data-keyboard-open] .sn-overlay {
   .sermon-app .sn-cheer > span,
   .sermon-app .sn-hc .sn-icon,
   .sermon-app .sn-hc-chip,
-  .sermon-app .sn-new,
-  .sermon-app .sn-stkr[data-new],
   .sermon-app button.sn-slot,
   .sermon-app .sn-save-state::before,
   .sermon-app .sn-rec,
@@ -5085,9 +4852,6 @@ html[data-keyboard-open] .sn-overlay {
   .sermon-app .sn-aside {
     animation: none !important;
     transition: none !important;
-  }
-  .sermon-app .sn-burst {
-    display: none;
   }
 }
 

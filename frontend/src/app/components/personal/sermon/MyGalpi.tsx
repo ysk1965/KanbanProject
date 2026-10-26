@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Mascot } from './Mascot';
+import { useGalpiStickers } from './galpiPrefs';
 import { GalpiSettingsRows } from './GalpiSettings';
 import type { MascotId } from './sermonLook';
 import type { SermonNote } from './sermonTypes';
@@ -51,6 +52,7 @@ export function MyGalpi({
         setChurchOpen(true);
       };
   const streak = useMemo(() => weekStreak(notes), [notes]);
+  const stickerCount = useGalpiStickers(notes).size;
   const books = useMemo(() => booksHeard(notes), [notes]);
 
   if (!profile) return null;
@@ -84,7 +86,7 @@ export function MyGalpi({
         <button type="button" onClick={onGoStickers}>
           모은 설교 스티커
           <span>
-            {notes.length}장 <ChevronRight className="sn-icon" aria-hidden />
+            {stickerCount}장 <ChevronRight className="sn-icon" aria-hidden />
           </span>
         </button>
         <GalpiSettingsRows notes={notes} />

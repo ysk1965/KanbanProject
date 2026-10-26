@@ -60,6 +60,22 @@ async function idbPut(data: BibleData) {
   }
 }
 
+/** 이 기기에 본문을 받아 두었나 — 오프라인에서 성경을 읽을 수 있는지. 4.4MB 를 읽지 않고 키만 센다 */
+export async function hasStoredBible(): Promise<boolean> {
+  if (cache) return true;
+  const db = await openIdb();
+  if (!db) return false;
+  return new Promise((resolve) => {
+    try {
+      const req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).count(IDB_KEY);
+      req.onsuccess = () => resolve(req.result > 0);
+      req.onerror = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
 export function getBible(): BibleData | null {
   return cache;
 }

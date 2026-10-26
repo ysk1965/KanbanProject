@@ -4,7 +4,8 @@ import { Download, Loader2, LogIn, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../../contexts/AuthContext';
 import { UserMenu } from '../../UserMenu';
-import { ANONYMOUS_USER, SermonStore } from './sermonStore';
+import { ANONYMOUS_USER, SermonStore, isOffline } from './sermonStore';
+import { OfflineEntrySheet, useNetChip } from './OfflineEntrySheet';
 import { kickVersionUploads } from './sermonVersions';
 import { SermonList } from './SermonList';
 import { SermonEditor } from './SermonEditor';
@@ -148,7 +149,7 @@ export default function SermonTab({ standalone = false }: SermonTabProps) {
       anonymous={anonymous}
       standalone={standalone}
       onLogin={anonymous ? goLogin : undefined}
-      strip={(mascot) =>
+      strip={(mascot, netChip) =>
         standalone ? (
           <>
             <header className="sn-strip">
@@ -157,6 +158,12 @@ export default function SermonTab({ standalone = false }: SermonTabProps) {
                 갈피
               </div>
               <span className="sn-sp" />
+              {netChip && (
+                <span className="sn-netchip" data-state={netChip} data-sn-net role="status">
+                  <i aria-hidden />
+                  {netChip === 'off' ? '연결 끊김' : '연결됨'}
+                </span>
+              )}
               {canInstall && (
                 <button
                   type="button"
@@ -216,7 +223,7 @@ interface BodyProps {
   standalone: boolean;
   onLogin?: () => void;
   /** 상단 띠. 마스코트는 꾸미기 설정(look)을 따르므로 본문에서 받아 그린다 */
-  strip: (mascot: MascotId) => React.ReactNode;
+  strip: (mascot: MascotId, netChip: 'off' | 'back' | null) => React.ReactNode;
 }
 
 const BACK_LABEL: Record<string, string> = {
@@ -419,6 +426,8 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
   });
 
   const editing = !!(openId && openNote);
+  // 좁은 화면 머리말 연결 칩 (로그인 전은 서버와 맞출 일이 없으니 띄우지 않는다)
+  const netChip = useNetChip(!anonymous && isOffline(store.status));
   // 편집기 하단 뒤로의 도착지 — 모임 설교 자리에서 열었으면 모임 이름, 아니면 원래 탭
   const fromGroup = searchParams.get('session') ? searchParams.get('group') : null;
   const backLabel =
@@ -430,7 +439,7 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
     <GroupContext.Provider value={groups.ctx}>
       <ProfileContext.Provider value={profile}>
         <div ref={rootRef} className="sermon-app" data-standalone={standalone || undefined}>
-          {!editing && strip(look.mascot)}
+          {!editing && strip(look.mascot, netChip)}
           {editing ? (
             <SermonEditor
               key={openNote.id}
@@ -480,6 +489,7 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
             onLogin={onLogin}
             onClose={() => setFirstNote(null)}
           />
+          <OfflineEntrySheet status={store.status} anonymous={anonymous} mascot={look.mascot} />
           <LookModal
             open={lookOpen}
             look={look}

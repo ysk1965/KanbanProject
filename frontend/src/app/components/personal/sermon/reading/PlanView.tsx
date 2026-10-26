@@ -1,15 +1,17 @@
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { BookOpen, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Faces } from '../group/Faces';
 import { todayString } from '../sermonTypes';
 import { readingAPI, readingErrorMessage, type PlanDay, type PlanDetail } from './readingApi';
 import { refreshMine } from './readingStore';
+import { BookMap } from './BookMap';
+import { TeamRows } from './TeamRows';
 import { chaptersLabel, md, mdDow, withYear } from './readingPlan';
 import './reading.css';
 
 /**
- * 길 하나 — 오늘 카드 · (모임) 읽음/아직 얼굴 · 밀린 날 · 함께 걸은 길(날 스티커) · 끝내기.
+ * 길 하나 — 오늘 카드 · (모임) 읽음/아직 얼굴 · 밀린 날 · 함께 걸은 길(책 지도 + 모임은 사람마다) · 끝내기.
  * 모임 통독 탭과 「읽는 중인 길」 시트가 같이 쓴다.
  */
 interface Props {
@@ -31,10 +33,12 @@ export function PlanView({ plan, onRead, onChange, onEnded }: Props) {
   const isGroup = !!plan.group_id;
   const todayDay = plan.days.find((d) => d.day_no === plan.today_day_no);
   const missed = plan.days.filter((d) => d.date < today && !myDone(d));
-  const pct = plan.team_total ? Math.round((plan.team_done / plan.team_total) * 100) : 0;
+  const pctRaw = plan.team_total ? (plan.team_done / plan.team_total) * 100 : 0;
+  // 1,189장 길에선 정수 %가 며칠씩 0에 머문다 — 10% 미만은 소수 한 자리
+  const pct = pctRaw > 0 && pctRaw < 10 ? pctRaw.toFixed(1) : String(Math.round(pctRaw));
+  const rows = isGroup && !!plan.members?.length;
   const read = plan.today?.read || [];
   const unread = plan.today?.unread || [];
-  const dense = plan.days.length > 62;
 
   const toggleDay = async (d: PlanDay) => {
     if (busy !== null) return;
@@ -156,50 +160,18 @@ export function PlanView({ plan, onRead, onChange, onEnded }: Props) {
           <b>{isGroup ? `${plan.group_name || '모임'}이 함께 걸은 길` : '내가 걸은 길'}</b>
           <span>
             <em>{pct}%</em>
-            {isGroup ? ` · ${plan.member_count}명 · ${plan.team_done}/${plan.team_total}장` : ''}
+            {isGroup
+              ? ` · ${plan.member_count}명 · ${plan.team_done.toLocaleString()}/${plan.team_total.toLocaleString()}장`
+              : ''}
           </span>
         </div>
-        <ol className="rp-trail" data-dense={dense || undefined} aria-label="날마다 읽은 정도">
-          {plan.days.map((d) => {
-            const ratio = plan.member_count ? Math.min(1, d.done_count / plan.member_count) : 0;
-            const future = d.date > today;
-            return (
-              <li
-                key={d.day_no}
-                className="rp-st"
-                data-full={ratio >= 1 || undefined}
-                data-future={(future && ratio === 0) || undefined}
-                data-now={d.day_no === plan.today_day_no || undefined}
-                data-mine={myDone(d) || undefined}
-                style={{ '--p': `${Math.round(ratio * 100)}%` } as CSSProperties}
-                title={`${d.day_no}일째 ${md(d.date)} · ${chaptersLabel(d.chapters)}${isGroup ? ` · ${d.done_count}/${plan.member_count}명` : ''}`}
-              >
-                {!dense && <span>{d.day_no}</span>}
-              </li>
-            );
-          })}
-        </ol>
-        <div className="rp-legend">
-          <span>
-            <i data-k="full" />
-            {isGroup ? '모두 읽은 날' : '읽은 날'}
-          </span>
-          {isGroup && (
-            <span>
-              <i data-k="part" />
-              일부만 읽음
-            </span>
-          )}
-          <span>
-            <i data-k="now" />
-            오늘
-          </span>
-          {isGroup && (
-            <span>
-              <i data-k="mine" />내 도장
-            </span>
-          )}
-        </div>
+        <BookMap plan={plan} today={today} onRead={onRead} />
+        {rows && (
+          <div className="rp-team-box">
+            <span className="rp-lb">사람마다</span>
+            <TeamRows plan={plan} today={today} />
+          </div>
+        )}
       </div>
 
       {plan.can_manage && (

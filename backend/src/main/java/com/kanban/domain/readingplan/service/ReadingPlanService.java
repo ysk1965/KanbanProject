@@ -17,6 +17,7 @@ import com.kanban.domain.user.User;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
@@ -392,18 +393,23 @@ public class ReadingPlanService {
 
         // day_no → user_id → 도장 수 (지금 active 멤버 것만 센다 — team_done ≤ team_total)
         Map<Integer, Map<String, Long>> counts = new HashMap<>();
+        Map<Integer, Map<String, LocalDateTime>> lastAt = new HashMap<>();
         long teamDone = 0;
-        for (Object[] row : checkRepository.countByDayAndUser(plan.getId())) {
+        for (Object[] row : checkRepository.statsByDayAndUser(plan.getId())) {
             String uid = (String) row[1];
             if (!readerIds.contains(uid)) continue;
+            int dayNo = ((Number) row[0]).intValue();
             long n = ((Number) row[2]).longValue();
-            counts.computeIfAbsent(((Number) row[0]).intValue(), k -> new HashMap<>())
-                    .put(uid, n);
+            counts.computeIfAbsent(dayNo, k -> new HashMap<>()).put(uid, n);
+            if (row[3] instanceof LocalDateTime at)
+                lastAt.computeIfAbsent(dayNo, k -> new HashMap<>()).put(uid, at);
             teamDone += n;
         }
         Map<Integer, Set<String>> mine = byPlanAndDay(checkRepository.findByPlanIdAndUserId(plan.getId(), viewerId))
                 .getOrDefault(plan.getId(), Map.of());
 
+        List<Reader> readers = access.readers();
+        int[] doneDays = new int[readers.size()];
         long totalChapters = 0;
         ReadingPlanDay todayDay = null;
         List<ReadingPlanResponse.Day> outDays = new ArrayList<>();
@@ -412,17 +418,43 @@ public class ReadingPlanService {
             totalChapters += need;
             if (day.getDate().equals(today)) todayDay = day;
             Set<String> mineOnDay = mine.getOrDefault(day.getDayNo(), Set.of());
-            int doneCount = (int) counts.getOrDefault(day.getDayNo(), Map.of()).values().stream()
-                    .filter(n -> n >= need)
-                    .count();
+            Map<String, Long> dayCounts = counts.getOrDefault(day.getDayNo(), Map.of());
+            Map<String, LocalDateTime> dayLast = lastAt.getOrDefault(day.getDayNo(), Map.of());
+            List<Integer> doneIdx = new ArrayList<>();
+            List<Integer> lateIdx = new ArrayList<>();
+            for (int i = 0; i < readers.size(); i++) {
+                String uid = readers.get(i).userId();
+                if (dayCounts.getOrDefault(uid, 0L) < need) continue;
+                doneIdx.add(i);
+                doneDays[i]++;
+                LocalDateTime at = dayLast.get(uid);
+                // 도장 시각은 UTC, 날짜는 현지 — 하루 차이는 시차로 보고 이틀 이상 늦은 것만 「따라 읽음」
+                if (at != null && at.toLocalDate().isAfter(day.getDate().plusDays(1))) lateIdx.add(i);
+            }
             outDays.add(ReadingPlanResponse.Day.builder()
                     .dayNo(day.getDayNo())
                     .date(day.getDate())
                     .chapters(day.getChapters())
-                    .doneCount(doneCount)
+                    .doneCount(doneIdx.size())
                     .myChapters(day.getChapters().stream()
                             .filter(mineOnDay::contains)
                             .toList())
+                    .readers(doneIdx.isEmpty() ? null : doneIdx)
+                    .late(lateIdx.isEmpty() ? null : lateIdx)
+                    .build());
+        }
+
+        Map<String, User> users = groupSupport.usersById(readerIds);
+        List<ReadingPlanResponse.Member> members = new ArrayList<>();
+        for (int i = 0; i < readers.size(); i++) {
+            Reader reader = readers.get(i);
+            User user = users.get(reader.userId());
+            members.add(ReadingPlanResponse.Member.builder()
+                    .userId(reader.userId())
+                    .displayName(reader.displayName())
+                    .profileImage(user == null ? null : user.getProfileImage())
+                    .doneDays(doneDays[i])
+                    .me(reader.userId().equals(viewerId) ? Boolean.TRUE : null)
                     .build());
         }
 
@@ -430,17 +462,15 @@ public class ReadingPlanService {
         if (todayDay != null) {
             int need = todayDay.getChapters().size();
             Map<String, Long> todayCounts = counts.getOrDefault(todayDay.getDayNo(), Map.of());
-            Map<String, User> users = groupSupport.usersById(readerIds);
             List<ReadingPlanResponse.Person> read = new ArrayList<>();
             List<ReadingPlanResponse.Person> unread = new ArrayList<>();
-            for (Reader reader : access.readers()) {
-                User user = users.get(reader.userId());
+            for (ReadingPlanResponse.Member m : members) {
                 ReadingPlanResponse.Person person = ReadingPlanResponse.Person.builder()
-                        .userId(reader.userId())
-                        .displayName(reader.displayName())
-                        .profileImage(user == null ? null : user.getProfileImage())
+                        .userId(m.getUserId())
+                        .displayName(m.getDisplayName())
+                        .profileImage(m.getProfileImage())
                         .build();
-                (todayCounts.getOrDefault(reader.userId(), 0L) >= need ? read : unread).add(person);
+                (todayCounts.getOrDefault(m.getUserId(), 0L) >= need ? read : unread).add(person);
             }
             todayBlock = ReadingPlanResponse.Today.builder()
                     .read(read)
@@ -466,6 +496,7 @@ public class ReadingPlanService {
                 .memberCount(memberCount)
                 .teamDone(teamDone)
                 .teamTotal(memberCount * totalChapters)
+                .members(members)
                 .today(todayBlock)
                 .build();
     }

@@ -71,6 +71,8 @@ public class ReadingPlanResponse {
         private long memberCount;
         private long teamDone;
         private long teamTotal;
+        /** 사람별 줄 — 모임 active 멤버(가입순, 나의 길 = 주인 한 명). days[].readers/late 는 이 목록의 번호 */
+        private List<Member> members;
         /** today_day_no 가 있을 때만 */
         private Today today;
     }
@@ -84,6 +86,23 @@ public class ReadingPlanResponse {
         private List<String> chapters;
         private int doneCount;
         private List<String> myChapters;
+        /** 그날 장을 모두 찍은 멤버 번호(members 순서). 없으면 키 생략 */
+        private List<Integer> readers;
+        /** readers 중 그날보다 이틀 이상 늦게 마저 찍은 멤버 번호. 없으면 키 생략 */
+        private List<Integer> late;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class Member {
+        private String userId;
+        private String displayName;
+        private String profileImage;
+        /** 다 읽은 날 수 */
+        private int doneDays;
+        /** 보는 사람 본인일 때만 true (아니면 키 생략) */
+        private Boolean me;
     }
 
     @Getter

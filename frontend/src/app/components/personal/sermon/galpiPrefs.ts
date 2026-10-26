@@ -1,5 +1,5 @@
-import { useSyncExternalStore } from 'react';
-import { sundayServices, type GalpiRule, type SermonNote } from './sermonTypes';
+import { useMemo, useSyncExternalStore } from 'react';
+import { galpiByWeek, sundayServices, type GalpiRule, type SermonNote } from './sermonTypes';
 
 /**
  * 갈피 설정 — 「주일 대예배에 자동으로 꽂기」와 「내 주일 예배」.
@@ -81,4 +81,10 @@ export function resolveGalpiRule(prefs: GalpiPrefs, notes: SermonNote[]): GalpiR
 /** 테스트용 — 모듈 캐시 비우기 */
 export function resetGalpiPrefsCache() {
   current = null;
+}
+
+/** 주일 갈피 스티커 (주일 yyyy-MM-dd → 그 주 갈피 노트). 스티커북과 「모은 설교 스티커」 숫자가 같은 규칙을 쓴다 */
+export function useGalpiStickers(notes: SermonNote[]): Map<string, SermonNote> {
+  const prefs = useGalpiPrefs();
+  return useMemo(() => galpiByWeek(notes, resolveGalpiRule(prefs, notes)), [notes, prefs]);
 }

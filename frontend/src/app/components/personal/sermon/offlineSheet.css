@@ -1,0 +1,237 @@
+/* =====================================================================
+   오프라인 진입 시트 (OfflineEntrySheet.tsx) + 연결 표시
+   움직임 재료는 sermon.css 「마이크로 인터랙션」 그대로: 스프링으로 올라옴 · 테이프 · 스티커처럼 붙는 ✓ ·
+   누름 · 연결 표시로 날아가 붙는 점(sn-land). 반복은 졸고 있는 갈피 하나뿐, 움직임 줄이기면 모두 멈춘다.
+   ===================================================================== */
+.sn-overlay .sn-offline {
+  position: relative;
+  width: min(400px, 100%);
+  padding: 22px 20px 16px;
+  gap: 14px;
+  overflow: visible;
+  font-family: var(--sn-f-ui);
+  animation: sn-offline-up 0.42s var(--sn-spring, cubic-bezier(0.3, 1.5, 0.5, 1)) both;
+}
+@keyframes sn-offline-up {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.97);
+  }
+}
+.sn-offline-tape {
+  position: absolute;
+  top: -9px;
+  left: 28px;
+  width: 70px;
+  height: 18px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--sn-g2) 60%, transparent);
+  transform: rotate(-5deg);
+  animation: sn-tape-in 0.38s var(--sn-spring) 0.3s both;
+}
+.sn-offline-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sn-offline-top h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+.sn-offline-top p {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--sn-muted);
+  line-height: 1.55;
+}
+.sn-offline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.sn-offline-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--sn-r-ctl);
+  font-size: 13px;
+  line-height: 1.3;
+  background: color-mix(in srgb, var(--sn-fg) 6%, transparent);
+  color: var(--sn-muted);
+  transition:
+    background-color 0.35s,
+    color 0.35s;
+  /* ✕ 는 조용히 올라온다 */
+  animation: sn-rise 0.3s var(--sn-ease) both;
+  animation-delay: calc(0.22s + var(--i, 0) * 40ms);
+}
+.sn-offline-list li[data-ok='true'] {
+  background: color-mix(in srgb, #3fb68b 14%, transparent);
+  color: var(--sn-fg);
+  /* ✓ 는 스티커처럼 기울어져 붙는다 */
+  animation-name: sn-stick;
+  animation-duration: 0.42s;
+  animation-timing-function: var(--sn-spring);
+}
+/* 연결이 돌아와 ✕ → ✓ 로 바뀔 때는 동그라미만 한 번 튄다 (저절로 바뀌는 건 가볍게) */
+.sn-offline-list li[data-flip] {
+  animation: none;
+}
+.sn-offline-list li[data-flip] b {
+  animation: sn-chip-land 0.45s var(--sn-spring);
+}
+.sn-offline-list b {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 12px;
+  box-shadow: inset 0 0 0 1.5px var(--sn-faint);
+  color: var(--sn-faint);
+}
+.sn-offline-list li[data-ok='true'] b {
+  background: #3fb68b;
+  box-shadow: none;
+  color: #fff;
+}
+.sn-offline-list small {
+  display: block;
+  font-size: 12px;
+  color: var(--sn-faint);
+}
+.sn-offline-acts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sn-offline-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--sn-r-pill, 999px);
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sn-offline-go:focus-visible {
+  outline: 2px solid var(--sn-accent);
+  outline-offset: 3px;
+}
+.sn-offline-go:active {
+  animation: sn-press 0.3s var(--sn-spring);
+}
+.sn-offline-never {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--sn-faint);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.sn-offline-never:focus-visible {
+  outline: 2px solid var(--sn-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+@media (max-width: 699px) {
+  .sn-offline-acts {
+    flex-direction: row-reverse;
+  }
+  .sn-offline-go {
+    flex: 1;
+  }
+}
+@media (max-width: 380px) {
+  .sn-offline-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* 닫을 때 연결 표시로 날아가는 점 (body 에 잠깐 붙는다) */
+.sn-net-fly {
+  position: fixed;
+  z-index: 70;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--sn-faint, #9a93a0);
+  pointer-events: none;
+}
+
+/* 연결 표시: 점이 도착하면 고리가 한 번 생기고 줄이 은은하게 칠해진다 */
+.sermon-app [data-sn-net][data-fx='land'] i {
+  animation: sn-land 0.9s var(--sn-ease);
+}
+.sermon-app .sn-sync[data-fx='land'] {
+  border-radius: 8px;
+  animation: sn-polish 1.4s var(--sn-ease);
+}
+
+/* 좁은 화면 머리말 연결 칩 — 넓은 화면은 사이드바 상태 줄이 같은 일을 한다 */
+.sermon-app .sn-netchip {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 3px 10px 3px 8px;
+  border-radius: var(--sn-r-pill, 999px);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-muted);
+  background: color-mix(in srgb, var(--sn-fg) 7%, transparent);
+  animation: sn-rise 0.3s var(--sn-ease);
+}
+.sermon-app .sn-netchip i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: inset 0 0 0 1.5px var(--sn-faint);
+}
+.sermon-app .sn-netchip[data-state='back'] {
+  color: #2f9e72;
+  background: color-mix(in srgb, #3fb68b 14%, transparent);
+}
+.sermon-app .sn-netchip[data-state='back'] i {
+  background: #3fb68b;
+  box-shadow: none;
+  animation: sn-chip-land 0.45s var(--sn-spring);
+}
+@media (max-width: 760px) {
+  .sermon-app .sn-netchip {
+    display: inline-flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sn-overlay .sn-offline,
+  .sn-offline-tape,
+  .sn-offline-list li,
+  .sn-offline-list b,
+  .sn-offline-go:active,
+  .sermon-app [data-sn-net] i,
+  .sermon-app .sn-sync[data-fx='land'],
+  .sermon-app .sn-netchip {
+    animation: none !important;
+    transition: none !important;
+  }
+}

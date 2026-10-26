@@ -1,8 +1,15 @@
-import { useMemo, useState, useSyncExternalStore, type ComponentType, type SVGProps } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ComponentType,
+  type SVGProps,
+} from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, LogIn, Mic, Plus, Search, X } from 'lucide-react';
 import { compareRef, encRef, norm, refLong, refShort, type Ref } from './bibleRefs';
-import type { SyncStatus } from './sermonStore';
+import { homeSyncLine, type SyncStatus } from './sermonStore';
 import {
   applyItems,
   audioDuration,
@@ -34,6 +41,7 @@ import { BibleReader } from './BibleReader';
 import { HighlightList } from './HighlightList';
 import { useHighlights } from './bibleHighlights';
 import { MyGalpi } from './MyGalpi';
+import { useGalpiStickers } from './galpiPrefs';
 import { GroupsLanding } from './group/GroupsLanding';
 import { ChallengeTab, type ChallengeView } from './challenge/ChallengeTab';
 import './sermonNav.css';
@@ -179,6 +187,15 @@ export function SermonList({
   };
   const [service, setService] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  // 연결이 끊긴 동안 '마지막 맞춤 N분 전'이 멈추지 않게 1분마다 다시 그린다
+  const [now, setNow] = useState(() => Date.now());
+  const offlineTick = status.online === false && !!status.lastSync;
+  useEffect(() => {
+    if (!offlineTick) return;
+    setNow(Date.now());
+    const t = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(t);
+  }, [offlineTick]);
 
   const query = q.trim();
   const allApply = useMemo(() => applyItems(notes), [notes]);
@@ -226,6 +243,7 @@ export function SermonList({
     setService(svc);
     if (tab !== 'note') goTab('note');
   };
+  const stickerCount = useGalpiStickers(notes).size;
   const goStickers = () => {
     pickNote('home');
     setQ('');
@@ -256,7 +274,8 @@ export function SermonList({
             : '노트는 기기에 먼저 저장되고, 다른 기기와 맞춰져요.';
   /** 평소엔 한 줄 상태, 문제가 있을 때(저장 불가·공간 부족·로그인 전)만 설명을 펼친다 */
   const storeTrouble = !status.localOk || status.localFull || status.anonymous || status.limit;
-  const syncLine = status.pending ? `변경 ${status.pending}건 올리는 중` : '모든 기기와 맞춰짐';
+  const sync = homeSyncLine(status, now);
+  const syncLine = sync.sub ? `${sync.text} · ${sync.sub}` : sync.text;
 
   let body: React.ReactNode;
   if (tab === 'bible' && bibleView === 'read') {
@@ -675,7 +694,7 @@ export function SermonList({
                   )}
                   <button type="button" onClick={goStickers}>
                     모은 설교 스티커
-                    <span className="sn-count">{notes.length}</span>
+                    <span className="sn-count">{stickerCount}</span>
                   </button>
                 </div>
               )}
@@ -694,9 +713,12 @@ export function SermonList({
                   )}
                 </>
               ) : (
-                <span className="sn-sync">
-                  <i aria-hidden data-pending={status.pending > 0} />
-                  {syncLine}
+                <span className="sn-sync" role="status" data-sn-net>
+                  <i aria-hidden data-state={sync.state} />
+                  <span>
+                    {sync.text}
+                    {sync.sub && <small>{sync.sub}</small>}
+                  </span>
                 </span>
               )}
             </div>

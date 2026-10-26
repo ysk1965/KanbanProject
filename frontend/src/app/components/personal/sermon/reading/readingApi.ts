@@ -33,6 +33,19 @@ export interface PlanDay {
   chapters: string[];
   done_count: number;
   my_chapters?: string[];
+  /** 그날 다 읽은 멤버 번호 (members 순서). 없으면 키 생략 */
+  readers?: number[];
+  /** readers 중 이틀 이상 늦게 마저 읽은 멤버 번호 */
+  late?: number[];
+}
+
+export interface PlanMember {
+  user_id: string;
+  display_name: string;
+  profile_image?: string;
+  done_days: number;
+  /** 보는 사람 본인일 때만 true */
+  me?: boolean;
 }
 
 export interface PlanPerson {
@@ -58,6 +71,8 @@ export interface PlanDetail {
   member_count: number;
   team_done: number;
   team_total: number;
+  /** 사람별 줄 — 모임 멤버(가입순). 예전 서버면 없음 */
+  members?: PlanMember[];
   today?: { read?: PlanPerson[]; unread?: PlanPerson[] };
 }
 
