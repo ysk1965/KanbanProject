@@ -1,8 +1,8 @@
-import { memo } from "react";
-import { FileBarChart2, Sparkles } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { memo } from 'react';
+import { FileBarChart2, Sparkles, Wand2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
-export type FeatureSubTab = "report" | "ld_upscale";
+export type FeatureSubTab = 'report' | 'ld_upscale' | 'ld_gen';
 
 interface FeatureSubTabBarProps {
   activeTab: FeatureSubTab;
@@ -16,20 +16,26 @@ const TABS: {
   fallback: string;
 }[] = [
   {
-    key: "report",
+    key: 'report',
     Icon: FileBarChart2,
-    i18nKey: "kanban.viewReport",
-    fallback: "보고서",
+    i18nKey: 'kanban.viewReport',
+    fallback: '보고서',
   },
   {
-    key: "ld_upscale",
+    key: 'ld_upscale',
     Icon: Sparkles,
-    i18nKey: "kanban.viewLdUpscale",
-    fallback: "LD 업스케일",
+    i18nKey: 'kanban.viewLdUpscale',
+    fallback: 'LD 업스케일',
+  },
+  {
+    key: 'ld_gen',
+    Icon: Wand2,
+    i18nKey: 'kanban.viewLdGen',
+    fallback: 'LD 생성',
   },
 ];
 
-// 도구 탭 서브탭 바 (보고서 / LD 업스케일 — 이후 도구가 늘면 TABS 에 추가)
+// 도구 탭 서브탭 바 (보고서 / LD 업스케일 / LD 생성 — 이후 도구가 늘면 TABS 에 추가)
 export const FeatureSubTabBar = memo(function FeatureSubTabBar({
   activeTab,
   onChange,
@@ -47,8 +53,8 @@ export const FeatureSubTabBar = memo(function FeatureSubTabBar({
               onClick={() => onChange(key)}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs transition-all ${
                 activeTab === key
-                  ? "font-medium bg-foreground/10 text-foreground"
-                  : "text-slate-400 hover:text-foreground hover:bg-foreground/5"
+                  ? 'font-medium bg-foreground/10 text-foreground'
+                  : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
               }`}
               aria-label={label}
             >

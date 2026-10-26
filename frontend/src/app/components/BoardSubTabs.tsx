@@ -12,6 +12,7 @@ type ViewMode =
   | 'library'
   | 'report'
   | 'ld_upscale'
+  | 'ld_gen'
   | 'statistics'
   | 'ai_report'
   | 'list'
