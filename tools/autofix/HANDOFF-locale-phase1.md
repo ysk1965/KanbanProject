@@ -218,22 +218,24 @@ tail -f ~/bridge-autofix/logs/runner.log
 
 ### 갱신 절차
 
-정본 탭 2개(`Default`, `Dialogue`)를 각각 주소로 직접 열어 받는다. 크롬이 `data.csv`로 저장한다:
+정본 탭 2개를 각각 **주소로 직접 열어** 받는다:
 
 ```
-https://docs.google.com/spreadsheets/d/17Yyg7-CfFxZEBFvIrGctFnTvZFpp0DaWVAMA_xlZlpw/gviz/tq?tqx=out:csv&headers=0&sheet=Default
-https://docs.google.com/spreadsheets/d/17Yyg7-CfFxZEBFvIrGctFnTvZFpp0DaWVAMA_xlZlpw/gviz/tq?tqx=out:csv&headers=0&sheet=Dialogue
+https://docs.google.com/spreadsheets/d/17Yyg7-CfFxZEBFvIrGctFnTvZFpp0DaWVAMA_xlZlpw/export?format=csv&gid=1469350934   # Default
+https://docs.google.com/spreadsheets/d/17Yyg7-CfFxZEBFvIrGctFnTvZFpp0DaWVAMA_xlZlpw/export?format=csv&gid=0            # Dialogue
 ```
 
-받은 파일을 `locale-Default.csv` · `locale-Dialogue.csv`로 옮긴 뒤:
+받은 파일을 `~/bridge-autofix/locale/src/locale-Default.csv` · `locale-Dialogue.csv`로 옮긴 뒤:
 
 ```bash
-python3 ~/bridge-autofix/build-locale-mirror.py ~/Downloads ~/bridge-autofix/locale/locale-sheet.tsv
+python3 ~/bridge-autofix/build-locale-mirror.py ~/bridge-autofix/locale/src ~/bridge-autofix/locale/locale-sheet.tsv
 ```
 
 - 한 페이지 안에서 `fetch`+blob으로 연속 저장하면 **크롬이 2번째부터 자동 차단**한다. 주소로 직접
-  이동하는 편이 확실하다. (시트 앱 페이지는 CSP 때문에 `fetch` 자체가 막히니, `docs.google.com`의
-  다른 경로에서 같은 출처로 요청해야 한다.)
+  이동하는 편이 확실하다.
+- 값을 눈으로 확인만 할 때는 `docs.google.com`의 다른 경로(예: `/robots.txt`)를 연 뒤 같은 출처로
+  gviz를 `fetch`하면 된다 — 시트 앱 페이지는 CSP로 `fetch`가 막히고, `export`는 크로스오리진
+  리다이렉트라 `fetch`로 못 받는다. **미러를 만드는 데는 gviz를 쓰지 말 것**(위 경고 참조).
 - 스크립트는 결과를 `chmod 444`로 만든다. 에이전트는 `Edit`을 쥐고 `acceptEdits`로 도는데 이 파일은
   작업 트리 밖이라 git이 변경을 잡지 못하기 때문이다.
 - 파일 첫 줄에 스냅샷 시각이 박히고 러너 로그에도 찍힌다. 값이 어긋났을 때 "에이전트가 틀렸다"와
@@ -251,18 +253,28 @@ python3 ~/bridge-autofix/build-locale-mirror.py ~/Downloads ~/bridge-autofix/loc
 | `#Test` | 202 | 3 | 스크래치. 키가 전부 `Default`에 있다 |
 | `#Test2` | 74 | 3 | 스크래치. 키가 전부 `Default`에 있다 |
 
+gid: `Default`=**1469350934** / `Dialogue`=**0**.
+
 2행(머리글) 실제 값:
 
 ```
-Default  : (빈칸) #분류값 #서브 분류 key kr en #변경 여부 #es #ar #it #jp #fr #tr #id #ru
-Dialogue : (빈칸) #분류값 #서브 분류 key kr en #pt #de #es #ar #it #jp #fr #tr #id #ru
+Default  : #id #분류값 #서브 분류 key kr en #변경 여부 #es #ar #it #jp #fr #tr #id #ru
+Dialogue : #id #분류값 #서브 분류 key kr en #pt #de #es #ar #it #jp #fr #tr #id #ru
+            ↑ A열(행 식별자)                                    양쪽 끝에서 두 번째 ↑ 인도네시아어
 ```
 
-- ⚠️ **`#id`는 행 식별자가 아니라 인도네시아어 열이다.** 보고서 #8은 "A열 = `#id`(int)"라고 적고
-  자동화에 "2행의 이름으로 열을 찾아라"를 지시했는데, 그대로 만들면 `#id`를 찾다가 **인도네시아어
-  열을 잡는다.** 한국어 문구를 인도네시아어 칸에 쓰는, 컴파일도 임포트도 못 잡는 조용한 오염이다.
-- **행 식별자 열은 머리글이 비어 있어 이름으로 찾을 수 없다.** A열 고정이 유일한 방법이고, 그렇다면
-  "이름으로 찾고 못 찾으면 실패"라는 원칙이 이 열에는 성립하지 않는다는 것을 명시해야 한다.
+- ⚠️ **`#id`라는 이름의 열이 둘이다.** A열(행 식별자)과 인도네시아어 열이 같은 이름을 쓴다.
+  보고서 #8은 자동화에 "2행의 이름으로 열을 찾고 못 찾으면 즉시 실패"를 지시했는데, 이 이름은
+  **찾히긴 하되 어느 쪽이 잡힐지가 구현에 달렸다**(first match냐 last match냐). 한국어 문구를
+  인도네시아어 칸에 쓰는, 컴파일도 임포트도 못 잡는 조용한 오염이 여기서 난다.
+  행 식별자는 이름으로 찾지 말고 **A열 고정**으로 읽어야 하고, 이름으로 찾는 열들에 대해서는
+  **중복 검사를 먼저** 해야 한다("못 찾으면 실패"만으로는 이 시트를 막지 못한다).
+  `build-locale-mirror.py`는 그렇게 되어 있다.
+- ⚠️ **CSV를 받을 때 `export?format=csv&gid=N` 을 쓸 것.** gviz(`/gviz/tq?tqx=out:csv`)는 탭 이름으로
+  부를 수 있어 편하지만 열마다 타입을 추론해 **숫자 열의 텍스트 셀을 조용히 버린다** — 실제로 A열
+  머리글 3칸(`#SheetIndex`·`#id`·`int`)이 빈 값으로 나왔고, 그래서 이 문서의 앞선 판(2026-08-05)에
+  "A열 머리글이 비어 있다"는 틀린 내용이 실렸다. 데이터 2,399행은 온전했지만 조용히 버리는 성질
+  자체를 이 경로에 두면 안 된다.
 - **열 배치는 탭마다 다르다**(#7의 답: 같지 않다). `en` 다음이 `Default`는 `#변경 여부`,
   `Dialogue`는 `#pt`·`#de`라 6번째부터 어긋난다. 위치 하드코딩은 두 탭 모두에서 쓸 수 없다.
 - **`Dialogue`의 id는 100001부터**라 보고서 #9의 대역 규칙(최대 70001~80000) 밖에 있다. 대역으로
@@ -270,6 +282,29 @@ Dialogue : (빈칸) #분류값 #서브 분류 key kr en #pt #de #es #ar #it #jp 
 - 스크래치 탭은 미러에서 제외했다. 키는 전부 `Default`에 있는데 **값이 어긋난 것이 29개**
   있다(예: `SKILL_NAME_SK_ACT_MARIE_SOLITUDE` — `Default`는 `고독`, `#Test`는 `고덕`).
   넣으면 에이전트가 스크래치 행을 정본으로 지목하는 경로가 열린다.
+
+### 시트에 실제로 반영한 것 (2026-08-05, QASA-116)
+
+에이전트 보고를 사람이 확인한 뒤 **감독하에 브라우저로 직접** 고쳤다. 무인 경로가 아니다.
+
+| 셀 | before | after |
+|----|--------|-------|
+| `Default!E7` (`MSG_NOT_ENOUGH_AP`, kr) | 행동력이 부족합니다. | 스테미너가 부족합니다. |
+| `Default!E25` (`MSG_GUIDE_IDLE_REWARD_AP`, kr) | 스테이지에 입장할 `<color=#F75D32>`행동력`</color>`이 부족합니다.␣ | …`<color=#F75D32>`스테미너`</color>`가 부족합니다.␣ |
+
+보류: **`F7`·`F25`(en 열)에 한국어가 그대로 들어가 있다.** 에이전트가 영문 문구를 지어내지 않고
+보고만 남긴 건이고, 번역 정책(보고서 Q3)이 정해져야 채울 수 있다. kr만 고친 지금은 두 언어가
+어긋난 상태다.
+
+절차에서 배운 것:
+
+- **셀에 바로 타이핑하면 앞 글자가 먹힌다.** 실제로 `스테미너가 `가 통째로 유실돼 `부족합니다.`만
+  남은 상태로 커밋 직전까지 갔다. 반드시 `F2`로 편집 모드에 먼저 들어가고 `cmd+a` 후 입력한 뒤,
+  **Enter 전에 수식 입력줄을 확인**한다.
+- 쓰기 뒤에는 UI가 아니라 **독립 경로(gviz fetch)로 대조**한다. 끝 공백처럼 화면으로 판별할 수 없는
+  차이가 있다(`E25`는 값 끝에 공백이 있다).
+- 전체 export를 편집 전 스냅샷과 셀 단위로 비교하면 "내가 고친 것 외에 바뀐 게 없다"를 증명할 수
+  있다. 이번에는 7·25행 외 불일치 0건이었다.
 
 ---
 

@@ -5,13 +5,19 @@
 받아오는 것은 로그인된 크롬이 있는 대화형 세션의 몫이고, 이 스크립트는 그렇게 받아 둔
 CSV들을 에이전트가 grep하기 좋은 한 장으로 합치기만 한다.
 
-받는 법(대화형 세션에서, 탭마다 한 번씩):
-  https://docs.google.com/spreadsheets/d/<시트ID>/gviz/tq?tqx=out:csv&headers=0&sheet=<탭이름>
-  → 크롬이 data.csv 로 저장한다. locale-<탭이름>.csv 로 옮긴 뒤 이 스크립트를 돌린다.
-  (같은 페이지 안에서 fetch+blob 으로 연속 저장하면 크롬이 2번째부터 자동 차단한다.
-   주소로 직접 이동하는 편이 확실하다.)
+받는 법(대화형 세션에서, 탭마다 한 번씩). **주소로 직접 이동**한다:
+  https://docs.google.com/spreadsheets/d/17Yyg7-CfFxZEBFvIrGctFnTvZFpp0DaWVAMA_xlZlpw/export?format=csv&gid=<gid>
+    Default  gid=1469350934      Dialogue  gid=0
+  → 크롬이 「<시트명> - <탭명>.csv」로 저장한다. locale-<탭이름>.csv 로 옮긴 뒤 이 스크립트를 돌린다.
 
   사용: build-locale-mirror.py <CSV디렉터리> <출력.tsv>
+
+⚠️ gviz(`/gviz/tq?tqx=out:csv`)로도 받아지고 탭 이름으로 부를 수 있어 편하지만, **충실한 export가
+   아니다.** gviz는 열마다 타입을 추론해서 숫자 열에 든 텍스트 셀을 조용히 버린다 — 실제로
+   A열(숫자)의 머리글 3칸(`#SheetIndex`·`#id`·`int`)이 빈 값으로 나왔다. 데이터 행은 전부
+   온전했지만(2,399행 대조 확인), 조용히 버리는 성질 자체가 이 파이프라인에 두면 안 되는 종류다.
+   `export?format=csv` 를 쓴다. (gviz는 페이지 안에서 fetch로 값을 확인할 때만 쓴다 —
+   export 는 크로스오리진 리다이렉트라 fetch로는 못 받는다.)
 
 출력 한 줄 = 항목 하나. kr 값 안의 줄바꿈은 \\n 으로 이스케이프해 grep이 한 줄로 잡게 한다.
 """
@@ -29,9 +35,10 @@ SOURCE_TABS = ["Default", "Dialogue"]
 # 열은 이름으로 찾는다. 위치는 탭마다 다르다 — Default 는 en 다음이 '#변경 여부'이고
 # Dialogue 는 '#pt','#de'라 6번째부터 어긋난다.
 #
-# ⚠️ 행 식별자(1, 100001…) 열은 **머리글이 비어 있다.** 이름으로 찾을 수 없어 A열로 고정한다.
-#    그리고 '#id'는 행 식별자가 아니라 **인도네시아어** 열이다. 이름으로 '#id'를 찾으면
-#    엉뚱한 언어 열이 잡힌다.
+# ⚠️ 행 식별자(1, 100001…) 열의 머리글은 '#id'인데, **같은 이름의 열이 하나 더 있다** —
+#    O열의 '#id'는 인도네시아어다. 즉 이름으로 '#id'를 찾는 코드는 구현에 따라 A열을 잡기도,
+#    인도네시아어 열을 잡기도 한다(first match냐 last match냐). 한국어를 인도네시아어 칸에 쓰는
+#    사고가 여기서 난다. 그래서 행 식별자는 이름으로 찾지 않고 A열로 고정한다.
 ID_COL = 0
 WANTED = ["#분류값", "#서브 분류", "key", "kr", "en"]
 
@@ -49,6 +56,16 @@ def load(path: Path, tab: str):
         raise SystemExit(f"{path.name}: 데이터 행이 없다")
 
     header = rows[HEADER_ROW]
+
+    # 이 시트에는 이름이 겹치는 열이 실제로 있다('#id' — A열과 인도네시아어). 이름으로 찾는
+    # 열이 하나라도 중복이면 어느 쪽을 잡았는지가 우연에 달리므로 멈춘다.
+    dupes = {n for n in WANTED if header.count(n) > 1}
+    if dupes:
+        raise SystemExit(
+            f"{path.name}: 머리글이 중복이라 열을 특정할 수 없다: {sorted(dupes)}\n"
+            f"  2행={header!r}"
+        )
+
     idx = {}
     for name in WANTED:
         if name not in header:

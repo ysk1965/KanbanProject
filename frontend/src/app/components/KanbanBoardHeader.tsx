@@ -50,6 +50,7 @@ type ViewMode =
   | 'library'
   | 'report'
   | 'ld_upscale'
+  | 'ld_gen'
   | 'statistics'
   | 'ai_report'
   | 'list'
@@ -233,7 +234,7 @@ export function KanbanBoardHeader({
     if (viewMode === 'schedule') return 1;
     if (viewMode === 'meeting') return 2;
     if (viewMode === 'library') return 3;
-    if (viewMode === 'report' || viewMode === 'ld_upscale') return 4;
+    if (viewMode === 'report' || viewMode === 'ld_upscale' || viewMode === 'ld_gen') return 4;
     if (viewMode === 'statistics' || viewMode === 'ai_report') {
       const tabs = getAvailableTabs();
       return tabs.findIndex((t) => t.key === 'ai');
@@ -425,7 +426,7 @@ export function KanbanBoardHeader({
             <button
               onClick={() => onViewModeChange('report')}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                viewMode === 'report' || viewMode === 'ld_upscale'
+                viewMode === 'report' || viewMode === 'ld_upscale' || viewMode === 'ld_gen'
                   ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
                   : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
               }`}

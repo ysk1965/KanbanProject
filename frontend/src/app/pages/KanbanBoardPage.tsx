@@ -38,6 +38,7 @@ type ViewMode =
   | 'library'
   | 'report'
   | 'ld_upscale'
+  | 'ld_gen'
   | 'statistics'
   | 'ai_report'
   | 'list'
@@ -103,6 +104,7 @@ import { MilestoneTabBar } from '../components/MilestoneTabBar';
 import { ScheduleSubTabBar } from '../components/ScheduleSubTabBar';
 import { FeatureSubTabBar } from '../components/FeatureSubTabBar';
 import { LdUpscalePanel } from '../components/tools/LdUpscalePanel';
+import { LdGenPanel } from '../components/tools/LdGenPanel';
 import { KanbanView } from '../views/KanbanView';
 import { FeatureCard } from '../components/FeatureCard';
 import { FeatureChipSelector } from '../components/FeatureChipSelector';
@@ -2981,9 +2983,11 @@ export function KanbanBoardPage() {
           <ScheduleSubTabBar activeTab={scheduleSubTab} onChange={handleScheduleSubTabChange} />
         )}
         {/* 도구 탭 서브탭 바 (보고서 / LD 업스케일) */}
-        {(viewMode === 'report' || viewMode === 'ld_upscale') && (
+        {(viewMode === 'report' || viewMode === 'ld_upscale' || viewMode === 'ld_gen') && (
           <FeatureSubTabBar
-            activeTab={viewMode === 'ld_upscale' ? 'ld_upscale' : 'report'}
+            activeTab={
+              viewMode === 'ld_upscale' ? 'ld_upscale' : viewMode === 'ld_gen' ? 'ld_gen' : 'report'
+            }
             onChange={(tab) => handleViewModeChange(tab)}
           />
         )}
@@ -3234,6 +3238,10 @@ export function KanbanBoardPage() {
         ) : viewMode === 'ld_upscale' ? (
           <main className="flex-1 overflow-hidden">
             <LdUpscalePanel />
+          </main>
+        ) : viewMode === 'ld_gen' ? (
+          <main className="flex-1 overflow-hidden">
+            <LdGenPanel />
           </main>
         ) : viewMode === 'statistics' ? (
           <main className="flex-1 overflow-hidden">
