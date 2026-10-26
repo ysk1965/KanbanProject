@@ -27,7 +27,7 @@ const HOST_KEY = 'ldUpscale.host';
 const DEFAULT_HOST = 'http://192.168.2.73:8790';
 const IMAGE_RECT = 1024; // BasePrefab_UI 의 Image rect 세로
 
-type JobStatus = 'wait' | 'run' | 'done' | 'fail';
+type JobStatus = 'wait' | 'run' | 'done' | 'fail' | 'skip';
 
 interface Job {
   id: string;
@@ -48,6 +48,7 @@ interface Health {
   comfy: boolean;
   model: boolean;
   targetHeight: number;
+  minSourceHeight: number;
   error?: string;
 }
 
@@ -94,6 +95,7 @@ export function LdUpscalePanel() {
         comfy: !!json.comfy,
         model: !!json.model,
         targetHeight: json.targetHeight ?? 0,
+        minSourceHeight: json.minSourceHeight ?? 0,
       });
     } catch (e) {
       setHealth({
@@ -101,6 +103,7 @@ export function LdUpscalePanel() {
         comfy: false,
         model: false,
         targetHeight: 0,
+        minSourceHeight: 0,
         error: e instanceof Error ? e.message : String(e),
       });
     }
@@ -121,32 +124,44 @@ export function LdUpscalePanel() {
   const ready = !!health?.reachable && health.comfy && health.model;
   const targetHeight = health?.targetHeight || 2048;
   const recommendedScale = (targetHeight / IMAGE_RECT).toFixed(2);
+  const minSourceHeight = health?.minSourceHeight || 512;
 
-  const addFiles = useCallback(async (files: FileList | null) => {
-    if (!files?.length) return;
-    const added: Job[] = [];
-    for (const file of Array.from(files)) {
-      // 비교 모달의 BEFORE 로 쓴다 — 결과 URL 과 함께 언마운트 때 되돌린다
-      const srcUrl = URL.createObjectURL(file);
-      objectUrls.current.push(srcUrl);
-      const job: Job = {
-        id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
-        name: file.name,
-        file,
-        srcUrl,
-        status: 'wait',
-      };
-      try {
-        const { w, h } = await readPngSize(file);
-        job.srcW = w;
-        job.srcH = h;
-      } catch {
-        /* 크기를 못 읽어도 서버가 최종 판정한다 */
+  const addFiles = useCallback(
+    async (files: FileList | null) => {
+      if (!files?.length) return;
+      const added: Job[] = [];
+      for (const file of Array.from(files)) {
+        // 비교 모달의 BEFORE 로 쓴다 — 결과 URL 과 함께 언마운트 때 되돌린다
+        const srcUrl = URL.createObjectURL(file);
+        objectUrls.current.push(srcUrl);
+        const job: Job = {
+          id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
+          name: file.name,
+          file,
+          srcUrl,
+          status: 'wait',
+        };
+        try {
+          const { w, h } = await readPngSize(file);
+          job.srcW = w;
+          job.srcH = h;
+          // 서버와 같은 기준으로 미리 거른다 — GPU 를 20~35초 쓰고 같은 답을 받을 이유가 없다
+          if (h >= targetHeight) {
+            job.status = 'skip';
+            job.error = `이미 세로 ${h}px — 임포트가 ${targetHeight}로 깎으므로 올려도 화면이 달라지지 않습니다`;
+          } else if (h < minSourceHeight) {
+            job.status = 'skip';
+            job.error = `세로 ${h}px 는 너무 작습니다 (최소 ${minSourceHeight}) — LD 일러가 맞는지 확인해 주세요`;
+          }
+        } catch {
+          /* 크기를 못 읽어도 서버가 최종 판정한다 */
+        }
+        added.push(job);
       }
-      added.push(job);
-    }
-    setJobs((prev) => [...prev, ...added]);
-  }, []);
+      setJobs((prev) => [...prev, ...added]);
+    },
+    [targetHeight, minSourceHeight],
+  );
 
   const runAll = useCallback(async () => {
     const base = host.replace(/\/$/, '');
@@ -221,6 +236,7 @@ export function LdUpscalePanel() {
   const statusChip = (job: Job) => {
     const map: Record<JobStatus, { label: string; cls: string }> = {
       wait: { label: '대기', cls: 'bg-foreground/10 text-slate-400' },
+      skip: { label: '건너뜀', cls: 'bg-amber-500/15 text-amber-500' },
       run: { label: '처리 중', cls: 'bg-bridge-accent/15 text-bridge-accent' },
       done: { label: '완료', cls: 'bg-bridge-secondary/15 text-bridge-secondary' },
       fail: { label: '실패', cls: 'bg-red-500/15 text-red-400' },
@@ -372,7 +388,11 @@ export function LdUpscalePanel() {
                   {statusChip(job)}
                 </span>
                 {job.error && (
-                  <span className="col-span-2 md:col-span-5 text-[11px] text-red-400">
+                  <span
+                    className={`col-span-2 md:col-span-5 text-[11px] ${
+                      job.status === 'skip' ? 'text-amber-500' : 'text-red-400'
+                    }`}
+                  >
                     {job.error}
                   </span>
                 )}
