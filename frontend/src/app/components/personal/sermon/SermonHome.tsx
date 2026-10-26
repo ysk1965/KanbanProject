@@ -14,6 +14,7 @@ import {
   type SermonNote,
 } from './sermonTypes';
 import { firstVerseText } from './useBible';
+import { GroupDaySlots, NoteGroupFaces } from './group/GroupWeekBits';
 
 /**
  * 노트 목록의 첫 화면 「한 주 다이어리」.
@@ -230,6 +231,7 @@ export function SermonHome({
                         onClick={() => onOpen(n.id)}
                       >
                         ✦ {n.title || UNTITLED}
+                        <NoteGroupFaces note={n} />
                       </button>
                     ))}
                     {dayDone.map(({ n, t }) => (
@@ -243,6 +245,7 @@ export function SermonHome({
                         ♥ {t.text || '적용'}
                       </button>
                     ))}
+                    <GroupDaySlots date={ds} notes={dayNotes} />
                     {!dayNotes.length &&
                       !dayDone.length &&
                       (ds === today ? (

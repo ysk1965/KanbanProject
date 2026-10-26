@@ -140,6 +140,10 @@ const GalleryUploadPage = lazyWithRetry(
 );
 const SermonNotePage = lazyWithRetry(() => import('./pages/SermonNotePage'), 'SermonNotePage');
 const SermonCardPage = lazyWithRetry(() => import('./pages/SermonCardPage'), 'SermonCardPage');
+const SermonGroupJoinPage = lazyWithRetry(
+  () => import('./pages/SermonGroupJoinPage'),
+  'SermonGroupJoinPage',
+);
 const RoulettePage = lazyWithRetry(() => import('./pages/RoulettePage'), 'RoulettePage');
 const CustomIconPage = lazyWithRetry(() => import('./pages/CustomIconPage'), 'CustomIconPage');
 const OrganizationPage = lazyWithRetry(
@@ -693,6 +697,7 @@ function AppRoutes() {
             {/* 설교 노트 — 로그인 없이도 기기 저장으로 쓰고, 로그인하면 그 사용자로 동기화 */}
             <Route path="/sermonnote" element={<SermonNotePage />} />
             <Route path="/sermonnote/c" element={<SermonCardPage />} />
+            <Route path="/g/:code" element={<SermonGroupJoinPage />} />
 
             {/* 커피 룰렛 */}
             <Route path="/roulette" element={<RoulettePage />} />

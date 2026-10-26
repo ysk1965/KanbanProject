@@ -11,6 +11,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -64,6 +65,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/invites/**")
                         .permitAll()
                         .requestMatchers("/api/v1/org-invites/**")
+                        .permitAll()
+                        // 설교 노트 모임 초대 미리보기만 공개 (참여 POST 는 로그인 필요)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/sermon-groups/invite/*")
                         .permitAll()
                         // Public shared content (no auth required)
                         .requestMatchers("/api/v1/public/**")

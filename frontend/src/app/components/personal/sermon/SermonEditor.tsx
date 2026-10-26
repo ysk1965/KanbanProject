@@ -76,6 +76,8 @@ interface SermonEditorProps {
   onLogin?: () => void;
   /** 꾸미기에서 고른 마스코트 — 녹음 버튼에서 같이 귀를 기울인다 */
   mascot?: MascotId;
+  /** 모임 설교 자리 띠 (group/SessionBand) — 상단 바 바로 아래 */
+  groupBand?: React.ReactNode;
 }
 
 const SERVICE_OPTIONS = [
@@ -204,6 +206,7 @@ export function SermonEditor({
   canAttach,
   onLogin,
   mascot = 'galpi',
+  groupBand,
 }: SermonEditorProps) {
   const { bible } = useBible();
   const noteRef = useRef<SermonNote>(note);
@@ -1027,6 +1030,7 @@ export function SermonEditor({
           )}
         </div>
       </header>
+      {groupBand && <div className="sg-band-wrap">{groupBand}</div>}
 
       {recording && micLost && (
         <div className="sn-player sn-player-lost" role="status">

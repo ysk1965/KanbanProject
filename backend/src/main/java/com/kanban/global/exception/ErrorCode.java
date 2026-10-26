@@ -265,19 +265,18 @@ public enum ErrorCode {
     AI_KEY_INVALID_FORMAT(HttpStatus.BAD_REQUEST, "AK002", "API 키 형식이 올바르지 않습니다"),
     AI_KEY_REJECTED(HttpStatus.BAD_REQUEST, "AK003", "제공한 API 키가 프로바이더에서 거부되었습니다"),
     AI_KEY_VERIFICATION_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "AK004", "AI 프로바이더에 연결할 수 없어 키를 검증하지 못했습니다"),
-    AI_KEY_ENCRYPTION_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "AK005", "CONFIG_ENCRYPTION_KEY가 설정되지 않아 키를 저장할 수 없습니다"),
+    AI_KEY_ENCRYPTION_NOT_CONFIGURED(
+            HttpStatus.SERVICE_UNAVAILABLE, "AK005", "CONFIG_ENCRYPTION_KEY가 설정되지 않아 키를 저장할 수 없습니다"),
     AI_KEY_NOT_CONFIGURED(HttpStatus.NOT_FOUND, "AK006", "설정된 API 키가 없습니다"),
 
     // AI 프로바이더 호출 (상태별 구분이 필요한 경로에서 사용)
     AI_PROVIDER_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "AP001", "AI 프로바이더 호출 한도를 초과했습니다. 잠시 후 다시 시도해주세요"),
     /** 원인을 특정하지 못한 프로바이더 실패. 아래 AP003~AP005에 걸리지 않을 때만 쓴다. */
     AI_PROVIDER_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "AP002", "AI 프로바이더 호출에 실패했습니다"),
-    AI_PROVIDER_CREDIT_EXHAUSTED(HttpStatus.BAD_GATEWAY, "AP003",
-            "AI 프로바이더 크레딧이 소진되었습니다 — 프로바이더 콘솔에서 잔액과 사용 중인 키의 조직을 확인해주세요"),
-    AI_PROVIDER_KEY_REJECTED(HttpStatus.BAD_GATEWAY, "AP004",
-            "AI 프로바이더가 API 키를 거부했습니다 — 키가 만료·삭제되었는지 확인해주세요"),
-    AI_PROVIDER_REQUEST_REJECTED(HttpStatus.BAD_GATEWAY, "AP005",
-            "AI 프로바이더가 요청을 거부했습니다 — 모델 ID와 요청 형식을 확인해주세요"),
+    AI_PROVIDER_CREDIT_EXHAUSTED(
+            HttpStatus.BAD_GATEWAY, "AP003", "AI 프로바이더 크레딧이 소진되었습니다 — 프로바이더 콘솔에서 잔액과 사용 중인 키의 조직을 확인해주세요"),
+    AI_PROVIDER_KEY_REJECTED(HttpStatus.BAD_GATEWAY, "AP004", "AI 프로바이더가 API 키를 거부했습니다 — 키가 만료·삭제되었는지 확인해주세요"),
+    AI_PROVIDER_REQUEST_REJECTED(HttpStatus.BAD_GATEWAY, "AP005", "AI 프로바이더가 요청을 거부했습니다 — 모델 ID와 요청 형식을 확인해주세요"),
 
     // 커밋 플랜 (MILKYWAY Unity 에디터 툴)
     COMMIT_PLAN_GROUPS_REQUIRED(HttpStatus.BAD_REQUEST, "CP001", "변경 파일 그룹(groups)이 필요합니다"),
@@ -316,7 +315,7 @@ public enum ErrorCode {
     PERSONAL_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "PE001", "개인 일정을 찾을 수 없습니다"),
     PERSONAL_ACCESS_DENIED(HttpStatus.FORBIDDEN, "PE002", "본인의 데이터만 접근할 수 있습니다"),
     PERSONAL_TASK_NOT_FOUND(HttpStatus.NOT_FOUND, "PT001", "개인 할 일을 찾을 수 없습니다"),
-PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없습니다"),
+    PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없습니다"),
     PERSONAL_TAG_DUPLICATE(HttpStatus.CONFLICT, "PT004", "이미 동일한 이름의 태그가 존재합니다"),
     PERSONAL_TAG_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "PT005", "이미 할당된 태그입니다"),
     PERSONAL_HABIT_NOT_FOUND(HttpStatus.NOT_FOUND, "PH001", "습관을 찾을 수 없습니다"),
@@ -350,7 +349,8 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     BOARD_NOT_ELIGIBLE_FOR_ORG(HttpStatus.BAD_REQUEST, "O012", "보드를 조직에 편입할 수 없습니다. 모든 보드 멤버가 조직 구성원이어야 합니다"),
     BOARD_ALREADY_IN_ORG(HttpStatus.CONFLICT, "O013", "이미 조직에 소속된 보드입니다"),
     BOARD_NOT_IN_ORG(HttpStatus.BAD_REQUEST, "O014", "조직에 소속되지 않은 보드입니다"),
-    CANNOT_REMOVE_BOARD_OWNER_FROM_ORG(HttpStatus.BAD_REQUEST, "O015", "조직 보드의 Owner인 구성원은 제거할 수 없습니다. 먼저 보드 Owner를 변경해주세요"),
+    CANNOT_REMOVE_BOARD_OWNER_FROM_ORG(
+            HttpStatus.BAD_REQUEST, "O015", "조직 보드의 Owner인 구성원은 제거할 수 없습니다. 먼저 보드 Owner를 변경해주세요"),
     ALREADY_IN_ORGANIZATION(HttpStatus.CONFLICT, "O016", "이미 소속된 조직이 있습니다. 기존 조직을 탈퇴한 후 다시 시도해주세요"),
 
     // Organization - Invite
@@ -473,7 +473,8 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
 
     // 자동 보고서
     REPORT_CONFIG_NOT_FOUND(HttpStatus.NOT_FOUND, "RP001", "보고서 발송 설정을 찾을 수 없습니다"),
-    REPORT_NO_SOURCE_CONNECTED(HttpStatus.UNPROCESSABLE_ENTITY, "RP002", "연결된 소스가 없습니다. GitHub 또는 Confluence를 먼저 연결해주세요"),
+    REPORT_NO_SOURCE_CONNECTED(
+            HttpStatus.UNPROCESSABLE_ENTITY, "RP002", "연결된 소스가 없습니다. GitHub 또는 Confluence를 먼저 연결해주세요"),
     REPORT_SHARE_LINK_EXPIRED(HttpStatus.NOT_FOUND, "RP003", "만료되었거나 사용할 수 없는 공유 링크입니다"),
 
     // Confluence (주간보고 수집) — JIRA와 별개의 연결이다
@@ -484,6 +485,18 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     CONFLUENCE_API_ERROR(HttpStatus.BAD_GATEWAY, "CF005", "Confluence API 호출에 실패했습니다"),
     CONFLUENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "CF006", "Confluence 사이트 또는 페이지를 찾을 수 없습니다"),
     CONFLUENCE_SITE_NOT_SELECTED(HttpStatus.UNPROCESSABLE_ENTITY, "CF007", "Confluence 사이트를 먼저 선택해주세요"),
+
+    // 설교 노트 모임
+    SERMON_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "SG001", "모임을 찾을 수 없습니다"),
+    SERMON_GROUP_NOT_MEMBER(HttpStatus.FORBIDDEN, "SG002", "모임 멤버만 볼 수 있습니다"),
+    SERMON_GROUP_LEADER_REQUIRED(HttpStatus.FORBIDDEN, "SG003", "모임 리더 권한이 필요합니다"),
+    SERMON_GROUP_INVITE_INVALID(HttpStatus.NOT_FOUND, "SG004", "초대 링크가 만료되었거나 사용할 수 없습니다"),
+    SERMON_GROUP_ALREADY_MEMBER(HttpStatus.CONFLICT, "SG005", "이미 이 모임에 참여했습니다"),
+    SERMON_GROUP_MEMBER_LIMIT(HttpStatus.CONFLICT, "SG006", "모임 인원은 최대 50명입니다"),
+    SERMON_GROUP_USER_LIMIT(HttpStatus.CONFLICT, "SG007", "모임은 최대 20개까지 참여할 수 있습니다"),
+    SERMON_SESSION_LOCKED(HttpStatus.CONFLICT, "SG008", "잠긴 설교 자리입니다"),
+    SERMON_POKE_LIMIT(HttpStatus.CONFLICT, "SG009", "같이 써요는 같은 사람에게 한 주에 한 번 보낼 수 있습니다"),
+    SERMON_GROUP_INVALID_INPUT(HttpStatus.BAD_REQUEST, "SG010", "입력값을 확인해 주세요"),
 
     // Image Vote
     IMAGE_VOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "IV001", "투표를 찾을 수 없습니다");

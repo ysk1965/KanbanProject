@@ -336,7 +336,17 @@ export class SermonStore {
 
   /** 기기에 즉시 저장하고 서버 전송을 예약한다 */
   save(note: SermonNote): SermonNote {
-    const n = { ...this.keepUploadedAudio(note), updated_at: Date.now() };
+    const prev = this.notes.get(note.id);
+    // 모임 연결(groups·group_dismissed)은 saveLinks 로만 바뀐다 — 편집기가 들고 있던 옛 사본이 덮어쓰지 않게
+    const links = prev
+      ? {
+          groups: prev.groups,
+          group_dismissed: prev.group_dismissed,
+        }
+      : {};
+    const n = { ...this.keepUploadedAudio(note), ...links, updated_at: Date.now() };
+    if (!n.groups) delete n.groups;
+    if (!n.group_dismissed) delete n.group_dismissed;
     this.notes.set(n.id, n);
     this.dirty.add(n.id);
     this.persistLocal();
@@ -365,6 +375,24 @@ export class SermonStore {
       return x;
     });
     return changed ? { ...note, audio: { segments } } : note;
+  }
+
+  /** 모임 연결만 바꾼다 (노트 본문은 그대로) */
+  saveLinks(
+    id: string,
+    patch: Pick<SermonNote, 'groups' | 'group_dismissed'>,
+  ): SermonNote | undefined {
+    const prev = this.notes.get(id);
+    if (!prev) return undefined;
+    const n: SermonNote = { ...prev, ...patch, updated_at: Date.now() };
+    if (!n.groups?.length) delete n.groups;
+    if (!n.group_dismissed?.length) delete n.group_dismissed;
+    this.notes.set(id, n);
+    this.dirty.add(id);
+    this.persistLocal();
+    this.setStatus({});
+    void this.flush();
+    return n;
   }
 
   remove(id: string) {

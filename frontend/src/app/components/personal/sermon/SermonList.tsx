@@ -26,6 +26,7 @@ function fmtMin(sec: number): string {
 import { firstVerseText, useBible } from './useBible';
 import { Mascot } from './Mascot';
 import { SermonHome } from './SermonHome';
+import { useSermonGroups } from './group/GroupContext';
 import { BibleReader } from './BibleReader';
 import type { MascotId } from './sermonLook';
 
@@ -47,6 +48,12 @@ interface SermonListProps {
   mascot?: MascotId;
   /** 꾸미기 창 열기 */
   onOpenLook?: () => void;
+  /** 사이드바 「함께」(모임) 묶음 — group/GroupNav */
+  groupNav?: React.ReactNode;
+  /** 본문을 통째로 바꿔 그림 (모임 홈·설교 자리) */
+  main?: React.ReactNode;
+  /** 보기·예배를 누르면 모임 화면에서 빠져나온다 */
+  onLeaveMain?: () => void;
 }
 
 const NUDGE_KEY = 'sermon-login-nudge-until';
@@ -104,8 +111,14 @@ export function SermonList({
   onLogin,
   mascot = 'galpi',
   onOpenLook,
+  groupNav,
+  main,
+  onLeaveMain,
 }: SermonListProps) {
   const { bible } = useBible();
+  // 모임이 있으면 노트가 없어도 「한 주 동안」(모임 자리)을 보여 준다
+  const gctx = useSermonGroups();
+  const hasGroups = !!gctx && !gctx.anonymous && gctx.store.active().length > 0;
   const [nav, setNav] = useState<Nav>('all');
   const [nudgeHidden, setNudgeHidden] = useState(() => nudgeSnoozed());
   const showNudge = status.anonymous && !!onLogin && notes.length > 0 && !nudgeHidden;
@@ -197,7 +210,7 @@ export function SermonList({
   let body: React.ReactNode;
   if (nav === 'bible' && !service) {
     body = <BibleReader notes={notes} onOpen={onOpen} mascot={mascot} />;
-  } else if (!notes.length) {
+  } else if (!notes.length && !hasGroups) {
     body = (
       <div className="sn-empty">
         <Mascot kind={mascot} size={96} state="think" />
@@ -458,10 +471,11 @@ export function SermonList({
             <button
               key={k}
               type="button"
-              aria-current={nav === k && !service}
+              aria-current={nav === k && !service && !main}
               onClick={() => {
                 setNav(k);
                 setService(null);
+                onLeaveMain?.();
               }}
             >
               {l}
@@ -480,6 +494,7 @@ export function SermonList({
                 onClick={() => {
                   setService(service === s ? null : s);
                   setNav('all');
+                  onLeaveMain?.();
                 }}
               >
                 {s}
@@ -488,6 +503,7 @@ export function SermonList({
             ))}
           </div>
         )}
+        {groupNav}
         {onOpenLook && (
           <button type="button" className="sn-btn sn-look-btn" onClick={onOpenLook}>
             <Mascot kind={mascot} size={24} />
@@ -527,23 +543,29 @@ export function SermonList({
             </button>
           </div>
         )}
-        {!(nav === 'bible' && !service) && (
-          <div className="sn-toolbar">
-            <label className="sn-search" htmlFor="sn-q">
-              <Search className="sn-icon" style={{ color: 'var(--sn-muted)' }} aria-hidden />
-              <span className="sn-sr">검색</span>
-              <input
-                id="sn-q"
-                type="search"
-                placeholder="제목, 설교자, 구절(예: 요 15), 내 생각 검색"
-                autoComplete="off"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-            </label>
-          </div>
+        {main ? (
+          main
+        ) : (
+          <>
+            {!(nav === 'bible' && !service) && (
+              <div className="sn-toolbar">
+                <label className="sn-search" htmlFor="sn-q">
+                  <Search className="sn-icon" style={{ color: 'var(--sn-muted)' }} aria-hidden />
+                  <span className="sn-sr">검색</span>
+                  <input
+                    id="sn-q"
+                    type="search"
+                    placeholder="제목, 설교자, 구절(예: 요 15), 내 생각 검색"
+                    autoComplete="off"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                  />
+                </label>
+              </div>
+            )}
+            <div>{body}</div>
+          </>
         )}
-        <div>{body}</div>
       </main>
     </section>
   );

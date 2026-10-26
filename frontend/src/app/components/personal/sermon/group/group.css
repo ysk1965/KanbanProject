@@ -1,0 +1,824 @@
+/* 설교 노트 「모임」 — sermon.css 의 --sn-* 토큰 위에서만 그린다 */
+
+.sg-faces {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+.sg-faces i {
+  width: var(--f, 22px);
+  height: var(--f, 22px);
+  border-radius: 50%;
+  margin-left: calc(var(--f, 22px) * -0.28);
+  border: 2px solid var(--sn-surface);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-style: normal;
+  font-size: calc(var(--f, 22px) * 0.45);
+  font-weight: 700;
+  line-height: 1;
+}
+.sg-faces i:first-child {
+  margin-left: 0;
+}
+.sg-faces i[data-off] {
+  background: var(--sn-surface-2);
+  color: var(--sn-faint);
+}
+.sg-faces i.sg-more {
+  background: var(--sn-surface-2);
+  color: var(--sn-muted);
+}
+
+/* ── 한 주 동안: 모임 자리 ── */
+.sermon-app .sg-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 4px 12px 4px 10px;
+  border-radius: var(--sn-r-pill);
+  border: 1.5px dashed color-mix(in srgb, var(--sn-g1) 75%, transparent);
+  background: color-mix(in srgb, var(--sn-surface) 70%, transparent);
+  color: var(--sn-t1);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+}
+.sermon-app .sg-slot:hover {
+  border-color: var(--sn-t1);
+}
+.sermon-app .sg-slot:focus-visible {
+  outline: 2px solid var(--sn-accent);
+  outline-offset: 2px;
+}
+.sermon-app .sg-slot .sg-tm {
+  font-family: 'Black Han Sans', var(--sn-font, sans-serif);
+  font-weight: 400;
+  font-size: 13px;
+}
+.sermon-app .sg-slot small {
+  font-weight: 500;
+  color: var(--sn-muted);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sermon-app .sg-slot[data-phase='live'] {
+  border-style: solid;
+  border-color: var(--sn-g2);
+  background: var(--sn-surface);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sn-g2) 25%, transparent);
+}
+.sermon-app .sg-slot .sg-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sn-t2);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sermon-app .sg-slot[data-phase='live'] .sg-dot {
+    animation: sg-blink 1.4s ease-in-out infinite;
+  }
+}
+@keyframes sg-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+.sermon-app .sg-slot[data-phase='after'] {
+  color: var(--sn-muted);
+  border-color: var(--sn-line-strong);
+}
+.sermon-app .sg-slot[data-phase='after'] b {
+  color: var(--sn-t2);
+}
+.sermon-app .sg-slot[data-meet] {
+  border-color: color-mix(in srgb, var(--sn-g2) 80%, transparent);
+  color: var(--sn-t2);
+  cursor: default;
+}
+.sermon-app .sn-stk .sg-faces {
+  margin-left: 2px;
+}
+.sermon-app .sn-stk .sg-faces i {
+  border-color: var(--sn-g1);
+}
+
+/* ── 모임 공용 화면 ── */
+.sg-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0 40px;
+  color: var(--sn-fg);
+}
+.sg-hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--sn-g1) 30%, var(--sn-surface)),
+    color-mix(in srgb, var(--sn-g2) 26%, var(--sn-surface))
+  );
+}
+.sg-hero small {
+  display: block;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sg-hero h2 {
+  margin: 2px 0;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  word-break: keep-all;
+}
+.sg-hero p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--sn-muted);
+}
+.sg-hero p b {
+  color: var(--sn-t1);
+}
+.sg-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--sn-line);
+  overflow-x: auto;
+}
+.sg-tabs button {
+  padding: 9px 14px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--sn-muted);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+.sg-tabs button[aria-selected='true'] {
+  color: var(--sn-t1);
+  border-color: var(--sn-t1);
+}
+.sg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sg-card {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+  text-align: left;
+  color: var(--sn-fg);
+  width: 100%;
+}
+button.sg-card:hover {
+  border-color: var(--sn-line-strong);
+}
+.sg-card:focus-visible {
+  outline: 2px solid var(--sn-accent);
+  outline-offset: 2px;
+}
+.sg-card[data-galpi] {
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--sn-g1) 18%, var(--sn-surface)),
+    color-mix(in srgb, var(--sn-g2) 16%, var(--sn-surface))
+  );
+}
+.sg-card[data-phase='live'] {
+  border-color: var(--sn-g2);
+}
+.sg-card[data-empty] {
+  background: transparent;
+  border-style: dashed;
+}
+.sg-dt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+.sg-dt b {
+  font-family: 'Black Han Sans', sans-serif;
+  font-weight: 400;
+  font-size: 22px;
+  color: var(--sn-t1);
+}
+.sg-dt small {
+  font-size: 11px;
+  color: var(--sn-muted);
+}
+.sg-ti {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sg-ti small {
+  font-size: 11.5px;
+  color: var(--sn-muted);
+}
+.sg-ti b {
+  font-size: 14.5px;
+  font-weight: 900;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+.sg-ti span {
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sg-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--sn-g2) 30%, transparent);
+  color: var(--sn-t2);
+}
+@media (max-width: 620px) {
+  .sg-card {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .sg-card > .sg-faces {
+    grid-column: 2;
+  }
+}
+.sg-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--sn-muted);
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.sg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sg-note {
+  font-size: 12.5px;
+  color: var(--sn-muted);
+  margin: 0;
+}
+
+/* 멤버 띠 */
+.sg-members {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sg-mem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 52px;
+  font-size: 11.5px;
+  color: var(--sn-muted);
+  text-align: center;
+  line-height: 1.25;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.sg-mem .sg-av {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  position: relative;
+}
+.sg-mem[data-state='none'] .sg-av {
+  background: var(--sn-surface-2) !important;
+  color: var(--sn-faint);
+}
+.sg-mem[data-me] .sg-av {
+  outline: 2px solid var(--sn-t1);
+  outline-offset: 2px;
+}
+.sg-mem .sg-st {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--sn-surface);
+  border: 2px dashed var(--sn-g2);
+}
+.sg-mem .sg-lab {
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.sg-mem .sg-lab.w {
+  color: var(--sn-t1);
+}
+.sg-mem:focus-visible {
+  outline: 2px solid var(--sn-accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* 공유 카드(같은 설교 노트) */
+.sg-shares {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.sg-share {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--sn-surface);
+  border: 1px solid var(--sn-line);
+}
+.sg-share[data-me] {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--sn-g1) 80%, transparent);
+}
+.sg-share-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sg-share-h b {
+  color: var(--sn-fg);
+  font-size: 13px;
+}
+.sg-share-h .sg-sp {
+  margin-left: auto;
+}
+.sg-hl {
+  font-family: 'Hahmlet', serif;
+  font-size: 13.5px;
+  line-height: 1.7;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--sn-surface-2);
+}
+.sg-hl small {
+  display: block;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sn-t1);
+}
+.sg-hl mark {
+  background: linear-gradient(
+    transparent 56%,
+    color-mix(in srgb, var(--sn-g2) 70%, transparent) 56%
+  );
+  color: inherit;
+}
+.sg-hl mark[data-both] {
+  background: linear-gradient(
+    transparent 56%,
+    color-mix(in srgb, var(--sn-g1) 80%, transparent) 56%
+  );
+}
+.sg-th {
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.sg-th .sg-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 99px;
+  margin-right: 6px;
+  background: color-mix(in srgb, var(--sn-g1) 30%, transparent);
+  color: var(--sn-t1);
+}
+.sg-th .sg-tag[data-tag='적용'] {
+  background: color-mix(in srgb, var(--sn-g2) 30%, transparent);
+  color: var(--sn-t2);
+}
+.sg-reacts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.sg-reacts button {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--sn-line);
+  color: var(--sn-muted);
+  background: var(--sn-surface);
+}
+.sg-reacts button[aria-pressed='true'] {
+  border-color: var(--sn-t1);
+  color: var(--sn-t1);
+  background: color-mix(in srgb, var(--sn-g1) 18%, var(--sn-surface));
+}
+.sg-blur {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.sg-blur > .sg-blur-in {
+  filter: blur(5px);
+  pointer-events: none;
+  user-select: none;
+}
+.sg-blur > .sg-blur-ov {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--sn-bg) 55%, transparent);
+  font-weight: 700;
+}
+
+/* 편집기 자리 띠 */
+.sermon-app .sg-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 8px 0 4px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--sn-g1) 22%, var(--sn-surface)),
+    color-mix(in srgb, var(--sn-g2) 20%, var(--sn-surface))
+  );
+  font-size: 12.5px;
+}
+.sermon-app .sg-band[data-off] {
+  background: var(--sn-surface-2);
+}
+.sermon-app .sg-band .sg-band-l {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.sermon-app .sg-band small {
+  font-size: 11px;
+  color: var(--sn-muted);
+}
+.sermon-app .sg-band b {
+  font-size: 12.5px;
+}
+.sermon-app .sg-band .sg-band-r {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.sermon-app .sg-band .sg-chip,
+.sg-chip {
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 99px;
+  padding: 4px 10px;
+  background: var(--sn-surface);
+  color: var(--sn-t1);
+  border: 1px solid var(--sn-line);
+  white-space: nowrap;
+}
+.sg-chip[aria-pressed='true'] {
+  background: var(--sn-accent);
+  border-color: var(--sn-accent);
+  color: var(--sn-accent-ink);
+}
+
+/* 오버레이 안 폼 (만들기·참여·설정) */
+.sn-overlay .sg-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+}
+.sg-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 6px 20px 20px;
+  overflow: auto;
+  color: var(--sn-fg);
+}
+.sg-steps {
+  display: flex;
+  gap: 6px;
+  padding: 0 20px;
+}
+.sg-steps i {
+  flex: 1;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--sn-line);
+}
+.sg-steps i[data-on] {
+  background: var(--sn-accent);
+}
+.sg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sn-muted);
+}
+.sg-field input,
+.sg-field select {
+  font: inherit;
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--sn-fg);
+  background: var(--sn-surface);
+  border: 1px solid var(--sn-line-strong);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.sg-field input:focus,
+.sg-field select:focus {
+  outline: none;
+  border-color: var(--sn-accent);
+  box-shadow: 0 0 0 3px var(--sn-accent-soft);
+}
+.sg-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.sg-chips button {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+}
+.sg-chips button small {
+  font-weight: 400;
+  color: var(--sn-muted);
+  margin-left: 4px;
+  font-size: 11.5px;
+}
+.sg-chips button[aria-pressed='true'] {
+  border-color: var(--sn-accent);
+  background: var(--sn-accent);
+  color: var(--sn-accent-ink);
+}
+.sg-chips button[aria-pressed='true'] small {
+  color: inherit;
+  opacity: 0.8;
+}
+.sg-svcs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (max-width: 520px) {
+  .sg-svcs {
+    grid-template-columns: 1fr;
+  }
+}
+.sg-svc {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+}
+.sg-svc[aria-pressed='true'] {
+  border-color: var(--sn-accent);
+  box-shadow: 0 0 0 2px var(--sn-accent-soft);
+}
+.sg-svc .sg-bx {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 6px;
+  border: 1.5px solid var(--sn-line-strong);
+  display: grid;
+  place-items: center;
+}
+.sg-svc[aria-pressed='true'] .sg-bx {
+  background: var(--sn-accent);
+  border-color: var(--sn-accent);
+  color: var(--sn-accent-ink);
+}
+.sg-svc b {
+  display: block;
+  font-size: 14px;
+}
+.sg-svc small {
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sg-preview {
+  font-size: 12.5px;
+  color: var(--sn-muted);
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--sn-g1) 22%, var(--sn-surface)),
+    color-mix(in srgb, var(--sn-g2) 20%, var(--sn-surface))
+  );
+}
+.sg-preview b {
+  color: var(--sn-t1);
+}
+.sg-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--sn-line);
+}
+.sg-link {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--sn-surface-2);
+  font-size: 13px;
+  word-break: break-all;
+}
+.sg-svc-edit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px 84px 64px 32px;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+}
+.sg-svc-edit input,
+.sg-svc-edit select {
+  font: inherit;
+  font-size: 13px;
+  color: var(--sn-fg);
+  background: var(--sn-surface);
+  border: 1px solid var(--sn-line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  min-width: 0;
+}
+
+/* 오버레이 안 버튼 — .sermon-app 버튼 규칙이 포털에 닿지 않아 같은 모양으로 */
+.sg-dialog .sn-btn,
+.sg-page .sn-btn,
+.sg-joinpage .sn-btn {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--sn-line);
+  border-radius: var(--sn-r-pill, 999px);
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sg-dialog .sn-btn.sn-primary,
+.sg-page .sn-btn.sn-primary,
+.sg-joinpage .sn-btn.sn-primary {
+  background: var(--sn-accent);
+  border-color: var(--sn-accent);
+  color: var(--sn-accent-ink);
+  font-weight: 700;
+}
+.sg-dialog .sn-btn.sn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+.sg-dialog .sn-btn:disabled,
+.sg-page .sn-btn:disabled,
+.sg-joinpage .sn-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.sg-dialog .sn-btn:focus-visible,
+.sg-joinpage .sn-btn:focus-visible {
+  outline: 2px solid var(--sn-accent);
+  outline-offset: 2px;
+}
+.sg-dialog .sn-icon,
+.sg-joinpage .sn-icon {
+  width: 18px;
+  height: 18px;
+}
+.sg-dialog .sn-btn.sn-icon-only {
+  width: 40px;
+  padding: 0;
+}
+
+/* 초대 페이지 */
+.sermon-app.sg-joinpage {
+  min-height: 100%;
+  overflow: auto;
+}
+.sg-join-main {
+  flex: 1;
+  width: min(480px, 100%);
+  margin: 0 auto;
+  padding: 28px 18px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: var(--sn-fg);
+}
+.sg-join-main h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+/* 비교 */
+.sg-cmp-sum {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.sg-cmp-sum span {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: var(--sn-surface-2);
+  color: var(--sn-muted);
+}
+.sg-cmp-sum span b {
+  color: var(--sn-t1);
+}
+.sg-cmp {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.sg-cmp h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sg-cmp .sg-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .sg-cmp {
+    grid-template-columns: 1fr;
+  }
+}
+.sermon-app .sg-band-wrap {
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sermon-app .sg-band-wrap:empty {
+  display: none;
+}

@@ -34,6 +34,14 @@ vi.mock('../../../utils/services', () => ({
 }));
 
 vi.mock('../../../utils/api', () => ({
+  // 모임 API(group/groupApi) — 서버 없음
+  apiClient: {
+    get: vi.fn().mockRejectedValue(new TypeError('Failed to fetch')),
+    post: vi.fn().mockRejectedValue(new TypeError('Failed to fetch')),
+    put: vi.fn().mockRejectedValue(new TypeError('Failed to fetch')),
+    patch: vi.fn().mockRejectedValue(new TypeError('Failed to fetch')),
+    delete: vi.fn().mockRejectedValue(new TypeError('Failed to fetch')),
+  },
   myStorageAPI: {
     getFolders: vi.fn(),
     createFolder: vi.fn(),

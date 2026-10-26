@@ -79,8 +79,28 @@ export interface SermonNote {
   audio?: SermonAudio;
   /** 갈피 꽂은 시각(ms). 갈피 = 그 주(일~토, date 기준)의 중심 설교. 한 주에 한 편 */
   bookmarked_at?: number | null;
+  /** 모임 설교 자리 연결 (모임마다 하나). group/sessionMatch.ts */
+  groups?: NoteGroupLink[];
+  /** 「같은 설교예요?」 제안을 거절한 자리 키 (group|service|date) */
+  group_dismissed?: string[];
   created_at: number;
   updated_at: number;
+}
+
+/** 노트 ↔ 모임 설교 자리. 자리(session)는 모임 × 예배 × 날짜 */
+export interface NoteGroupLink {
+  group_id: string;
+  /** 예배표의 예배 id. 예배표 밖 자리면 없음 */
+  service_id?: string | null;
+  /** 자리 날짜 yyyy-MM-dd */
+  date: string;
+  /** 서버 자리 id (resolve 뒤 채움) */
+  session_id?: string | null;
+  how: 'auto' | 'suggest' | 'manual';
+  /** 「이 노트는 모임과 상관없어요」 — 연결은 기억하되 공개하지 않는다 */
+  off?: boolean;
+  /** 기록했다는 것만 알리고 내용은 비공개 */
+  private?: boolean;
 }
 
 /** 서버로 보내는 content — id 를 뺀 나머지 */
@@ -292,6 +312,17 @@ export function normalizeNote(
     elapsed: typeof c.elapsed === 'number' ? c.elapsed : 0,
     ...(audio ? { audio } : {}),
     ...(typeof c.bookmarked_at === 'number' ? { bookmarked_at: c.bookmarked_at } : {}),
+    ...(Array.isArray(c.groups)
+      ? {
+          groups: c.groups.filter(
+            (g): g is NoteGroupLink =>
+              !!g && typeof g.group_id === 'string' && typeof g.date === 'string',
+          ),
+        }
+      : {}),
+    ...(Array.isArray(c.group_dismissed)
+      ? { group_dismissed: c.group_dismissed.filter((x): x is string => typeof x === 'string') }
+      : {}),
     created_at: typeof c.created_at === 'number' ? c.created_at : 0,
     updated_at: typeof c.updated_at === 'number' ? c.updated_at : 0,
   };

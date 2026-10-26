@@ -14,6 +14,8 @@ import { LookModal } from './LookModal';
 import { esc, galpiRivals, newNote, toggleApplyDone, type SermonNote } from './sermonTypes';
 import { clearStart, readStart } from './share/shareModel';
 import { FirstSticker } from './share/FirstSticker';
+import { GroupContext } from './group/GroupContext';
+import { useGroupWiring } from './group/useGroupWiring';
 import { loadBible } from './useBible';
 import './sermon.css';
 
@@ -370,60 +372,83 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
     }
   }, [searchParams, openId, setSearchParams, standalone]);
 
+  // 모임 — 자동 연결·공개 사본·모임 홈/설교 자리 (group/useGroupWiring)
+  const groups = useGroupWiring({
+    store,
+    userId,
+    anonymous,
+    notes,
+    openNote,
+    setOpenId: (id) => {
+      setOpenAid(null);
+      setOpenId(id);
+    },
+    searchParams,
+    setSearchParams,
+    onLogin,
+  });
+
   const editing = !!(openId && openNote);
 
   return (
-    <div ref={rootRef} className="sermon-app">
-      {!editing && strip(look.mascot)}
-      {editing ? (
-        <SermonEditor
-          key={openNote.id}
-          note={openNote}
-          store={store}
-          userId={userId}
-          style={style}
-          onStyleChange={onStyleChange}
-          onBack={() => setOpenId(null)}
-          onDeleted={() => setOpenId(null)}
-          initialAid={openAid}
-          canAttach={!anonymous}
-          onLogin={onLogin}
+    <GroupContext.Provider value={groups.ctx}>
+      <div ref={rootRef} className="sermon-app">
+        {!editing && strip(look.mascot)}
+        {editing ? (
+          <SermonEditor
+            key={openNote.id}
+            note={openNote}
+            store={store}
+            userId={userId}
+            style={style}
+            onStyleChange={onStyleChange}
+            onBack={() => setOpenId(null)}
+            onDeleted={() => setOpenId(null)}
+            initialAid={openAid}
+            canAttach={!anonymous}
+            onLogin={onLogin}
+            mascot={look.mascot}
+            groupBand={groups.band}
+          />
+        ) : openId && store.status.loading ? (
+          <div
+            style={{ flex: 1, display: 'grid', placeItems: 'center' }}
+            role="status"
+            aria-label="불러오는 중"
+          >
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--sn-accent)' }} />
+          </div>
+        ) : (
+          <SermonList
+            notes={notes}
+            status={store.status}
+            onOpen={handleOpen}
+            onNew={handleNew}
+            onToggleApply={handleToggleApply}
+            onToggleGalpi={handleToggleGalpi}
+            onLogin={onLogin}
+            mascot={look.mascot}
+            onOpenLook={() => setLookOpen(true)}
+            groupNav={groups.groupNav}
+            main={groups.main}
+            onLeaveMain={groups.leaveMain}
+          />
+        )}
+        {groups.overlays}
+        <FirstSticker
+          open={!!firstNote}
+          note={firstNote}
           mascot={look.mascot}
-        />
-      ) : openId && store.status.loading ? (
-        <div
-          style={{ flex: 1, display: 'grid', placeItems: 'center' }}
-          role="status"
-          aria-label="불러오는 중"
-        >
-          <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--sn-accent)' }} />
-        </div>
-      ) : (
-        <SermonList
-          notes={notes}
-          status={store.status}
-          onOpen={handleOpen}
-          onNew={handleNew}
-          onToggleApply={handleToggleApply}
-          onToggleGalpi={handleToggleGalpi}
           onLogin={onLogin}
-          mascot={look.mascot}
-          onOpenLook={() => setLookOpen(true)}
+          onClose={() => setFirstNote(null)}
         />
-      )}
-      <FirstSticker
-        open={!!firstNote}
-        note={firstNote}
-        mascot={look.mascot}
-        onLogin={onLogin}
-        onClose={() => setFirstNote(null)}
-      />
-      <LookModal
-        open={lookOpen}
-        look={look}
-        onChange={onLookChange}
-        onClose={() => setLookOpen(false)}
-      />
-    </div>
+        <LookModal
+          open={lookOpen}
+          look={look}
+          onChange={onLookChange}
+          onClose={() => setLookOpen(false)}
+        />
+      </div>
+    </GroupContext.Provider>
   );
 }
