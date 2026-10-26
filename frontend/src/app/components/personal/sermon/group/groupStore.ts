@@ -86,6 +86,8 @@ class GroupStore {
 
   private shareQ: ShareOp[] = [];
   private noteSrc: ShareNoteSource | null = null;
+  /** 노트가 내 그 주 갈피인지 (useGroupWiring 이 갈피 규칙으로 채운다) — 공개 사본에 같이 보낸다 */
+  galpiOf: (noteId: string) => boolean = () => false;
   private shareTimer: number | null = null;
   private shareBackoff = SHARE_BACKOFF_MIN;
   private draining = false;
@@ -496,7 +498,8 @@ async function doSync(
         store.patchSession(l.group_id, s);
       }
       const sid = links[i].session_id as string;
-      const sig = l.off ? 'off' : JSON.stringify([note.title, l.private, note.updated_at]);
+      const galpi = store.galpiOf(note.id);
+      const sig = l.off ? 'off' : JSON.stringify([note.title, l.private, note.updated_at, galpi]);
       if (lastSent.get(`${note.id}|${sid}`) === sig) {
         store.unqueueShare(put);
         continue;
@@ -529,6 +532,7 @@ async function doSync(
           heard: l.how === 'auto' ? 'live' : 'other',
           part: null,
           private: !!l.private,
+          galpi,
           fields: l.private ? {} : shareFieldsOf(note),
         });
         store.unqueueShare(put);

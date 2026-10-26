@@ -52,6 +52,9 @@ JSON 필드는 snake_case, null 필드는 키가 빠진다(Jackson non_null).
       "due": [                         // date ≤ today 인 날 중 내가 안 찍은 장 (날짜순, 최대 30개)
         { "day_no": 8, "date": "2026-10-25", "chapter": "40:8" },
         { "day_no": 9, "date": "2026-10-26", "chapter": "40:9" }
+      ],
+      "today_chapters": [              // 오늘 날의 장 전부 + 내가 찍었는지 (today_day_no 없으면 키 없음)
+        { "chapter": "40:9", "done": false }
       ]
     }
   ]

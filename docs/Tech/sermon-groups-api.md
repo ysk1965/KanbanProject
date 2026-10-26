@@ -48,6 +48,7 @@ updated_by(user null), opened_by(user null). UNIQUE(group_id, service_id, date) 
 ### 공개 사본 sermon_note_shares
 id, session_id, group_id, user_id, note_id(varchar 64 — 클라이언트 노트 id, 참고용), my_title(varchar 200),
 heard(`live`/`video`/`other`), part(varchar 10 null), private(boolean — 기록은 했지만 내용 비공개),
+galpi(boolean NOT NULL DEFAULT false — 이 멤버가 이 노트를 이번 주 갈피로 꽂았는지. 내용이 아니라서 private 이어도 보인다),
 fields(json, 최대 64KB), updated_at. UNIQUE(session_id, user_id)
 
 노트를 지우면(`DELETE /api/v1/personal/features/sermon/docs/{id}`, 소프트 삭제) 그 노트로 올린 **내** 공개 사본
@@ -86,7 +87,7 @@ id, group_id, from_user, to_user, week_start(date), session_id null, created_at,
 { "id": "…", "service_id": "sun", "date": "2026-10-25", "name": null,
   "title": "한 사람으로 인해…", "preacher": "김성현 감독님", "refs": ["44:5:12-14"], "locked": false,
   "updated_by_name": "민지",
-  "members": [{ "user_id": "…", "state": "written" | "private" }],   // 기록한 사람만. 없는 사람 = 아직
+  "members": [{ "user_id": "…", "state": "written" | "private", "galpi": false }],   // 기록한 사람만. 없는 사람 = 아직. galpi 는 항상 키 있음
   "my_share_id": "…" | null }
 ```
 
@@ -130,11 +131,11 @@ id, group_id, from_user, to_user, week_start(date), session_id null, created_at,
 - `PATCH /api/v1/sermon-sessions/{id}/lock` (리더) body `{ locked }` → `SessionSummary`
 - `GET /api/v1/sermon-sessions/{id}` (active 멤버) →
   `{ session: SessionSummary,
-     shares: [{ id, user_id, display_name, my_title, heard, part, private, fields(private 면 null), updated_at,
+     shares: [{ id, user_id, display_name, my_title, heard, part, private, galpi, fields(private 면 null), updated_at,
                 reactions: [{ item_key, kind, count, mine }] }] }`
 
 ### 공개 사본
-- `PUT /api/v1/sermon-sessions/{id}/share` body `{ note_id, my_title, heard, part, private, fields }` → share (upsert, 내 것)
+- `PUT /api/v1/sermon-sessions/{id}/share` body `{ note_id, my_title, heard, part, private, galpi, fields }` → share (upsert, 내 것). `galpi` 없거나 null = false (PUT 마다 통째로 덮으므로 켜 둔 갈피를 유지하려면 매번 `true` 를 보낸다)
 - `DELETE /api/v1/sermon-sessions/{id}/share` → 204 (이 노트는 모임과 상관없어요 / 옮기기)
 - `POST /api/v1/sermon-shares/{shareId}/reactions` body `{ item_key, kind }` → `{ item_key, kind, count, mine }` (토글. 내 share 에는 못 누름)
 

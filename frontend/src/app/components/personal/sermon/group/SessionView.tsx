@@ -18,6 +18,7 @@ import { DOW_KO } from './servicePresets';
 import { weekStartOf } from './sessionMatch';
 import { useFx } from '../microFx';
 import { SnActionBar } from '../SnActionBar';
+import { GalpiMark } from '../GalpiMark';
 import './group.css';
 
 /**
@@ -128,6 +129,10 @@ export function SessionView({
   const svcName = s.name || group.services.find((x) => x.id === s.service_id)?.name || '설교';
   const ref = (s.refs || []).map(decRef).find(Boolean) || null;
   const states = new Map((s.members || []).map((m) => [m.user_id, m.state]));
+  const galpiNames = (s.members || [])
+    .filter((m) => m.galpi)
+    .map((m) => group.members.find((x) => x.user_id === m.user_id)?.display_name)
+    .filter((x): x is string => !!x);
   const activeMembers = group.members.filter((m) => m.status === 'active');
   const writtenCount = activeMembers.filter(
     (m) => states.has(m.user_id) || (m.user_id === me && iWrote),
@@ -264,6 +269,16 @@ export function SessionView({
           {writtenCount < activeMembers.length && (
             <span className="sg-hand">아직인 얼굴을 누르면 같이 쓰자고 보내요</span>
           )}
+          {galpiNames.length > 0 && (
+            <span className="sg-hand sg-mstrip-galpi">
+              <GalpiMark size={14} />
+              {[
+                ...galpiNames.slice(0, -1),
+                josa(galpiNames[galpiNames.length - 1], '이', '가'),
+              ].join(' · ')}{' '}
+              이 설교에 갈피를 꽂았어요
+            </span>
+          )}
         </div>
         <div className="sg-members">
           {activeMembers.map((m) => {
@@ -297,6 +312,9 @@ export function SessionView({
                 <span className="sg-av" style={{ background: faceColor(m.user_id) }}>
                   {initial(m.display_name)}
                   {st !== 'none' && <span className="sg-st" aria-hidden />}
+                  {(s.members || []).some((x) => x.user_id === m.user_id && x.galpi) && (
+                    <GalpiMark size={13} className="sg-av-galpi" />
+                  )}
                 </span>
                 {m.user_id === me ? '나' : m.display_name}
                 <span className={`sg-lab${st !== 'none' ? ' w' : ''}`}>

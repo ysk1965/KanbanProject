@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, LogIn, Mic, Plus, Search, X } from 'lucide-react';
-import { compareRef, encRef, norm, refLong, refShort, type Ref } from './bibleRefs';
+import { encRef, norm, refLong, refShort } from './bibleRefs';
 import { homeSyncLine, type SyncStatus } from './sermonStore';
 import {
   applyItems,
@@ -28,7 +28,6 @@ function fmtMin(sec: number): string {
   const m = Math.max(1, Math.round(sec / 60));
   return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`;
 }
-import { firstVerseText, useBible } from './useBible';
 import { Mascot } from './Mascot';
 import { useJellyTab } from './microFx';
 import { BibleTabIcon, ChallengeTabIcon, GroupsTabIcon, MeTabIcon, NoteTabIcon } from './TabIcons';
@@ -39,6 +38,7 @@ import { SermonHome } from './SermonHome';
 import { useSermonGroups } from './group/GroupContext';
 import { BibleReader } from './BibleReader';
 import { HighlightList } from './HighlightList';
+import { SermonVerses } from './VerseIndex';
 import { useHighlights } from './bibleHighlights';
 import { MyGalpi } from './MyGalpi';
 import { useGalpiStickers } from './galpiPrefs';
@@ -139,7 +139,6 @@ export function SermonList({
   standalone = false,
   userName,
 }: SermonListProps) {
-  const { bible } = useBible();
   // 모임이 있으면 노트가 없어도 「한 주 동안」(모임 자리)을 보여 준다
   const gctx = useSermonGroups();
   useSyncExternalStore(
@@ -367,57 +366,7 @@ export function SermonList({
       <div className="sn-empty">아직 남긴 생각이 없어요.</div>
     );
   } else if (tab === 'bible') {
-    const map = new Map<string, { r: Ref; ns: SermonNote[] }>();
-    filtered.forEach((n) =>
-      noteRefs(n).forEach((r) => {
-        const k = encRef(r);
-        if (!map.has(k)) map.set(k, { r, ns: [] });
-        map.get(k)!.ns.push(n);
-      }),
-    );
-    const arr = [...map.values()].sort((a, b) => compareRef(a.r, b.r));
-    void bible;
-    body = arr.length ? (
-      <div className="sn-rows">
-        {arr.map(({ r, ns }) => {
-          const first = firstVerseText(r);
-          return (
-            <div key={encRef(r)} className="sn-row">
-              <div className="sn-verse-row">
-                <span className="sn-vref">{refLong(r)}</span>
-                <div
-                  style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}
-                >
-                  <div
-                    style={{
-                      fontFamily: 'var(--sn-f-display)',
-                      fontSize: 14,
-                      color: 'var(--sn-muted)',
-                    }}
-                  >
-                    {first.length > 90 ? `${first.slice(0, 90)}…` : first}
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {ns.map((n) => (
-                      <button
-                        key={n.id}
-                        type="button"
-                        className="sn-chip"
-                        onClick={() => onOpen(n.id)}
-                      >
-                        {fmtDate(n.date)} {n.title || UNTITLED}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    ) : (
-      <div className="sn-empty">노트에 넣은 구절이 아직 없어요.</div>
-    );
+    body = <SermonVerses notes={filtered} onOpen={onOpen} onRead={() => setBibleView('read')} />;
   } else if (noteView === 'home' && !query && !service) {
     body = (
       <SermonHome

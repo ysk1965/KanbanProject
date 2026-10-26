@@ -55,11 +55,20 @@ public class SermonProfileService {
     public static final int PIN_LINE_MAX = 40;
     public static final int NOTE_ID_MAX = 64;
     public static final int GALPI_SERVICE_MAX = 60;
+    public static final int MAX_WORSHIP_SERVICES = 12;
+    public static final int WORSHIP_ID_MAX = 20;
+    public static final int WORSHIP_NAME_MAX = 30;
+    public static final int MAX_WORSHIP_SLOTS = 14;
+    public static final int WORSHIP_PART_MAX = 10;
+    public static final int MAX_WORSHIP_GROUPS = 20;
+    public static final int GROUP_ID_MAX = 36;
 
     /** encRef: 권(0~65):장:절-절, 끝에 w 면 장 전체 */
     private static final Pattern VERSE_REF = Pattern.compile("^(\\d{1,2}):(\\d{1,3}):(\\d{1,3})-(\\d{1,3})(w?)$");
 
     private static final Pattern NOTE_ID = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
+
+    private static final Pattern HH_MM = Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
 
     private final SermonProfileRepository profileRepository;
     private final SermonProfileVerseRepository verseRepository;
@@ -87,6 +96,8 @@ public class SermonProfileService {
         List<Map<String, Object>> pins = pins(req.getPins());
         Boolean galpiAuto = req.getGalpiAuto();
         String galpiService = galpiAuto == null ? null : galpiService(req.getGalpiService());
+        List<Map<String, Object>> worship =
+                req.getWorshipServices() == null ? null : worshipServices(req.getWorshipServices());
 
         SermonProfile p = profileRepository.findById(userId).orElse(null);
         String before = p == null ? null : p.getVerseRef();
@@ -102,12 +113,15 @@ public class SermonProfileService {
                     .pins(pins)
                     .galpiAuto(galpiAuto)
                     .galpiService(galpiService)
+                    .worshipServices(worship)
                     .build();
             p = profileRepository.save(p);
         } else {
             p.update(mascot, state, ink, verseRef, verseStyle, visibility, pins);
             // 자동 갈피 설정은 galpi_auto 가 올 때만 바꾼다 — 모르는 클라이언트가 PUT 해도 남는다
             if (galpiAuto != null) p.updateGalpi(galpiAuto, galpiService);
+            // 예배표도 같은 규칙 — 필드가 없으면 남기고, [] 면 비운다
+            if (worship != null) p.updateWorshipServices(worship);
         }
         recordVerse(userId, before, verseRef);
         return toMine(userId, p);
@@ -183,6 +197,7 @@ public class SermonProfileService {
                 .verseCount(p != null && p.getVerseRef() != null ? verseRepository.countByUserId(userId) : null)
                 .galpiAuto(p == null || p.getGalpiAuto() == null ? Boolean.TRUE : p.getGalpiAuto())
                 .galpiService(p == null ? null : p.getGalpiService())
+                .worshipServices(p == null || p.getWorshipServices() == null ? List.of() : p.getWorshipServices())
                 .build();
     }
 
@@ -271,6 +286,90 @@ public class SermonProfileService {
         if (t.isEmpty()) return null;
         if (t.codePointCount(0, t.length()) > GALPI_SERVICE_MAX) throw invalid();
         return t;
+    }
+
+    /**
+     * 「내 예배표」 검증·정리 — 모르는 키는 버리고, galpi=true 는 처음 하나만 남긴다. 어긋나면 SPF001.
+     *
+     * <p>[{id, name, slots[{dow, start, end, part}], my_part, auto, galpi, groups[{group_id, service_id}]}]
+     */
+    private static List<Map<String, Object>> worshipServices(List<Map<String, Object>> in) {
+        if (in.size() > MAX_WORSHIP_SERVICES) throw invalid();
+        List<Map<String, Object>> out = new ArrayList<>();
+        boolean galpiTaken = false;
+        for (Map<String, Object> svc : in) {
+            if (svc == null) throw invalid();
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", requiredString(svc.get("id"), WORSHIP_ID_MAX));
+            m.put("name", requiredString(svc.get("name"), WORSHIP_NAME_MAX));
+
+            Object slotsRaw = svc.get("slots");
+            List<Map<String, Object>> slots = new ArrayList<>();
+            if (slotsRaw != null) {
+                if (!(slotsRaw instanceof List<?> list) || list.size() > MAX_WORSHIP_SLOTS) throw invalid();
+                for (Object o : list) {
+                    if (!(o instanceof Map<?, ?> slot)) throw invalid();
+                    Map<String, Object> sm = new LinkedHashMap<>();
+                    if (!(slot.get("dow") instanceof Integer dow) || dow < 0 || dow > 6) throw invalid();
+                    sm.put("dow", dow);
+                    sm.put("start", hhmm(slot.get("start")));
+                    sm.put("end", hhmm(slot.get("end")));
+                    sm.put("part", optionalString(slot.get("part"), WORSHIP_PART_MAX));
+                    slots.add(sm);
+                }
+            }
+            m.put("slots", slots);
+            m.put("my_part", optionalString(svc.get("my_part"), WORSHIP_PART_MAX));
+            m.put("auto", bool(svc.get("auto"), true));
+            boolean galpi = bool(svc.get("galpi"), false) && !galpiTaken;
+            if (galpi) galpiTaken = true;
+            m.put("galpi", galpi);
+
+            Object groupsRaw = svc.get("groups");
+            List<Map<String, Object>> groups = new ArrayList<>();
+            if (groupsRaw != null) {
+                if (!(groupsRaw instanceof List<?> list) || list.size() > MAX_WORSHIP_GROUPS) throw invalid();
+                for (Object o : list) {
+                    if (!(o instanceof Map<?, ?> g)) throw invalid();
+                    Map<String, Object> gm = new LinkedHashMap<>();
+                    gm.put("group_id", requiredString(g.get("group_id"), GROUP_ID_MAX));
+                    gm.put("service_id", requiredString(g.get("service_id"), WORSHIP_ID_MAX));
+                    groups.add(gm);
+                }
+            }
+            m.put("groups", groups);
+            out.add(m);
+        }
+        return out;
+    }
+
+    /** 문자열, 앞뒤 공백 제거 후 1..max 자(코드포인트) */
+    private static String requiredString(Object o, int max) {
+        if (!(o instanceof String s)) throw invalid();
+        String t = s.strip();
+        if (t.isEmpty() || t.codePointCount(0, t.length()) > max) throw invalid();
+        return t;
+    }
+
+    /** null/빈 값 = null, 문자열 아니거나 max 초과 = SPF001 */
+    private static String optionalString(Object o, int max) {
+        if (o == null) return null;
+        if (!(o instanceof String s)) throw invalid();
+        String t = s.strip();
+        if (t.isEmpty()) return null;
+        if (t.codePointCount(0, t.length()) > max) throw invalid();
+        return t;
+    }
+
+    private static String hhmm(Object o) {
+        if (!(o instanceof String s) || !HH_MM.matcher(s).matches()) throw invalid();
+        return s;
+    }
+
+    private static boolean bool(Object o, boolean fallback) {
+        if (o == null) return fallback;
+        if (!(o instanceof Boolean b)) throw invalid();
+        return b;
     }
 
     private static String pick(String v, Set<String> allowed, String fallback) {

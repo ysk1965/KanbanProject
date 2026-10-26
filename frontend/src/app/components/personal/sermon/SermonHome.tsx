@@ -16,6 +16,7 @@ import {
 import { firstVerseText } from './useBible';
 import { useFlip, useFx } from './microFx';
 import { GroupDaySlots, NoteGroupFaces, NoteShareRow, useNoteGroups } from './group/GroupWeekBits';
+import { MyDaySlots, WorshipSuggest } from './WorshipHomeBits';
 import { resolveGalpiRule, useGalpiPrefs } from './galpiPrefs';
 import { ShareSheet } from './share/ShareSheet';
 import { StickerBook } from './StickerBook';
@@ -245,6 +246,7 @@ export function SermonHome({ notes, week, mascot, onOpen, onNew, onToggleApply }
               </span>
             </div>
           )}
+          <WorshipSuggest notes={notes} />
           <div className="sn-days">
             {days.map((d) => {
               const ds = ymd(d);
@@ -294,6 +296,7 @@ export function SermonHome({ notes, week, mascot, onOpen, onNew, onToggleApply }
                       </button>
                     ))}
                     <GroupDaySlots date={ds} notes={dayNotes} />
+                    <MyDaySlots date={ds} weekStart={weekStart} notes={dayNotes} />
                     {!dayNotes.length &&
                       !dayDone.length &&
                       (ds === today ? (

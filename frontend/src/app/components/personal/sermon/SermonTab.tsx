@@ -17,6 +17,7 @@ import { esc, newNote, toggleApplyDone, type SermonNote } from './sermonTypes';
 import { clearStart, readStart } from './share/shareModel';
 import { FirstSticker } from './share/FirstSticker';
 import { GroupContext } from './group/GroupContext';
+import { withWorship } from './worshipFill';
 import { useGroupWiring } from './group/useGroupWiring';
 import { loadBible } from './useBible';
 import { useSermonProfile } from './profile/useSermonProfile';
@@ -349,7 +350,7 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
   }, [openId, store, store.status.loading, notes.length]);
 
   const handleNew = useCallback(() => {
-    const n = store.save(newNote(store.all()[0]));
+    const n = store.save(withWorship(newNote(store.all()[0])));
     setOpenAid(null);
     setOpenId(n.id);
   }, [store]);

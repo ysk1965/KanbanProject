@@ -32,6 +32,16 @@ public class ReadingPlanResponse {
         private int myDoneDays;
         private int behindDays;
         private List<Due> due;
+        /** 오늘 날의 장 전부 + 내가 찍었는지 — today_day_no 가 있을 때만 */
+        private List<TodayChapter> todayChapters;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class TodayChapter {
+        private String chapter;
+        private boolean done;
     }
 
     @Getter

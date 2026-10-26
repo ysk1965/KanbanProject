@@ -15,6 +15,8 @@ export interface SermonGroupCtx {
   openCreate: () => void;
   /** 예배표 자리에서 바로 새 노트 (지금 시간대면 자동 연결) */
   startInSlot: (groupId: string, serviceId: string, date: string) => void;
+  /** 내 예배표 자리에서 새 노트 (예배 칸을 그 예배로 채운다) */
+  startWorship: (worshipId: string, date: string) => void;
   /** 노트의 모임 연결 하나를 고친다 (공개하기·나만 보기·모임에서 빼기·되돌리기) */
   setNoteLink: (noteId: string, groupId: string, patch: Partial<NoteGroupLink>) => void;
   onLogin?: () => void;

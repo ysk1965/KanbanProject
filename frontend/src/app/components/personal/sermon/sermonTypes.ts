@@ -69,6 +69,10 @@ export interface SermonNote {
   title: string;
   preacher: string;
   service: string;
+  /** 「내 예배표」 예배 id (worship.ts). 이름이 바뀌어도 갈피·모임 짝이 따라간다 */
+  service_id?: string | null;
+  /** 예배 시간에 열어서 예배 칸을 자동으로 채움 — 직접 고치면 지운다 */
+  service_auto?: boolean;
   /** yyyy-MM-dd */
   date: string;
   /** 설교 본문 구절 (encRef 문자열) */
@@ -283,11 +287,13 @@ export function weekOf(ds: string | null | undefined): string {
 /**
  * 자동 갈피 규칙 (사용자 설정 galpiPrefs.ts → resolveGalpiRule).
  *  - auto: 직접 꽂은 노트가 없는 주에 그 주 일요일 노트로 자동 갈피
- *  - service: 「내 주일 예배」 이름. 그 예배로 쓴 일요일 노트를 먼저 고른다
+ *  - service: 갈피 예배 이름 (내 예배표 갈피 예배의 표시 이름, 또는 옛 「내 주일 예배」)
+ *  - serviceId: 내 예배표 갈피 예배 id. 있으면 요일과 상관없이 그 주에 이 예배로 쓴 노트를 먼저 고른다
  */
 export interface GalpiRule {
   auto: boolean;
   service: string | null;
+  serviceId?: string | null;
 }
 
 /** '주일 2부' 와 '주일2부' 를 같은 예배로 본다 */
@@ -337,7 +343,7 @@ function richer(a: SermonNote, b: SermonNote): SermonNote {
 /**
  * 주(일요일) → 그 주 갈피 노트.
  *  1) 직접 꽂은 노트 (bookmarked_at > 0). 둘 이상 남아 있으면(다른 기기에서 동시에 꽂았거나 날짜를 옮긴 경우) 늦게 꽂은 쪽
- *  2) rule.auto 면: 그 주 일요일에 「내 주일 예배」로 쓴 노트
+ *  2) rule.auto 면: 그 주에 갈피 예배로 쓴 노트 (serviceId 가 있으면 아무 요일, 없으면 일요일만)
  *  3) 없으면 그 주 일요일 노트 중 생각이 가장 많은 노트
  * 갈피를 뺀 노트(bookmarked_at === 0)가 있는 주는 자동으로 꽂지 않는다(「이번 주는 갈피 빼기」).
  */
@@ -345,6 +351,13 @@ export function galpiByWeek(notes: SermonNote[], rule?: GalpiRule): Map<string, 
   const out = new Map<string, SermonNote>();
   const off = new Set<string>();
   const sundays = new Map<string, SermonNote[]>();
+  const mains = new Map<string, SermonNote[]>();
+  const isMain = (n: SermonNote) =>
+    rule?.serviceId
+      ? n.service_id
+        ? n.service_id === rule.serviceId
+        : sameService(n.service, rule.service)
+      : false;
   notes.forEach((n) => {
     const w = weekOf(n.date);
     if (!w) return;
@@ -353,15 +366,22 @@ export function galpiByWeek(notes: SermonNote[], rule?: GalpiRule): Map<string, 
       if (!cur || (cur.bookmarked_at || 0) < n.bookmarked_at) out.set(w, n);
     } else if (n.bookmarked_at === 0) {
       off.add(w);
-    } else if (n.date === w) {
-      sundays.set(w, [...(sundays.get(w) || []), n]);
+    } else {
+      if (n.date === w) sundays.set(w, [...(sundays.get(w) || []), n]);
+      if (isMain(n)) mains.set(w, [...(mains.get(w) || []), n]);
     }
   });
   if (rule?.auto) {
-    sundays.forEach((list, w) => {
+    new Set([...sundays.keys(), ...mains.keys()]).forEach((w) => {
       if (out.has(w) || off.has(w)) return;
-      const main = rule.service ? list.filter((n) => sameService(n.service, rule.service)) : [];
-      out.set(w, (main.length ? main : list).reduce(richer));
+      const list = sundays.get(w) || [];
+      const main = rule.serviceId
+        ? mains.get(w) || []
+        : rule.service
+          ? list.filter((n) => sameService(n.service, rule.service))
+          : [];
+      const pool = main.length ? main : list;
+      if (pool.length) out.set(w, pool.reduce(richer));
     });
   }
   return out;
@@ -445,6 +465,8 @@ export function normalizeNote(
     title: typeof c.title === 'string' ? c.title : '',
     preacher: typeof c.preacher === 'string' ? c.preacher : '',
     service: typeof c.service === 'string' ? c.service : '',
+    ...(typeof c.service_id === 'string' && c.service_id ? { service_id: c.service_id } : {}),
+    ...(c.service_auto === true ? { service_auto: true } : {}),
     date: typeof c.date === 'string' ? c.date : '',
     refs: Array.isArray(c.refs) ? c.refs.filter((x): x is string => typeof x === 'string') : [],
     body: typeof c.body === 'string' ? c.body : '',

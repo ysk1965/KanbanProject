@@ -113,6 +113,8 @@ public class SermonGroupResponse {
         private String userId;
         /** written | private */
         private String state;
+        /** 이 노트를 이번 주 갈피로 꽂았는지 (private 이어도 보임) */
+        private boolean galpi;
     }
 
     @Getter
@@ -152,6 +154,9 @@ public class SermonGroupResponse {
 
         @JsonProperty("private")
         private boolean isPrivate;
+
+        /** 이번 주 갈피로 꽂은 노트인지 (private 이어도 보임) */
+        private boolean galpi;
 
         /** private 면 null(키 생략) */
         private Map<String, Object> fields;

@@ -1,98 +1,17 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight, Loader2, Plus, Stamp } from 'lucide-react';
+import { ChevronRight, Loader2, Stamp } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSermonGroups } from '../group/GroupContext';
 import { SnOverlay } from '../SnOverlay';
 import { SnSheetBar } from '../SnSheetBar';
 import { todayString } from '../sermonTypes';
 import { readingAPI, readingErrorMessage, type PlanDetail } from './readingApi';
-import { nextDue, planOwnerName, plansDueFor, refreshMine, useMinePlans } from './readingStore';
+import { nextDue, planOwnerName, plansDueFor, refreshMine, useMyPlans } from './readingStore';
 import { chLabel, parseCh } from './readingPlan';
-import { PlanSheet } from './PlanSheet';
 import { PlanView } from './PlanView';
 import './reading.css';
 
-/** 로그인한 사람만 — 길은 서버에만 있다 */
-function useSignedIn(): boolean {
-  const g = useSermonGroups();
-  return !!g && !g.anonymous;
-}
-
-/**
- * 성경 읽기 맨 위 「읽는 중인 길」 — 모임 길과 나의 길을 한 줄에.
- * 길을 누르면 그 길 시트(PlanView), 「+ 나의 길」은 만들기 시트.
- */
-export function ReadingPaths({ onGo }: { onGo: (b: number, c: number) => void }) {
-  const signedIn = useSignedIn();
-  const plans = useMinePlans(signedIn);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [create, setCreate] = useState(false);
-  if (!signedIn || !plans) return null;
-  const soloCount = plans.filter((p) => !p.group_id).length;
-
-  const go = (k: string) => {
-    const p = parseCh(k);
-    if (p) onGo(p.b, p.c);
-  };
-
-  return (
-    <div className="rp-paths" role="group" aria-label="읽는 중인 길">
-      <span className="rp-paths-lb">읽는 중인 길</span>
-      {plans.map((p) => {
-        const left = (p.due || []).length;
-        return (
-          <button
-            key={p.id}
-            type="button"
-            className="rp-path"
-            data-group={!!p.group_id || undefined}
-            onClick={() => setOpenId(p.id)}
-          >
-            <b>{planOwnerName(p)}</b>
-            <span>{p.title}</span>
-            <small>
-              {p.today_day_no
-                ? `${p.today_day_no}/${p.total_days}일째`
-                : `${p.my_done_days}/${p.total_days}일`}
-              {left > 0 && ` · ${left}장 남음`}
-            </small>
-            <i
-              className="rp-path-bar"
-              style={{
-                width: `${Math.round((p.my_done_days / Math.max(1, p.total_days)) * 100)}%`,
-              }}
-              aria-hidden
-            />
-          </button>
-        );
-      })}
-      {soloCount < 3 && (
-        <button type="button" className="rp-path rp-path-add" onClick={() => setCreate(true)}>
-          <Plus className="sn-icon" aria-hidden />
-          {plans.length ? '나의 길' : '혼자 통독 시작'}
-        </button>
-      )}
-      <PlanOverlay
-        id={openId}
-        onClose={() => setOpenId(null)}
-        onRead={(k) => {
-          setOpenId(null);
-          go(k);
-        }}
-      />
-      <PlanSheet
-        open={create}
-        onClose={() => setCreate(false)}
-        onCreated={(p) => {
-          setCreate(false);
-          setOpenId(p.id);
-        }}
-      />
-    </div>
-  );
-}
-
-function PlanOverlay({
+/** 길 하나 시트 (PlanView) — 「오늘 읽을 곳」 카드·띠에서 길 이름을 누르면 */
+export function PlanOverlay({
   id,
   onClose,
   onRead,
@@ -157,14 +76,13 @@ export function ReadingStamp({
   c: number;
   onGo: (b: number, c: number) => void;
 }) {
-  const signedIn = useSignedIn();
-  const plans = useMinePlans(signedIn);
+  const plans = useMyPlans();
   const key = `${b}:${c}`;
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   useEffect(() => setDone(null), [key]);
 
-  if (!signedIn || !plans) return null;
+  if (!plans) return null;
   const due = plansDueFor(plans, key);
   const next = nextDue(plans, key);
   if (!due.length && done !== key) return null;

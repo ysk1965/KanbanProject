@@ -16,6 +16,7 @@ import {
   type SermonGroup,
   type SessionSummary,
 } from './groupApi';
+import { GalpiMark } from '../GalpiMark';
 import { Faces } from './Faces';
 import { GroupSticker, stickerTilt, stickerTone } from './GroupSticker';
 import { ServicePicker } from './ServicePicker';
@@ -24,6 +25,9 @@ import { faceColor, initial, josa, useWeek, type GroupStore } from './groupStore
 import { DOW_KO, kindName } from './servicePresets';
 import { slotPhase, weekSlots, weekStartOf, ymdLocal } from './sessionMatch';
 import './group.css';
+import { saveGalpiPrefs, useGalpiPrefs } from '../galpiPrefs';
+import { WorshipMatch } from './WorshipMatch';
+import { applyGuesses, pendingGuesses } from '../worship';
 
 /**
  * 모임 홈 — 「같이 쓰는 한 권의 다이어리」.
@@ -496,7 +500,9 @@ function WeekView({
               const writers = (s?.members || []).map((m) => ({
                 user_id: m.user_id,
                 display_name: memberName.get(m.user_id) || '?',
+                galpi: !!m.galpi,
               }));
+              const galpiCount = writers.filter((w) => w.galpi).length;
               const waiting =
                 phase === 'before'
                   ? []
@@ -574,6 +580,18 @@ function WeekView({
                       <span className="sg-drow">
                         <Faces people={[...writers, ...waiting]} max={6} size={24} />
                         {writers.length > 0 && <small>{writers.length}명 썼어요</small>}
+                        {galpiCount > 0 && (
+                          <span
+                            className="sg-gcount"
+                            title={`${writers
+                              .filter((w) => w.galpi)
+                              .map((w) => w.display_name)
+                              .join(' · ')} 이 설교에 갈피를 꽂았어요`}
+                          >
+                            <GalpiMark size={13} />
+                            갈피 {galpiCount}
+                          </span>
+                        )}
                       </span>
                     )}
                   </span>
@@ -883,6 +901,8 @@ function Settings({
   };
 
   const activeServices = group.services.filter((s) => s.active);
+  const galpi = useGalpiPrefs();
+  const guessCount = pendingGuesses(galpi.worship, group, muted).size;
 
   return (
     <div className="sg-week">
@@ -925,6 +945,34 @@ function Settings({
                 </button>
               ))}
             </div>
+          </div>
+        )}
+        {activeServices.length > 0 && (
+          <div className="sg-field">
+            <span>
+              내 예배와 맞추기{' '}
+              <span style={{ fontWeight: 500 }}>
+                · 맞춘 내 예배로 쓴 노트는 시간이 달라도 이 모임 자리에 붙어요
+              </span>
+            </span>
+            <WorshipMatch
+              group={group}
+              muted={muted}
+              onMute={(id, on) =>
+                setMuted((m) => (on ? [...new Set([...m, id])] : m.filter((x) => x !== id)))
+              }
+            />
+            {guessCount > 0 && (
+              <button
+                type="button"
+                className="sn-btn sg-wm-guessbtn"
+                onClick={() =>
+                  saveGalpiPrefs({ worship: applyGuesses(galpi.worship, group, muted) })
+                }
+              >
+                추천대로 맞추기 ({guessCount})
+              </button>
+            )}
           </div>
         )}
       </section>

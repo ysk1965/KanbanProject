@@ -2,12 +2,21 @@ import { BOOKS, PSALMS, decRef, encRef, type Ref } from '../bibleRefs';
 import type { MascotState } from '../Mascot';
 import { INKS, MASCOTS, type InkId, type MascotId, type SermonLook } from '../sermonLook';
 import { noteRefs, plainText, type SermonNote } from '../sermonTypes';
+import {
+  galpiWorship,
+  normalizeWorship,
+  sameWorship,
+  worshipFromLegacy,
+  worshipLabel,
+  type WorshipService,
+} from '../worship';
 
 /**
  * 「나의 갈피」 이름표 + 고정한 노트(폴라로이드 3장) 모델. 소속 교회는 챌린지(challenge/ChurchPicker)가 원본이라 여기 없다.
  * 서버와 같은 모양(snake_case)으로 들고 있는다.
  * 기기 캐시: localStorage `sermon-profile-v1:<userId>` — 로그인 전(anon)은 여기에만 산다.
- * 갈피 설정(galpi_auto/galpi_service)도 여기 실어 계정을 따라가게 한다 — 화면은 galpiPrefs.ts 를 읽는다.
+ * 갈피 설정(galpi_auto/galpi_service)과 내 예배표(worship_services)도 여기 실어 계정을 따라가게 한다 — 화면은 galpiPrefs.ts 를 읽는다.
+ * galpi_service 는 갈피 예배 이름을 비춰 둔다 (예배표를 모르는 옛 앱용).
  */
 
 export type PinPattern = 'dots' | 'lines' | 'stars' | 'plain';
@@ -36,8 +45,10 @@ export interface SermonProfileData {
   pins: ProfilePin[];
   /** 주일 예배에 갈피 자동으로 꽂기 (기본 true) */
   galpi_auto: boolean;
-  /** 내 주일 예배 — null 이면 최근 노트로 정함 */
+  /** 갈피 예배 이름 — null 이면 최근 노트로 정함. 예배표가 있으면 갈피 예배의 표시 이름 */
   galpi_service: string | null;
+  /** 내 예배표 (worship.ts) */
+  worship_services: WorshipService[];
 }
 
 export const GALPI_SERVICE_MAX = 60;
@@ -84,6 +95,7 @@ export function defaultProfile(look?: SermonLook): SermonProfileData {
     pins: [],
     galpi_auto: true,
     galpi_service: null,
+    worship_services: [],
   };
 }
 
@@ -128,8 +140,28 @@ export function normalizeProfile(raw: unknown, look?: SermonLook): SermonProfile
     verse_style: r.verse_style === 'hand' ? 'hand' : 'serif',
     visibility: pick(r.visibility, VIS_IDS, d.visibility),
     pins,
-    galpi_auto: typeof r.galpi_auto === 'boolean' ? r.galpi_auto : d.galpi_auto,
-    galpi_service: clip(r.galpi_service, GALPI_SERVICE_MAX),
+    ...tidyGalpi({
+      auto: typeof r.galpi_auto === 'boolean' ? r.galpi_auto : d.galpi_auto,
+      service: clip(r.galpi_service, GALPI_SERVICE_MAX),
+      worship: normalizeWorship(r.worship_services),
+    }),
+  };
+}
+
+/** galpiPrefs.tidyGalpiPrefs 와 같은 규칙 — 옛 이름만 있으면 예배 하나로, 예배표가 있으면 이름은 갈피 예배에서 */
+function tidyGalpi(
+  g: GalpiValues,
+): Pick<SermonProfileData, 'galpi_auto' | 'galpi_service' | 'worship_services'> {
+  const worship = g.worship.length ? g.worship : worshipFromLegacy(g.service);
+  const star = galpiWorship(worship);
+  return {
+    galpi_auto: g.auto,
+    galpi_service: worship.length
+      ? star
+        ? clip(worshipLabel(star), GALPI_SERVICE_MAX)
+        : null
+      : clip(g.service, GALPI_SERVICE_MAX),
+    worship_services: worship,
   };
 }
 
@@ -138,23 +170,36 @@ export function normalizeProfile(raw: unknown, look?: SermonLook): SermonProfile
 export interface GalpiValues {
   auto: boolean;
   service: string | null;
+  worship: WorshipService[];
 }
 
 export function galpiOf(d: SermonProfileData): GalpiValues {
-  return { auto: d.galpi_auto, service: d.galpi_service || null };
+  return { auto: d.galpi_auto, service: d.galpi_service || null, worship: d.worship_services };
 }
 
 export function withGalpi(d: SermonProfileData, g: GalpiValues): SermonProfileData {
-  return { ...d, galpi_auto: g.auto, galpi_service: clip(g.service, GALPI_SERVICE_MAX) };
+  return { ...d, ...tidyGalpi({ ...g, worship: normalizeWorship(g.worship) }) };
 }
 
-const isDefaultGalpi = (g: GalpiValues) => g.auto && !g.service;
+export function sameGalpi(a: GalpiValues, b: GalpiValues): boolean {
+  return (
+    a.auto === b.auto &&
+    (a.service || null) === (b.service || null) &&
+    sameWorship(a.worship, b.worship)
+  );
+}
+
+const isDefaultGalpi = (g: GalpiValues) => g.auto && !g.service && !g.worship.length;
 
 /** 서버가 갈피 설정을 들고 있나 — 필드가 없거나 기본값이면 「한 번도 안 올린 것」으로 본다 */
 export function serverHasGalpi(raw: unknown): boolean {
   if (!raw || typeof raw !== 'object') return false;
   const r = raw as Record<string, unknown>;
-  return r.galpi_auto === false || !!clip(r.galpi_service, GALPI_SERVICE_MAX);
+  return (
+    r.galpi_auto === false ||
+    !!clip(r.galpi_service, GALPI_SERVICE_MAX) ||
+    normalizeWorship(r.worship_services).length > 0
+  );
 }
 
 /**

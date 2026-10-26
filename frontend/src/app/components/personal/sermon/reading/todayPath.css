@@ -1,0 +1,379 @@
+/* ---------- 성경 읽기: 오늘 읽을 곳 (TodayPath) ---------- */
+
+/* 카드 · 시트 목록 */
+.tp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12px;
+}
+.tp-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tp-head b {
+  font-size: 14px;
+  color: var(--sn-fg);
+}
+.tp-head small,
+.tp-rest {
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.tp-rest {
+  margin: 0;
+}
+.tp-alldone {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--sn-r-ctl);
+  background: color-mix(in srgb, var(--sn-c-green) 14%, var(--sn-surface));
+  color: var(--sn-c-green);
+  font-weight: 700;
+  font-size: 13px;
+}
+.tp-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--sn-line);
+}
+.tp-head + .tp-plan,
+.tp-alldone + .tp-plan {
+  padding-top: 0;
+  border-top: 0;
+}
+.tp-plan-t {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--sn-fg);
+  cursor: pointer;
+}
+.tp-plan-t > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+.tp-plan-t small {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.tp-plan-t .sn-icon,
+.tp-strip-more .sn-icon {
+  width: 14px;
+  height: 14px;
+}
+.tp-plan-t b,
+.tp-strip-name b {
+  font-weight: 700;
+  color: var(--sn-t2);
+}
+.tp-plan-t b[data-group],
+.tp-strip-name b[data-group] {
+  color: var(--sn-t1);
+}
+
+/* 장 칩 */
+.tp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+.tp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--sn-line-strong);
+  border-radius: var(--sn-r-pill);
+  background: var(--sn-bg);
+  color: var(--sn-fg);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tp-chip .sn-icon {
+  width: 12px;
+  height: 12px;
+}
+.tp-chip[data-done] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--sn-c-green) 16%, var(--sn-surface));
+  color: var(--sn-c-green);
+}
+.tp-chip[data-late] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--sn-c-orange) 15%, var(--sn-surface));
+  color: var(--sn-c-orange);
+}
+.tp-chip[data-more] {
+  cursor: default;
+}
+.tp-chip[aria-current='true'] {
+  border-color: transparent;
+  background: var(--sn-t1);
+  color: var(--sn-accent-ink);
+  font-weight: 700;
+}
+.tp-add,
+.tp-start {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--sn-muted);
+  cursor: pointer;
+}
+.tp-add .sn-icon,
+.tp-start .sn-icon {
+  width: 14px;
+  height: 14px;
+}
+.tp-add:hover,
+.tp-start:hover {
+  color: var(--sn-fg);
+}
+
+/* 본문 위 띠 */
+.tp-strip-row {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.tp-strip {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 4px 4px 10px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--sn-t1) 18%, transparent);
+  background: color-mix(in srgb, var(--sn-t1) 8%, var(--sn-surface));
+  font: inherit;
+  font-size: 12px;
+  color: var(--sn-fg);
+  overflow: hidden;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+.tp-strip[data-late] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--sn-c-orange) 12%, var(--sn-surface));
+}
+.tp-strip[data-late] .tp-chip:not([data-late]):not([aria-current='true']):not([data-done]) {
+  background: var(--sn-surface);
+}
+.tp-strip[data-done] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--sn-c-green) 14%, var(--sn-surface));
+  color: var(--sn-c-green);
+  font-weight: 700;
+  padding-right: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+.tp-strip .tp-chips {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  flex: 1;
+}
+.tp-rib {
+  flex: none;
+  width: 8px;
+  height: 18px;
+  background: var(--sn-g1);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%);
+}
+.tp-strip-name {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--sn-fg);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tp-strip-title {
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+.tp-strip[data-late] .tp-strip-msg {
+  color: var(--sn-c-orange);
+  font-weight: 700;
+}
+.tp-strip[data-done] .tp-strip-msg {
+  flex: 1;
+}
+.tp-strip-more {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 36px;
+  min-height: 36px;
+  margin-left: auto;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--sn-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tp-strip[data-done] .tp-strip-more {
+  color: var(--sn-c-green);
+  min-height: 0;
+}
+.tp-strip-more em {
+  font-style: normal;
+  padding: 1px 8px;
+  border-radius: var(--sn-r-pill);
+  border: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+}
+
+/* 좁은 화면 — 위에 붙고, 아래로 스크롤하면 작은 알약으로 접힌다 (높이는 그대로라 본문이 들썩이지 않음) */
+.tp-strip-row[data-narrow] {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+}
+.tp-pill {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px 0 10px;
+  border-radius: var(--sn-r-pill);
+  border: 1px solid var(--sn-line-strong);
+  background: var(--sn-surface);
+  box-shadow: var(--sn-shadow);
+  font: inherit;
+  font-size: 12px;
+  color: var(--sn-fg);
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-50%) scale(0.92);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    visibility 0.18s;
+}
+.tp-strip-row[data-tucked] {
+  pointer-events: none;
+}
+.tp-strip-row[data-tucked] .tp-strip {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+}
+.tp-strip-row[data-tucked] .tp-pill {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(-50%);
+}
+.tp-pill small {
+  color: var(--sn-muted);
+}
+.tp-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+.tp-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--sn-t1);
+}
+.tp-dots i[data-done] {
+  background: var(--sn-t1);
+}
+.tp-dots i[data-here]:not([data-done]) {
+  background: color-mix(in srgb, var(--sn-t1) 40%, transparent);
+}
+
+.tp-chip:focus-visible,
+.tp-plan-t:focus-visible,
+.tp-add:focus-visible,
+.tp-start:focus-visible,
+.tp-strip-name:focus-visible,
+.tp-strip-more:focus-visible,
+.tp-strip[data-done]:focus-visible,
+.tp-pill:focus-visible {
+  outline: 2px solid var(--sn-t1);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-strip,
+  .tp-pill {
+    transition: none;
+  }
+}
+
+/* 장 끝 · 레일 「다음」이 길을 따라갈 때 — 아래에 「오늘 2/3」 */
+.sermon-app .sn-bible-pathnext span,
+.sermon-app .sn-brail-next span {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.2;
+}
+.sermon-app .sn-brail-next span {
+  align-items: flex-start;
+}
+.sermon-app .sn-bible-pathnext small,
+.sermon-app .sn-brail-next small {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.75;
+}

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { BOOKS, chCount, PSALMS } from './bibleRefs';
 import { marksOn, type ReadMark } from './bibleMarks';
@@ -32,6 +33,10 @@ interface BibleRailProps {
   stepLabel: (r: Step) => string;
   onGo: (b: number, c: number) => void;
   onJump: (v: number) => void;
+  /** 맨 위 「오늘 읽을 곳」 카드 (로그인 안 했으면 비어 있음) */
+  today?: ReactNode;
+  /** 이 장이 길의 오늘 장이면 아래 「다음」이 따라갈 장 */
+  pathNext?: (Step & { tag: string }) | null;
 }
 
 /** 절이 이만큼 넘으면 칸 대신 얇은 막대 (시편 119편 = 176절) */
@@ -69,6 +74,8 @@ export function BibleRail({
   stepLabel,
   onGo,
   onJump,
+  today,
+  pathNext,
 }: BibleRailProps) {
   const count = text.length;
   const unit = b === PSALMS ? '편' : '장';
@@ -105,6 +112,7 @@ export function BibleRail({
   return (
     <aside className="sn-brail" aria-label="이 장 길잡이">
       <div className="sn-brail-in">
+        {today}
         <section className="sn-brail-card">
           <div className="sn-brail-top">
             <button
@@ -212,11 +220,25 @@ export function BibleRail({
           <div className="sn-brail-prog" aria-hidden>
             <i style={{ width: `${(c / chCount(b)) * 100}%` }} />
           </div>
-          {next && (
-            <button type="button" className="sn-brail-next" onClick={() => onGo(next.b, next.c)}>
-              {stepLabel(next)} 읽기
+          {pathNext ? (
+            <button
+              type="button"
+              className="sn-brail-next"
+              onClick={() => onGo(pathNext.b, pathNext.c)}
+            >
+              <span>
+                {stepLabel(pathNext)} 읽기
+                <small>{pathNext.tag}</small>
+              </span>
               <ChevronRight className="sn-icon" aria-hidden />
             </button>
+          ) : (
+            next && (
+              <button type="button" className="sn-brail-next" onClick={() => onGo(next.b, next.c)}>
+                {stepLabel(next)} 읽기
+                <ChevronRight className="sn-icon" aria-hidden />
+              </button>
+            )
           )}
         </section>
       </div>

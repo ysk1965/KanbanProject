@@ -26,13 +26,18 @@ beforeEach(() => {
   resetGalpiPrefsCache();
 });
 
+const as2 = (g: { auto: boolean; service: string | null }) => ({
+  auto: g.auto,
+  service: g.service,
+});
+
 describe('갈피 설정 ↔ 이름표', () => {
   it('서버 응답: galpi_auto 는 늘 오고, galpi_service 는 null 이면 키가 빠진다(undefined → null)', () => {
     const p = normalizeProfile({ galpi_auto: false });
     expect(p.galpi_auto).toBe(false);
     expect(p.galpi_service).toBeNull();
     const q = normalizeProfile({ galpi_auto: true, galpi_service: '  주일 2부 ' });
-    expect(galpiOf(q)).toEqual({ auto: true, service: '주일 2부' });
+    expect(as2(galpiOf(q))).toEqual({ auto: true, service: '주일 2부' });
     expect(normalizeProfile({}).galpi_auto).toBe(true);
     expect(sameProfile(defaultProfile(), normalizeProfile({}))).toBe(true);
     expect(sameProfile(defaultProfile(), normalizeProfile({ galpi_auto: false }))).toBe(false);
@@ -43,25 +48,27 @@ describe('갈피 설정 ↔ 이름표', () => {
     const m = mergeServerGalpi(
       normalizeProfile(raw),
       raw,
-      { auto: true, service: '주일 1부' },
+      { auto: true, service: '주일 1부', worship: [] },
       false,
     );
     expect(m.push).toBe(false);
-    expect(galpiOf(m.data)).toEqual({ auto: false, service: '주일 3부' });
+    expect(as2(galpiOf(m.data))).toEqual({ auto: false, service: '주일 3부' });
     expect(serverHasGalpi(raw)).toBe(true);
   });
 
   it('서버가 기본값이고 기기 값이 기본값이 아니면 한 번만 기기 값을 올린다', () => {
     const raw = { galpi_auto: true };
     expect(serverHasGalpi(raw)).toBe(false);
-    const device = { auto: true, service: '주일 2부' };
+    const device = { auto: true, service: '주일 2부', worship: [] };
     const m = mergeServerGalpi(normalizeProfile(raw), raw, device, false);
     expect(m.push).toBe(true);
-    expect(galpiOf(m.data)).toEqual(device);
+    expect(as2(galpiOf(m.data))).toEqual(as2(device));
+    // 옛 이름만 있던 설정은 시간 없는 갈피 예배 하나로 옮겨진다
+    expect(galpiOf(m.data).worship).toMatchObject([{ name: '주일 2부', galpi: true, slots: [] }]);
     // 이미 이전했으면 서버(기본값)를 받는다
     const again = mergeServerGalpi(normalizeProfile(raw), raw, device, true);
     expect(again.push).toBe(false);
-    expect(galpiOf(again.data)).toEqual({ auto: true, service: null });
+    expect(as2(galpiOf(again.data))).toEqual({ auto: true, service: null });
     // 기기도 기본값이면 올릴 것 없음
     expect(mergeServerGalpi(normalizeProfile(raw), raw, GALPI_PREFS_DEFAULT, false).push).toBe(
       false,
@@ -95,8 +102,12 @@ describe('갈피 설정 ↔ 이름표', () => {
     expect(n).toBe(0);
     saveGalpiPrefs({ service: '주일 2부' });
     expect(n).toBe(1);
-    saveGalpiPrefs({ service: '  ' });
+    // 옛 이름은 예배표 한 줄로 옮겨지고, 이후 service 는 갈피 예배에서 나온다
+    expect(loadGalpiPrefs().worship).toMatchObject([{ name: '주일 2부', galpi: true }]);
+    saveGalpiPrefs({ worship: [] });
     expect(loadGalpiPrefs().service).toBeNull();
+    expect(n).toBe(2);
+    saveGalpiPrefs({ worship: [] });
     expect(n).toBe(2);
     off();
   });

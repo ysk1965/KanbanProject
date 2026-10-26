@@ -56,6 +56,8 @@ export interface SermonGroup {
 export interface SessionMemberState {
   user_id: string;
   state: 'written' | 'private';
+  /** 이 사람이 이 설교에 그 주 갈피를 꽂았나 */
+  galpi?: boolean;
 }
 
 export interface SessionSummary {
@@ -113,6 +115,8 @@ export interface SessionShare {
   heard?: Heard | null;
   part?: string | null;
   private?: boolean;
+  /** 이 사람의 그 주 갈피 */
+  galpi?: boolean;
   fields?: ShareFields | null;
   updated_at?: string;
   reactions?: ShareReaction[];
@@ -157,6 +161,8 @@ export interface ShareBody {
   heard: Heard;
   part: string | null;
   private: boolean;
+  /** 내 그 주 갈피인가 — PUT 은 통째로 덮으므로 늘 보낸다 */
+  galpi: boolean;
   fields: ShareFields;
 }
 

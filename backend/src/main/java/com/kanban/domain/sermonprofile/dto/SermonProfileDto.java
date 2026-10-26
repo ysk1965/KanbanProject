@@ -2,6 +2,7 @@ package com.kanban.domain.sermonprofile.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -41,6 +42,8 @@ public class SermonProfileDto {
         private Boolean galpiAuto;
         /** galpi_auto 가 함께 올 때만 반영. 앞뒤 공백 제거, 빈 값 = null, 60자 초과 = SPF001 */
         private String galpiService;
+        /** 「내 예배표」. null = 바꾸지 않음, [] = 비우기. 모양은 docs/Tech/sermon-profile-api.md */
+        private List<Map<String, Object>> worshipServices;
     }
 
     @Getter
@@ -79,6 +82,8 @@ public class SermonProfileDto {
         private Boolean galpiAuto;
         /** 본인 조회에만 — 없으면 키 없음 */
         private String galpiService;
+        /** 본인 조회에만 — 「내 예배표」, 정한 적 없으면 [] */
+        private List<Map<String, Object>> worshipServices;
 
         private LocalDateTime updatedAt;
     }

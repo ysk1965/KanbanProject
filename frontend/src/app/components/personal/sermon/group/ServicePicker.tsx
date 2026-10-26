@@ -38,7 +38,7 @@ const dedupe = (slots: ServiceSlot[]) =>
   slots.filter((x, i) => slots.findIndex((y) => y.dow === x.dow && y.start === x.start) === i);
 
 /** 고치고 있는 시각 — 켠 요일 모두(all) 또는 슬롯 하나(one) */
-type Pick = { mode: 'all'; start: string } | { mode: 'one'; idx: number };
+export type Pick = { mode: 'all'; start: string } | { mode: 'one'; idx: number };
 
 /**
  * 「같이 드리는 예배」 고르기 — 예배 스티커를 눌러 켜고, 켜진 스티커를 한 번 더 누르면
@@ -151,8 +151,8 @@ export function ServicePicker({
   );
 }
 
-/** 열린 예배 하나 — 이름 · 요일 · 시각 알약 (+ 고르기 판) */
-function ServiceCard({
+/** 열린 예배 하나 — 이름 · 요일 · 시각 알약 (+ 고르기 판). 내 예배표(WorshipSettings)도 쓴다 */
+export function ServiceCard({
   service: s,
   pick,
   onPick,

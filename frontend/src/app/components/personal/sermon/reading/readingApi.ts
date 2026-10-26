@@ -12,6 +12,11 @@ export interface DueChapter {
   chapter: string;
 }
 
+export interface TodayChapter {
+  chapter: string;
+  done: boolean;
+}
+
 export interface MinePlan {
   id: string;
   title: string;
@@ -25,6 +30,8 @@ export interface MinePlan {
   my_done_days: number;
   behind_days: number;
   due?: DueChapter[];
+  /** 오늘 날의 장 전부 + 내가 찍었는지 (today_day_no 없으면 키 없음) */
+  today_chapters?: TodayChapter[];
 }
 
 export interface PlanDay {

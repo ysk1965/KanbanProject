@@ -2,6 +2,7 @@ package com.kanban.domain.readingplan;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.kanban.domain.readingplan.dto.ReadingPlanRequest;
 import com.kanban.domain.readingplan.dto.ReadingPlanResponse;
@@ -164,6 +165,10 @@ class ReadingPlanFlowTest {
             assertThat(d.getDayNo()).isEqualTo(2);
             assertThat(d.getChapter()).isEqualTo("40:2");
         });
+        // 오늘 날의 장 전부 + 찍었는지 — 「오늘 1/2」 칩
+        assertThat(summary.getTodayChapters())
+                .extracting(ReadingPlanResponse.TodayChapter::getChapter, ReadingPlanResponse.TodayChapter::isDone)
+                .containsExactly(tuple("40:1", true), tuple("40:2", false));
     }
 
     @Test

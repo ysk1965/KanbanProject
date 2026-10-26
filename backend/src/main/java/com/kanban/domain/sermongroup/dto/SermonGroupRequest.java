@@ -113,6 +113,9 @@ public class SermonGroupRequest {
         @JsonProperty("private")
         private Boolean isPrivate;
 
+        /** 이번 주 갈피로 꽂은 노트인지 — null = false */
+        private Boolean galpi;
+
         private Map<String, Object> fields;
     }
 

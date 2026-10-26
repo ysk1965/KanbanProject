@@ -311,6 +311,7 @@ public class SermonGroupSupport {
             recorded.add(SermonGroupResponse.SessionMember.builder()
                     .userId(share.getUserId())
                     .state(share.isPrivate() ? "private" : "written")
+                    .galpi(share.isGalpi())
                     .build());
             if (share.getUserId().equals(viewerId)) myShareId = share.getId();
         }

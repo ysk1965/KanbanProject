@@ -62,6 +62,14 @@ public class SermonProfile {
     @Column(name = "galpi_service", length = 60)
     private String galpiService;
 
+    /**
+     * 「내 예배표」 — [{id, name, slots[{dow, start, end, part}], my_part, auto, galpi, groups[{group_id, service_id}]}].
+     * null = 정한 적 없음 (응답은 [])
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "worship_services")
+    private List<Map<String, Object>> worshipServices;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -96,6 +104,11 @@ public class SermonProfile {
     public void updateGalpi(Boolean galpiAuto, String galpiService) {
         this.galpiAuto = galpiAuto;
         this.galpiService = galpiService;
+        this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    public void updateWorshipServices(List<Map<String, Object>> worshipServices) {
+        this.worshipServices = worshipServices;
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 }

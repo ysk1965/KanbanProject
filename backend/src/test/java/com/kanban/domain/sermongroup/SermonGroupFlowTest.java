@@ -123,7 +123,10 @@ class SermonGroupFlowTest {
         assertThat(minjiShare.getFields()).containsKey("thoughts");
         // upsert — 두 번 보내도 한 건
         sessionService.putShare(minji, sessionId, share(false));
-        sessionService.putShare(jun, sessionId, share(true));
+        // 준은 비공개지만 이번 주 갈피로 꽂았다 — galpi 는 내용이 아니라 보인다
+        SermonGroupRequest.Share junReq = share(true);
+        junReq.setGalpi(true);
+        assertThat(sessionService.putShare(jun, sessionId, junReq).isGalpi()).isTrue();
         assertThat(shareRepository.findBySessionIdOrderByUpdatedAtDesc(sessionId))
                 .hasSize(2);
 
@@ -136,6 +139,36 @@ class SermonGroupFlowTest {
                 .orElseThrow();
         assertThat(junView.isPrivate()).isTrue();
         assertThat(junView.getFields()).isNull();
+        assertThat(junView.isGalpi()).isTrue();
+        assertThat(detail.getShares().stream()
+                        .filter(v -> v.getUserId().equals(minji))
+                        .findFirst()
+                        .orElseThrow()
+                        .isGalpi())
+                .isFalse(); // galpi 를 안 보내면 false
+        assertThat(detail.getSession().getMembers())
+                .filteredOn(m -> m.getUserId().equals(jun))
+                .singleElement()
+                .satisfies(m -> {
+                    assertThat(m.getState()).isEqualTo("private");
+                    assertThat(m.isGalpi()).isTrue();
+                });
+        assertThat(detail.getSession().getMembers())
+                .filteredOn(m -> m.getUserId().equals(minji))
+                .singleElement()
+                .satisfies(m -> assertThat(m.isGalpi()).isFalse());
+        // 갱신 경로 — 켜고 끄기
+        SermonGroupRequest.Share minjiGalpi = share(false);
+        minjiGalpi.setGalpi(true);
+        assertThat(sessionService.putShare(minji, sessionId, minjiGalpi).isGalpi())
+                .isTrue();
+        assertThat(sessionService.putShare(minji, sessionId, share(false)).isGalpi())
+                .isFalse();
+        assertThat(objectMapper.writeValueAsString(junView)).contains("\"galpi\":true");
+        assertThat(objectMapper
+                        .convertValue(Map.of("galpi", true), SermonGroupRequest.Share.class)
+                        .getGalpi())
+                .isTrue();
         assertThat(detail.getSession().getMembers())
                 .extracting(SermonGroupResponse.SessionMember::getState)
                 .containsExactlyInAnyOrder("written", "private");

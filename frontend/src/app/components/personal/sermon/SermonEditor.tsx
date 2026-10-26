@@ -18,6 +18,7 @@ import {
   Undo2,
   Pin,
   PinOff,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { decRef, encRef, refLong, refShort, type Ref } from './bibleRefs';
@@ -60,7 +61,10 @@ import { firstVerseText, useBible } from './useBible';
 import { Mascot } from './Mascot';
 import './actionBar.css';
 import type { MascotId } from './sermonLook';
-import { loadGalpiPrefs, resolveGalpiRule } from './galpiPrefs';
+import { loadGalpiPrefs, resolveGalpiRule, useGalpiPrefs } from './galpiPrefs';
+import { useSermonGroups } from './group/GroupContext';
+import { fillWorship, worshipLabel, worshipOfNote } from './worship';
+import './worship.css';
 import { useProfile } from './profile/ProfileContext';
 
 /**
@@ -225,6 +229,10 @@ export function SermonEditor({
   const [title, setTitle] = useState(note.title);
   const [preacher, setPreacher] = useState(note.preacher);
   const [service, setService] = useState(note.service);
+  /** 예배 시간에 열어서 자동으로 채운 예배 (worship.ts) — 직접 고치면 꺼진다 */
+  const [svcAuto, setSvcAuto] = useState(!!note.service_auto);
+  const worshipPrefs = useGalpiPrefs();
+  const gctx = useSermonGroups();
   const [date, setDate] = useState(note.date);
   const [refs, setRefs] = useState<string[]>(note.refs);
   const [thoughts, setThoughts] = useState<Thought[]>(note.thoughts);
@@ -344,14 +352,43 @@ export function SermonEditor({
     t.rivals.forEach((r) => store.save(r));
     setGalpiOn(t.on);
     patchNote({ bookmarked_at: t.bookmarked_at });
+    // 갈피는 내 주의 중심만 바꾼다 — 모임 자리 연결은 그대로 (기획 ⑨)
+    const linked = (store.get(noteRef.current.id)?.groups || []).some((l) => !l.off);
     toast(
       !t.on
         ? '이번 주는 갈피를 뺐어요'
         : t.moved
           ? '이 설교로 갈피를 옮겼어요'
           : '이 주의 갈피를 꽂았어요',
+      linked || t.moved ? { description: '모임 자리 연결은 그대로예요' } : undefined,
     );
   }, [patchNote, store]);
+
+  /** 예배 칸을 직접 고침 — 내 예배표 이름이면 그 예배로 잇고 자동 표시는 끈다 */
+  const editService = useCallback(
+    (v: string) => {
+      setService(v);
+      setSvcAuto(false);
+      const w = worshipOfNote({ service: v }, loadGalpiPrefs().worship);
+      patchNote({ service: v, service_id: w?.id ?? null, service_auto: false });
+    },
+    [patchNote],
+  );
+  /** 자동으로 채운 예배 지우기 — 모임 자리에도 붙었으면 같이 뺄지 묻는다 */
+  const clearAutoService = useCallback(() => {
+    editService('');
+    const links = (store.get(noteRef.current.id)?.groups || []).filter((l) => !l.off);
+    if (links.length && gctx) {
+      const id = noteRef.current.id;
+      toast('예배 이름을 지웠어요', {
+        description: '모임 자리 연결은 그대로예요',
+        action: {
+          label: '모임에서도 빼기',
+          onClick: () => links.forEach((l) => gctx.setNoteLink(id, l.group_id, { off: true })),
+        },
+      });
+    }
+  }, [editService, gctx, store]);
 
   const updateThoughts = useCallback(
     (fn: (prev: Thought[]) => Thought[]) => {
@@ -724,6 +761,19 @@ export function SermonEditor({
     }
     playerRef.current?.pause();
     setRecording(true);
+    // 녹음을 시작한 시각이 내 예배 시간이고 예배 칸을 직접 정하지 않았으면 채운다
+    if (!noteRef.current.service_id && !elapsed) {
+      const filled = fillWorship(noteRef.current, loadGalpiPrefs().worship, new Date());
+      if (filled && filled.service !== noteRef.current.service) {
+        setService(filled.service);
+        setSvcAuto(true);
+        patchNote({
+          service: filled.service,
+          service_id: filled.service_id,
+          service_auto: true,
+        });
+      }
+    }
     if (!audioOn) return;
     void rec.resume().then((ok) => {
       if (ok) {
@@ -1148,14 +1198,28 @@ export function SermonEditor({
                     value={service}
                     placeholder="예배"
                     list="sn-service-list"
-                    onChange={(v) => {
-                      setService(v);
-                      patchNote({ service: v });
-                    }}
+                    onChange={editService}
                   />
+                  {svcAuto && service && (
+                    <span className="sn-svc-auto" title="예배 시간에 열어서 자동으로 채웠어요">
+                      자동
+                      <button
+                        type="button"
+                        aria-label="자동으로 채운 예배 지우기"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          clearAutoService();
+                        }}
+                      >
+                        <X size={13} aria-hidden />
+                      </button>
+                    </span>
+                  )}
                 </label>
                 <datalist id="sn-service-list">
-                  {SERVICE_OPTIONS.map((o) => (
+                  {[
+                    ...new Set([...worshipPrefs.worship.map(worshipLabel), ...SERVICE_OPTIONS]),
+                  ].map((o) => (
                     <option key={o} value={o} />
                   ))}
                 </datalist>

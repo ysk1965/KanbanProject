@@ -1,5 +1,6 @@
 import { decRef } from '../bibleRefs';
 import type { NoteGroupLink, SermonNote } from '../sermonTypes';
+import { worshipForGroupService, worshipOfNote, type WorshipService } from '../worship';
 import type { GroupService, SermonGroup, SessionSummary } from './groupApi';
 
 /**
@@ -97,6 +98,48 @@ export function autoMatches(
     out.push({ group_id: g.id, service_id: hit.service.id, date: day, part: hit.part });
   }
   return out;
+}
+
+/**
+ * 노트를 열 때 붙일 자리 (기획 TGNziM4tRteB8koxfNZGb3 판정 순서).
+ *  1) 노트의 내 예배와 짝지은 모임 예배 — 모임 시간은 보지 않는다 (교회가 다른 친구 모임). 오늘 노트만
+ *  2) 짝 없는 모임은 autoMatches (모임 예배 시간). 내 예배와 짝지은 모임 예배는 시간으로 붙이지 않는다
+ * 이미 연결된 모임·거절한 자리·안 드리는 예배는 건너뛴다.
+ */
+export function linkMatches(
+  note: Pick<SermonNote, 'date' | 'service' | 'service_id' | 'groups' | 'group_dismissed'>,
+  groups: SermonGroup[],
+  worship: WorshipService[],
+  at: Date,
+): { mapped: NoteGroupLink[]; hits: AutoHit[] } {
+  const today = ymdLocal(at);
+  const linked = new Set((note.groups || []).map((l) => l.group_id));
+  const dismissed = new Set(note.group_dismissed || []);
+  const mine = note.date === today ? worshipOfNote(note, worship) : null;
+  const mapped: NoteGroupLink[] = [];
+  for (const m of mine?.groups || []) {
+    const g = groups.find((x) => x.id === m.group_id);
+    if (!g || g.me.status !== 'active' || linked.has(g.id)) continue;
+    if (mapped.some((x) => x.group_id === g.id)) continue;
+    const gs = g.services.find((x) => x.id === m.service_id);
+    if (!gs || !gs.active || (g.me.muted_service_ids || []).includes(gs.id)) continue;
+    if (dismissed.has(slotKey(g.id, gs.id, today))) continue;
+    mapped.push({ group_id: g.id, service_id: gs.id, date: today, how: 'auto' });
+  }
+  const rest = groups
+    .filter((g) => !mapped.some((x) => x.group_id === g.id))
+    .map((g) => {
+      const paired = g.services
+        .filter((gs) => worshipForGroupService(worship, g.id, gs.id))
+        .map((gs) => gs.id);
+      return paired.length
+        ? {
+            ...g,
+            me: { ...g.me, muted_service_ids: [...(g.me.muted_service_ids || []), ...paired] },
+          }
+        : g;
+    });
+  return { mapped, hits: autoMatches(note, rest, at) };
 }
 
 /* ───── 제안 ───── */

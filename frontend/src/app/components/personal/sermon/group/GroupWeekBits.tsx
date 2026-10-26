@@ -1,3 +1,6 @@
+import { GalpiMark } from '../GalpiMark';
+import { loadGalpiPrefs } from '../galpiPrefs';
+import { worshipForGroupService, worshipLabel } from '../worship';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { NoteGroupLink, SermonNote } from '../sermonTypes';
 import { Faces } from './Faces';
@@ -29,15 +32,23 @@ export function GroupDaySlots({ date, notes }: { date: string; notes: SermonNote
   const now = new Date();
   const out: JSX.Element[] = [];
 
+  const worship = loadGalpiPrefs().worship;
   for (const g of groups) {
     const week = store.weekCached(g.id, ws);
     for (const sl of weekSlots(g, ws).filter((x) => x.date === date)) {
-      const mine = notes.some((n) =>
-        (n.groups || []).some(
-          (l) => l.group_id === g.id && l.service_id === sl.service.id && l.date === date && !l.off,
-        ),
+      // 짝지은 내 예배가 있으면 그 이름으로 (갈피 예배면 리본), 그 예배로 쓴 노트가 있으면 내 자리는 찼다
+      const w = worshipForGroupService(worship, g.id, sl.service.id);
+      const mine = notes.some(
+        (n) =>
+          (w && n.date === date && n.service_id === w.id) ||
+          (n.groups || []).some(
+            (l) =>
+              l.group_id === g.id && l.service_id === sl.service.id && l.date === date && !l.off,
+          ),
       );
       if (mine) continue;
+      const svcName = w ? worshipLabel(w) : sl.service.name;
+      const mark = w?.galpi ? <GalpiMark size={13} /> : null;
       const sess = week?.sessions.find((s) => s.service_id === sl.service.id && s.date === date);
       const writers = (sess?.members || []).filter((m) => m.user_id !== g.me.user_id);
       const people = writers.map((m) => ({
@@ -50,13 +61,15 @@ export function GroupDaySlots({ date, notes }: { date: string; notes: SermonNote
         phase === 'before' ? (
           <>
             <span className="sg-tm">{sl.start}</span>
-            {sl.service.name}
+            {mark}
+            {svcName}
             <small>{g.name} · 이 시간에 쓰면 여기에 모여요</small>
           </>
         ) : phase === 'live' ? (
           <>
             <span className="sg-dot" aria-hidden />
-            {sl.service.name}
+            {mark}
+            {svcName}
             <small>
               {writers.length
                 ? `${g.name} ${writers.length}명 기록 중 · 같이 쓰기`
@@ -65,8 +78,9 @@ export function GroupDaySlots({ date, notes }: { date: string; notes: SermonNote
           </>
         ) : (
           <>
-            {g.name} {sl.service.name} · <b>{writers.length}명 기록</b>
-            <small>나도 쓰기</small>
+            {mark}
+            {g.name} {svcName} · <b>{writers.length}명 먼저 썼어요</b>
+            <small>이 설교로 쓰기</small>
           </>
         );
       out.push(

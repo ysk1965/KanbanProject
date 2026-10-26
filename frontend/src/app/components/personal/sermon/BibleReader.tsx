@@ -41,7 +41,10 @@ import type { LineQuote } from './share/shareModel';
 import { newNote, UNTITLED, type SermonNote } from './sermonTypes';
 import { useBible } from './useBible';
 import { Mascot } from './Mascot';
-import { ReadingPaths, ReadingStamp } from './reading/ReadingPaths';
+import { ReadingStamp } from './reading/ReadingPaths';
+import { TodayPath } from './reading/TodayPath';
+import { nextOnPath, useMyPlans } from './reading/readingStore';
+import { parseCh } from './reading/readingPlan';
 import type { MascotId } from './sermonLook';
 import './bibleHighlight.css';
 
@@ -170,6 +173,30 @@ function latestMainChapter(notes: SermonNote[]): { b: number; c: number } | null
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
 const chName = (b: number) => (b === PSALMS ? '편' : '장');
 
+/** 가장 가까운 세로 스크롤 상자 — 없으면 문서 */
+function scrollerOf(el: HTMLElement): HTMLElement {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const o = getComputedStyle(p).overflowY;
+    if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight) return p;
+  }
+  return (document.scrollingElement as HTMLElement) || document.documentElement;
+}
+
+/**
+ * 절 줄을 가운데로 — 이미 화면 안에 다 보이면 움직이지 않는다.
+ * scrollIntoView 는 overflow:hidden 바깥 틀까지 밀어 화면 전체가 내려앉으므로 스크롤 상자 하나만 옮긴다.
+ */
+function bringRow(row: HTMLElement, smooth: boolean) {
+  const sc = scrollerOf(row);
+  const doc = sc === document.scrollingElement || sc === document.documentElement;
+  const box = doc ? { top: 0, bottom: window.innerHeight } : sc.getBoundingClientRect();
+  const r = row.getBoundingClientRect();
+  // 위 고정 머리(56)·아래 띠(48) 만큼은 가려지는 자리로 본다
+  if (r.top >= box.top + 56 && r.bottom <= box.bottom - 48) return;
+  const top = sc.scrollTop + r.top - box.top - (box.bottom - box.top - r.height) / 2;
+  sc.scrollTo({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' });
+}
+
 function Hand({ m, onOpen }: { m: ReadMark; onOpen: BibleReaderProps['onOpen'] }) {
   const title = m.note.title || UNTITLED;
   const t = m.thoughts[0];
@@ -281,6 +308,13 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
         ? { b: pos.b + 1, c: 1 }
         : null;
   const nextMark = nextMarked(marks, pos.b, pos.c);
+  const here = chKey(pos.b, pos.c);
+  // 이 장이 길의 오늘(밀린) 장이면 장 끝 「다음」은 길을 따라간다 — 좌우 넘김·위 화살표는 성경 순서 그대로
+  const plans = useMyPlans();
+  const pathStep = nextOnPath(plans, here);
+  const pathTo = pathStep ? parseCh(pathStep.chapter) : null;
+  const pathNext = pathStep && pathTo ? { ...pathTo, tag: pathStep.tag } : null;
+  const railOn = wide && !!bible;
   /** 같은 책이면 「72편」, 책이 바뀌면 「잠언 1장」 */
   const stepLabel = (r: { b: number; c: number }) =>
     r.b === pos.b ? `${r.c}${chName(r.b)}` : `${BOOKS[r.b][0]} ${r.c}${chName(r.b)}`;
@@ -325,7 +359,7 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
     const row = textRef.current?.querySelector<HTMLElement>(`[data-v="${v}"]`);
     if (!row) return;
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    row.scrollIntoView({ block: 'center', behavior: calm ? 'auto' : 'smooth' });
+    bringRow(row, !calm);
     window.clearTimeout(flashT.current);
     setFlash(v);
     flashT.current = window.setTimeout(() => setFlash(null), 1400);
@@ -350,7 +384,7 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
     const f = takeFocus();
     if (!f || f.b !== pos.b || f.c !== pos.c) return;
     const row = textRef.current?.querySelector<HTMLElement>(`[data-v="${f.v}"]`);
-    row?.scrollIntoView({ block: 'center' });
+    if (row) bringRow(row, false);
     setFlash(f.v);
     const t = window.setTimeout(() => setFlash(null), 1900);
     return () => window.clearTimeout(t);
@@ -676,7 +710,6 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
       data-rail={wide && !!bible}
       style={fs ? ({ '--sn-bv-fs': `${fs}px` } as CSSProperties) : undefined}
     >
-      <ReadingPaths onGo={go} />
       <div className="sn-bible-bar">
         <button
           type="button"
@@ -791,6 +824,7 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
       <div className="sn-bible-prog" aria-hidden>
         <i style={{ width: `${(pos.c / chCount(pos.b)) * 100}%` }} />
       </div>
+      {!railOn && <TodayPath mode="strip" here={here} narrow={narrow} onGo={go} />}
 
       {picker && !narrow && (
         <div className="sn-bpick">
@@ -1024,15 +1058,29 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
                   <ChevronLeft className="sn-icon" aria-hidden />
                   {prev ? stepLabel(prev) : '처음'}
                 </button>
-                <button
-                  type="button"
-                  className="sn-btn sn-primary"
-                  disabled={!next}
-                  onClick={() => next && go(next.b, next.c)}
-                >
-                  {next ? stepLabel(next) : '끝'}
-                  <ChevronRight className="sn-icon" aria-hidden />
-                </button>
+                {pathNext ? (
+                  <button
+                    type="button"
+                    className="sn-btn sn-primary sn-bible-pathnext"
+                    onClick={() => go(pathNext.b, pathNext.c)}
+                  >
+                    <span>
+                      {stepLabel(pathNext)}
+                      <small>{pathNext.tag}</small>
+                    </span>
+                    <ChevronRight className="sn-icon" aria-hidden />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="sn-btn sn-primary"
+                    disabled={!next}
+                    onClick={() => next && go(next.b, next.c)}
+                  >
+                    {next ? stepLabel(next) : '끝'}
+                    <ChevronRight className="sn-icon" aria-hidden />
+                  </button>
+                )}
               </div>
             </nav>
             {pick && (
@@ -1063,8 +1111,10 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
           </article>
         </div>
       )}
-      {wide && bible && (
+      {railOn && (
         <BibleRail
+          today={<TodayPath mode="rail" here={here} onGo={go} />}
+          pathNext={pathNext}
           b={pos.b}
           c={pos.c}
           text={text}

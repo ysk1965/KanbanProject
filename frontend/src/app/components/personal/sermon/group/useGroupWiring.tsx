@@ -5,8 +5,17 @@ import { useAuth } from '../../../../contexts/AuthContext';
 import { SnOverlay } from '../SnOverlay';
 import { SnSheetBar } from '../SnSheetBar';
 import type { SermonStore } from '../sermonStore';
-import { newNote, todayString, type NoteGroupLink, type SermonNote } from '../sermonTypes';
-import type { SessionDetail } from './groupApi';
+import { Mascot } from '../Mascot';
+import { loadGalpiPrefs, resolveGalpiRule, saveGalpiPrefs, useGalpiPrefs } from '../galpiPrefs';
+import {
+  galpiByWeek,
+  newNote,
+  todayString,
+  type NoteGroupLink,
+  type SermonNote,
+} from '../sermonTypes';
+import { worshipForGroupService, worshipLabel } from '../worship';
+import type { SermonGroup, SessionDetail } from './groupApi';
 import type { SermonGroupCtx } from './GroupContext';
 import { GroupCreate } from './GroupCreate';
 import { GroupHome } from './GroupHome';
@@ -14,8 +23,12 @@ import { GroupNav } from './GroupNav';
 import { removeShare, syncNoteShares, useGroupStore } from './groupStore';
 import { SessionBand } from './SessionBand';
 import { SessionView } from './SessionView';
+import { WorshipMatch } from './WorshipMatch';
+import { applyGuesses, needsMatch, pendingGuesses } from '../worship';
+import { sermonGroupAPI, groupErrorMessage } from './groupApi';
 import {
   autoMatches,
+  linkMatches,
   slotKey,
   slotPhase,
   suggestMatches,
@@ -29,7 +42,9 @@ import './group.css';
 /**
  * SermonTab 에 모임 기능을 붙이는 배선. SermonTab 은 돌려받은 조각을 제자리에 꽂기만 한다.
  *  - URL: ?group=<id> 모임 홈, ?session=<id>&group=<id> 설교 자리, ?adopt=<id> 참여 직후 지난 노트 데려오기
- *  - 노트를 열 때 예배 시간이면 자동 연결, 아니면 맞는 자리 제안
+ *  - 노트를 열 때: 내 예배와 짝지은 모임 예배 자리에 먼저 붙이고(모임 시간과 상관없이),
+ *    짝 없는 모임 예배는 예배 시간이면 자동 연결, 아니면 맞는 자리 제안
+ *  - 공개 사본에 내 그 주 갈피인지 같이 보낸다
  *  - 연결된 노트가 저장될 때마다 공개 사본 동기화
  */
 interface Args {
@@ -71,6 +86,18 @@ export function useGroupWiring({
   const { currentUser } = useAuth();
   const myName = displayName || (currentUser?.name ? String(currentUser.name).slice(0, 20) : '');
   const gstore = useGroupStore(userId);
+  const galpiPrefs = useGalpiPrefs();
+  const worship = galpiPrefs.worship;
+  /** 모임 예배 → 노트 예배 칸 (짝지은 내 예배가 있으면 내 이름) */
+  const serviceFields = useCallback(
+    (groupId: string, serviceId: string | null | undefined, fallback: string) => {
+      const w = worshipForGroupService(worship, groupId, serviceId);
+      return w
+        ? { service: worshipLabel(w), service_id: w.id }
+        : { service: fallback, service_id: null };
+    },
+    [worship],
+  );
   const groupView = searchParams.get('group');
   const sessionView = searchParams.get('session');
   const adoptId = searchParams.get('adopt');
@@ -78,6 +105,11 @@ export function useGroupWiring({
   const [adopt, setAdopt] = useState<{
     groupId: string;
     items: Array<{ note: SermonNote; link: NoteGroupLink }>;
+  } | null>(null);
+  /** 참여 직후 「이 모임 예배를 내 예배와 맞춰 주세요」 (기획 ⑥). 닫으면 지난 노트 데려오기로 */
+  const [matchFor, setMatchFor] = useState<{
+    groupId: string;
+    next: { groupId: string; items: Array<{ note: SermonNote; link: NoteGroupLink }> } | null;
   } | null>(null);
 
   /* ── 이동 ── */
@@ -144,7 +176,7 @@ export function useGroupWiring({
       createLinked(
         {
           date,
-          service: svc?.name || '',
+          ...serviceFields(groupId, serviceId, svc?.name || ''),
           ...(sess?.preacher ? { preacher: sess.preacher } : {}),
           ...(sess?.refs?.length ? { refs: sess.refs } : {}),
         },
@@ -157,7 +189,22 @@ export function useGroupWiring({
         },
       );
     },
-    [gstore, createLinked],
+    [gstore, createLinked, serviceFields],
+  );
+
+  const startWorship = useCallback(
+    (worshipId: string, date: string) => {
+      const w = worship.find((x) => x.id === worshipId);
+      const base = newNote(store.all()[0]);
+      const n = store.save({
+        ...base,
+        date,
+        ...(w ? { service: worshipLabel(w), service_id: w.id } : {}),
+      });
+      setView({ group: null, session: null }, false);
+      setOpenId(n.id);
+    },
+    [worship, store, setOpenId, setView],
   );
 
   const writeHere = useCallback(
@@ -167,7 +214,11 @@ export function useGroupWiring({
       createLinked(
         {
           date: s.date,
-          service: s.name || g?.services.find((x) => x.id === s.service_id)?.name || '',
+          ...serviceFields(
+            groupId,
+            s.service_id,
+            s.name || g?.services.find((x) => x.id === s.service_id)?.name || '',
+          ),
           ...(s.preacher ? { preacher: s.preacher } : {}),
           ...(s.refs?.length ? { refs: s.refs } : {}),
         },
@@ -180,18 +231,22 @@ export function useGroupWiring({
         },
       );
     },
-    [gstore, createLinked],
+    [gstore, createLinked, serviceFields],
   );
 
   /* ── 노트를 열 때 자동 연결 ── */
   const autoTried = useRef<string | null>(null);
   useEffect(() => {
-    if (!openNote || anonymous || autoTried.current === openNote.id) return;
-    autoTried.current = openNote.id;
-    const hits = autoMatches(openNote, gstore.active(), new Date());
-    if (!hits.length) return;
+    if (!openNote || anonymous) return;
+    // 예배 칸이 바뀌면(자동 채움·직접 고침) 짝지은 모임을 다시 본다
+    const key = `${openNote.id}|${openNote.service_id || ''}`;
+    if (autoTried.current === key) return;
+    autoTried.current = key;
+    const { mapped, hits } = linkMatches(openNote, gstore.active(), worship, new Date());
+    if (!hits.length && !mapped.length) return;
     const links: NoteGroupLink[] = [
       ...(openNote.groups || []),
+      ...mapped,
       ...hits.map((h) => ({
         group_id: h.group_id,
         service_id: h.service_id,
@@ -208,7 +263,7 @@ export function useGroupWiring({
     } catch {
       /* ignore */
     }
-  }, [openNote, anonymous, gstore, store, gstore.groups.length]);
+  }, [openNote, anonymous, gstore, store, gstore.groups.length, worship]);
 
   /* ── 제안용 주간 자리 ── */
   const today = todayString();
@@ -241,12 +296,18 @@ export function useGroupWiring({
     },
     [store],
   );
+  // 내 그 주 갈피 — 공개 사본에 같이 실어 모임 화면에 리본으로 보인다. 갈피가 옮겨 가면 두 노트 다 다시 보낸다
+  const galpiIds = useMemo(() => {
+    const byWeek = galpiByWeek(notes, resolveGalpiRule(galpiPrefs, notes));
+    return new Set([...byWeek.values()].map((n) => n.id));
+  }, [notes, galpiPrefs]);
+  gstore.galpiOf = (id) => galpiIds.has(id);
   useEffect(() => {
     if (anonymous) return;
     notes.forEach((n) => {
       if ((n.groups || []).length) syncNoteShares(gstore, n, onLinked);
     });
-  }, [notes, anonymous, gstore, onLinked]);
+  }, [notes, anonymous, gstore, onLinked, galpiIds]);
   // 못 보낸 사본 작업 다시 보내기 (앱 시작·online·4초→60초) — 최신 노트 내용은 노트 저장소에서 읽는다
   useEffect(() => {
     if (anonymous) return;
@@ -290,7 +351,10 @@ export function useGroupWiring({
             ]
           : [];
       });
-    if (items.length) setAdopt({ groupId: g.id, items });
+    const next = items.length ? { groupId: g.id, items } : null;
+    if (needsMatch(loadWorship(), g, g.me.muted_service_ids || []))
+      setMatchFor({ groupId: g.id, next });
+    else if (next) setAdopt(next);
     else toast(`${g.name} 자리가 한 주 동안에 놓였어요`);
   }, [adoptId, anonymous, store, store.status.loading, gstore, gstore.loaded, setView]);
 
@@ -364,10 +428,21 @@ export function useGroupWiring({
       openSession,
       openCreate: () => setCreateOpen(true),
       startInSlot,
+      startWorship,
       setNoteLink,
       onLogin,
     }),
-    [gstore, userId, anonymous, openGroup, openSession, startInSlot, setNoteLink, onLogin],
+    [
+      gstore,
+      userId,
+      anonymous,
+      openGroup,
+      openSession,
+      startInSlot,
+      startWorship,
+      setNoteLink,
+      onLogin,
+    ],
   );
 
   const groupNav = (
@@ -427,6 +502,16 @@ export function useGroupWiring({
           onCreated={(g) => openGroup(g.id)}
         />
       )}
+      <MatchSheet
+        group={matchFor ? gstore.get(matchFor.groupId) : undefined}
+        onDone={(g) => {
+          const next = matchFor?.next ?? null;
+          setMatchFor(null);
+          if (next) setAdopt(next);
+          else if (g) toast(`${g.name} 자리가 한 주 동안에 놓였어요`);
+        }}
+        onMuted={(g) => gstore.upsert(g)}
+      />
       <SnOverlay
         open={!!adopt}
         onClose={() => setAdopt(null)}
@@ -478,4 +563,70 @@ export function useGroupWiring({
   );
 
   return { ctx, groupNav, main, band, overlays, leaveMain };
+}
+
+function loadWorship() {
+  return loadGalpiPrefs().worship;
+}
+
+/** 참여 직후 예배 맞추기 시트 — 추천을 미리 보여 주고 「이렇게 맞추기」로 한 번에 */
+function MatchSheet({
+  group,
+  onDone,
+  onMuted,
+}: {
+  group: SermonGroup | undefined;
+  onDone: (g: SermonGroup | undefined) => void;
+  onMuted: (g: SermonGroup) => void;
+}) {
+  const prefs = useGalpiPrefs();
+  const muted = group?.me.muted_service_ids || [];
+  const guessCount = group ? pendingGuesses(prefs.worship, group, muted).size : 0;
+  const mute = async (id: string, on: boolean) => {
+    if (!group) return;
+    const next = on ? [...new Set([...muted, id])] : muted.filter((x) => x !== id);
+    try {
+      onMuted(await sermonGroupAPI.updateMe(group.id, { muted_service_ids: next }));
+    } catch (e) {
+      toast(groupErrorMessage(e, '저장하지 못했어요'));
+    }
+  };
+  return (
+    <SnOverlay
+      open={!!group}
+      onClose={() => onDone(group)}
+      className="sg-dialog"
+      aria-labelledby="sg-match-title"
+    >
+      {group && (
+        <>
+          <div className="sn-shead">
+            <h2 id="sg-match-title">이 모임 예배를 내 예배와 맞춰 주세요</h2>
+          </div>
+          <div className="sg-form">
+            <div className="sg-wm-intro">
+              <Mascot kind="galpi" size={40} />
+              <p className="sg-note">
+                맞춘 내 예배로 쓴 노트가 {group.name} 자리에 붙어요. 시간이 달라도 괜찮아요.
+              </p>
+            </div>
+            <WorshipMatch group={group} muted={muted} onMute={(id, on) => void mute(id, on)} />
+          </div>
+          <SnSheetBar onClose={() => onDone(group)} closeLabel="나중에">
+            <button
+              type="button"
+              className="sn-btn sn-primary"
+              onClick={() => {
+                if (guessCount)
+                  saveGalpiPrefs({ worship: applyGuesses(prefs.worship, group, muted) });
+                onDone(group);
+              }}
+            >
+              {guessCount ? '이렇게 맞추기' : '다 됐어요'}
+            </button>
+          </SnSheetBar>
+        </>
+      )}
+    </SnOverlay>
+  );
 }

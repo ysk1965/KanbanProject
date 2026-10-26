@@ -59,6 +59,10 @@ public class SermonNoteShare extends BaseTimeEntity {
     @Column(name = "private", nullable = false)
     private boolean isPrivate;
 
+    /** 이 멤버가 이 노트를 이번 주 갈피로 꽂았는지 — 내용이 아니라 private 사본에도 보인다 */
+    @Column(name = "galpi", nullable = false)
+    private boolean galpi;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "fields")
     private Map<String, Object> fields;
@@ -71,12 +75,19 @@ public class SermonNoteShare extends BaseTimeEntity {
     }
 
     public void update(
-            String noteId, String myTitle, String heard, String part, boolean isPrivate, Map<String, Object> fields) {
+            String noteId,
+            String myTitle,
+            String heard,
+            String part,
+            boolean isPrivate,
+            boolean galpi,
+            Map<String, Object> fields) {
         this.noteId = noteId;
         this.myTitle = myTitle;
         this.heard = heard;
         this.part = part;
         this.isPrivate = isPrivate;
+        this.galpi = galpi;
         this.fields = fields;
     }
 }

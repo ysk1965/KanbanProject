@@ -155,11 +155,20 @@ public class ReadingPlanService {
             int doneDays = 0;
             int behindDays = 0;
             List<ReadingPlanResponse.Due> due = new ArrayList<>();
+            List<ReadingPlanResponse.TodayChapter> todayChapters = null;
             for (ReadingPlanDay day : days) {
                 Set<String> mineOnDay = stamped.getOrDefault(day.getDayNo(), Set.of());
                 boolean done = mineOnDay.containsAll(day.getChapters());
                 if (done) doneDays++;
-                if (day.getDate().equals(today)) todayDayNo = day.getDayNo();
+                if (day.getDate().equals(today)) {
+                    todayDayNo = day.getDayNo();
+                    todayChapters = day.getChapters().stream()
+                            .map(ch -> ReadingPlanResponse.TodayChapter.builder()
+                                    .chapter(ch)
+                                    .done(mineOnDay.contains(ch))
+                                    .build())
+                            .toList();
+                }
                 if (day.getDate().isAfter(today)) continue;
                 if (!done) behindDays++;
                 for (String chapter : day.getChapters()) {
@@ -185,6 +194,7 @@ public class ReadingPlanService {
                     .myDoneDays(doneDays)
                     .behindDays(behindDays)
                     .due(due)
+                    .todayChapters(todayChapters)
                     .build());
         }
         return ReadingPlanResponse.Mine.builder().plans(out).build();

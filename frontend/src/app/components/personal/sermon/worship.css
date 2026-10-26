@@ -1,0 +1,663 @@
+/* ── 내 예배표 (GalpiSettings · 기획 TGNziM4tRteB8koxfNZGb3 ①②③) ──
+ * 메뉴 줄은 .sermon-app 안, 시트는 포털(.sn-scope.sn-overlay)이라 둘 다 따로 적는다.
+ * 파랑(t1) = 선택·모임, 분홍(g2/t2) = 갈피, 민트(g3) = 자동으로 채운 값
+ */
+
+/* 메뉴 한 줄 (.sn-me-menu 줄 모양을 그대로 받는다) */
+.sermon-app .sn-me-menu > .sn-ws-row[data-empty] {
+  background: color-mix(in srgb, var(--sn-g2) 16%, transparent);
+  font-weight: 700;
+}
+.sermon-app .sn-me-menu > .sn-ws-row[data-empty] > span {
+  color: var(--sn-t2);
+  font-weight: 700;
+}
+.sn-ws-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 9px 1px 6px;
+  border-radius: 99px;
+  border: 1.5px solid var(--sn-g2);
+  background: var(--sn-surface);
+  color: var(--sn-t2);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.sermon-app .sn-me-menu .sn-ws-tag {
+  font-size: 12px;
+  color: var(--sn-t2);
+}
+
+/* 시트 */
+.sn-overlay .sn-modal.sn-ws {
+  width: min(420px, 100%);
+  max-height: min(760px, calc(100% - 8px));
+  overflow-y: auto;
+}
+.sn-overlay .sn-ws .sn-ws-hint,
+.sn-overlay .sn-ws .sn-ws-hand {
+  font-family: var(--sn-f-hand);
+  font-size: 18px;
+  line-height: 1.3;
+  color: var(--sn-muted);
+}
+.sn-overlay .sn-ws .sn-ws-hand {
+  align-self: center;
+  border: 0;
+  background: none;
+  color: var(--sn-t2);
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.sn-overlay .sn-ws .sn-ws-foot {
+  font-size: 12.5px;
+  margin-top: -6px;
+}
+
+/* 빈 상태 */
+.sn-overlay .sn-ws .sn-ws-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 6px 0;
+}
+.sn-overlay .sn-ws .sn-ws-empty b {
+  font-size: 16px;
+}
+.sn-overlay .sn-ws .sn-ws-empty p {
+  font-size: 13px;
+}
+.sn-overlay .sn-ws .sn-ws-guess {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  border: 1.5px solid var(--sn-g2);
+  background: color-mix(in srgb, var(--sn-g2) 18%, var(--sn-surface));
+  color: var(--sn-fg);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sn-overlay .sn-ws .sn-ws-guess small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sn-muted);
+}
+.sn-overlay .sn-ws .sn-ws-presets,
+.sn-overlay .sn-ws .sn-ws-add {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.sn-overlay .sn-ws .sn-ws-add {
+  justify-content: flex-start;
+}
+.sn-overlay .sn-ws .sn-ws-preset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 99px;
+  border: 1.5px solid var(--sn-line);
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.25s var(--sn-spring);
+}
+.sn-overlay .sn-ws .sn-ws-add .sn-ws-preset {
+  border-style: dashed;
+  color: var(--sn-muted);
+}
+.sn-overlay .sn-ws .sn-ws-preset:active {
+  transform: scale(0.94);
+}
+
+/* 예배 카드 */
+.sn-overlay .sn-ws .sn-ws-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sn-overlay .sn-ws .sn-ws-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 10px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--sn-line);
+  background: var(--sn-surface);
+}
+.sn-overlay .sn-ws .sn-ws-card[data-star] {
+  border-color: var(--sn-g2);
+  background: color-mix(in srgb, var(--sn-g2) 16%, var(--sn-surface));
+}
+.sn-overlay .sn-ws .sn-ws-card[data-off] .sn-ws-open {
+  opacity: 0.6;
+}
+.sn-overlay .sn-ws .sn-ws-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sn-overlay .sn-ws .sn-ws-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  color: var(--sn-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sn-overlay .sn-ws .sn-ws-open > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+.sn-overlay .sn-ws .sn-ws-open b {
+  font-size: 15px;
+}
+.sn-overlay .sn-ws .sn-ws-open small {
+  font-size: 12.5px;
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sn-overlay .sn-ws .sn-ws-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sn-overlay .sn-ws .sn-ws-swbtn {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 44px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  flex: none;
+}
+
+/* 스위치 — .sn-me-menu .sn-gp-sw 와 같은 모양 (시트는 포털이라 따로) */
+.sn-overlay .sn-ws .sn-gp-sw {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--sn-line-strong);
+  transition: background 0.2s;
+}
+.sn-overlay .sn-ws .sn-gp-sw::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s var(--sn-ease);
+}
+.sn-overlay .sn-ws .sn-gp-sw[data-on='true'] {
+  background: var(--sn-t1);
+}
+.sn-overlay .sn-ws .sn-gp-sw[data-on='true']::after {
+  transform: translateX(16px);
+}
+
+/* 펼친 카드 */
+.sn-overlay .sn-ws .sn-ws-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sn-overlay .sn-ws .sn-ws-part {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sn-overlay .sn-ws .sn-ws-part > span {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--sn-muted);
+}
+.sn-overlay .sn-ws .sn-ws-part > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sn-overlay .sn-ws .sn-ws-part button {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 99px;
+  border: 1.5px solid var(--sn-line);
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.sn-overlay .sn-ws .sn-ws-part button[aria-pressed='true'] {
+  border-color: var(--sn-g2);
+  background: color-mix(in srgb, var(--sn-g2) 30%, var(--sn-surface));
+  color: var(--sn-t2);
+}
+
+/* 스위치 줄 (메뉴 모양) */
+.sn-overlay .sn-ws .sn-ws-opts {
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  border: 1px solid var(--sn-line);
+  background: var(--sn-bg);
+  overflow: hidden;
+}
+.sn-overlay .sn-ws .sn-ws-opts > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--sn-fg);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.sn-overlay .sn-ws .sn-ws-lb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sn-overlay .sn-ws .sn-ws-delbtn {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  color: var(--sn-faint);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 6px 10px;
+}
+.sn-overlay .sn-ws .sn-ws-delbtn .sn-icon {
+  width: 14px;
+  height: 14px;
+}
+.sn-overlay .sn-ws .sn-ws-del {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--sn-surface-2);
+  font-size: 13px;
+}
+.sn-overlay .sn-ws .sn-ws-del span {
+  flex: 1 1 180px;
+}
+.sn-overlay .sn-ws .sn-ws-del button {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 99px;
+  border: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.sn-overlay .sn-ws .sn-ws-del button.sn-danger {
+  background: var(--sn-fg);
+  border-color: var(--sn-fg);
+  color: var(--sn-surface);
+  font-weight: 700;
+}
+.sn-gmark {
+  flex: none;
+  display: inline-block;
+  vertical-align: -2px;
+}
+
+/* ── 편집기 · 예배 칸 자동 표시 (⑤) ── */
+.sermon-app .sn-svc-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+  padding: 1px 4px 1px 8px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--sn-g3) 50%, var(--sn-surface));
+  color: var(--sn-fg);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.sermon-app .sn-svc-auto button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--sn-muted);
+  cursor: pointer;
+}
+.sermon-app .sn-svc-auto button:hover {
+  background: color-mix(in srgb, var(--sn-fg) 8%, transparent);
+}
+
+/* ── 홈 · 처음 설정 제안 (④) ── */
+.sermon-app .sn-ws-suggest {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 24px;
+  border: 1.5px solid var(--sn-line);
+  background: var(--sn-surface);
+}
+.sermon-app .sn-ws-suggest .sn-ws-who {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.sermon-app .sn-ws-suggest .sn-ws-who p {
+  margin: 0;
+  font-family: var(--sn-f-hand);
+  font-size: 19px;
+  line-height: 1.3;
+  color: var(--sn-fg);
+}
+.sermon-app .sn-ws-suggest ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sermon-app .sn-ws-suggest li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--sn-surface-2);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.sermon-app .sn-ws-suggest li > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.sermon-app .sn-ws-suggest li small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sermon-app .sn-ws-suggest .sn-ws-acts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sermon-app .sn-ws-suggest .sn-ws-acts .sn-btn {
+  flex: 1;
+  justify-content: center;
+}
+.sermon-app .sn-ws-suggest .sn-ws-later {
+  align-self: center;
+  border: 0;
+  background: none;
+  font-family: var(--sn-f-hand);
+  font-size: 17px;
+  color: var(--sn-muted);
+  cursor: pointer;
+  padding: 2px 8px;
+}
+
+/* ── 모임 예배 ↔ 내 예배 짝 (group/WorshipMatch · ⑥⑦) ── */
+.sg-wm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sg-wm .sg-wm-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sg-wm .sg-wm-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+.sg-wm .sg-wm-grp,
+.sg-wm .sg-wm-mine {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  min-height: 52px;
+  justify-content: center;
+  padding: 8px 11px;
+  border-radius: 16px;
+  font-size: 13.5px;
+  line-height: 1.3;
+  text-align: left;
+}
+.sg-wm .sg-wm-grp {
+  background: color-mix(in srgb, var(--sn-g1) 24%, var(--sn-surface));
+}
+.sg-wm .sg-wm-grp b,
+.sg-wm .sg-wm-mine b {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sg-wm .sg-wm-grp small,
+.sg-wm .sg-wm-mine small {
+  font-size: 12px;
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sg-wm .sg-wm-mine {
+  border: 1.5px solid var(--sn-line);
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  font: inherit;
+  cursor: pointer;
+}
+.sg-wm .sg-wm-mine[data-star] {
+  border-color: var(--sn-g2);
+  background: color-mix(in srgb, var(--sn-g2) 18%, var(--sn-surface));
+}
+.sg-wm .sg-wm-mine[data-state='guess'],
+.sg-wm .sg-wm-mine[data-state='none'],
+.sg-wm .sg-wm-mine[data-state='off'] {
+  border-style: dashed;
+}
+.sg-wm .sg-wm-mine[data-state='none'] b {
+  color: var(--sn-t1);
+}
+.sg-wm .sg-wm-mine[data-state='off'] b {
+  color: var(--sn-faint);
+}
+.sg-wm .sg-wm-knot {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--sn-t2);
+  color: var(--sn-surface);
+  font-weight: 800;
+  font-size: 14px;
+}
+.sg-wm .sg-wm-knot[data-off] {
+  background: var(--sn-line-strong);
+  color: var(--sn-muted);
+}
+.sg-wm .sg-wm-pick {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid var(--sn-line);
+  background: var(--sn-surface);
+  overflow: hidden;
+}
+.sg-wm .sg-wm-pick > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 1px solid var(--sn-line);
+  background: transparent;
+  color: var(--sn-fg);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.sg-wm .sg-wm-pick > button:last-child {
+  border-bottom: 0;
+}
+.sg-wm .sg-wm-pick > button:hover {
+  background: var(--sn-surface-2);
+}
+.sg-wm .sg-wm-pick > button[aria-selected='true'] {
+  background: color-mix(in srgb, var(--sn-g2) 18%, var(--sn-surface));
+}
+.sg-wm .sg-wm-pick span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.sg-wm .sg-wm-pick small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sn-muted);
+  white-space: nowrap;
+}
+.sg-wm .sg-wm-pick .sg-wm-new {
+  color: var(--sn-t1);
+}
+.sg-wm .sg-wm-pick .sg-wm-quiet {
+  color: var(--sn-muted);
+  font-weight: 500;
+}
+.sg-wm-intro {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sg-wm-intro p {
+  margin: 0;
+}
+.sg-wm-guessbtn {
+  align-self: flex-start;
+}
+
+/* ── 모임 화면 갈피 리본 (⑧) ── */
+.sg-faces i[data-galpi] {
+  position: relative;
+}
+.sg-faces i[data-galpi]::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: -5px;
+  width: 8px;
+  height: 11px;
+  background: var(--sn-t2);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+}
+.sg-gcount {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--sn-t2);
+  white-space: nowrap;
+}
+.sg-av {
+  position: relative;
+}
+.sg-av .sg-av-galpi {
+  position: absolute;
+  right: -4px;
+  top: -6px;
+}
+.sg-mstrip-galpi {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--sn-t2);
+}
+
+/* 한 주 동안 · 내 예배 자리 (모임 자리 .sg-slot 모양을 그대로, 갈피 예배는 분홍 점선) */
+.sermon-app .sg-slot.sn-wslot {
+  cursor: default;
+}
+.sermon-app button.sg-slot.sn-wslot {
+  cursor: pointer;
+}
+.sermon-app .sg-slot.sn-wslot[data-galpi] {
+  border-color: color-mix(in srgb, var(--sn-g2) 85%, transparent);
+  color: var(--sn-t2);
+}
+.sermon-app .sg-slot.sn-wslot small {
+  font-weight: 500;
+  color: var(--sn-muted);
+}
+.sermon-app .sg-slot .sn-gmark {
+  margin-right: -2px;
+}

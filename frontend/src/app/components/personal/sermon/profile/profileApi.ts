@@ -1,4 +1,5 @@
 import { apiClient } from '../../../../utils/api';
+import { worshipToServer } from '../worship';
 import type { SermonProfileData } from './profileModel';
 
 /**
@@ -36,6 +37,10 @@ const P = '/sermon-profile';
 
 export const sermonProfileAPI = {
   me: () => apiClient.get<ProfileResponse>(`${P}/me`),
-  put: (body: SermonProfileData) => apiClient.put<ProfileResponse>(`${P}/me`, body),
+  put: (body: SermonProfileData) =>
+    apiClient.put<ProfileResponse>(`${P}/me`, {
+      ...body,
+      worship_services: worshipToServer(body.worship_services),
+    }),
   get: (userId: string) => apiClient.get<ProfileResponse>(`${P}/${encodeURIComponent(userId)}`),
 };

@@ -197,6 +197,7 @@ public class SermonSessionService {
         String part = trimToNull(request.getPart());
         if (part != null && part.length() > PART_MAX) throw invalid();
         boolean isPrivate = Boolean.TRUE.equals(request.getIsPrivate());
+        boolean galpi = Boolean.TRUE.equals(request.getGalpi());
         Map<String, Object> fields = isPrivate ? null : request.getFields();
         support.validateFieldsSize(fields);
 
@@ -204,7 +205,7 @@ public class SermonSessionService {
         SermonNoteShare share;
         if (existing.isPresent()) {
             share = existing.get();
-            share.update(noteId, myTitle, heard, part, isPrivate, fields);
+            share.update(noteId, myTitle, heard, part, isPrivate, galpi, fields);
         } else {
             share = SermonNoteShare.builder()
                     .sessionId(sessionId)
@@ -215,6 +216,7 @@ public class SermonSessionService {
                     .heard(heard)
                     .part(part)
                     .isPrivate(isPrivate)
+                    .galpi(galpi)
                     .fields(fields)
                     .build();
         }
@@ -326,6 +328,7 @@ public class SermonSessionService {
                 .heard(share.getHeard())
                 .part(share.getPart())
                 .isPrivate(share.isPrivate())
+                .galpi(share.isGalpi())
                 .fields(share.isPrivate() ? null : share.getFields())
                 .updatedAt(share.getUpdatedAt())
                 .reactions(list)
