@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ComponentType,
@@ -33,6 +34,7 @@ import { useJellyTab } from './microFx';
 import { BibleTabIcon, ChallengeTabIcon, GroupsTabIcon, MeTabIcon, NoteTabIcon } from './TabIcons';
 import { playTabVerb } from './tabMotion';
 import { SermonBottomNav } from './SermonBottomNav';
+import { SnViewBar, type ViewBarItem } from './SnViewBar';
 import { ActionBarHostProvider, useActionBarHost } from './SnActionBar';
 import { SermonHome } from './SermonHome';
 import { useSermonGroups } from './group/GroupContext';
@@ -190,6 +192,9 @@ export function SermonList({
   };
   const [service, setService] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  /** 좁은 화면 보기 줄 — 본문을 내리면 이름표로 접힌다 */
+  const [vbMin, setVbMin] = useState(false);
+  const listMainRef = useRef<HTMLElement>(null);
   // 연결이 끊긴 동안 '마지막 맞춤 N분 전'이 멈추지 않게 1분마다 다시 그린다
   const [now, setNow] = useState(() => Date.now());
   const offlineTick = status.online === false && !!status.lastSync;
@@ -229,6 +234,11 @@ export function SermonList({
     next.delete('session');
     if (t === 'note') next.delete('tab');
     else next.set('tab', t);
+    if (t === tab && vbMin) {
+      // 보기 줄이 접혀 있으면 지금 탭을 다시 눌러 펼친다
+      setVbMin(false);
+      return;
+    }
     if (t === tab) {
       // 지금 탭을 다시 누르면 그 탭의 첫 화면으로
       if (t === 'note') {
@@ -567,12 +577,60 @@ export function SermonList({
   const showSearch = tab === 'note' || (tab === 'bible' && bibleView === 'verses');
   const showFab = !deep && (tab === 'note' || tab === 'groups');
 
+  /* 설치 앱 좁은 화면 — 위쪽 칩 줄·검색·새 기록 버튼 대신 하단 바 위 보기 줄 */
+  const myGroups = gctx && !gctx.anonymous ? gctx.store.groups : [];
+  const vbItems: ViewBarItem[] =
+    tab === 'groups'
+      ? [
+          ...myGroups.map((g) => ({
+            key: g.id,
+            label: g.name,
+            on: sp.get('group') === g.id,
+            go: () => gctx?.openGroup(g.id),
+          })),
+          ...(myGroups.length && gctx
+            ? [{ key: 'create', label: '＋ 만들기', on: false, go: gctx.openCreate }]
+            : []),
+        ]
+      : subs.flatMap((g) =>
+          g.items.map((it) => ({
+            key: it.key,
+            label: it.short || it.label,
+            count: it.count,
+            on: it.on,
+            go: it.go,
+          })),
+        );
+  const vbar = standalone && !deep && vbItems.length > 0;
+  const vbSearch = vbar && showSearch && !main;
+  const vbIndex = TABS.findIndex((t) => t.k === tab);
+
+  // 본문을 아래로 내리면 접고, 조금이라도 올리면 펼친다
+  useEffect(() => {
+    setVbMin(false);
+    const el = listMainRef.current;
+    if (!vbar || !el) return;
+    let last = el.scrollTop;
+    const onScroll = () => {
+      const y = el.scrollTop;
+      const d = y - last;
+      last = y;
+      if (y < 24) setVbMin(false);
+      else if (d > 4) setVbMin(true);
+      else if (d < -4) setVbMin(false);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [vbar, tab]);
+
   return (
     <ActionBarHostProvider value={standalone ? abar.host : null}>
       <section
         className="sn-list"
         data-tab={tab}
         data-standalone={standalone}
+        data-vbar={vbar || undefined}
+        data-vsearch={vbSearch || undefined}
         aria-label="설교 노트"
       >
         <nav className="sn-side" aria-label="설교 노트 메뉴">
@@ -689,7 +747,7 @@ export function SermonList({
             </div>
           </div>
         </nav>
-        <main className="sn-list-main">
+        <main ref={listMainRef} className="sn-list-main">
           {!standalone && (
             <div ref={rowTab.listRef} className="sn-tabrow" role="tablist" aria-label="갈피 탭">
               <span ref={rowTab.indRef} className="sn-seg-ind" aria-hidden />
@@ -727,25 +785,30 @@ export function SermonList({
               </button>
             </div>
           )}
-          {!deep && tab === 'groups' && gctx && !gctx.anonymous && gctx.store.groups.length > 0 && (
-            <div className="sn-subchips" aria-label="내 모임">
-              {gctx.store.groups.map((g) => (
-                <button
-                  key={g.id}
-                  type="button"
-                  aria-pressed={sp.get('group') === g.id}
-                  onClick={() => gctx.openGroup(g.id)}
-                >
-                  {g.name}
+          {!vbar &&
+            !deep &&
+            tab === 'groups' &&
+            gctx &&
+            !gctx.anonymous &&
+            gctx.store.groups.length > 0 && (
+              <div className="sn-subchips" aria-label="내 모임">
+                {gctx.store.groups.map((g) => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    aria-pressed={sp.get('group') === g.id}
+                    onClick={() => gctx.openGroup(g.id)}
+                  >
+                    {g.name}
+                  </button>
+                ))}
+                <button type="button" onClick={gctx.openCreate}>
+                  <Plus className="sn-icon" aria-hidden />
+                  만들기
                 </button>
-              ))}
-              <button type="button" onClick={gctx.openCreate}>
-                <Plus className="sn-icon" aria-hidden />
-                만들기
-              </button>
-            </div>
-          )}
-          {!deep && subs.length > 0 && (
+              </div>
+            )}
+          {!vbar && !deep && subs.length > 0 && (
             <div className="sn-subchips" aria-label="보기">
               {subs.flatMap((g) => g.items).map(subChip)}
             </div>
@@ -773,7 +836,7 @@ export function SermonList({
               <div>{body}</div>
             </>
           )}
-          {showFab && (
+          {showFab && !vbar && (
             <button
               type="button"
               className="sn-fab"
@@ -787,7 +850,30 @@ export function SermonList({
         </main>
         {standalone && (
           <div className="sn-bdock" data-away={abar.active}>
-            <SermonBottomNav tabs={TABS} tab={tab} badge={tabBadge} onGo={goTab} />
+            <SermonBottomNav tabs={TABS} tab={tab} badge={tabBadge} onGo={goTab}>
+              {vbar && (
+                <SnViewBar
+                  key={tab}
+                  k={tab}
+                  items={vbItems}
+                  index={vbIndex}
+                  count={TABS.length}
+                  collapsed={vbMin}
+                  onExpand={() => setVbMin(false)}
+                  search={
+                    vbSearch
+                      ? {
+                          value: q,
+                          onChange: setQ,
+                          placeholder:
+                            tab === 'note' ? '제목, 설교자, 구절, 내 생각' : '구절, 설교 제목',
+                        }
+                      : undefined
+                  }
+                  action={showFab ? { label: '새 설교 기록', onClick: () => onNew() } : undefined}
+                />
+              )}
+            </SermonBottomNav>
             <div ref={abar.slotRef} className="sn-abar-slot" />
           </div>
         )}

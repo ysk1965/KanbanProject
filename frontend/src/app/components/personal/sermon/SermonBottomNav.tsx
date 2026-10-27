@@ -1,4 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, type ComponentType, type SVGProps } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type ComponentType,
+  type ReactNode,
+  type SVGProps,
+} from 'react';
 import type { SermonTabKey } from './SermonList';
 import { liftIcon, notchPath, playTabVerb, SPRING, VERB_DELAY } from './tabMotion';
 import { prefersReducedMotion } from './microFx';
@@ -15,6 +22,8 @@ interface Props {
   tab: SermonTabKey;
   badge: (k: SermonTabKey) => string | null;
   onGo: (k: SermonTabKey) => void;
+  /** 바 위에 뜨는 보기 줄(SnViewBar) — 동그라미 위치 --sn-orb-x 를 같이 쓴다 */
+  children?: ReactNode;
 }
 
 const ORB = 52;
@@ -26,7 +35,7 @@ const LIFT_SCALE = 1.18;
  * 바 윗선에 오목한 자리가 패여 탭 색 동그라미가 앉고, 누른 아이콘이 그대로 솟아 동그라미 위에 올라간다.
  * 자리·동그라미는 스프링으로 미끄러지고(빠를수록 살짝 납작해짐), 아이콘은 그 탭의 「한 동작」을 한 번 한다.
  */
-export function SermonBottomNav({ tabs, tab, badge, onGo }: Props) {
+export function SermonBottomNav({ tabs, tab, badge, onGo, children }: Props) {
   const navRef = useRef<HTMLElement>(null);
   const shapeRef = useRef<SVGSVGElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
@@ -44,6 +53,7 @@ export function SermonBottomNav({ tabs, tab, badge, onGo }: Props) {
     const h = nav.clientHeight;
     shapeRef.current.setAttribute('viewBox', `0 0 ${w} ${h}`);
     pathRef.current.setAttribute('d', notchPath(w, h, x));
+    nav.style.setProperty('--sn-orb-x', `${x}px`);
     const q = Math.min(Math.abs(vel) / 1800, 0.45);
     orbRef.current.style.transform = `translateX(${x - ORB / 2}px) scale(${1 + q * 0.3}, ${1 - q * 0.18})`;
   };
@@ -125,6 +135,7 @@ export function SermonBottomNav({ tabs, tab, badge, onGo }: Props) {
         <path ref={pathRef} />
       </svg>
       <span ref={orbRef} className="sn-bn-orb" data-k={tab} aria-hidden />
+      {children}
       {tabs.map(({ k, short, label, Icon }) => {
         const b = badge(k);
         return (

@@ -3817,15 +3817,32 @@ html[data-keyboard-open] .sn-overlay {
   }
 }
 @media (max-width: 560px) {
+  /* 폰에서는 표지를 낮게 — 제목·한 주 동안이 첫 화면에 더 올라오게 */
   .sermon-app .sn-cover {
-    height: 170px;
+    height: 124px;
+    border-radius: 24px;
+  }
+  .sermon-app .sn-cover .sn-disc {
+    width: 46px;
+    height: 46px;
+    left: 18px;
+    top: 16px;
+  }
+  .sermon-app .sn-cover-txt {
+    left: 20px;
+    right: 20px;
+    bottom: -18px;
+    gap: 12px;
   }
   .sermon-app .sn-cover-bk {
-    font-size: 40px;
-    padding-bottom: 40px;
+    font-size: 32px;
+    padding-bottom: 28px;
   }
   .sermon-app .sn-cover-ch {
-    font-size: 130px;
+    font-size: 96px;
+  }
+  .sermon-app .sn-cover-ch small {
+    margin-bottom: 38px;
   }
   .sermon-app .sn-cover-vs {
     display: none;
