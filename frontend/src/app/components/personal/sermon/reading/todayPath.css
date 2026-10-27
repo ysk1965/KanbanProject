@@ -242,11 +242,15 @@
   font-weight: 700;
   color: var(--sn-fg);
 }
+/* 도장은 스티커 위에 찍힌다 — 스티커가 인라인 z-index(최대 4)를 가져서 그보다 위, 바탕을 깔아 겹쳐도 글자가 읽힌다 */
 .tp-done-seal {
   position: absolute;
+  z-index: 5;
   top: 12px;
   right: 12px;
   padding: 0 6px;
+  background: var(--sn-surface-2);
+  box-shadow: 0 0 0 3px var(--sn-surface-2);
   border: 2px solid var(--sn-c-green);
   border-radius: 8px;
   font-family: var(--sn-f-hand);

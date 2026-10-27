@@ -66,7 +66,7 @@ import './weekPanel.css';
  *  - 예배 갈피(고정, 첫 칸): 이번 주 설교 노트의 「적용」이 그 설교 날짜에 들어온다. 꼬리표를 누르면 그 노트로
  *  - 내 카테고리: 이름 옆 「+」로 고른 날에 적기(「매일」 켜면 그날부터 매일). 이름을 누르면 이름·색·아이콘·순서·지우기
  *  - 못 한 지난 일은 오늘로 넘어오고(「M.D부터」), 원래 날엔 흐린 「오늘로 넘김」으로 남는다
- *  - 할 일 고치기: 줄(또는 ⋯)을 누르면 그 자리에서 펼쳐진다. 제목 자리가 입력칸, 아래에 요일(+매일)·카테고리, 맨 아래 지우기 | 완료.
+ *  - 할 일 고치기: 줄(또는 ⋯)을 누르면 그 자리에서 펼쳐진다. 제목 자리가 입력칸, 아래 두 줄에 「언제」 요일(+매일) / 「묶음」 카테고리 · 지우기 · 완료.
  *    판 전체에서 한 줄만 열린다. 휴대폰은 줄을 밀어서: → 다음 날로, ← 지우기. 지우기·다른 날로 보내기는 5초 동안 되돌릴 수 있다
  * 마이크로 인터랙션은 누른 순간에만: 체크(상자 톡 + 체크 그리기 + 줄 긋기 + 한 것이 아래로 미끄러짐), 하루를 다 하면 고리 톡,
  * 새 할 일은 떨어지듯 붙고, 날을 바꾸면 목록이 그 방향에서 들어온다. 펼침은 칸이 차례로 내려앉고, 요일은 톡·매일은 띠가 이어지며,
@@ -625,6 +625,8 @@ function CategoryBlock({
           className="sn-wc-add"
           aria-expanded={adding}
           aria-label={adding ? `${cat.name} 적기 닫기` : `${cat.name}에 할 일 적기`}
+          // 열려 있을 때 누르면 입력칸 blur 로 먼저 닫히고 click 이 다시 열어 버린다 → 포커스를 옮기지 않는다
+          onMouseDown={(ev) => adding && ev.preventDefault()}
           onClick={onToggleAdd}
         >
           <Plus className="sn-icon" aria-hidden />
@@ -993,7 +995,7 @@ function TitleInput({
   );
 }
 
-/** 펼친 칸 — 요일(+매일) · 카테고리 · 지우기 | 완료. 할 일 종류에 맞지 않는 칸만 빠진다 */
+/** 펼친 칸 — 두 줄: 「언제」 요일(+매일) / 「묶음」 카테고리 · 휴지통 · 완료. 할 일 종류에 맞지 않는 칸만 빠진다 */
 function ItemTray({
   e,
   item,
@@ -1059,7 +1061,8 @@ function ItemTray({
   return (
     <div className="sn-wc-tray">
       {showDays && (
-        <div style={step()}>
+        <div className="sn-wc-tr-l" style={step()}>
+          <span className="sn-wc-tr-lb">언제</span>
           <DayPicker
             days={days}
             today={today}
@@ -1071,27 +1074,38 @@ function ItemTray({
           />
         </div>
       )}
-      {showCats && (
-        <div className="sn-wc-chips" role="radiogroup" aria-label="카테고리" style={step()}>
-          {userCats.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              role="radio"
-              aria-checked={item.cat === c.id}
-              className="sn-wc-chip"
-              style={{ ['--c' as string]: CAT_HEX[c.color] }}
-              onClick={() => act.setCat(e, c.id)}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="sn-wc-tr-f" style={step()}>
-        <button type="button" className="sn-wc-tr-del" onClick={() => act.remove(e)}>
+      {/* 둘째 줄: 묶음(카테고리) · 휴지통 · 완료 — 카테고리를 못 바꾸면 지우기·완료만 오른쪽에 */}
+      <div className="sn-wc-tr-l" style={step()}>
+        {showCats ? (
+          <>
+            <span className="sn-wc-tr-lb">묶음</span>
+            <div className="sn-wc-chips" role="radiogroup" aria-label="카테고리">
+              {userCats.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={item.cat === c.id}
+                  className="sn-wc-chip"
+                  style={{ ['--c' as string]: CAT_HEX[c.color] }}
+                  onClick={() => act.setCat(e, c.id)}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <span className="sn-wc-tr-sp" />
+        )}
+        <button
+          type="button"
+          className="sn-wc-tr-trash"
+          aria-label="지우기"
+          title="지우기"
+          onClick={() => act.remove(e)}
+        >
           <Trash2 className="sn-icon" aria-hidden />
-          지우기
         </button>
         {done}
       </div>
@@ -1142,13 +1156,15 @@ function DayPicker({
             style={{ gridColumn: `${bandFrom + 1} / ${days.length + 1}` }}
           />
         )}
-        {days.map((d) => {
+        {days.map((d, idx) => {
           const dt = new Date(`${d}T00:00:00`);
           return (
             <button
               key={d}
               type="button"
               className="sn-wc-dw-b"
+              // 띠가 같은 줄의 칸을 차지하므로 열을 못박지 않으면 버튼이 띠 뒤 암묵 열로 밀려난다
+              style={{ gridColumn: idx + 1 }}
               aria-pressed={on.has(d)}
               aria-label={`${dt.getMonth() + 1}월 ${dt.getDate()}일 ${DOW[dt.getDay()]}요일${d === today ? ' (오늘)' : ''}`}
               data-past={d < today || undefined}
@@ -1167,6 +1183,7 @@ function DayPicker({
           type="button"
           className="sn-wc-dw-all"
           aria-pressed={daily}
+          aria-label="매일"
           onClick={() => {
             fire('all');
             onPick(daily ? [offDay] : days.filter((d) => d >= anchor));
@@ -1174,7 +1191,7 @@ function DayPicker({
           data-fx={fx === 'all' ? 'pop' : undefined}
         >
           <Repeat className="sn-icon" aria-hidden />
-          매일
+          <span className="sn-wc-dw-all-t">매일</span>
         </button>
       )}
     </div>

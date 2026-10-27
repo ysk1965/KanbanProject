@@ -551,8 +551,8 @@
   color: var(--sn-fg);
 }
 .sermon-app .sn-wc-it[data-open] .sn-wc-more {
-  background: var(--cc);
-  color: var(--sn-on-ink);
+  background: color-mix(in srgb, var(--cc) 24%, transparent);
+  color: var(--sn-fg);
   transform: rotate(90deg);
 }
 /* 펼친 줄: 종이 한 장이 살짝 떠오른다 */
@@ -596,8 +596,44 @@
 .sermon-app .sn-wc-tray {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 6px 10px 10px 40px;
+  gap: 8px;
+  padding: 4px 8px 8px 40px;
+}
+/* 한 줄 = 라벨 + 내용. 「묶음」 줄 오른쪽 끝에 휴지통 · 완료 */
+.sermon-app .sn-wc-tr-l {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.sermon-app .sn-wc-tr-lb {
+  flex: none;
+  width: 28px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--sn-faint);
+}
+.sermon-app .sn-wc-tr-sp {
+  flex: 1;
+}
+.sermon-app .sn-wc-tr-trash {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--sn-c-red);
+}
+.sermon-app .sn-wc-tr-trash:hover {
+  background: color-mix(in srgb, var(--sn-c-red) 14%, transparent);
+}
+.sermon-app .sn-wc-tr-trash .sn-icon {
+  width: 15px;
+  height: 15px;
 }
 .sermon-app .sn-wc-tray > * {
   animation: sn-wc-settle 0.32s var(--sn-ease) both;
@@ -609,17 +645,29 @@
   color: var(--sn-muted);
 }
 /* 요일 고르기 */
+/* 요일은 판 너비로 늘이지 않는다 — 30px 동그라미, 세로 막대 뒤에 「매일」 */
 .sermon-app .sn-wc-dw {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+  min-width: 0;
 }
 .sermon-app .sn-wc-dw-row {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(7, 30px);
+  gap: 3px;
+}
+.sermon-app .sn-wc-dw:has(.sn-wc-dw-all)::after {
+  content: '';
+  order: 1;
+  flex: none;
+  width: 1px;
+  height: 16px;
+  background: var(--sn-line-strong);
+}
+.sermon-app .sn-wc-dw-all {
+  order: 2;
 }
 /* 매일 = 고른 날부터 토요일까지 한 줄 띠. 왼쪽부터 쭉 이어진다 */
 .sermon-app .sn-wc-dw-band {
@@ -633,7 +681,7 @@
   position: relative;
   z-index: 1;
   grid-row: 1;
-  height: 36px;
+  height: 30px;
   min-width: 0;
   border: 0;
   border-radius: var(--sn-r-pill);
@@ -641,7 +689,7 @@
   background: var(--sn-surface);
   box-shadow: inset 0 0 0 1px var(--sn-line);
   color: var(--sn-muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   transition:
     background 0.18s,
@@ -672,7 +720,7 @@
   content: '';
   position: absolute;
   left: 50%;
-  bottom: 4px;
+  bottom: 3px;
   width: 4px;
   height: 4px;
   margin-left: -2px;
@@ -687,17 +735,19 @@
   animation: sn-wc-pop 0.36s var(--sn-spring);
 }
 .sermon-app .sn-wc-dw-all {
+  flex: none;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  height: 36px;
+  height: 30px;
   border: 0;
   border-radius: var(--sn-r-pill);
-  padding: 0 12px;
+  padding: 0 10px;
   background: var(--sn-surface);
   box-shadow: inset 0 0 0 1px var(--sn-line);
   color: var(--sn-muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
   transition:
@@ -720,19 +770,21 @@
 }
 /* 카테고리 칩 */
 .sermon-app .sn-wc-chips {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 .sermon-app .sn-wc-chip {
-  height: 32px;
+  height: 28px;
   border: 0;
   border-radius: var(--sn-r-pill);
-  padding: 0 14px;
+  padding: 0 11px;
   background: var(--sn-surface);
   box-shadow: inset 0 0 0 1px var(--sn-line);
   color: var(--sn-muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   transition:
     background 0.18s,
@@ -747,14 +799,12 @@
   box-shadow: none;
   color: var(--sn-on-ink);
 }
-/* 맨 아래: 지우기 | 완료 */
+/* 넘어간 할 일 · 노트 적용: 안내 링크 | 완료 */
 .sermon-app .sn-wc-tr-f {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 10px;
-  border-top: 1.5px dashed var(--sn-line-strong);
 }
 .sermon-app .sn-wc-tr-del,
 .sermon-app .sn-wc-tr-link {
@@ -788,13 +838,14 @@
   height: 14px;
 }
 .sermon-app .sn-wc-done {
-  height: 34px;
+  flex: none;
+  height: 30px;
   border: 0;
   border-radius: var(--sn-r-pill);
-  padding: 0 18px;
+  padding: 0 14px;
   background: var(--sn-fg);
   color: var(--sn-surface);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 900;
   transition: transform 0.25s var(--sn-spring);
 }
@@ -914,17 +965,25 @@
   .sermon-app .sn-wc-tray {
     padding-left: 8px;
   }
-  .sermon-app .sn-wc-dw {
-    grid-template-columns: minmax(0, 1fr);
+  /* 좁으면 라벨을 숨기고 「매일」은 ⟳ 만 — 7×28 + ⟳ 가 한 줄에 든다 */
+  .sermon-app .sn-wc-tr-lb,
+  .sermon-app .sn-wc-dw-all-t {
+    display: none;
   }
-  .sermon-app .sn-wc-dw-all {
-    justify-self: start;
+  .sermon-app .sn-wc-dw {
+    gap: 5px;
   }
   .sermon-app .sn-wc-dw-row {
+    grid-template-columns: repeat(7, 28px);
     gap: 2px;
   }
   .sermon-app .sn-wc-dw-b {
-    height: 34px;
+    height: 28px;
+  }
+  .sermon-app .sn-wc-dw-all {
+    width: 28px;
+    height: 28px;
+    padding: 0;
   }
 }
 
@@ -1181,11 +1240,11 @@
 }
 
 /* ===== 이번 주 들은 예배 ===== */
-.sermon-app .sn-ws {
+.sermon-app .sn-wsv {
   display: flex;
   flex-direction: column;
 }
-.sermon-app .sn-ws-grid {
+.sermon-app .sn-wsv-grid {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 232px;
@@ -1199,10 +1258,10 @@
   padding: 6px 6px 10px;
   scrollbar-width: thin;
 }
-.sermon-app .sn-ws-grid > * {
+.sermon-app .sn-wsv-grid > * {
   scroll-snap-align: start;
 }
-.sermon-app .sn-ws-card {
+.sermon-app .sn-wsv-card {
   --sc: var(--sn-g1);
   position: relative;
   display: flex;
@@ -1215,18 +1274,18 @@
     0 0 0 1px var(--sn-line);
   transition: transform 0.2s var(--sn-ease);
 }
-.sermon-app .sn-ws-card[data-grp] {
+.sermon-app .sn-wsv-card[data-grp] {
   --sc: var(--sn-g3);
 }
-.sermon-app .sn-ws-card:not(.sn-ws-new):hover {
+.sermon-app .sn-wsv-card:not(.sn-wsv-new):hover {
   transform: translateY(-2px);
 }
-.sermon-app .sn-ws-card[data-hl] {
+.sermon-app .sn-wsv-card[data-hl] {
   box-shadow:
     var(--sn-shadow-soft),
     0 0 0 2px var(--sn-t1);
 }
-.sermon-app .sn-ws-open {
+.sermon-app .sn-wsv-open {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -1235,7 +1294,7 @@
   border-radius: inherit;
   padding: 0;
 }
-.sermon-app .sn-ws-rib {
+.sermon-app .sn-wsv-rib {
   position: absolute;
   left: 14px;
   top: 0;
@@ -1246,13 +1305,13 @@
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%);
   pointer-events: none;
 }
-.sermon-app .sn-ws-band {
+.sermon-app .sn-wsv-band {
   position: relative;
   height: 72px;
   overflow: hidden;
   background: color-mix(in srgb, var(--sc) 45%, var(--sn-surface));
 }
-.sermon-app .sn-ws-band::after {
+.sermon-app .sn-wsv-band::after {
   content: '';
   position: absolute;
   right: -6px;
@@ -1266,7 +1325,7 @@
   background-size: 11px 11px;
   opacity: 0.75;
 }
-.sermon-app .sn-ws-band b {
+.sermon-app .sn-wsv-band b {
   position: absolute;
   left: 14px;
   bottom: 8px;
@@ -1277,11 +1336,11 @@
   line-height: 1;
   color: var(--sn-fg);
 }
-.sermon-app .sn-ws-band b small {
+.sermon-app .sn-wsv-band b small {
   margin-left: 3px;
   font-size: 17px;
 }
-.sermon-app .sn-ws-band > span {
+.sermon-app .sn-wsv-band > span {
   position: absolute;
   right: 10px;
   top: 10px;
@@ -1292,14 +1351,14 @@
   font-size: 12px;
   font-weight: 700;
 }
-.sermon-app .sn-ws-bd {
+.sermon-app .sn-wsv-bd {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 5px;
   padding: 12px 14px 14px;
 }
-.sermon-app .sn-ws-kind {
+.sermon-app .sn-wsv-kind {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1307,13 +1366,13 @@
   font-weight: 700;
   color: var(--sn-faint);
 }
-.sermon-app .sn-ws-kind i {
+.sermon-app .sn-wsv-kind i {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--sc);
 }
-.sermon-app .sn-ws-t {
+.sermon-app .sn-wsv-t {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1323,11 +1382,11 @@
   line-height: 1.35;
   letter-spacing: -0.04em;
 }
-.sermon-app .sn-ws-who {
+.sermon-app .sn-wsv-who {
   font-size: 12px;
   color: var(--sn-muted);
 }
-.sermon-app .sn-ws-meta {
+.sermon-app .sn-wsv-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1335,8 +1394,8 @@
   margin-top: auto;
   padding-top: 4px;
 }
-.sermon-app .sn-ws-meta > span,
-.sermon-app .sn-ws-ap {
+.sermon-app .sn-wsv-meta > span,
+.sermon-app .sn-wsv-ap {
   border: 0;
   border-radius: var(--sn-r-pill);
   padding: 3px 10px;
@@ -1345,21 +1404,21 @@
   font-size: 12px;
   font-weight: 700;
 }
-.sermon-app .sn-ws-ap {
+.sermon-app .sn-wsv-ap {
   position: relative;
   z-index: 2;
   background: color-mix(in srgb, var(--sn-g2) 24%, transparent);
   color: var(--sn-t2);
 }
-.sermon-app .sn-ws-ap[aria-pressed='true'] {
+.sermon-app .sn-wsv-ap[aria-pressed='true'] {
   background: var(--sn-t2);
   color: var(--sn-surface);
 }
-.sermon-app .sn-ws-meta .sg-faces {
+.sermon-app .sn-wsv-meta .sg-faces {
   position: relative;
   z-index: 2;
 }
-.sermon-app .sn-ws-new {
+.sermon-app .sn-wsv-new {
   width: 140px;
   min-height: 0;
   align-items: center;
@@ -1372,28 +1431,28 @@
   font-size: 13px;
   font-weight: 700;
 }
-.sermon-app .sn-ws-new:hover {
+.sermon-app .sn-wsv-new:hover {
   background: var(--sn-accent-soft);
 }
 /* ── 주 이동 헤더 (한 줄 고정: 제목 · ‹ 범위 › · 최근 8주 막대 · 이번 주로 · 편수) ── */
-.sermon-app .sn-sec-h.sn-ws-h {
+.sermon-app .sn-sec-h.sn-wsv-h {
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
   min-height: 36px;
   touch-action: pan-y;
 }
-.sermon-app .sn-ws-h h4 {
+.sermon-app .sn-wsv-h h4 {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.sermon-app .sn-ws-h h4 em {
+.sermon-app .sn-wsv-h h4 em {
   font-style: normal;
   color: var(--sn-t1);
 }
-.sermon-app .sn-ws-nav {
+.sermon-app .sn-wsv-nav {
   flex: none;
   display: flex;
   align-items: center;
@@ -1402,7 +1461,7 @@
   border-radius: var(--sn-r-pill);
   background: var(--sn-surface-2);
 }
-.sermon-app .sn-ws-nav button {
+.sermon-app .sn-wsv-nav button {
   width: 30px;
   height: 30px;
   display: grid;
@@ -1413,14 +1472,14 @@
   color: var(--sn-fg);
   cursor: pointer;
 }
-.sermon-app .sn-ws-nav button:hover:not(:disabled) {
+.sermon-app .sn-wsv-nav button:hover:not(:disabled) {
   background: var(--sn-surface);
 }
-.sermon-app .sn-ws-nav button:disabled {
+.sermon-app .sn-wsv-nav button:disabled {
   opacity: 0.35;
   cursor: default;
 }
-.sermon-app .sn-ws-nav span {
+.sermon-app .sn-wsv-nav span {
   padding: 0 4px;
   font-size: 12px;
   font-weight: 700;
@@ -1428,7 +1487,7 @@
   white-space: nowrap;
   color: var(--sn-muted);
 }
-.sermon-app .sn-ws-spark {
+.sermon-app .sn-wsv-spark {
   flex: none;
   display: flex;
   align-items: flex-end;
@@ -1436,7 +1495,7 @@
   height: 28px;
   padding: 0 2px 4px;
 }
-.sermon-app .sn-ws-spark button {
+.sermon-app .sn-wsv-spark button {
   position: relative;
   width: 12px;
   height: 100%;
@@ -1448,7 +1507,7 @@
   background: transparent;
   cursor: pointer;
 }
-.sermon-app .sn-ws-spark i {
+.sermon-app .sn-wsv-spark i {
   display: block;
   width: 8px;
   min-height: 3px;
@@ -1456,13 +1515,13 @@
   background: color-mix(in srgb, var(--sn-g1) 55%, transparent);
   transition: background 0.15s;
 }
-.sermon-app .sn-ws-spark button:hover i {
+.sermon-app .sn-wsv-spark button:hover i {
   background: color-mix(in srgb, var(--sn-t1) 60%, transparent);
 }
-.sermon-app .sn-ws-spark button[aria-current] i {
+.sermon-app .sn-wsv-spark button[aria-current] i {
   background: var(--sn-t1);
 }
-.sermon-app .sn-ws-spark button[aria-current]::after {
+.sermon-app .sn-wsv-spark button[aria-current]::after {
   content: '';
   position: absolute;
   bottom: -5px;
@@ -1471,7 +1530,7 @@
   border-radius: 50%;
   background: var(--sn-t1);
 }
-.sermon-app .sn-ws-spark button:hover::before {
+.sermon-app .sn-wsv-spark button:hover::before {
   content: attr(data-tip);
   position: absolute;
   bottom: calc(100% + 6px);
@@ -1487,7 +1546,7 @@
   font-weight: 700;
   pointer-events: none;
 }
-.sermon-app .sn-ws-today {
+.sermon-app .sn-wsv-today {
   flex: none;
   border: 0;
   border-radius: var(--sn-r-pill);
@@ -1499,7 +1558,7 @@
   white-space: nowrap;
   cursor: pointer;
 }
-.sermon-app .sn-ws-h .sn-ws-cnt {
+.sermon-app .sn-wsv-h .sn-wsv-cnt {
   flex: none;
   margin-left: auto;
   font-size: 12px;
@@ -1508,22 +1567,22 @@
 }
 
 /* 주를 바꾸면 그 방향에서 들어온다 */
-.sermon-app .sn-ws-grid {
+.sermon-app .sn-wsv-grid {
   position: relative;
 }
-.sermon-app .sn-ws-grid[data-dir='1'] {
-  animation: sn-ws-in-l 0.28s var(--sn-ease);
+.sermon-app .sn-wsv-grid[data-dir='1'] {
+  animation: sn-wsv-in-l 0.28s var(--sn-ease);
 }
-.sermon-app .sn-ws-grid[data-dir='-1'] {
-  animation: sn-ws-in-r 0.28s var(--sn-ease);
+.sermon-app .sn-wsv-grid[data-dir='-1'] {
+  animation: sn-wsv-in-r 0.28s var(--sn-ease);
 }
-@keyframes sn-ws-in-l {
+@keyframes sn-wsv-in-l {
   from {
     opacity: 0;
     transform: translateX(28px);
   }
 }
-@keyframes sn-ws-in-r {
+@keyframes sn-wsv-in-r {
   from {
     opacity: 0;
     transform: translateX(-28px);
@@ -1531,7 +1590,7 @@
 }
 
 /* 줄 양 끝 「지난주」「다음 주」 칸 */
-.sermon-app .sn-ws-peek {
+.sermon-app .sn-wsv-peek {
   width: 96px;
   align-items: center;
   justify-content: center;
@@ -1544,20 +1603,20 @@
   text-align: center;
   cursor: pointer;
 }
-.sermon-app .sn-ws-peek strong {
+.sermon-app .sn-wsv-peek strong {
   font-size: 13px;
   color: var(--sn-fg);
 }
-.sermon-app .sn-ws-peek small {
+.sermon-app .sn-wsv-peek small {
   font-size: 12px;
   color: var(--sn-faint);
 }
-.sermon-app .sn-ws-peek:hover {
+.sermon-app .sn-wsv-peek:hover {
   background: var(--sn-accent-soft);
 }
 
 /* 아직 안 쓴 · 놓친 예배 자리 — 카드 줄 안의 점선 칸 (모임 자리 · 내 예배표 공통) */
-.sermon-app .sn-ws-grid > .sg-slot {
+.sermon-app .sn-wsv-grid > .sg-slot {
   width: 150px;
   flex-direction: column;
   align-items: flex-start;
@@ -1574,7 +1633,7 @@
   line-height: 1.35;
   letter-spacing: -0.04em;
 }
-.sermon-app .sn-ws-grid > .sg-slot .sn-ws-gd {
+.sermon-app .sn-wsv-grid > .sg-slot .sn-ws-gd {
   align-self: flex-end;
   margin-bottom: 30px;
   border-radius: var(--sn-r-pill);
@@ -1584,24 +1643,24 @@
   font-weight: 700;
   letter-spacing: 0;
 }
-.sermon-app .sn-ws-grid > .sg-slot .sg-tm {
+.sermon-app .sn-wsv-grid > .sg-slot .sg-tm {
   font-size: 15px;
 }
-.sermon-app .sn-ws-grid > .sg-slot small {
+.sermon-app .sn-wsv-grid > .sg-slot small {
   margin-top: auto;
   font-size: 12px;
   letter-spacing: 0;
   white-space: normal;
 }
-.sermon-app .sn-ws-grid > .sg-slot b {
+.sermon-app .sn-wsv-grid > .sg-slot b {
   letter-spacing: 0;
   font-size: 12px;
 }
-.sermon-app .sn-ws-grid > .sg-slot[data-miss] {
+.sermon-app .sn-wsv-grid > .sg-slot[data-miss] {
   border-color: var(--sn-line-strong);
   color: var(--sn-muted);
 }
-.sermon-app .sn-ws-grid > .sg-slot[data-miss] .sn-ws-gd {
+.sermon-app .sn-wsv-grid > .sg-slot[data-miss] .sn-ws-gd {
   background: var(--sn-surface-2);
 }
 .sermon-app button.sg-slot.sn-wslot[data-miss]:hover {
@@ -1614,25 +1673,25 @@
     width: 34px;
     height: 34px;
   }
-  .sermon-app .sn-ws-grid {
+  .sermon-app .sn-wsv-grid {
     grid-auto-columns: 200px;
   }
   /* 좁은 화면: 막대는 숨기고 ‹ › 만 (헤더가 두 줄이 되지 않게) */
-  .sermon-app .sn-ws-spark {
+  .sermon-app .sn-wsv-spark {
     display: none;
   }
-  .sermon-app .sn-sec-h.sn-ws-h {
+  .sermon-app .sn-sec-h.sn-wsv-h {
     gap: 6px;
   }
-  .sermon-app .sn-ws-nav span {
+  .sermon-app .sn-wsv-nav span {
     padding: 0 1px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .sermon-app .sn-wc *,
   .sermon-app .sn-wc-cats,
-  .sermon-app .sn-ws-card,
-  .sermon-app .sn-ws-grid {
+  .sermon-app .sn-wsv-card,
+  .sermon-app .sn-wsv-grid {
     animation: none !important;
     transition: none !important;
   }

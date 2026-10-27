@@ -95,7 +95,7 @@ export function ReadingStamp({
       await refreshMine();
       if (list.length)
         toast.success(
-          `${list.map((s) => `${s.group_name || '나의 길'} ${s.day_no}일째`).join(' · ')} 도장 찍었어요`,
+          `${list.map((s) => `${s.group_name || '내 읽기표'} ${s.day_no}일째`).join(' · ')} 도장 찍었어요`,
         );
       // 이어서 읽을 장이 있으면 바로 넘긴다 — 없을 때만 「오늘 읽을 곳을 다 읽었어요」 카드를 남긴다
       const p = next ? parseCh(next) : null;

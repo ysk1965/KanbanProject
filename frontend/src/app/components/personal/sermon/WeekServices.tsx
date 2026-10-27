@@ -109,7 +109,7 @@ export function WeekServices({
   // 「지난주」 칸은 비켜 두고 그 주 첫 칸부터 보이게
   useLayoutEffect(() => {
     const g = gridRef.current;
-    const first = g?.querySelector<HTMLElement>('.sn-ws-peek')
+    const first = g?.querySelector<HTMLElement>('.sn-wsv-peek')
       ?.nextElementSibling as HTMLElement | null;
     if (g) g.scrollLeft = first && ws > oldest ? first.offsetLeft - 6 : 0;
   }, [ws, oldest]);
@@ -135,9 +135,9 @@ export function WeekServices({
   );
 
   return (
-    <section className="sn-ws" aria-label="들은 예배">
+    <section className="sn-wsv" aria-label="들은 예배">
       <div
-        className="sn-sec-h sn-ws-h"
+        className="sn-sec-h sn-wsv-h"
         onPointerDown={(e) => {
           swipeX.current = e.clientX;
         }}
@@ -149,7 +149,7 @@ export function WeekServices({
         }}
       >
         <h4>{title}</h4>
-        <div className="sn-ws-nav">
+        <div className="sn-wsv-nav">
           <button
             type="button"
             aria-label="지난주"
@@ -166,7 +166,7 @@ export function WeekServices({
           </button>
         </div>
         {spark.length > 1 && (
-          <div className="sn-ws-spark" role="group" aria-label={`최근 ${SPARK_WEEKS}주`}>
+          <div className="sn-wsv-spark" role="group" aria-label={`최근 ${SPARK_WEEKS}주`}>
             {spark.map(({ w, c, max }) => {
               const tip = `${weekName(w, thisWeek)} · ${c}편`;
               return (
@@ -185,17 +185,17 @@ export function WeekServices({
           </div>
         )}
         {!isThis && (
-          <button type="button" className="sn-ws-today" onClick={() => go(thisWeek)}>
+          <button type="button" className="sn-wsv-today" onClick={() => go(thisWeek)}>
             이번 주로
           </button>
         )}
-        <span className="sn-ws-cnt">
+        <span className="sn-wsv-cnt">
           {weekNotes.length ? `${weekNotes.length}편` : '아직 없어요'}
         </span>
       </div>
-      <div className="sn-ws-grid" ref={gridRef} data-dir={dir || undefined} key={ws}>
+      <div className="sn-wsv-grid" ref={gridRef} data-dir={dir || undefined} key={ws}>
         {ws > oldest && (
-          <button type="button" className="sn-ws-card sn-ws-peek" onClick={() => go(prevW)}>
+          <button type="button" className="sn-wsv-card sn-wsv-peek" onClick={() => go(prevW)}>
             <ChevronLeft className="sn-icon" style={{ width: 18, height: 18 }} />
             <strong>지난주</strong>
             <small>
@@ -213,18 +213,20 @@ export function WeekServices({
               return (
                 <article
                   key={n.id}
-                  className="sn-ws-card"
+                  className="sn-wsv-card"
                   data-grp={grp || undefined}
                   data-hl={(isThis && highlight === n.id) || undefined}
                 >
                   <button
                     type="button"
-                    className="sn-ws-open"
+                    className="sn-wsv-open"
                     onClick={() => onOpen(n.id)}
                     aria-label={`${n.title || UNTITLED} 노트 열기`}
                   />
-                  {isGalpi(n, galpi) && <span className="sn-ws-rib" role="img" aria-label="갈피" />}
-                  <div className="sn-ws-band" aria-hidden>
+                  {isGalpi(n, galpi) && (
+                    <span className="sn-wsv-rib" role="img" aria-label="갈피" />
+                  )}
+                  <div className="sn-wsv-band" aria-hidden>
                     <b>
                       {r ? bookName(r) : '✦'}
                       {r && (
@@ -236,28 +238,28 @@ export function WeekServices({
                     </b>
                     <span>{dayLabel(n.date)}</span>
                   </div>
-                  <div className="sn-ws-bd">
-                    <span className="sn-ws-kind">
+                  <div className="sn-wsv-bd">
+                    <span className="sn-wsv-kind">
                       <i />
                       {n.service || '예배'}
                       {grp && ' · 모임'}
                     </span>
-                    <span className="sn-ws-t">{n.title || UNTITLED}</span>
-                    {(n.preacher || null) && <span className="sn-ws-who">{n.preacher}</span>}
-                    <div className="sn-ws-meta">
+                    <span className="sn-wsv-t">{n.title || UNTITLED}</span>
+                    {(n.preacher || null) && <span className="sn-wsv-who">{n.preacher}</span>}
+                    <div className="sn-wsv-meta">
                       <span>생각 {(n.thoughts || []).length}</span>
                       {ap ? (
                         isThis ? (
                           <button
                             type="button"
-                            className="sn-ws-ap"
+                            className="sn-wsv-ap"
                             aria-pressed={highlight === n.id}
                             onClick={() => onHighlight(highlight === n.id ? null : n.id)}
                           >
                             적용 {ap}
                           </button>
                         ) : (
-                          <span className="sn-ws-ap">적용 {ap}</span>
+                          <span className="sn-wsv-ap">적용 {ap}</span>
                         )
                       ) : null}
                       <NoteGroupFaces note={n} />
@@ -272,14 +274,14 @@ export function WeekServices({
         })}
         <button
           type="button"
-          className="sn-ws-card sn-ws-new"
+          className="sn-wsv-card sn-wsv-new"
           onClick={() => (isThis ? onNew() : onNew(ws))}
         >
           <Plus className="sn-icon" style={{ width: 22, height: 22 }} />
           {isThis ? '예배 기록' : `${md(ws)} 주에 기록`}
         </button>
         {!isThis && (
-          <button type="button" className="sn-ws-card sn-ws-peek" onClick={() => go(nextW)}>
+          <button type="button" className="sn-wsv-card sn-wsv-peek" onClick={() => go(nextW)}>
             <ChevronRight className="sn-icon" style={{ width: 18, height: 18 }} />
             <strong>{nextW === thisWeek ? '이번 주' : '다음 주'}</strong>
             <small>

@@ -4,7 +4,7 @@ import { todayString } from '../sermonTypes';
 import { readingAPI, type DueChapter, type MinePlan } from './readingApi';
 
 /**
- * 「읽는 중인 길」 — 내 모든 길(모임 길 + 나의 길) 캐시. 성경 읽기 화면과 모임 통독 탭이 같이 쓴다.
+ * 「읽는 중인 길」 — 내 모든 길(모임 길 + 내 읽기표) 캐시. 성경 읽기 화면과 모임 통독 탭이 같이 쓴다.
  * 60초 안에 다시 열면 요청하지 않는다. 도장·길 만들기 뒤엔 refreshMine() 으로 새로 받는다.
  */
 
@@ -83,9 +83,9 @@ export function nextDue(list: MinePlan[] | null, except?: string): string | null
   return best ? (best as { chapter: string }).chapter : null;
 }
 
-/** 이름 — 모임 길은 모임 이름, 나의 길은 "나의 길" */
+/** 이름 — 모임 길은 모임 이름, 혼자 읽는 길은 "내 읽기표" */
 export const planOwnerName = (p: { group_name?: string; group_id?: string }) =>
-  p.group_id ? p.group_name || '모임' : '나의 길';
+  p.group_id ? p.group_name || '모임' : '내 읽기표';
 
 /** 오늘 이 길에서 볼 것 — 밀린 장(오늘 전 날짜) · 오늘 장 · 남은 장 수 */
 export function planToday(p: MinePlan, today = todayString()) {

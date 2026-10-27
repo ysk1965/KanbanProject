@@ -20,7 +20,7 @@ import {
 import './reading.css';
 
 /**
- * 통독 길 내기 — 모임 길(groupId)이면 리더가, 없으면 나의 길.
+ * 통독 길 내기 — 모임 길(groupId)이면 리더가, 없으면 내 읽기표.
  * 템플릿 → 시작일 → 쉼표. 미리보기 한 줄로 며칠·언제 끝나는지 보여 준다.
  */
 interface Props {
@@ -58,7 +58,7 @@ export function PlanSheet({ open, groupId, groupName, onClose, onCreated }: Prop
         days: built.days,
       });
       void refreshMine();
-      toast.success(groupId ? `${groupName || '모임'} 통독 길을 냈어요` : '나의 길을 시작했어요');
+      toast.success(groupId ? `${groupName || '모임'} 통독 길을 냈어요` : '읽기표를 만들었어요');
       onCreated(plan);
     } catch (e) {
       toast.error(readingErrorMessage(e, '길을 내지 못했어요'));
@@ -75,11 +75,15 @@ export function PlanSheet({ open, groupId, groupName, onClose, onCreated }: Prop
       aria-labelledby="rp-sheet-title"
     >
       <div className="rp-sheet-head">
-        <small>{groupId ? `${groupName || '모임'} · 함께 읽는 길` : '혼자 읽는 길'}</small>
-        <h2 id="rp-sheet-title">{groupId ? '통독 길 내기' : '나의 길 시작'}</h2>
+        <small>{groupId ? `${groupName || '모임'} · 함께 읽는 길` : '혼자 읽기'}</small>
+        <h2 id="rp-sheet-title">{groupId ? '통독 길 내기' : '내 읽기표 만들기'}</h2>
       </div>
       <div className="sg-form">
-        <div className="rp-tpls" role="radiogroup" aria-label="길 고르기">
+        <div
+          className="rp-tpls"
+          role="radiogroup"
+          aria-label={groupId ? '길 고르기' : '읽기표 고르기'}
+        >
           {TEMPLATES.map((t) => (
             <button
               key={t.id}

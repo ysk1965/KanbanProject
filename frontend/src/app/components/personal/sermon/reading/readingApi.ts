@@ -124,7 +124,7 @@ export function readingErrorMessage(e: unknown, fallback = '잠시 후 다시 �
     case 'RPL003':
       return '이 모임엔 이미 진행 중인 길이 있어요';
     case 'RPL004':
-      return '나의 길은 3개까지 함께 걸을 수 있어요';
+      return '내 읽기표는 3개까지 함께 쓸 수 있어요';
     case 'RPL005':
       return '아직 오지 않은 날이에요';
     case 'RPL006':

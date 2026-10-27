@@ -186,7 +186,7 @@ function TodayList({
       {solo < SOLO_MAX && (
         <button type="button" className="tp-add" onClick={onCreate}>
           <Plus className="sn-icon" aria-hidden />
-          {plans.length ? '나의 길 만들기' : '혼자 통독 시작'}
+          읽기표 만들기
         </button>
       )}
     </div>
