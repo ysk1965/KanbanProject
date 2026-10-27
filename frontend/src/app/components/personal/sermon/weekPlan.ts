@@ -9,6 +9,7 @@ import { uid, type SermonNote, type Thought } from './sermonTypes';
  *  - 내 카테고리(최대 CAT_MAX): 이름·색·아이콘·순서. 계정에 문서 한 장 (title = CATS_DOC)
  *  - 할 일: once = 하기로 한 날(day) 하루. 못 하면 이번 주 안에선 오늘로 넘어온다(carry). 한 날 = done_on
  *           daily = from 날부터 이번 주 남은 날마다. 한 날들 = log
+ *           days = 고른 요일들(days)마다. 한 날들 = log. 요일 고르기(setItemDays)가 하루면 once, 오늘을 품고 토요일까지 이어지면 daily 로 맞춘다
  * 서버: personal_feature_docs, feature_key='sermon_plan'. 한 주 = 문서 하나 (title = 그 주 일요일 yyyy-MM-dd) + 카테고리 문서 하나.
  * 기기 캐시(`sn-plan:{userId}`)가 먼저 그리고, 로그인했으면 바뀐 문서만 800ms 뒤 올린다. 로그인 전(anon)은 기기에만.
  */
@@ -26,7 +27,7 @@ const RETRY_DELAY = 15_000;
 /** 기기에 남겨 둘 주 수 */
 const KEEP_WEEKS = 8;
 
-export type PlanRep = 'once' | 'daily';
+export type PlanRep = 'once' | 'daily' | 'days';
 export const CAT_COLORS = ['g1', 'g3', 'purple', 'orange', 'green', 'red'] as const;
 export type CatColor = (typeof CAT_COLORS)[number] | 'g2';
 export const CAT_ICONS = ['tag', 'home', 'users', 'book', 'briefcase', 'heart'] as const;
@@ -51,7 +52,9 @@ export interface PlanItem {
   done_on?: string | null;
   /** daily: 이날부터 매일. 없으면 그 주 일요일부터 */
   from?: string | null;
-  /** daily: 한 날들 yyyy-MM-dd */
+  /** days: 고른 날들 yyyy-MM-dd (2~6개) */
+  days?: string[];
+  /** daily · days: 한 날들 yyyy-MM-dd */
   log?: string[];
   /** 예배 갈피에서 바로 적은 것 — 그 주 갈피 노트 */
   note_id?: string | null;
@@ -120,6 +123,77 @@ export function removeItem(p: WeekPlan, id: string): WeekPlan {
   return { ...p, items: p.items.filter((x) => x.id !== id), updated_at: stamp(p) };
 }
 
+/** 되돌리기 — 지운(또는 바꾸기 전) 할 일을 그대로 다시 넣는다. 같은 id 가 있으면 바꿔 끼우고, 없으면 원래 자리에 */
+export function putItem(p: WeekPlan, item: PlanItem, index?: number): WeekPlan {
+  const at = p.items.findIndex((x) => x.id === item.id);
+  const items = [...p.items];
+  if (at >= 0) items[at] = item;
+  else items.splice(Math.min(Math.max(index ?? items.length, 0), items.length), 0, item);
+  return { ...p, items, updated_at: stamp(p) };
+}
+
+/** 글자 · 카테고리 고치기 (빈 글자는 무시) */
+export function updateItem(
+  p: WeekPlan,
+  id: string,
+  patch: { text?: string; cat?: string },
+): WeekPlan {
+  const text = patch.text !== undefined ? patch.text.trim().slice(0, TEXT_MAX) : undefined;
+  const it = p.items.find((x) => x.id === id);
+  if (!it) return p;
+  const next = { ...it, ...(text ? { text } : {}), ...(patch.cat ? { cat: patch.cat } : {}) };
+  if (next.text === it.text && next.cat === it.cat) return p;
+  return { ...p, items: p.items.map((x) => (x.id === id ? next : x)), updated_at: stamp(p) };
+}
+
+/** 이 주에서 그 할 일이 놓인 날들 (요일 고르기에 그대로 켜진다) */
+export function itemDays(it: PlanItem, days: string[], today: string): string[] {
+  if (it.rep === 'daily') return days.filter((d) => d >= (it.from || days[0]));
+  if (it.rep === 'days') return days.filter((d) => (it.days || []).includes(d));
+  const d = it.day && days.includes(it.day) ? it.day : it.day && it.day > days[6] ? days[6] : today;
+  return [days.includes(d) ? d : days[0]];
+}
+
+/**
+ * 요일 고르기 결과로 할 일을 다시 놓는다. 고른 날이 하루면 once, 오늘(지난 주면 일요일)을 품고 토요일까지 이어지면 daily,
+ * 그 밖은 days. 한 기록(done_on/log)은 남는 날의 것만 그대로 옮긴다.
+ */
+export function setItemDays(
+  p: WeekPlan,
+  id: string,
+  picked: string[],
+  days: string[],
+  today: string,
+): WeekPlan {
+  const it = p.items.find((x) => x.id === id);
+  const sel = days.filter((d) => picked.includes(d));
+  if (!it || !sel.length) return p;
+  const had = it.rep === 'once' ? (it.done_on ? [it.done_on] : []) : it.log || [];
+  const log = had.filter((d) => sel.includes(d));
+  const base = {
+    id: it.id,
+    text: it.text,
+    cat: it.cat,
+    created_at: it.created_at,
+    ...(it.note_id ? { note_id: it.note_id } : {}),
+  };
+  const anchor = days.includes(today) ? today : days[0];
+  const start = days.indexOf(sel[0]);
+  const runToSat = days.slice(start).every((d) => sel.includes(d));
+  let next: PlanItem;
+  if (sel.length === 1) next = { ...base, rep: 'once', day: sel[0], done_on: log[0] ?? null };
+  else if (runToSat && sel[0] <= anchor) next = { ...base, rep: 'daily', from: sel[0], log };
+  else next = { ...base, rep: 'days', days: sel, log };
+  if (JSON.stringify(pick(next)) === JSON.stringify(pick(it))) return p;
+  return { ...p, items: p.items.map((x) => (x.id === id ? next : x)), updated_at: stamp(p) };
+}
+
+function pick(it: PlanItem): Partial<PlanItem> {
+  if (it.rep === 'once') return { rep: 'once', day: it.day ?? null, done_on: it.done_on ?? null };
+  if (it.rep === 'daily') return { rep: 'daily', from: it.from ?? null, log: it.log || [] };
+  return { rep: 'days', days: it.days || [], log: it.log || [] };
+}
+
 export function removeCategoryItems(p: WeekPlan, cat: string): WeekPlan {
   if (!p.items.some((x) => (x.cat || TODO_CAT) === cat)) return p;
   return {
@@ -140,13 +214,13 @@ export function toggleOnce(p: WeekPlan, id: string, date: string): WeekPlan {
   };
 }
 
-/** daily: 그날 했어요 / 되돌리기. 오늘 이후는 못 누른다 */
+/** daily · days: 그날 했어요 / 되돌리기. 오늘 이후는 못 누른다 */
 export function toggleDaily(p: WeekPlan, id: string, date: string, today: string): WeekPlan {
   if (date > today) return p;
   return {
     ...p,
     items: p.items.map((x) => {
-      if (x.id !== id || x.rep !== 'daily') return x;
+      if (x.id !== id || x.rep === 'once') return x;
       const log = x.log || [];
       return {
         ...x,
@@ -171,9 +245,20 @@ export function tidyPlan(week: string, raw: unknown): WeekPlan {
     for (const it of r.items as Record<string, unknown>[]) {
       if (!it || typeof it.id !== 'string' || typeof it.text !== 'string' || !it.text.trim())
         continue;
-      const rep: PlanRep = it.rep === 'daily' ? 'daily' : 'once';
+      const rep: PlanRep = it.rep === 'daily' || it.rep === 'days' ? it.rep : 'once';
       const cat = typeof it.cat === 'string' && it.cat ? it.cat : TODO_CAT;
       const base = { id: it.id, text: it.text, cat, created_at: Number(it.created_at) || 0 };
+      if (rep === 'days') {
+        const ds = Array.isArray(it.days) ? [...new Set(it.days.filter(isDate))].sort() : [];
+        if (!ds.length) continue;
+        items.push({
+          ...base,
+          rep,
+          days: ds,
+          log: Array.isArray(it.log) ? it.log.filter(isDate) : [],
+        });
+        continue;
+      }
       items.push(
         rep === 'daily'
           ? {
@@ -270,6 +355,8 @@ export interface DayEntry {
   rep: PlanRep;
   /** 하기로 한 날 (once) */
   day: string;
+  /** days: 고른 날들 */
+  days?: string[];
   done: boolean;
   /** 지난 날에 못 해서 오늘로 넘어온 것 — 원래 날 */
   carry?: string;
@@ -293,6 +380,7 @@ interface Raw {
   day: string;
   doneOn: string | null;
   from?: string;
+  days?: string[];
   log?: string[];
   planId?: string;
   note?: SermonNote;
@@ -334,6 +422,20 @@ export function weekRaw(notes: SermonNote[], plan: WeekPlan, days: string[], tod
         log: it.log || [],
         planId: it.id,
       });
+    } else if (it.rep === 'days') {
+      const ds = (it.days || []).filter((d) => inWeek.has(d));
+      if (!ds.length) return;
+      out.push({
+        key: it.id,
+        text: it.text,
+        cat,
+        rep: 'days',
+        day: ds[0],
+        days: ds,
+        doneOn: null,
+        log: it.log || [],
+        planId: it.id,
+      });
     } else {
       // 예전 「이번 주 안에」(날짜 없음)는 오늘 할 일로 본다
       const day =
@@ -362,12 +464,17 @@ export function dayEntries(raw: Raw[], d: string, days: string[], today: string)
       cat: r.cat,
       rep: r.rep,
       day: r.day,
+      days: r.days,
       planId: r.planId,
       note: r.note,
       thought: r.thought,
     };
     if (r.rep === 'daily') {
       if (d >= (r.from || days[0])) out.push({ ...base, done: (r.log || []).includes(d) });
+      return;
+    }
+    if (r.rep === 'days') {
+      if (r.days?.includes(d)) out.push({ ...base, done: (r.log || []).includes(d) });
       return;
     }
     if (r.doneOn) {

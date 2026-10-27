@@ -25,29 +25,13 @@
 .tp-rest {
   margin: 0;
 }
-.tp-alldone {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  padding: 8px 10px;
-  border-radius: var(--sn-r-ctl);
-  background: color-mix(in srgb, var(--sn-c-green) 14%, var(--sn-surface));
-  color: var(--sn-c-green);
-  font-weight: 700;
-  font-size: 13px;
-}
 .tp-plan {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--sn-line);
-}
-.tp-head + .tp-plan,
-.tp-alldone + .tp-plan {
-  padding-top: 0;
-  border-top: 0;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-radius: 20px;
+  background: var(--sn-surface-2);
 }
 .tp-plan-t {
   display: flex;
@@ -76,8 +60,14 @@
   flex: none;
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   font-size: 12px;
   color: var(--sn-muted);
+}
+.tp-late {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--sn-c-orange);
 }
 .tp-plan-t .sn-icon,
 .tp-strip-more .sn-icon {
@@ -92,6 +82,214 @@
 .tp-plan-t b[data-group],
 .tp-strip-name b[data-group] {
   color: var(--sn-t1);
+}
+
+/* 책 스티커 + 장 도장 — 잉크 셋(g1/t1 · g2/t2 · g3/초록)을 책마다 돌려쓴다 */
+.tp-book,
+.tp-sticker {
+  --tp-g: var(--sn-g1);
+  --tp-t: var(--sn-t1);
+}
+[data-tone='1'].tp-book,
+[data-tone='1'].tp-sticker {
+  --tp-g: var(--sn-g2);
+  --tp-t: var(--sn-t2);
+}
+[data-tone='2'].tp-book,
+[data-tone='2'].tp-sticker {
+  --tp-g: var(--sn-g3);
+  --tp-t: var(--sn-c-green);
+}
+.tp-books {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tp-book {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.tp-sticker {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 3px solid var(--sn-die);
+  background: var(--tp-g);
+  color: var(--tp-t);
+  box-shadow: 0 3px 8px rgba(35, 20, 28, 0.16);
+  font-family: var(--sn-f-poster);
+  font-size: 18px;
+  line-height: 1;
+  transform: rotate(-6deg);
+}
+.tp-book:nth-child(even) .tp-sticker {
+  transform: rotate(5deg);
+}
+.tp-book-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.tp-book-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-fg);
+}
+.tp-stamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.tp-stamp {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px dashed color-mix(in srgb, var(--tp-t) 55%, transparent);
+  background: none;
+  color: var(--tp-t);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.15s var(--sn-spring),
+    background 0.15s ease;
+}
+.tp-stamp:hover {
+  transform: scale(1.08);
+}
+.tp-stamp[data-st='done'] {
+  border: 0;
+  background: var(--tp-t);
+  color: var(--sn-accent-ink);
+}
+.tp-stamp[data-st='late'] {
+  border: 0;
+  background: color-mix(in srgb, var(--sn-c-orange) 18%, var(--sn-surface));
+  color: var(--sn-c-orange);
+}
+.tp-stamp[aria-current='true'] {
+  border: 2.5px solid var(--tp-t);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tp-g) 60%, transparent);
+}
+.tp-stamp[aria-current='true']:not([data-st='done']) {
+  background: var(--sn-surface);
+}
+.tp-stamp-ok {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid var(--sn-surface-2);
+  background: var(--sn-g3);
+  color: var(--sn-c-green);
+}
+.tp-stamp-ok .sn-icon {
+  width: 9px;
+  height: 9px;
+  stroke-width: 4;
+}
+
+/* 다 읽은 날 */
+.tp-done {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 14px 14px;
+  border-radius: 20px;
+  background: var(--sn-surface-2);
+}
+.tp-done-stack {
+  display: flex;
+}
+.tp-done-stack .tp-sticker {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  font-size: 20px;
+}
+.tp-done-stack .tp-sticker + .tp-sticker {
+  margin-left: -12px;
+}
+.tp-done-stack .tp-sticker:nth-child(even) {
+  transform: rotate(5deg);
+}
+.tp-done-msg {
+  font-family: var(--sn-f-hand);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--sn-fg);
+}
+.tp-done-seal {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 0 6px;
+  border: 2px solid var(--sn-c-green);
+  border-radius: 8px;
+  font-family: var(--sn-f-hand);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--sn-c-green);
+  transform: rotate(10deg);
+}
+.tp-done-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--sn-fg);
+  text-align: left;
+  cursor: pointer;
+}
+.tp-done-row b {
+  flex: none;
+  font-weight: 700;
+  color: var(--sn-t2);
+}
+.tp-done-row b[data-group] {
+  color: var(--sn-t1);
+}
+.tp-done-row span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.tp-done-row small {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-c-green);
 }
 
 /* 장 칩 */
@@ -342,6 +540,8 @@
 }
 
 .tp-chip:focus-visible,
+.tp-stamp:focus-visible,
+.tp-done-row:focus-visible,
 .tp-plan-t:focus-visible,
 .tp-add:focus-visible,
 .tp-start:focus-visible,
@@ -355,8 +555,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .tp-strip,
-  .tp-pill {
+  .tp-pill,
+  .tp-stamp {
     transition: none;
+  }
+  .tp-stamp:hover {
+    transform: none;
   }
 }
 

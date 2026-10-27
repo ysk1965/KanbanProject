@@ -7,14 +7,19 @@ import {
   dayStat,
   emptyPlan,
   GALPI_CAT,
+  itemDays,
   moveCategory,
+  putItem,
   removeCategory,
   removeCategoryItems,
+  removeItem,
+  setItemDays,
   TODO_CAT,
   tidyCats,
   tidyPlan,
   toggleDaily,
   toggleOnce,
+  updateItem,
   weekRaw,
   type CatList,
   type WeekPlan,
@@ -215,5 +220,75 @@ describe('weekPlan — 날짜 단위 · 카테고리', () => {
     const c = toggleOnce(b, a.items[0].id, TODAY);
     expect(b.updated_at).toBeGreaterThan(a.updated_at);
     expect(c.updated_at).toBeGreaterThan(b.updated_at);
+  });
+
+  it('요일 고르기: 하루면 한 번, 며칠이면 요일마다, 오늘부터 토요일까지면 매일 — 남는 날의 기록은 그대로', () => {
+    let p = addItem(emptyPlan(DAYS[0]), { text: '말씀 읽기', rep: 'once', cat: 'c', day: TODAY });
+    const id = p.items[0].id;
+    p = toggleOnce(p, id, TODAY);
+
+    // 하루 → 며칠: 오늘 한 기록이 log 로 옮겨 간다
+    p = setItemDays(p, id, [TODAY, '2026-10-30'], DAYS, TODAY);
+    expect(p.items[0]).toMatchObject({ rep: 'days', days: [TODAY, '2026-10-30'], log: [TODAY] });
+    expect(on(p, TODAY)[0]).toMatchObject({ done: true, days: [TODAY, '2026-10-30'] });
+    expect(on(p, '2026-10-30')[0].done).toBe(false);
+    expect(on(p, '2026-10-28')).toHaveLength(0);
+    // 며칠은 날마다 따로 체크
+    p = toggleDaily(p, id, TODAY, TODAY);
+    expect(p.items[0].log).toEqual([]);
+    p = toggleDaily(p, id, TODAY, TODAY);
+
+    // 오늘~토 다 고르면 매일(오늘부터)
+    p = setItemDays(p, id, DAYS.slice(2), DAYS, TODAY);
+    expect(p.items[0]).toMatchObject({ rep: 'daily', from: TODAY, log: [TODAY] });
+    expect(itemDays(p.items[0], DAYS, TODAY)).toEqual(DAYS.slice(2));
+    // 오늘을 품지 않은 금·토는 매일이 아니다
+    const q = setItemDays(p, id, ['2026-10-30', '2026-10-31'], DAYS, TODAY);
+    expect(q.items[0]).toMatchObject({ rep: 'days', log: [] });
+
+    // 다시 하루(목) — 오늘 기록은 빠지고 목요일 한 번
+    p = setItemDays(p, id, ['2026-10-29'], DAYS, TODAY);
+    expect(p.items[0]).toMatchObject({ rep: 'once', day: '2026-10-29', done_on: null });
+    expect(p.items[0].log).toBeUndefined();
+    // 같은 고르기면 그대로
+    expect(setItemDays(p, id, ['2026-10-29'], DAYS, TODAY)).toBe(p);
+    expect(setItemDays(p, id, [], DAYS, TODAY)).toBe(p);
+  });
+
+  it('며칠 할 일은 서버 값에서 다듬어지고, 이번 주 밖 날짜만 있으면 안 보인다', () => {
+    const t = tidyPlan(DAYS[0], {
+      items: [
+        {
+          id: 'a',
+          text: '셀 기도',
+          rep: 'days',
+          days: ['2026-10-30', 'x', '2026-10-28', '2026-10-30'],
+          log: [],
+        },
+        { id: 'b', text: '빈 요일', rep: 'days', days: [] },
+      ],
+    });
+    expect(t.items).toHaveLength(1);
+    expect(t.items[0].days).toEqual(['2026-10-28', '2026-10-30']);
+    const other = { ...t, items: [{ ...t.items[0], days: ['2026-11-04'] }] };
+    expect(DAYS.flatMap((d) => on(other, d))).toHaveLength(0);
+  });
+
+  it('글자·카테고리 고치기와 지운 것 되돌리기 (원래 자리, 기록 그대로)', () => {
+    let p = addItem(emptyPlan(DAYS[0]), { text: '하나', rep: 'daily', cat: 'c1', day: TODAY });
+    p = addItem(p, { text: '둘', rep: 'once', cat: 'c1', day: TODAY });
+    const [a, b] = p.items;
+    p = toggleDaily(p, a.id, TODAY, TODAY);
+    expect(updateItem(p, a.id, { text: '   ' })).toBe(p);
+    p = updateItem(p, a.id, { text: ' 하나둘 ', cat: 'c2' });
+    expect(p.items[0]).toMatchObject({ text: '하나둘', cat: 'c2', log: [TODAY] });
+
+    const gone = p.items[0];
+    const q = removeItem(p, gone.id);
+    expect(q.items.map((x) => x.id)).toEqual([b.id]);
+    const back = putItem(q, gone, 0);
+    expect(back.items.map((x) => x.id)).toEqual([a.id, b.id]);
+    expect(back.items[0].log).toEqual([TODAY]);
+    expect(back.updated_at).toBeGreaterThan(q.updated_at);
   });
 });

@@ -6,7 +6,7 @@ import { BOOKS } from '../bibleRefs';
 import { todayString } from '../sermonTypes';
 import type { MinePlan } from './readingApi';
 import { planOwnerName, planToday, sortForToday, useMyPlans } from './readingStore';
-import { parseCh } from './readingPlan';
+import { chaptersLabel, parseCh } from './readingPlan';
 import { PlanOverlay } from './ReadingPaths';
 import { PlanSheet } from './PlanSheet';
 import './todayPath.css';
@@ -14,6 +14,7 @@ import './todayPath.css';
 /**
  * 성경 읽기 「오늘 읽을 곳」 — 내 길마다 오늘 읽을 장.
  * 넓은 화면(레일) = 카드(mode="rail"), 그 밖 = 본문 위 띠(mode="strip").
+ * 카드 · 시트는 길마다 책 스티커 + 장 번호 도장, 다 읽은 날은 스티커가 모이고 「다 읽음」 도장.
  * 띠는 안 읽은 길 하나(좁은 화면) · 둘(중간 화면)만 보이고 나머지는 「외 N」, 누르면 바닥 시트에 카드와 같은 목록.
  * 좁은 화면에서 아래로 스크롤하면 띠가 위에 붙은 작은 알약(●○○)으로 접히고, 위로 올리면 다시 펼친다.
  */
@@ -160,26 +161,28 @@ function TodayList({
         <b>오늘 읽을 곳</b>
         <small>{mdLabel(today)}</small>
       </div>
-      {allDone && (
-        <p className="tp-alldone">
-          <Check className="sn-icon" aria-hidden />
-          오늘 읽을 곳을 다 읽었어요
-        </p>
+      {allDone ? (
+        <DoneBoard plans={sorted} today={today} onOpen={onOpen} />
+      ) : (
+        sorted.map((p) => {
+          const late = planToday(p, today).late.length;
+          return (
+            <div key={p.id} className="tp-plan">
+              <button type="button" className="tp-plan-t" onClick={() => onOpen(p.id)}>
+                <span>
+                  <b data-group={!!p.group_id || undefined}>{planOwnerName(p)}</b> {p.title}
+                </span>
+                <small>
+                  {late > 0 && <em className="tp-late">밀린 {late}장</em>}
+                  {p.today_day_no ? `${p.today_day_no}일째` : `${p.my_done_days}/${p.total_days}일`}
+                  <ChevronRight className="sn-icon" aria-hidden />
+                </small>
+              </button>
+              <BookRows plan={p} here={here} today={today} onRead={onRead} />
+            </div>
+          );
+        })
       )}
-      {sorted.map((p) => (
-        <div key={p.id} className="tp-plan">
-          <button type="button" className="tp-plan-t" onClick={() => onOpen(p.id)}>
-            <span>
-              <b data-group={!!p.group_id || undefined}>{planOwnerName(p)}</b> {p.title}
-            </span>
-            <small>
-              {p.today_day_no ? `${p.today_day_no}일째` : `${p.my_done_days}/${p.total_days}일`}
-              <ChevronRight className="sn-icon" aria-hidden />
-            </small>
-          </button>
-          <Chips plan={p} here={here} today={today} onRead={onRead} lateMax={Infinity} />
-        </div>
-      ))}
       {solo < SOLO_MAX && (
         <button type="button" className="tp-add" onClick={onCreate}>
           <Plus className="sn-icon" aria-hidden />
@@ -187,6 +190,133 @@ function TodayList({
         </button>
       )}
     </div>
+  );
+}
+
+/** 책 스티커 색 — 이웃한 책끼리 겹치지 않게 잉크 셋을 돌려쓴다 */
+const tone = (b: number) => b % 3;
+
+type Stamp = { k: string; c: number; st: 'late' | 'done' | 'todo' };
+
+/** 길 하나 — 책마다 둥근 스티커 + 장 번호 도장 (밀린 장 주황 · 읽음 채움 · 남음 점선 · 지금 장 테두리) */
+function BookRows({
+  plan,
+  here,
+  today,
+  onRead,
+}: {
+  plan: MinePlan;
+  here: string;
+  today: string;
+  onRead: (k: string) => void;
+}) {
+  const t = planToday(plan, today);
+  const seen = new Set<string>();
+  const rows: Array<{ b: number; stamps: Stamp[] }> = [];
+  const push = (k: string, st: Stamp['st']) => {
+    const p = parseCh(k);
+    if (!p || seen.has(k)) return;
+    seen.add(k);
+    const last = rows[rows.length - 1];
+    const s = { k, c: p.c, st };
+    if (last && last.b === p.b) last.stamps.push(s);
+    else rows.push({ b: p.b, stamps: [s] });
+  };
+  t.late.forEach((d) => push(d.chapter, 'late'));
+  t.chapters.forEach((c) => push(c.chapter, c.done ? 'done' : 'todo'));
+
+  if (!rows.length) {
+    return (
+      <p className="tp-rest">
+        {plan.start_date > today ? `${mdLabel(plan.start_date)} 시작` : '오늘은 읽을 곳이 없어요'}
+      </p>
+    );
+  }
+  return (
+    <div className="tp-books">
+      {rows.map((r, i) => (
+        <div key={`${r.b}:${i}`} className="tp-book" data-tone={tone(r.b)}>
+          <span className="tp-sticker" aria-hidden>
+            {BOOKS[r.b][1]}
+          </span>
+          <div className="tp-book-body">
+            <span className="tp-book-name">{BOOKS[r.b][0]}</span>
+            <div className="tp-stamps">
+              {r.stamps.map((s) => (
+                <button
+                  key={s.k}
+                  type="button"
+                  className="tp-stamp"
+                  data-st={s.st}
+                  aria-current={s.k === here || undefined}
+                  aria-label={`${BOOKS[r.b][0]} ${s.c}${s.st === 'done' ? ' 읽음' : s.st === 'late' ? ' 밀림' : ''}`}
+                  onClick={() => onRead(s.k)}
+                >
+                  {s.c}
+                  {s.st === 'done' && (
+                    <i className="tp-stamp-ok" aria-hidden>
+                      <Check className="sn-icon" />
+                    </i>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 오늘 분량을 다 읽은 날 — 읽은 책 스티커가 겹쳐 모이고 「다 읽음」 도장, 아래 길마다 한 줄 */
+function DoneBoard({
+  plans,
+  today,
+  onOpen,
+}: {
+  plans: MinePlan[];
+  today: string;
+  onOpen: (id: string) => void;
+}) {
+  const books: number[] = [];
+  let total = 0;
+  plans.forEach((p) =>
+    planToday(p, today).chapters.forEach((c) => {
+      total += 1;
+      const b = parseCh(c.chapter)?.b;
+      if (b != null && !books.includes(b)) books.push(b);
+    }),
+  );
+  return (
+    <>
+      <div className="tp-done">
+        <span className="tp-done-stack" aria-hidden>
+          {books.slice(0, 4).map((b, i) => (
+            <span key={b} className="tp-sticker" data-tone={tone(b)} style={{ zIndex: 4 - i }}>
+              {BOOKS[b][1]}
+            </span>
+          ))}
+        </span>
+        <span className="tp-done-msg">오늘 {total}장, 다 붙였어요</span>
+        <span className="tp-done-seal" aria-hidden>
+          다 읽음
+        </span>
+      </div>
+      {plans.map((p) => {
+        const ch = planToday(p, today).chapters;
+        return (
+          <button key={p.id} type="button" className="tp-done-row" onClick={() => onOpen(p.id)}>
+            <b data-group={!!p.group_id || undefined}>{planOwnerName(p)}</b>
+            <span>{ch.length ? chaptersLabel(ch.map((c) => c.chapter)) : '오늘은 쉬는 날'}</span>
+            {ch.length > 0 && (
+              <small>
+                {ch.length} / {ch.length}
+              </small>
+            )}
+          </button>
+        );
+      })}
+    </>
   );
 }
 
