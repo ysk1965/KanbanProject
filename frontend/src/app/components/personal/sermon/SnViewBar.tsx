@@ -19,6 +19,8 @@ interface Props {
   collapsed: boolean;
   onExpand: () => void;
   search?: { value: string; onChange: (v: string) => void; placeholder: string };
+  /** 찾기 칸을 다른 곳(성경 읽기)이 그린다 — 🔍 는 열기만 하고, 열리면 줄 자리를 host 로 내준다 */
+  dock?: { open: boolean; onOpen: () => void; onHost: (el: HTMLElement | null) => void };
   action?: { label: string; onClick: () => void };
 }
 
@@ -27,7 +29,17 @@ interface Props {
  * 줄 아래쪽이 동그라미 자리만큼 패이고(--sn-orb-x 는 SermonBottomNav 가 매 프레임 넣는다),
  * 본문을 아래로 내리면 고른 보기 이름표만 남기고 접힌다.
  */
-export function SnViewBar({ k, items, index, count, collapsed, onExpand, search, action }: Props) {
+export function SnViewBar({
+  k,
+  items,
+  index,
+  count,
+  collapsed,
+  onExpand,
+  search,
+  action,
+  dock,
+}: Props) {
   const [searching, setSearching] = useState(() => !!search?.value);
   const inputRef = useRef<HTMLInputElement>(null);
   const cur = items.find((it) => it.on);
@@ -47,7 +59,14 @@ export function SnViewBar({ k, items, index, count, collapsed, onExpand, search,
   };
 
   return (
-    <div className="sn-vbar-wrap" data-k={k} data-min={collapsed} data-side={side}>
+    <div
+      className="sn-vbar-wrap"
+      data-k={k}
+      data-min={collapsed}
+      data-side={side}
+      data-dock={dock?.open || undefined}
+    >
+      {dock?.open && <div className="sn-vbar-dock" ref={dock.onHost} />}
       <div className="sn-vbar" aria-hidden={collapsed || undefined}>
         {searching && search ? (
           <>
@@ -71,13 +90,13 @@ export function SnViewBar({ k, items, index, count, collapsed, onExpand, search,
           </>
         ) : (
           <>
-            {search && (
+            {(search || dock) && (
               <button
                 type="button"
                 className="sn-vbar-rd"
-                aria-label="검색"
+                aria-label={dock ? '말씀 찾기' : '검색'}
                 tabIndex={collapsed ? -1 : undefined}
-                onClick={() => setSearching(true)}
+                onClick={() => (dock ? dock.onOpen() : setSearching(true))}
               >
                 <Search aria-hidden />
               </button>

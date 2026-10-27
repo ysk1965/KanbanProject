@@ -7,6 +7,7 @@ import {
   type CSSProperties,
   type TouchEvent,
 } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ChevronDown,
   ChevronLeft,
@@ -62,6 +63,8 @@ interface BibleReaderProps {
   notes: SermonNote[];
   onOpen: (id: string, aid?: string | null) => void;
   mascot?: MascotId;
+  /** 설치 앱 좁은 화면 — 말씀 찾기는 위쪽 🔍 대신 하단 보기 줄에서 연다 */
+  dockSearch?: { open: boolean; host: HTMLElement | null; onClose: () => void };
 }
 
 const POS_KEY = 'sermon-bible-pos';
@@ -220,7 +223,7 @@ function Hand({ m, onOpen }: { m: ReadMark; onOpen: BibleReaderProps['onOpen'] }
   );
 }
 
-export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProps) {
+export function BibleReader({ notes, onOpen, mascot = 'galpi', dockSearch }: BibleReaderProps) {
   const { bible, failed } = useBible();
   const marks = useMemo(() => collectMarks(notes), [notes]);
   const counts = useMemo(() => bookCounts(marks), [marks]);
@@ -769,7 +772,19 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi' }: BibleReaderProp
           형광펜
         </button>
         <span className="sn-label sn-hide-sm">개역한글</span>
-        <BibleSearch narrow={narrow} onGo={seekTo} onWord={setFound} />
+        {!(narrow && dockSearch) && <BibleSearch narrow={narrow} onGo={seekTo} onWord={setFound} />}
+        {narrow &&
+          dockSearch?.open &&
+          dockSearch.host &&
+          createPortal(
+            <BibleSearch
+              narrow
+              onGo={seekTo}
+              onWord={setFound}
+              dock={{ onClose: dockSearch.onClose }}
+            />,
+            dockSearch.host,
+          )}
         <div className="sn-bible-view" ref={viewRef}>
           <button
             type="button"

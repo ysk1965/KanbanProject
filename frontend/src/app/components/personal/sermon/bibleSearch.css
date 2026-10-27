@@ -171,6 +171,39 @@
   color: var(--sn-muted);
 }
 
+/* 설치 앱 하단 보기 줄 안 — 칸은 줄 자리에, 후보·도움말은 줄 위로 */
+.sermon-app .sn-bsearch-dock {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.sermon-app .sn-bsearch-dock .sn-bsearch-box {
+  border-color: transparent;
+  background: var(--sn-surface-2);
+}
+.sermon-app .sn-bsearch-up {
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  bottom: calc(100% + 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(50vh, 360px);
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid var(--sn-line-strong);
+  border-radius: var(--sn-r-ovl);
+  background: var(--sn-bg);
+  box-shadow: var(--sn-shadow);
+}
+.sermon-app .sn-bsearch-up .sn-bsearch-list {
+  position: static;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+
 /* 결과 — 본문 자리에 */
 .sermon-app .sn-bsr-head {
   display: flex;

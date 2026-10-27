@@ -22,13 +22,23 @@ interface BibleSearchProps {
   narrow: boolean;
   onGo: (b: number, c: number, v: number | null) => void;
   onWord: (q: string) => void;
+  /** 설치 앱 하단 보기 줄 안에 칸을 바로 펼친다 — 후보 목록은 줄 위로 열린다 */
+  dock?: { onClose: () => void };
 }
 
-export function BibleSearch({ narrow, onGo, onWord }: BibleSearchProps) {
+export function BibleSearch({ narrow, onGo, onWord, dock }: BibleSearchProps) {
   const [q, setQ] = useState('');
   const [drop, setDrop] = useState(false);
   const [sel, setSel] = useState(0);
-  const [panel, setPanel] = useState(false);
+  const [panel, setPanel] = useState(!!dock);
+  // 하단 줄(dock) 칸은 닫히면 줄 자리를 돌려준다
+  const onCloseRef = useRef(dock?.onClose);
+  useEffect(() => {
+    onCloseRef.current = dock?.onClose;
+  });
+  useEffect(() => {
+    if (!panel) onCloseRef.current?.();
+  }, [panel]);
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
@@ -167,6 +177,26 @@ export function BibleSearch({ narrow, onGo, onWord }: BibleSearchProps) {
     </div>
   );
 
+  if (dock) {
+    return (
+      <div className="sn-bsearch-dock" ref={wrapRef}>
+        {(list || !q) && (
+          <div className="sn-bsearch-up">
+            {list}
+            {!q && (
+              <p className="sn-bsearch-tip">마4:1 · 롬 8 처럼 주소를, 믿음 소망 처럼 낱말을</p>
+            )}
+          </div>
+        )}
+        <div className="sn-bsearch-row">
+          {box}
+          <button type="button" className="sn-bsearch-cancel" onClick={() => setPanel(false)}>
+            취소
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (!narrow) {
     return (
       <div className="sn-bsearch" ref={wrapRef}>

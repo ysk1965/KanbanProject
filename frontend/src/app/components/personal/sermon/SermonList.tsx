@@ -195,6 +195,9 @@ export function SermonList({
   /** 좁은 화면 보기 줄 — 본문을 내리면 이름표로 접힌다 */
   const [vbMin, setVbMin] = useState(false);
   const listMainRef = useRef<HTMLElement>(null);
+  /** 성경 이어 읽기 — 하단 보기 줄에서 연 말씀 찾기 칸과 그 자리 */
+  const [bsOpen, setBsOpen] = useState(false);
+  const [bsHost, setBsHost] = useState<HTMLElement | null>(null);
   // 연결이 끊긴 동안 '마지막 맞춤 N분 전'이 멈추지 않게 1분마다 다시 그린다
   const [now, setNow] = useState(() => Date.now());
   const offlineTick = status.online === false && !!status.lastSync;
@@ -295,7 +298,16 @@ export function SermonList({
 
   let body: React.ReactNode;
   if (tab === 'bible' && bibleView === 'read') {
-    body = <BibleReader notes={notes} onOpen={onOpen} mascot={mascot} />;
+    body = (
+      <BibleReader
+        notes={notes}
+        onOpen={onOpen}
+        mascot={mascot}
+        dockSearch={
+          standalone ? { open: bsOpen, host: bsHost, onClose: () => setBsOpen(false) } : undefined
+        }
+      />
+    );
   } else if (tab === 'bible' && bibleView === 'highlights') {
     body = <HighlightList onRead={() => setBibleView('read')} />;
   } else if (tab === 'groups') {
@@ -604,6 +616,10 @@ export function SermonList({
   const vbar = standalone && !deep && vbItems.length > 0;
   const vbSearch = vbar && showSearch && !main;
   const vbIndex = TABS.findIndex((t) => t.k === tab);
+  const vbDock = vbar && tab === 'bible' && bibleView === 'read';
+  useEffect(() => {
+    if (!vbDock) setBsOpen(false);
+  }, [vbDock]);
 
   // 본문을 아래로 내리면 접고, 조금이라도 올리면 펼친다
   useEffect(() => {
@@ -858,7 +874,7 @@ export function SermonList({
                   items={vbItems}
                   index={vbIndex}
                   count={TABS.length}
-                  collapsed={vbMin}
+                  collapsed={vbMin && !bsOpen}
                   onExpand={() => setVbMin(false)}
                   search={
                     vbSearch
@@ -867,6 +883,18 @@ export function SermonList({
                           onChange: setQ,
                           placeholder:
                             tab === 'note' ? '제목, 설교자, 구절, 내 생각' : '구절, 설교 제목',
+                        }
+                      : undefined
+                  }
+                  dock={
+                    vbDock
+                      ? {
+                          open: bsOpen,
+                          onOpen: () => {
+                            setVbMin(false);
+                            setBsOpen(true);
+                          },
+                          onHost: setBsHost,
                         }
                       : undefined
                   }

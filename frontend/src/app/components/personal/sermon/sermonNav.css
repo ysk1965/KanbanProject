@@ -673,7 +673,7 @@
   /* ── 보기 줄 「자리 맞춤 줄」 (SnViewBar) ──
    * 하단 바 위에 떠서, 아래쪽이 동그라미 자리만큼 패인다. --sn-orb-x = 동그라미 가운데(바 기준) */
   .sermon-app .sn-list[data-vbar='true'] .sn-list-main {
-    padding-bottom: 96px;
+    padding-bottom: 88px;
   }
   .sermon-app .sn-list[data-vsearch='true'] .sn-list-main > .sn-toolbar {
     display: none;
@@ -682,7 +682,7 @@
     position: absolute;
     left: 8px;
     right: 8px;
-    bottom: calc(100% + 20px);
+    bottom: calc(100% + 12px);
     height: 52px;
     pointer-events: none;
     filter: drop-shadow(0 10px 16px color-mix(in srgb, var(--sn-fg) 14%, transparent))
@@ -699,14 +699,14 @@
     background: var(--sn-bg);
     pointer-events: auto;
     -webkit-mask: radial-gradient(
-      circle at calc(var(--sn-orb-x, -100px) - 8px) calc(100% + 24px),
-      transparent 32px,
-      #000 32.5px
+      circle at calc(var(--sn-orb-x, -100px) - 8px) calc(100% + 16px),
+      transparent 30px,
+      #000 30.5px
     );
     mask: radial-gradient(
-      circle at calc(var(--sn-orb-x, -100px) - 8px) calc(100% + 24px),
-      transparent 32px,
-      #000 32.5px
+      circle at calc(var(--sn-orb-x, -100px) - 8px) calc(100% + 16px),
+      transparent 30px,
+      #000 30.5px
     );
     transition:
       opacity 0.2s,
@@ -812,10 +812,24 @@
     font-size: 14px;
     font-weight: 700;
   }
+  /* 성경 이어 읽기 말씀 찾기 — 줄 자리를 BibleSearch(dock) 에 내준다 */
+  .sermon-app .sn-vbar-wrap[data-dock] .sn-vbar {
+    visibility: hidden;
+  }
+  .sermon-app .sn-vbar-dock {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    padding: 4px 6px;
+    border-radius: var(--sn-r-pill);
+    background: var(--sn-bg);
+    pointer-events: auto;
+  }
   /* 접힌 이름표 — 동그라미 바로 위, 바 끝을 넘지 않게 안쪽으로 붙인다 */
   .sermon-app .sn-vbar-tag {
     position: absolute;
-    bottom: 4px;
+    bottom: 12px;
     display: inline-flex;
     align-items: center;
     gap: 4px;
