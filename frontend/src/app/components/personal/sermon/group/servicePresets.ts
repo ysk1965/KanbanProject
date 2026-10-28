@@ -33,6 +33,11 @@ export const SERVICE_PRESETS: GroupService[] = [
   },
 ];
 
+/** 모임 만들기 2단계 첫 화면 — 주일 설교 11:00 하나만. 다른 예배는 「예배 추가」로 */
+export const GROUP_DEFAULT_SERVICES: GroupService[] = [
+  { id: 'sun', name: '주일 설교', active: true, slots: [{ dow: 0, start: '11:00', end: '12:30' }] },
+];
+
 export const GROUP_KINDS: Array<{ id: GroupKind; name: string; hint: string; approval: boolean }> =
   [
     { id: 'church', name: '교회 모임', hint: '셀·구역·목장·순', approval: true },

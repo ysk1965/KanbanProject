@@ -1135,3 +1135,19 @@
     transition: none;
   }
 }
+
+/* 좁은 화면 「이번 주」 나누기 — 이번 주(표지·들은 예배) / 한 주(한 주 동안). SermonHome data-part */
+@media (max-width: 760px) {
+  .sermon-app .sn-home[data-part='main'] .sn-wp {
+    display: none;
+  }
+  .sermon-app .sn-home[data-part='week'] > :not(.sn-home-top),
+  .sermon-app .sn-home[data-part='week'] .sn-hc {
+    display: none;
+  }
+}
+
+/* 좁은 화면에서 모임 보기(이번 주·통독 …)는 하단 보기 줄이 맡는다 — 위쪽 탭은 숨김 */
+.sn-list[data-gtabs] .sg-itabs {
+  display: none;
+}

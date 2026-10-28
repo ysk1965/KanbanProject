@@ -8,6 +8,7 @@ import { ANONYMOUS_USER, SermonStore, isOffline } from './sermonStore';
 import { OfflineEntrySheet, useNetChip } from './OfflineEntrySheet';
 import { kickVersionUploads } from './sermonVersions';
 import { SermonList } from './SermonList';
+import { noteNav } from './noteNav';
 import { SermonEditor } from './SermonEditor';
 import { applyStyle, loadStyle, persistStyle, type SermonStyle } from './sermonStyle';
 import { applyInk, type MascotId, type SermonLook } from './sermonLook';
@@ -486,7 +487,7 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
   const backLabel =
     (fromGroup && groups.ctx.store.get(fromGroup)?.name) ||
     BACK_LABEL[searchParams.get(PARAM_TAB) || ''] ||
-    '노트';
+    noteNav.backLabel();
 
   return (
     <GroupContext.Provider value={groups.ctx}>

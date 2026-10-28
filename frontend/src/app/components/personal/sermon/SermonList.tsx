@@ -35,6 +35,7 @@ import { BibleTabIcon, ChallengeTabIcon, GroupsTabIcon, MeTabIcon, NoteTabIcon }
 import { playTabVerb } from './tabMotion';
 import { SermonBottomNav } from './SermonBottomNav';
 import { SnViewBar, type ViewBarItem } from './SnViewBar';
+import { GROUP_TABS, readGroupTab, withGroupTab } from './group/groupTabs';
 import { ActionBarHostProvider, useActionBarHost } from './SnActionBar';
 import { SermonHome } from './SermonHome';
 import { SermonCalendar } from './SermonCalendar';
@@ -42,12 +43,13 @@ import { SermonThoughts } from './SermonThoughts';
 import { SermonTidy } from './SermonTidy';
 import { useTidy } from './useTidy';
 import { displayTitle } from './noteTidy';
+import { noteNav, type NoteView } from './noteNav';
 import { useSermonGroups } from './group/GroupContext';
 import { BibleReader } from './BibleReader';
 import { HighlightList } from './HighlightList';
 import { SermonVerses } from './VerseIndex';
 import { loadReadPos, useHighlights } from './bibleHighlights';
-import { MyGalpi } from './MyGalpi';
+import { MyGalpi, type MeView } from './MyGalpi';
 import { WorshipPage } from './GalpiSettings';
 import { useGalpiPrefs, useGalpiStickers } from './galpiPrefs';
 import { GroupsLanding } from './group/GroupsLanding';
@@ -100,8 +102,7 @@ function nudgeSnoozed(): boolean {
 }
 
 export type SermonTabKey = 'note' | 'groups' | 'bible' | 'challenge' | 'me';
-/** 이번 주 · 달력 · 내 생각 · 다듬기 (예배별 목록은 달력의 예배 칩으로 옮겼다) */
-type NoteView = 'home' | 'cal' | 'thoughts' | 'tidy';
+/** 이번 주(폰은 이번 주 · 한 주) · 달력 · 내 생각 · 다듬기 — noteNav.ts */
 type BibleView = 'read' | 'verses' | 'highlights';
 
 const TABS: Array<{
@@ -187,14 +188,18 @@ export function SermonList({
     TABS.findIndex((t) => t.k === tab),
     { axis: 'x' },
   );
-  const [noteView, setNoteView] = useState<NoteView>('home');
+  // 노트를 열었다 「← 달력」으로 돌아오면 보던 보기 그대로
+  const [noteView, setNoteView] = useState<NoteView>(() => noteNav.view);
+  useEffect(() => {
+    noteNav.view = noteView;
+  }, [noteView]);
   const [bibleView, setBibleView] = useState<BibleView>('read');
   /** 성경 읽기의 마지막 자리 — 「성경」 칩 옆에 「롬 5」로 */
   const [readPos, setReadPos] = useState(loadReadPos);
   const highlights = useHighlights();
   const [challengeView, setChallengeView] = useState<ChallengeView>('home');
   /** 나의 갈피 안 화면 — 첫 화면 / 내 예배표 */
-  const [meView, setMeView] = useState<'home' | 'worship'>('home');
+  const [meView, setMeView] = useState<MeView | 'worship'>('home');
   const abar = useActionBarHost();
   const [nudgeHidden, setNudgeHidden] = useState(() => nudgeSnoozed());
   const showNudge = status.anonymous && !!onLogin && notes.length > 0 && !nudgeHidden;
@@ -247,6 +252,7 @@ export function SermonList({
     const next = new URLSearchParams(sp);
     next.delete('group');
     next.delete('session');
+    next.delete('gtab');
     if (t === 'note') next.delete('tab');
     else next.set('tab', t);
     if (t === tab && vbMin) {
@@ -272,16 +278,6 @@ export function SermonList({
   };
   const stickerCount = useGalpiStickers(notes).size;
   const worshipCount = useGalpiPrefs().worship.length;
-  // 모은 설교 스티커는 「나의 갈피」 탭 안에 있다
-  const goStickers = () => {
-    setMeView('home');
-    if (tab !== 'me') goTab('me');
-    window.setTimeout(
-      () =>
-        document.querySelector('.sermon-app .sn-sticker-sec')?.scrollIntoView({ block: 'start' }),
-      60,
-    );
-  };
 
   const tabBadge = (k: SermonTabKey): string | null =>
     k === 'groups' && groupRequests
@@ -332,10 +328,11 @@ export function SermonList({
   } else if (tab === 'groups') {
     body = <GroupsLanding mascot={mascot} />;
   } else if (tab === 'me' && meView === 'worship') {
-    body = <WorshipPage notes={notes} onBack={() => setMeView('home')} />;
+    body = <WorshipPage notes={notes} onBack={() => setMeView('settings')} />;
   } else if (tab === 'me') {
     body = (
       <MyGalpi
+        view={meView === 'settings' ? 'settings' : 'home'}
         notes={notes}
         mascot={mascot}
         name={userName}
@@ -427,7 +424,7 @@ export function SermonList({
         shelfHost={stripHost}
       />
     );
-  } else if (noteView === 'home' && !query) {
+  } else if ((noteView === 'home' || noteView === 'week') && !query) {
     body = (
       <SermonHome
         notes={notes}
@@ -435,6 +432,7 @@ export function SermonList({
         onOpen={onOpen}
         onNew={onNew}
         onToggleApply={onToggleApply}
+        part={noteView === 'week' ? 'week' : 'main'}
       />
     );
   } else if (!filtered.length) {
@@ -522,7 +520,7 @@ export function SermonList({
               {
                 key: 'home',
                 label: '이번 주',
-                on: noteView === 'home',
+                on: noteView === 'home' || noteView === 'week',
                 go: () => pickNote('home'),
               },
               {
@@ -603,7 +601,52 @@ export function SermonList({
                 ],
               },
             ]
-          : [];
+          : tab === 'me'
+            ? [
+                {
+                  items: [
+                    {
+                      key: 'home',
+                      label: '모은 설교 스티커',
+                      short: '스티커',
+                      count: stickerCount,
+                      on: meView === 'home',
+                      go: () => setMeView('home'),
+                    },
+                    {
+                      key: 'settings',
+                      label: '설정',
+                      // 내 예배표는 설정 안 화면
+                      on: meView !== 'home',
+                      go: () => setMeView('settings'),
+                    },
+                  ],
+                },
+              ]
+            : [];
+
+  /**
+   * 좁은 화면(보기 줄·칩 줄)의 설교 노트 보기 — 「이번 주」를 표지·들은 예배 / 「한 주」(한 주 동안)로 나누고,
+   * 「다듬기」는 넓은 화면에서만.
+   */
+  const narrowItems = (items: Sub[]): Sub[] =>
+    tab !== 'note'
+      ? items
+      : items.flatMap((it) =>
+          it.key === 'home'
+            ? [
+                { ...it, on: noteView === 'home' },
+                {
+                  key: 'week',
+                  label: '한 주',
+                  on: noteView === 'week',
+                  go: () => pickNote('week'),
+                },
+              ]
+            : it.key === 'tidy'
+              ? []
+              : [it],
+        );
 
   const subChip = (it: Sub) => (
     <button key={it.key} type="button" aria-pressed={it.on} onClick={it.go}>
@@ -625,8 +668,27 @@ export function SermonList({
 
   /* 설치 앱 좁은 화면 — 위쪽 칩 줄·검색·새 기록 버튼 대신 하단 바 위 보기 줄 */
   const myGroups = gctx && !gctx.anonymous ? gctx.store.groups : [];
-  const vbItems: ViewBarItem[] =
-    tab === 'groups'
+  // 모임 하나를 열었으면 줄에는 그 모임 보기(이번 주·통독 …)를, 모임 고르기는 위쪽 칩 줄로
+  const openG =
+    tab === 'groups' && !sp.get('session')
+      ? myGroups.find((g) => g.id === sp.get('group'))
+      : undefined;
+  const gTabs = !!openG && openG.me.status === 'active';
+  const gTab = readGroupTab(sp);
+  const vbItems: ViewBarItem[] = gTabs
+    ? GROUP_TABS.map(([k, l]) => ({
+        key: k,
+        label: l,
+        count:
+          k !== 'members'
+            ? undefined
+            : openG.me.role !== 'member' && openG.members.some((m) => m.status === 'pending')
+              ? `요청 ${openG.members.filter((m) => m.status === 'pending').length}`
+              : openG.members.filter((m) => m.status === 'active').length,
+        on: gTab === k,
+        go: () => setSp(withGroupTab(sp, k), { replace: true }),
+      }))
+    : tab === 'groups'
       ? [
           ...myGroups.map((g) => ({
             key: g.id,
@@ -639,7 +701,7 @@ export function SermonList({
             : []),
         ]
       : subs.flatMap((g) =>
-          g.items.map((it) => ({
+          narrowItems(g.items).map((it) => ({
             key: it.key,
             label: it.short || it.label,
             count: it.barCount === null ? undefined : (it.barCount ?? it.count),
@@ -680,6 +742,7 @@ export function SermonList({
         data-tab={tab}
         data-standalone={standalone}
         data-vbar={vbar || undefined}
+        data-gtabs={(vbar && gTabs) || undefined}
         data-vsearch={vbSearch || undefined}
         data-shelf={vbShelf || undefined}
         aria-label="설교 노트"
@@ -758,10 +821,6 @@ export function SermonList({
                       꾸미기
                     </button>
                   )}
-                  <button type="button" onClick={goStickers}>
-                    모은 설교 스티커
-                    <span className="sn-count">{stickerCount}</span>
-                  </button>
                   <button
                     type="button"
                     aria-current={meView === 'worship'}
@@ -836,7 +895,7 @@ export function SermonList({
               </button>
             </div>
           )}
-          {!vbar &&
+          {(!vbar || gTabs) &&
             !deep &&
             tab === 'groups' &&
             gctx &&
@@ -861,7 +920,7 @@ export function SermonList({
             )}
           {!vbar && !deep && subs.length > 0 && (
             <div className="sn-subchips" aria-label="보기">
-              {subs.flatMap((g) => g.items).map(subChip)}
+              {narrowItems(subs.flatMap((g) => g.items)).map(subChip)}
             </div>
           )}
           {main ? (

@@ -13,7 +13,7 @@ import {
   type GroupService,
   type SermonGroup,
 } from './groupApi';
-import { DOW_KO, GROUP_KINDS, SERVICE_PRESETS, kindName } from './servicePresets';
+import { DOW_KO, GROUP_DEFAULT_SERVICES, GROUP_KINDS, kindName } from './servicePresets';
 import { weekSlots, weekStartOf } from './sessionMatch';
 import { faceColor, initial, type GroupStore } from './groupStore';
 import { inviteUrl, shareInvite } from './inviteLink';
@@ -98,7 +98,7 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
   const [kind, setKind] = useState<GroupKind>('church');
   const [myName, setMyName] = useState(defaultName);
   const [services, setServices] = useState<GroupService[]>(() =>
-    SERVICE_PRESETS.map((s) => ({ ...s })),
+    GROUP_DEFAULT_SERVICES.map((s) => ({ ...s, slots: s.slots.map((x) => ({ ...x })) })),
   );
   const [editing, setEditing] = useState<string | null>(null);
   const [approval, setApproval] = useState(true);
@@ -117,7 +117,9 @@ export function GroupCreate({ open, store, defaultName = '', onClose, onCreated 
     setName('');
     setKind('church');
     setMyName(defaultName);
-    setServices(SERVICE_PRESETS.map((s) => ({ ...s, slots: s.slots.map((x) => ({ ...x })) })));
+    setServices(
+      GROUP_DEFAULT_SERVICES.map((s) => ({ ...s, slots: s.slots.map((x) => ({ ...x })) })),
+    );
     setEditing(null);
     setApproval(true);
     setCreated(null);

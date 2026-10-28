@@ -6,6 +6,7 @@ import { useGalpiPrefs, useGalpiStickers } from './galpiPrefs';
 import { applyCount } from './homeFmt';
 import { bookChapter, displayTitle, serviceKeyOf, serviceKeys, stickerLabel } from './noteTidy';
 import { Mascot } from './Mascot';
+import { noteNav } from './noteNav';
 import type { MascotId } from './sermonLook';
 import './calendar.css';
 
@@ -42,8 +43,9 @@ const parse = (s: string) => {
 
 export function SermonCalendar({ notes, mascot, onOpen, onNew, onSel, shelfHost }: Props) {
   const today = todayString();
-  const [month, setMonth] = useState(() => today.slice(0, 7));
-  const [sel, setSel] = useState(today);
+  // 노트를 열었다 돌아오면 보던 달·고른 날 그대로
+  const [month, setMonth] = useState(() => noteNav.cal?.month ?? today.slice(0, 7));
+  const [sel, setSel] = useState(() => noteNav.cal?.sel ?? today);
   const [hidden, setHidden] = useState<Set<string>>(() => new Set());
   const [onlyAudio, setOnlyAudio] = useState(false);
   const [onlyThought, setOnlyThought] = useState(false);
@@ -54,7 +56,8 @@ export function SermonCalendar({ notes, mascot, onOpen, onNew, onSel, shelfHost 
 
   useEffect(() => {
     onSel?.(sel);
-  }, [sel, onSel]);
+    noteNav.cal = { month, sel };
+  }, [sel, month, onSel]);
 
   const worship = useGalpiPrefs().worship;
   const galpi = useGalpiStickers(notes);
@@ -245,7 +248,7 @@ export function SermonCalendar({ notes, mascot, onOpen, onNew, onSel, shelfHost 
               <div key={wk[0]} className="sn-cal-week" role="row">
                 {showTape && (
                   <button type="button" className="sn-cal-tape" onClick={() => onOpen(g.id)}>
-                    갈피 · {[bookChapter(g), displayTitle(g).text].filter(Boolean).join(' · ')}
+                    {[bookChapter(g), displayTitle(g).text].filter(Boolean).join(' · ')}
                   </button>
                 )}
                 {wk.map((d, i) => {

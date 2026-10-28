@@ -18,6 +18,7 @@ import {
 } from './groupApi';
 import { GalpiMark } from '../GalpiMark';
 import { Faces } from './Faces';
+import { GROUP_TABS, readGroupTab, withGroupTab, type GroupTab } from './groupTabs';
 import { GroupSticker, stickerTilt, stickerTone } from './GroupSticker';
 import { ServicePicker } from './ServicePicker';
 import { inviteUrl, shareInvite } from './inviteLink';
@@ -43,7 +44,7 @@ interface Props {
   onLeft: () => void;
 }
 
-type Tab = 'week' | 'reading' | 'last' | 'members' | 'settings';
+type Tab = GroupTab;
 
 /** 지난 주들 — 몇 주까지 띠에 놓을지 */
 const PAST_WEEKS = 12;
@@ -71,7 +72,10 @@ function isLeaderOf(g: SermonGroup) {
 
 export function GroupHome({ store, groupId, notes, onOpenSession, onStartInSlot, onLeft }: Props) {
   const group = store.get(groupId);
-  const [tab, setTab] = useState<Tab>('week');
+  const [sp, setSp] = useSearchParams();
+  // 모임 보기는 주소(?gtab=)에 — 좁은 화면 하단 보기 줄(SermonList)도 같은 값을 고친다
+  const tab: Tab = readGroupTab(sp);
+  const setTab = (t: Tab) => setSp(withGroupTab(sp, t), { replace: true });
   const [mascot] = useState<MascotId>(() => loadLook().mascot);
   const thisWeek = weekStartOf(todayString());
   const [past, setPast] = useState(() => addDays(thisWeek, -7));
@@ -79,7 +83,6 @@ export function GroupHome({ store, groupId, notes, onOpenSession, onStartInSlot,
   const start = tab === 'last' ? past : thisWeek;
   const week = useWeek(store, activeId, start);
   const nowWeek = useWeek(store, activeId, thisWeek);
-  const [sp, setSp] = useSearchParams();
 
   /** 통독 「읽으러 가기」 — 성경 읽기 탭을 그 장에서 연다 */
   const readChapter = (chapter: string) => {
@@ -89,6 +92,7 @@ export function GroupHome({ store, groupId, notes, onOpenSession, onStartInSlot,
     const next = new URLSearchParams(sp);
     next.delete('group');
     next.delete('session');
+    next.delete('gtab');
     next.set('tab', 'bible');
     setSp(next);
   };
@@ -117,12 +121,10 @@ export function GroupHome({ store, groupId, notes, onOpenSession, onStartInSlot,
   const total = (nowWeek?.sessions || []).reduce((n, s) => n + (s.members || []).length, 0);
   const svcNames = group.services.filter((s) => s.active).map((s) => s.name);
 
-  const tabs: Array<[Tab, string]> = [
-    ['week', '이번 주'],
-    ['reading', '통독'],
-    ['last', '지난 주들'],
-    ['members', `멤버 ${active.length}`],
-  ];
+  const tabs = GROUP_TABS.filter(([k]) => k !== 'settings').map(([k, l]): [Tab, string] => [
+    k,
+    k === 'members' ? `${l} ${active.length}` : l,
+  ]);
 
   return (
     <div className="sg-page">

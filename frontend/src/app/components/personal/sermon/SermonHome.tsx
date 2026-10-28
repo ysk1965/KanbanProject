@@ -37,6 +37,8 @@ interface SermonHomeProps {
   onOpen: (id: string, aid?: string | null) => void;
   onNew: (date?: string) => void;
   onToggleApply: (noteId: string, thoughtId: string) => void;
+  /** 좁은 화면에서 나눠 보기 — main = 표지·들은 예배, week = 한 주 동안. 넓은 화면은 둘 다 */
+  part?: 'main' | 'week';
 }
 
 function ymd(d: Date): string {
@@ -66,7 +68,14 @@ function fmtMin(sec: number): string {
   return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`;
 }
 
-export function SermonHome({ notes, mascot, onOpen, onNew, onToggleApply }: SermonHomeProps) {
+export function SermonHome({
+  notes,
+  mascot,
+  onOpen,
+  onNew,
+  onToggleApply,
+  part = 'main',
+}: SermonHomeProps) {
   const today = todayString();
   const days = useMemo(() => weekDays(), []);
   const weekStart = ymd(days[0]);
@@ -108,7 +117,7 @@ export function SermonHome({ notes, mascot, onOpen, onNew, onToggleApply }: Serm
   const [shareOpen, setShareOpen] = useState(false);
 
   return (
-    <div className="sn-home">
+    <div className="sn-home" data-part={part}>
       <div className="sn-home-top">
         {hero && (
           <article className="sn-hc" data-galpi={!!weekGalpi}>

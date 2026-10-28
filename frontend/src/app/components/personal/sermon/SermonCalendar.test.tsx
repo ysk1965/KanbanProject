@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { SermonCalendar } from './SermonCalendar';
+import { noteNav } from './noteNav';
 import { normalizeNote, todayString, type SermonNote } from './sermonTypes';
 
 const today = todayString();
@@ -13,6 +14,7 @@ const note = (id: string, c: Partial<SermonNote>): SermonNote => ({
 const wrap = (ui: React.ReactElement) => render(<div className="sermon-app">{ui}</div>);
 
 describe('SermonCalendar', () => {
+  beforeEach(() => noteNav.reset());
   const notes = [
     note('a', { title: '한 사람으로 인해', refs: ['45:5:12-14'], body: '<p>x</p>' }),
     note('b', { service: '수요예배', body: '<p>은혜의 첫 줄</p>' }),
@@ -83,5 +85,31 @@ describe('SermonCalendar', () => {
     expect(screen.queryByRole('button', { name: /이 날짜로 새 기록/ })).toBeNull();
     expect(onSel).toHaveBeenCalledWith(today);
     shelf.remove();
+  });
+
+  it('노트를 열었다 돌아오면 보던 달·고른 날 그대로', () => {
+    const { container, unmount } = wrap(
+      <SermonCalendar notes={notes} mascot="galpi" onOpen={() => {}} onNew={() => {}} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: '다음 달' }));
+    const label = container.querySelector('.sn-cal-grid')?.getAttribute('aria-label');
+    unmount();
+    const again = wrap(
+      <SermonCalendar notes={notes} mascot="galpi" onOpen={() => {}} onNew={() => {}} />,
+    );
+    expect(again.container.querySelector('.sn-cal-grid')?.getAttribute('aria-label')).toBe(label);
+  });
+
+  it('갈피 테이프에는 「갈피」 글자 없이 책·제목만', () => {
+    const sun = new Date();
+    sun.setDate(sun.getDate() - sun.getDay());
+    const d = `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, '0')}-${String(sun.getDate()).padStart(2, '0')}`;
+    const g = note('g', { date: d, title: '은혜', refs: ['45:5:12-14'], bookmarked_at: 1 });
+    const { container } = wrap(
+      <SermonCalendar notes={[g]} mascot="galpi" onOpen={() => {}} onNew={() => {}} />,
+    );
+    const tape = container.querySelector('.sn-cal-tape')?.textContent || '';
+    expect(tape).toContain('은혜');
+    expect(tape.startsWith('갈피')).toBe(false);
   });
 });

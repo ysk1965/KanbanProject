@@ -124,7 +124,7 @@ export function useGroupWiring({
   const openGroup = useCallback(
     (id: string) => {
       setOpenId(null);
-      setView({ group: id, session: null });
+      setView({ group: id, session: null, gtab: null });
     },
     [setOpenId, setView],
   );
@@ -147,7 +147,7 @@ export function useGroupWiring({
   }, [navigate, searchParams, setView]);
   const leaveMain = useCallback(() => {
     if (searchParams.get('group') || searchParams.get('session'))
-      setView({ group: null, session: null });
+      setView({ group: null, session: null, gtab: null });
   }, [searchParams, setView]);
 
   /* ── 새 노트를 자리에 붙여서 열기 ── */
@@ -475,7 +475,7 @@ export function useGroupWiring({
         notes={notes}
         onOpenSession={(sid) => openSession(sid, groupView)}
         onStartInSlot={(svc, date) => startInSlot(groupView, svc, date)}
-        onLeft={() => setView({ group: null, session: null })}
+        onLeft={() => setView({ group: null, session: null, gtab: null })}
       />
     ) : null;
 
