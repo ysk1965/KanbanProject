@@ -21,6 +21,8 @@ import './bibleHighlight.css';
  */
 interface HighlightListProps {
   onRead: () => void;
+  /** 좁은 화면 66칸 한 줄 자리 (BookStrip host) */
+  stripHost?: HTMLElement | null;
 }
 
 const VIEWS = [
@@ -61,7 +63,7 @@ const mdOf = (t: number) => {
   return `${d.getMonth() + 1}.${d.getDate()} (${'일월화수목금토'[d.getDay()]})`;
 };
 
-export function HighlightList({ onRead }: HighlightListProps) {
+export function HighlightList({ onRead, stripHost }: HighlightListProps) {
   const store = useHighlights();
   const { bible } = useBible();
   const [view, setView] = useStoredView(
@@ -110,6 +112,7 @@ export function HighlightList({ onRead }: HighlightListProps) {
       key={h.id}
       type="button"
       className="sn-vx-card sn-vx-hlcard"
+      data-vx-b={h.b}
       onClick={() => {
         openInReader(h.b, h.c, h.v1);
         onRead();
@@ -204,7 +207,7 @@ export function HighlightList({ onRead }: HighlightListProps) {
         </span>
         <ViewSeg value={view} options={VIEWS} onChange={setView} />
       </div>
-      <BookStrip cells={cells} sel={sel} onSel={setBook} />
+      <BookStrip cells={cells} sel={sel} onSel={setBook} host={stripHost} />
       <div className="sn-vx-groups">
         {groups.map((g) => (
           <section key={g.key} className="sn-vx-grp">

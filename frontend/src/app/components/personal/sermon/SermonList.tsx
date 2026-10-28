@@ -198,6 +198,8 @@ export function SermonList({
   /** 성경 이어 읽기 — 하단 보기 줄에서 연 말씀 찾기 칸과 그 자리 */
   const [bsOpen, setBsOpen] = useState(false);
   const [bsHost, setBsHost] = useState<HTMLElement | null>(null);
+  /** 설교 구절·형광펜 — 보기 줄 위 66칸 한 줄 자리 */
+  const [shelfHost, setShelfHost] = useState<HTMLElement | null>(null);
   // 연결이 끊긴 동안 '마지막 맞춤 N분 전'이 멈추지 않게 1분마다 다시 그린다
   const [now, setNow] = useState(() => Date.now());
   const offlineTick = status.online === false && !!status.lastSync;
@@ -296,6 +298,9 @@ export function SermonList({
   const sync = homeSyncLine(status, now);
   const syncLine = sync.sub ? `${sync.text} · ${sync.sub}` : sync.text;
 
+  // 보기 줄(vbar)이 뜨는 조건 중 성경 구절·형광펜일 때 — 66칸 한 줄을 줄 위 선반에 올린다
+  const vbShelf = standalone && !sp.get('session') && tab === 'bible' && bibleView !== 'read';
+  const stripHost = vbShelf ? shelfHost : undefined;
   let body: React.ReactNode;
   if (tab === 'bible' && bibleView === 'read') {
     body = (
@@ -309,7 +314,7 @@ export function SermonList({
       />
     );
   } else if (tab === 'bible' && bibleView === 'highlights') {
-    body = <HighlightList onRead={() => setBibleView('read')} />;
+    body = <HighlightList onRead={() => setBibleView('read')} stripHost={stripHost} />;
   } else if (tab === 'groups') {
     body = <GroupsLanding mascot={mascot} />;
   } else if (tab === 'me' && meView === 'worship') {
@@ -397,7 +402,14 @@ export function SermonList({
       <div className="sn-empty">아직 남긴 생각이 없어요.</div>
     );
   } else if (tab === 'bible') {
-    body = <SermonVerses notes={filtered} onOpen={onOpen} onRead={() => setBibleView('read')} />;
+    body = (
+      <SermonVerses
+        notes={filtered}
+        onOpen={onOpen}
+        onRead={() => setBibleView('read')}
+        stripHost={stripHost}
+      />
+    );
   } else if (noteView === 'home' && !query && !service) {
     body = (
       <SermonHome
@@ -647,6 +659,7 @@ export function SermonList({
         data-standalone={standalone}
         data-vbar={vbar || undefined}
         data-vsearch={vbSearch || undefined}
+        data-shelf={vbShelf || undefined}
         aria-label="설교 노트"
       >
         <nav className="sn-side" aria-label="설교 노트 메뉴">
@@ -898,6 +911,7 @@ export function SermonList({
                         }
                       : undefined
                   }
+                  shelf={vbShelf ? setShelfHost : undefined}
                   action={showFab ? { label: '새 설교 기록', onClick: () => onNew() } : undefined}
                 />
               )}

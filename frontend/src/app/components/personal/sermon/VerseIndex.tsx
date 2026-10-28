@@ -1,4 +1,14 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { BookOpen, ChevronDown, NotebookPen } from 'lucide-react';
 import { BOOKS, compareRef, OT_COUNT, refShort, type Ref } from './bibleRefs';
 import { collectMarks, type ReadMark } from './bibleMarks';
@@ -11,6 +21,7 @@ import './verseIndex.css';
  * 성경 읽기 하위 목록 공통 뼈대 — 「설교에서 만난 구절」·「내 형광펜」이 같이 쓴다.
  * 위 66권 네모(어디에 모였는지) → 보기 전환 → 묶음 머리 + 명조 본문 카드 + 손글씨 생각.
  * 새로 저장하는 것은 없다. 보기 선택·네모 접기만 기기에 기억한다.
+ * 좁은 화면(≤760px)에서는 66권 격자 대신 「구약 / 신약」 탭 + 66칸 한 줄(BookRow)을 쓴다.
  */
 
 /* ───────── 기기에 기억하는 보기 ───────── */
@@ -52,10 +63,55 @@ interface BookStripProps {
   cells: Map<number, string[]>;
   sel: number | null;
   onSel: (b: number | null) => void;
+  /**
+   * 좁은 화면에서 한 줄을 그릴 자리(하단 보기 줄 위 SnViewBar shelf).
+   * undefined = 자리 없음 → 목록 위에 붙여 그린다, null = 자리 준비 중 → 아직 안 그린다.
+   */
+  host?: HTMLElement | null;
 }
 
-export function BookStrip({ cells, sel, onSel }: BookStripProps) {
+const NARROW = '(max-width: 760px)';
+const mql = (q: string) =>
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia(q)
+    : null;
+
+function useNarrow() {
+  const [n, setN] = useState(() => !!mql(NARROW)?.matches);
+  useEffect(() => {
+    const mq = mql(NARROW);
+    if (!mq) return;
+    const on = () => setN(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return n;
+}
+
+export function BookStrip({ cells, sel, onSel, host }: BookStripProps) {
   const [folded, setFolded] = useStoredView(FOLD_KEY, ['0', '1'] as const, '0');
+  const narrow = useNarrow();
+  // 한 줄이 하단으로 옮겨 가도 목록(.sn-vx) 안 카드 위치를 따라가도록 자리표를 남긴다
+  const [scope, setScope] = useState<HTMLElement | null>(null);
+  const anchorRef = useCallback(
+    (el: HTMLSpanElement | null) => setScope((el?.closest('.sn-vx') as HTMLElement | null) ?? null),
+    [],
+  );
+
+  if (narrow) {
+    const row =
+      host === null ? null : (
+        <BookRow cells={cells} sel={sel} onSel={onSel} scope={scope} docked={!!host} />
+      );
+    return (
+      <>
+        <span className="sn-vx-anchor" aria-hidden ref={anchorRef} />
+        {host ? createPortal(row, host) : row}
+      </>
+    );
+  }
+
   const total = [...cells.values()].reduce((a, l) => a + l.length, 0);
   const ot = [...cells.keys()].filter((b) => b < OT_COUNT).length;
   const nt = cells.size - ot;
@@ -124,6 +180,161 @@ export function BookStrip({ cells, sel, onSel }: BookStripProps) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/* ───────── 좁은 화면: 구약/신약 탭 + 66칸 한 줄 ───────── */
+
+const reduceMotion = () => !!mql('(prefers-reduced-motion: reduce)')?.matches;
+
+function BookRow({
+  cells,
+  sel,
+  onSel,
+  scope,
+  docked,
+}: {
+  cells: Map<number, string[]>;
+  sel: number | null;
+  onSel: (b: number | null) => void;
+  /** 카드(data-vx-b)를 찾을 목록 — 지금 보는 카드의 책에 밑줄 */
+  scope: HTMLElement | null;
+  docked: boolean;
+}) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const ntRef = useRef<HTMLSpanElement>(null);
+  const [tes, setTes] = useState<'ot' | 'nt'>('ot');
+  const [here, setHere] = useState<number | null>(null);
+  const total = [...cells.values()].reduce((a, l) => a + l.length, 0);
+  const ot = [...cells.keys()].filter((b) => b < OT_COUNT).length;
+  const nt = cells.size - ot;
+
+  const syncTes = () => {
+    const r = rowRef.current;
+    const d = ntRef.current;
+    if (!r || !d) return;
+    setTes(r.scrollLeft + r.clientWidth / 2 > d.offsetLeft ? 'nt' : 'ot');
+  };
+  const slideTo = (left: number) => {
+    rowRef.current?.scrollTo({ left, behavior: reduceMotion() ? 'auto' : 'smooth' });
+  };
+  const goTes = (t: 'ot' | 'nt') => {
+    setTes(t);
+    slideTo(t === 'ot' ? 0 : (ntRef.current?.offsetLeft ?? 0) - 8);
+  };
+
+  // 처음엔 첫 번째로 만난 책이 보이게
+  useLayoutEffect(() => {
+    const r = rowRef.current;
+    const f = r?.querySelector<HTMLElement>('[data-on]');
+    if (r && f) r.scrollLeft = Math.max(0, f.offsetLeft - 48);
+    syncTes();
+  }, []);
+
+  // 목록에서 지금 보는 카드(화면 위쪽)의 책
+  useEffect(() => {
+    if (!scope || typeof IntersectionObserver === 'undefined') return;
+    const vis = new Set<Element>();
+    const pick = () => {
+      let best: HTMLElement | null = null;
+      let top = Infinity;
+      vis.forEach((el) => {
+        const t = el.getBoundingClientRect().top;
+        if (t < top) {
+          top = t;
+          best = el as HTMLElement;
+        }
+      });
+      const b = best ? Number((best as HTMLElement).dataset.vxB) : null;
+      setHere(b != null && Number.isFinite(b) ? b : null);
+    };
+    const io = new IntersectionObserver(
+      (es) => {
+        es.forEach((e) => (e.isIntersecting ? vis.add(e.target) : vis.delete(e.target)));
+        pick();
+      },
+      { rootMargin: '0px 0px -55% 0px' },
+    );
+    const scan = () => {
+      io.disconnect();
+      vis.clear();
+      scope.querySelectorAll('[data-vx-b]').forEach((el) => io.observe(el));
+    };
+    scan();
+    const mo = new MutationObserver(scan);
+    mo.observe(scope, { childList: true, subtree: true });
+    return () => {
+      io.disconnect();
+      mo.disconnect();
+    };
+  }, [scope]);
+
+  // 밑줄 붙은 칸이 줄 가운데 오게
+  useEffect(() => {
+    const r = rowRef.current;
+    const n = here == null ? null : r?.querySelector<HTMLElement>(`[data-b="${here}"]`);
+    if (r && n) slideTo(n.offsetLeft - r.clientWidth / 2 + n.offsetWidth / 2);
+  }, [here]);
+
+  const tile = (b: number) => {
+    const cs = cells.get(b);
+    const abbr = BOOKS[b][1];
+    if (!cs) {
+      return (
+        <span key={b} className="sn-vx-sq" aria-hidden>
+          {abbr}
+        </span>
+      );
+    }
+    return (
+      <button
+        key={b}
+        type="button"
+        className="sn-vx-sq"
+        data-on
+        data-b={b}
+        data-dim={(sel != null && sel !== b) || undefined}
+        data-here={(sel == null && here === b) || undefined}
+        aria-pressed={sel === b}
+        aria-label={`${BOOKS[b][0]} ${cs.length}개`}
+        style={{ '--fill': fill(cs) } as CSSProperties}
+        onClick={() => onSel(sel === b ? null : b)}
+      >
+        {abbr}
+      </button>
+    );
+  };
+
+  return (
+    <div className="sn-vx-row" data-docked={docked || undefined}>
+      <div className="sn-vx-rcap">
+        <div className="sn-vx-tsw" role="group" aria-label="구약 신약으로 옮기기">
+          <button type="button" aria-pressed={tes === 'ot'} onClick={() => goTes('ot')}>
+            구약 <small>{ot}</small>
+          </button>
+          <button type="button" aria-pressed={tes === 'nt'} onClick={() => goTes('nt')}>
+            신약 <small>{nt}</small>
+          </button>
+        </div>
+        {sel != null ? (
+          <span className="sn-vx-rstat">
+            <b>{BOOKS[sel][0]}</b>만 ·{' '}
+            <button type="button" className="sn-vx-link" onClick={() => onSel(null)}>
+              전체
+            </button>
+          </span>
+        ) : (
+          <span className="sn-vx-rstat">
+            <b>{total}</b>개
+          </span>
+        )}
+      </div>
+      <div className="sn-vx-sqrow" ref={rowRef} onScroll={syncTes}>
+        {Array.from({ length: OT_COUNT }, (_, i) => tile(i))}
+        <span className="sn-vx-tdiv" ref={ntRef} aria-hidden />
+        {Array.from({ length: BOOKS.length - OT_COUNT }, (_, i) => tile(i + OT_COUNT))}
+      </div>
     </div>
   );
 }
@@ -207,9 +418,11 @@ interface SermonVersesProps {
   notes: SermonNote[];
   onOpen: (id: string, aid?: string | null) => void;
   onRead: () => void;
+  /** 좁은 화면 66칸 한 줄 자리 (BookStrip host) */
+  stripHost?: HTMLElement | null;
 }
 
-export function SermonVerses({ notes, onOpen, onRead }: SermonVersesProps) {
+export function SermonVerses({ notes, onOpen, onRead, stripHost }: SermonVersesProps) {
   useBible();
   const [view, setView] = useStoredView(
     'sermon-verse-view',
@@ -266,7 +479,7 @@ export function SermonVerses({ notes, onOpen, onRead }: SermonVersesProps) {
         </span>
         <ViewSeg value={view} options={VERSE_VIEWS} onChange={setView} />
       </div>
-      <BookStrip cells={cells} sel={sel} onSel={setBook} />
+      <BookStrip cells={cells} sel={sel} onSel={setBook} host={stripHost} />
       <div className="sn-vx-groups">
         {view === 'sermon'
           ? sermons.map((n) => {
@@ -337,6 +550,7 @@ function VerseCard({
   return (
     <article
       className="sn-vx-card"
+      data-vx-b={m.ref.b}
       data-wide={wide || undefined}
       style={{ '--sc': color } as CSSProperties}
     >

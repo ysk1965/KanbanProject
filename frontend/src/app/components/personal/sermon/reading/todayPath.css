@@ -585,3 +585,54 @@
   font-weight: 400;
   opacity: 0.75;
 }
+
+/* ---------- 장 제목 옆 다 읽음 도장 (좁은 화면) ---------- */
+.tp-seal {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+.tp-seal svg {
+  width: 32px;
+  height: 32px;
+  transform: rotate(-12deg);
+}
+.tp-seal circle {
+  fill: color-mix(in srgb, var(--sn-c-green) 15%, transparent);
+  stroke: var(--sn-c-green);
+  stroke-width: 2;
+}
+.tp-seal circle.tp-seal-in {
+  fill: none;
+  stroke-width: 1;
+  stroke-dasharray: 2 2.2;
+}
+.tp-seal path {
+  fill: none;
+  stroke: var(--sn-c-green);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tp-seal:focus-visible {
+  outline: 2px solid var(--sn-c-green);
+  outline-offset: -2px;
+}
+@keyframes tp-stamp {
+  from {
+    opacity: 0;
+    transform: rotate(-12deg) scale(1.8);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tp-seal[data-fresh] svg {
+    animation: tp-stamp 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 0.3s both;
+  }
+}

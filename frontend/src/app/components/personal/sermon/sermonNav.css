@@ -618,15 +618,56 @@
   }
   .sermon-app .sn-bn-orb {
     position: absolute;
-    top: -22px;
+    top: -11px;
     left: 0;
-    width: 52px;
-    height: 52px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     background: var(--sn-tab-c);
     box-shadow: 0 12px 20px -10px rgba(42, 36, 51, 0.45);
     pointer-events: none;
     transition: background-color 0.22s;
+  }
+  /* 동그라미 안 탭 이름 — 아이콘(위쪽) 아래. 「나의 갈피」까지 들어가게 자간을 좁힌다 */
+  .sermon-app .sn-bn-orb b {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 37px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 14px;
+    letter-spacing: -0.04em;
+    white-space: nowrap;
+    color: var(--sn-tab-ink);
+  }
+  .sermon-app .sn-bnav > button[aria-current='page'] .sn-bn-tx {
+    visibility: hidden;
+  }
+  /* 뒤판 — 오목 홈 · 보기 줄과 바 사이로 본문이 비치지 않게. 줄이 있으면 줄 위로 흐려지며 올라간다 */
+  .sermon-app .sn-bnav::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--sn-surface);
+    transition: top 0.3s var(--sn-ease);
+  }
+  .sermon-app .sn-bnav:has(.sn-vbar-wrap)::before {
+    top: -82px;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--sn-surface) 0%, transparent),
+      var(--sn-surface) 28px
+    );
+  }
+  .sermon-app .sn-bnav:has(.sn-vbar-wrap[data-min='true'])::before {
+    top: -24px;
   }
   .sermon-app .sn-bnav > button {
     position: relative;
@@ -682,7 +723,7 @@
     position: absolute;
     left: 8px;
     right: 8px;
-    bottom: calc(100% + 12px);
+    bottom: calc(100% + 1px);
     height: 52px;
     pointer-events: none;
     filter: drop-shadow(0 10px 16px color-mix(in srgb, var(--sn-fg) 14%, transparent))
@@ -699,14 +740,14 @@
     background: var(--sn-bg);
     pointer-events: auto;
     -webkit-mask: radial-gradient(
-      circle at calc(var(--sn-orb-x, -100px) - 8px) calc(100% + 16px),
-      transparent 30px,
-      #000 30.5px
+      circle at calc(var(--sn-orb-x, -100px) - 8px) calc(100% + 20px),
+      transparent 34px,
+      #000 34.5px
     );
     mask: radial-gradient(
-      circle at calc(var(--sn-orb-x, -100px) - 8px) calc(100% + 16px),
-      transparent 30px,
-      #000 30.5px
+      circle at calc(var(--sn-orb-x, -100px) - 8px) calc(100% + 20px),
+      transparent 34px,
+      #000 34.5px
     );
     transition:
       opacity 0.2s,
@@ -825,6 +866,39 @@
     border-radius: var(--sn-r-pill);
     background: var(--sn-bg);
     pointer-events: auto;
+  }
+  /* 줄 위 선반 — 설교 구절·형광펜의 66칸 한 줄(VerseIndex BookRow)이 portal 로 들어온다 */
+  .sermon-app .sn-list[data-shelf='true'] .sn-list-main {
+    padding-bottom: 190px;
+  }
+  .sermon-app .sn-vbar-shelf {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 6px);
+    border-radius: 22px;
+    background: var(--sn-bg);
+    pointer-events: auto;
+    transition:
+      opacity 0.2s,
+      transform 0.36s var(--sn-spring),
+      visibility 0s;
+  }
+  .sermon-app .sn-vbar-shelf:empty {
+    display: none;
+  }
+  .sermon-app .sn-vbar-wrap[data-min='true'] .sn-vbar-shelf {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity 0.18s,
+      transform 0.3s var(--sn-ease),
+      visibility 0s 0.3s;
+  }
+  .sermon-app .sn-vbar-wrap[data-dock] .sn-vbar-shelf {
+    display: none;
   }
   /* 접힌 이름표 — 동그라미 바로 위, 바 끝을 넘지 않게 안쪽으로 붙인다 */
   .sermon-app .sn-vbar-tag {
@@ -1050,7 +1124,10 @@
   .sermon-app .sn-vbar,
   .sermon-app .sn-vbar-wrap[data-min='true'] .sn-vbar,
   .sermon-app .sn-vbar-tag,
-  .sermon-app .sn-vbar-wrap[data-min='true'] .sn-vbar-tag {
+  .sermon-app .sn-vbar-wrap[data-min='true'] .sn-vbar-tag,
+  .sermon-app .sn-vbar-shelf,
+  .sermon-app .sn-vbar-wrap[data-min='true'] .sn-vbar-shelf,
+  .sermon-app .sn-bnav::before {
     transition: none;
   }
 }

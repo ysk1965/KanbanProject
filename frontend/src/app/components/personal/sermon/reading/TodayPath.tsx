@@ -17,6 +17,7 @@ import './todayPath.css';
  * 카드 · 시트는 길마다 책 스티커 + 장 번호 도장, 다 읽은 날은 스티커가 모이고 「다 읽음」 도장.
  * 띠는 안 읽은 길 하나(좁은 화면) · 둘(중간 화면)만 보이고 나머지는 「외 N」, 누르면 바닥 시트에 카드와 같은 목록.
  * 좁은 화면에서 아래로 스크롤하면 띠가 위에 붙은 작은 알약(●○○)으로 접히고, 위로 올리면 다시 펼친다.
+ * 좁은 화면에서 오늘 장을 다 읽은 날은 띠 대신 장 제목 옆 도장(mode="seal") 하나만 — 누르면 시트.
  */
 
 /** 오늘 띠에 칩으로 보일 밀린 장 수 */
@@ -24,6 +25,14 @@ const LATE_CHIPS = 2;
 const SOLO_MAX = 3;
 /** 오늘 장이 이보다 많으면 점 대신 「1/7」 */
 const DOTS_MAX = 6;
+/** 다 읽음 도장을 마지막으로 찍은 날 — 그날 처음 볼 때만 「쿵」 찍힌다 */
+const SEAL_KEY = 'sermon-today-seal';
+
+/** 안 읽은 길이 없고 오늘 장이 있던 날 = 오늘 읽을 곳을 다 읽음 */
+const allDone = (plans: MinePlan[], today: string) =>
+  plans.length > 0 &&
+  plans.every((p) => planToday(p, today).left === 0) &&
+  plans.some((p) => planToday(p, today).chapters.length > 0);
 
 const short = (k: string) => {
   const p = parseCh(k);
@@ -36,7 +45,7 @@ const mdLabel = (ds: string) => {
 };
 
 interface Props {
-  mode: 'rail' | 'strip';
+  mode: 'rail' | 'strip' | 'seal';
   /** 지금 읽는 장 'b:c' */
   here: string;
   /** 좁은 화면 — 띠 하나 + 스크롤하면 접힘 */
@@ -104,6 +113,16 @@ export function TodayPath({ mode, here, narrow = false, onGo }: Props) {
   );
 
   if (!plans) return null;
+
+  if (mode === 'seal') {
+    if (!allDone(plans, todayString())) return null;
+    return (
+      <>
+        <DoneSeal plans={plans} onSheet={() => setSheet(true)} />
+        {overlays}
+      </>
+    );
+  }
 
   if (mode === 'rail') {
     return (
@@ -381,6 +400,40 @@ function Chips({
   );
 }
 
+/* ---------- 장 제목 옆 다 읽음 도장 ---------- */
+
+function DoneSeal({ plans, onSheet }: { plans: MinePlan[]; onSheet: () => void }) {
+  // 오늘 처음 보는 도장만 찍히는 움직임 — 장을 넘길 때마다 다시 찍히지 않게
+  const [fresh] = useState(() => {
+    const today = todayString();
+    try {
+      if (localStorage.getItem(SEAL_KEY) === today) return false;
+      localStorage.setItem(SEAL_KEY, today);
+    } catch {
+      return false;
+    }
+    return true;
+  });
+  const first = sortForToday(plans)[0];
+  const who = `${planOwnerName(first)}${first.today_day_no ? ` ${first.today_day_no}일째` : ''}`;
+  return (
+    <button
+      type="button"
+      className="tp-seal"
+      data-fresh={fresh || undefined}
+      onClick={onSheet}
+      aria-label={`오늘 읽을 곳을 다 읽었어요 · ${who}`}
+      title={`오늘 읽을 곳을 다 읽었어요 · ${who}`}
+    >
+      <svg viewBox="0 0 40 40" aria-hidden>
+        <circle cx="20" cy="20" r="17" />
+        <circle className="tp-seal-in" cx="20" cy="20" r="13.5" />
+        <path d="m13.5 20.5 4.5 4.5 8.5-9" />
+      </svg>
+    </button>
+  );
+}
+
 /* ---------- 본문 위 띠 ---------- */
 
 function TodayStrip({
@@ -443,9 +496,10 @@ function TodayStrip({
   }
 
   // 안 읽은 길이 없다 — 오늘 장이 있던 날이면 다 읽은 띠, 아니면(쉬는 날) 띠 없음
+  // 좁은 화면은 띠 대신 장 제목 옆 도장(mode="seal")
   if (!open.length) {
     const hadToday = plans.some((p) => planToday(p, today).chapters.length);
-    if (!hadToday) return <>{children}</>;
+    if (!hadToday || narrow) return <>{children}</>;
     const first = sorted[0];
     return (
       <div className="tp-strip-row">

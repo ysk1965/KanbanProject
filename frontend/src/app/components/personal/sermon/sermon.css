@@ -4875,9 +4875,6 @@ html[data-keyboard-open] .sn-overlay {
 /* 성경 읽기 — 좁은 화면 전용 요소 (넓은 화면에서는 숨김) */
 .sermon-app .sn-bible-step,
 .sermon-app .sn-bible-view,
-.sermon-app .sn-bible-prog {
-  display: none;
-}
 .sermon-app .sn-bible-swipe {
   position: relative;
 }
@@ -4918,13 +4915,6 @@ html[data-keyboard-open] .sn-overlay {
   .sermon-app .sn-bible {
     gap: 6px;
   }
-  /* 위 조작부 한 줄: ‹ 시편 73편 ▾ › ⚙ */
-  .sermon-app .sn-bible-bar {
-    gap: 2px;
-    margin: 0 -8px;
-  }
-  .sermon-app .sn-bible-bar .sn-sp,
-  .sermon-app .sn-bible-bar .sn-bible-handtog,
   .sermon-app .sn-bible-strip {
     display: none;
   }
@@ -4945,46 +4935,69 @@ html[data-keyboard-open] .sn-overlay {
   .sermon-app .sn-bible-step[aria-expanded='true'] {
     background: var(--sn-surface-2);
   }
-  .sermon-app .sn-bible-book,
-  .sermon-app .sn-bible-book[aria-expanded='true'] {
-    flex: 1;
-    justify-content: center;
-    min-width: 0;
-    min-height: 44px;
-    padding: 0 8px;
-    border: 0;
-    border-radius: var(--sn-r-ctl);
-    background: transparent;
-    color: var(--sn-fg);
-    font-size: 16px;
-    white-space: nowrap;
-  }
-  .sermon-app .sn-bible-book small {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--sn-faint);
-    font-variant-numeric: tabular-nums;
-  }
-  .sermon-app .sn-bible-book .sn-icon {
-    width: 16px;
-    height: 16px;
-    color: var(--sn-muted);
-  }
   .sermon-app .sn-bible-view {
     display: block;
     position: relative;
   }
-  .sermon-app .sn-bible-prog {
-    display: block;
-    height: 2px;
-    margin: 0 4px 4px;
-    border-radius: 2px;
-    background: var(--sn-line);
-    overflow: hidden;
+  /* 장 제목 줄이 곧 조작줄: 로마서 2 ▾ (도장) … 🔍 ⚙ / 29절 · 2 / 16장, 점선 위에 장 진행선 */
+  .sermon-app .sn-bible-head[data-ctl] {
+    position: relative;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0 2px;
+    padding-bottom: 12px;
   }
-  .sermon-app .sn-bible-prog i {
-    display: block;
-    height: 100%;
+  .sermon-app .sn-bible-head[data-ctl] .sn-bible-title {
+    min-width: 0;
+    font-size: 34px;
+  }
+  .sermon-app .sn-bible-head[data-long='1'] .sn-bible-title {
+    font-size: 30px;
+  }
+  .sermon-app .sn-bible-head[data-long='2'] .sn-bible-title {
+    font-size: 26px;
+  }
+  .sermon-app .sn-bible-titlebtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .sermon-app .sn-bible-titlebtn > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sermon-app .sn-bible-titlebtn .sn-icon {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    color: var(--sn-muted);
+  }
+  .sermon-app .sn-bible-head[data-ctl] > .sn-sp {
+    flex: 1;
+  }
+  .sermon-app .sn-bible-head[data-ctl] .sn-bible-view {
+    margin-right: -10px;
+  }
+  .sermon-app .sn-bible-head[data-ctl] > .sn-label {
+    flex-basis: 100%;
+    font-variant-numeric: tabular-nums;
+  }
+  .sermon-app .sn-bible-headprog {
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
     background: var(--sn-t1);
     transition: width 0.3s var(--sn-ease);
   }

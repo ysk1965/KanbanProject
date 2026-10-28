@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { encRef } from './bibleRefs';
 import { newNote, type SermonNote } from './sermonTypes';
@@ -70,5 +70,43 @@ describe('SermonVerses', () => {
     render(<SermonVerses notes={notes} onOpen={onOpen} onRead={vi.fn()} />);
     fireEvent.click(screen.getAllByRole('button', { name: '노트 그 자리' })[0]);
     expect(onOpen).toHaveBeenCalledWith('n1', 'a1');
+  });
+});
+
+describe('SermonVerses 좁은 화면', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => {
+    localStorage.clear();
+    vi.stubGlobal(
+      'matchMedia',
+      (q: string) =>
+        ({
+          matches: q.includes('max-width'),
+          media: q,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList,
+    );
+  });
+
+  it('66권 격자 대신 구약/신약 탭과 한 줄을 보이고, 칸을 누르면 그 책만 남는다', () => {
+    render(<SermonVerses notes={notes} onOpen={() => {}} onRead={() => {}} />);
+    expect(screen.queryByText('66권 펼치기')).toBeNull();
+    expect(screen.getByRole('button', { name: /구약/ })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: '로마서 1개' }));
+    expect(screen.getByText('로마서')).toBeInTheDocument();
+    expect(screen.queryByText('시 23:1-3')).toBeNull();
+  });
+
+  it('하단 선반(host)이 있으면 한 줄을 거기에 그리고, 준비 중(null)이면 그리지 않는다', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const { rerender } = render(
+      <SermonVerses notes={notes} onOpen={() => {}} onRead={() => {}} stripHost={null} />,
+    );
+    expect(screen.queryByRole('group', { name: '구약 신약으로 옮기기' })).toBeNull();
+    rerender(<SermonVerses notes={notes} onOpen={() => {}} onRead={() => {}} stripHost={host} />);
+    expect(host.querySelector('.sn-vx-row[data-docked]')).not.toBeNull();
+    host.remove();
   });
 });

@@ -22,6 +22,8 @@ interface Props {
   /** 찾기 칸을 다른 곳(성경 읽기)이 그린다 — 🔍 는 열기만 하고, 열리면 줄 자리를 host 로 내준다 */
   dock?: { open: boolean; onOpen: () => void; onHost: (el: HTMLElement | null) => void };
   action?: { label: string; onClick: () => void };
+  /** 줄 바로 위 선반 — 성경 구절 목록이 66칸 한 줄(BookStrip)을 여기에 그린다 */
+  shelf?: (el: HTMLElement | null) => void;
 }
 
 /**
@@ -39,6 +41,7 @@ export function SnViewBar({
   search,
   action,
   dock,
+  shelf,
 }: Props) {
   const [searching, setSearching] = useState(() => !!search?.value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -66,6 +69,7 @@ export function SnViewBar({
       data-side={side}
       data-dock={dock?.open || undefined}
     >
+      {shelf && <div className="sn-vbar-shelf" ref={shelf} aria-hidden={collapsed || undefined} />}
       {dock?.open && <div className="sn-vbar-dock" ref={dock.onHost} />}
       <div className="sn-vbar" aria-hidden={collapsed || undefined}>
         {searching && search ? (

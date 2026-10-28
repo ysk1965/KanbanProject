@@ -705,6 +705,60 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi', dockSearch }: Bib
     </div>
   );
 
+  // ⚙ 보기 설정 — 넓은 화면은 위 조작줄, 좁은 화면은 장 제목 줄 오른쪽
+  const viewCtl = (
+    <div className="sn-bible-view" ref={viewRef}>
+      <button
+        type="button"
+        className="sn-bible-step"
+        aria-label="보기 설정"
+        aria-expanded={viewOpen}
+        aria-haspopup="true"
+        onClick={() => setViewOpen((v) => !v)}
+      >
+        <SlidersHorizontal className="sn-icon" aria-hidden />
+      </button>
+      {viewOpen && (
+        <div className="sn-bible-viewpop" role="group" aria-label="보기 설정">
+          <button type="button" role="switch" aria-checked={hand} onClick={toggleHand}>
+            <span>
+              손글씨
+              <small>설교 노트의 생각을 여백에</small>
+            </span>
+            <i aria-hidden />
+          </button>
+          <button type="button" role="switch" aria-checked={showHl} onClick={toggleHl}>
+            <span>
+              형광펜
+              <small>내가 칠한 구절</small>
+            </span>
+            <i aria-hidden />
+          </button>
+          <div className="sn-bible-fs">
+            <span>글자 크기</span>
+            <span className="sn-sp" />
+            <button
+              type="button"
+              aria-label="글자 작게"
+              disabled={(fs ?? 16) <= FS_MIN}
+              onClick={() => stepFs(-1)}
+            >
+              가−
+            </button>
+            <button
+              type="button"
+              aria-label="글자 크게"
+              disabled={(fs ?? 16) >= FS_MAX}
+              onClick={() => stepFs(1)}
+            >
+              가+
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div
       className="sn-bible"
@@ -713,132 +767,74 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi', dockSearch }: Bib
       data-rail={wide && !!bible}
       style={fs ? ({ '--sn-bv-fs': `${fs}px` } as CSSProperties) : undefined}
     >
-      <div className="sn-bible-bar">
-        <button
-          type="button"
-          className="sn-bible-step"
-          aria-label="이전 장"
-          disabled={!prev}
-          onClick={() => prev && go(prev.b, prev.c)}
-        >
-          <ChevronLeft className="sn-icon" aria-hidden />
-        </button>
-        <button
-          type="button"
-          className="sn-bible-book"
-          aria-expanded={picker}
-          aria-haspopup={narrow ? 'dialog' : undefined}
-          onClick={() => setPicker((p) => !p)}
-        >
-          {narrow ? (
-            <>
-              {bookName} {pos.c}
-              {chName(pos.b)}
-              <small>/{chCount(pos.b)}</small>
-            </>
-          ) : (
-            bookName
-          )}
-          <ChevronDown className="sn-icon" aria-hidden />
-        </button>
-        <button
-          type="button"
-          className="sn-bible-step"
-          aria-label="다음 장"
-          disabled={!next}
-          onClick={() => next && go(next.b, next.c)}
-        >
-          <ChevronRight className="sn-icon" aria-hidden />
-        </button>
-        <span className="sn-sp" />
-        <button
-          type="button"
-          className="sn-chip sn-bible-handtog"
-          aria-pressed={hand}
-          onClick={toggleHand}
-          title="설교 노트의 생각을 여백에 손글씨로 보여요"
-        >
-          <PenLine className="sn-icon" aria-hidden />
-          손글씨
-        </button>
-        <button
-          type="button"
-          className="sn-chip sn-bible-handtog"
-          aria-pressed={showHl}
-          onClick={toggleHl}
-          title="내가 칠한 형광펜을 보여요. 절을 누르거나 글자를 끌어 고르면 칠할 수 있어요"
-        >
-          <Highlighter className="sn-icon" aria-hidden />
-          형광펜
-        </button>
-        <span className="sn-label sn-hide-sm">개역한글</span>
-        {!(narrow && dockSearch) && <BibleSearch narrow={narrow} onGo={seekTo} onWord={setFound} />}
-        {narrow &&
-          dockSearch?.open &&
-          dockSearch.host &&
-          createPortal(
-            <BibleSearch
-              narrow
-              onGo={seekTo}
-              onWord={setFound}
-              dock={{ onClose: dockSearch.onClose }}
-            />,
-            dockSearch.host,
-          )}
-        <div className="sn-bible-view" ref={viewRef}>
+      {/* 좁은 화면은 위 조작줄 없이 장 제목 줄이 책·장 고르기와 ⚙ 를 맡는다 (앞뒤 장은 좌우 넘김 · 장 끝) */}
+      {!narrow && (
+        <div className="sn-bible-bar">
           <button
             type="button"
             className="sn-bible-step"
-            aria-label="보기 설정"
-            aria-expanded={viewOpen}
-            aria-haspopup="true"
-            onClick={() => setViewOpen((v) => !v)}
+            aria-label="이전 장"
+            disabled={!prev}
+            onClick={() => prev && go(prev.b, prev.c)}
           >
-            <SlidersHorizontal className="sn-icon" aria-hidden />
+            <ChevronLeft className="sn-icon" aria-hidden />
           </button>
-          {viewOpen && (
-            <div className="sn-bible-viewpop" role="group" aria-label="보기 설정">
-              <button type="button" role="switch" aria-checked={hand} onClick={toggleHand}>
-                <span>
-                  손글씨
-                  <small>설교 노트의 생각을 여백에</small>
-                </span>
-                <i aria-hidden />
-              </button>
-              <button type="button" role="switch" aria-checked={showHl} onClick={toggleHl}>
-                <span>
-                  형광펜
-                  <small>내가 칠한 구절</small>
-                </span>
-                <i aria-hidden />
-              </button>
-              <div className="sn-bible-fs">
-                <span>글자 크기</span>
-                <span className="sn-sp" />
-                <button
-                  type="button"
-                  aria-label="글자 작게"
-                  disabled={(fs ?? 16) <= FS_MIN}
-                  onClick={() => stepFs(-1)}
-                >
-                  가−
-                </button>
-                <button
-                  type="button"
-                  aria-label="글자 크게"
-                  disabled={(fs ?? 16) >= FS_MAX}
-                  onClick={() => stepFs(1)}
-                >
-                  가+
-                </button>
-              </div>
-            </div>
-          )}
+          <button
+            type="button"
+            className="sn-bible-book"
+            aria-expanded={picker}
+            onClick={() => setPicker((p) => !p)}
+          >
+            {bookName}
+            <ChevronDown className="sn-icon" aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="sn-bible-step"
+            aria-label="다음 장"
+            disabled={!next}
+            onClick={() => next && go(next.b, next.c)}
+          >
+            <ChevronRight className="sn-icon" aria-hidden />
+          </button>
+          <span className="sn-sp" />
+          <button
+            type="button"
+            className="sn-chip sn-bible-handtog"
+            aria-pressed={hand}
+            onClick={toggleHand}
+            title="설교 노트의 생각을 여백에 손글씨로 보여요"
+          >
+            <PenLine className="sn-icon" aria-hidden />
+            손글씨
+          </button>
+          <button
+            type="button"
+            className="sn-chip sn-bible-handtog"
+            aria-pressed={showHl}
+            onClick={toggleHl}
+            title="내가 칠한 형광펜을 보여요. 절을 누르거나 글자를 끌어 고르면 칠할 수 있어요"
+          >
+            <Highlighter className="sn-icon" aria-hidden />
+            형광펜
+          </button>
+          <span className="sn-label sn-hide-sm">개역한글</span>
+          <BibleSearch narrow={false} onGo={seekTo} onWord={setFound} />
+          {viewCtl}
         </div>
-      </div>
-      <div className="sn-bible-prog" aria-hidden>
-        <i style={{ width: `${(pos.c / chCount(pos.b)) * 100}%` }} />
-      </div>
+      )}
+      {narrow &&
+        dockSearch?.open &&
+        dockSearch.host &&
+        createPortal(
+          <BibleSearch
+            narrow
+            onGo={seekTo}
+            onWord={setFound}
+            dock={{ onClose: dockSearch.onClose }}
+          />,
+          dockSearch.host,
+        )}
       {!railOn && <TodayPath mode="strip" here={here} narrow={narrow} onGo={go} />}
 
       {picker && !narrow && (
@@ -923,12 +919,51 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi', dockSearch }: Bib
             data-turn={turn || undefined}
             aria-label={`${bookName} ${pos.c}${chName(pos.b)}`}
           >
-            <div className="sn-bible-head" ref={headRef}>
-              <h2 className="sn-bible-title">
-                {bookName} <em>{pos.c}</em>
-              </h2>
+            <div
+              className="sn-bible-head"
+              ref={headRef}
+              data-ctl={narrow || undefined}
+              data-long={
+                narrow && bookName.length >= 4 ? (bookName.length >= 6 ? 2 : 1) : undefined
+              }
+            >
+              {narrow ? (
+                <>
+                  <h2 className="sn-bible-title">
+                    <button
+                      type="button"
+                      className="sn-bible-titlebtn"
+                      aria-expanded={picker}
+                      aria-haspopup="dialog"
+                      aria-label={`${bookName} ${pos.c}${chName(pos.b)} — 책·장 고르기`}
+                      onClick={() => setPicker(true)}
+                    >
+                      <span>
+                        {bookName} <em>{pos.c}</em>
+                      </span>
+                      <ChevronDown className="sn-icon" aria-hidden />
+                    </button>
+                  </h2>
+                  <TodayPath mode="seal" here={here} onGo={go} />
+                  <span className="sn-sp" />
+                  {!dockSearch && <BibleSearch narrow onGo={seekTo} onWord={setFound} />}
+                  {viewCtl}
+                  <i
+                    className="sn-bible-headprog"
+                    aria-hidden
+                    style={{ width: `${(pos.c / chCount(pos.b)) * 100}%` }}
+                  />
+                </>
+              ) : (
+                <h2 className="sn-bible-title">
+                  {bookName} <em>{pos.c}</em>
+                </h2>
+              )}
               <span className="sn-label">
                 {text.length ? `${text.length}절` : ''}
+                {narrow
+                  ? `${text.length ? ' · ' : ''}${pos.c} / ${chCount(pos.b)}${chName(pos.b)}`
+                  : ''}
                 {list?.length
                   ? ` · 설교 ${new Set(list.map((m) => m.note.id)).size}편이 지나간 장`
                   : ''}

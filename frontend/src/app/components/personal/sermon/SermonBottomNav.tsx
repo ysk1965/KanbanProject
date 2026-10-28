@@ -26,13 +26,19 @@ interface Props {
   children?: ReactNode;
 }
 
-const ORB = 52;
-const ORB_TOP = -22;
-const LIFT_SCALE = 1.18;
+/** 동그라미 지름 · 바 윗선 기준 위치(음수 = 솟음) — sermonNav.css .sn-bn-orb · 보기 줄 구멍과 맞춘다 */
+const ORB = 60;
+const ORB_TOP = -11;
+/** 오목 홈이 동그라미를 감싸는 두께 */
+const RING = 4;
+/** 솟은 아이콘은 동그라미 위쪽에 — 아래쪽엔 탭 이름이 들어간다 */
+const ICON_UP = 8;
+const LIFT_SCALE = 1;
 
 /**
  * 좁은 화면(설치 앱) 하단 바 — 「오목 자리」.
- * 바 윗선에 오목한 자리가 패여 탭 색 동그라미가 앉고, 누른 아이콘이 그대로 솟아 동그라미 위에 올라간다.
+ * 바 윗선에 동그라미를 감싸는 홈이 패여 탭 색 동그라미가 앉고, 누른 아이콘이 솟아 동그라미 위쪽에,
+ * 탭 이름은 동그라미 안 아래쪽에 들어간다.
  * 자리·동그라미는 스프링으로 미끄러지고(빠를수록 살짝 납작해짐), 아이콘은 그 탭의 「한 동작」을 한 번 한다.
  */
 export function SermonBottomNav({ tabs, tab, badge, onGo, children }: Props) {
@@ -52,7 +58,7 @@ export function SermonBottomNav({ tabs, tab, badge, onGo, children }: Props) {
     const w = nav.clientWidth;
     const h = nav.clientHeight;
     shapeRef.current.setAttribute('viewBox', `0 0 ${w} ${h}`);
-    pathRef.current.setAttribute('d', notchPath(w, h, x));
+    pathRef.current.setAttribute('d', notchPath(w, h, x, ORB_TOP + ORB / 2, ORB / 2 + RING));
     nav.style.setProperty('--sn-orb-x', `${x}px`);
     const q = Math.min(Math.abs(vel) / 1800, 0.45);
     orbRef.current.style.transform = `translateX(${x - ORB / 2}px) scale(${1 + q * 0.3}, ${1 - q * 0.18})`;
@@ -67,6 +73,7 @@ export function SermonBottomNav({ tabs, tab, badge, onGo, children }: Props) {
       nav.getBoundingClientRect().top +
       ORB_TOP +
       ORB / 2 -
+      ICON_UP -
       wrap.getBoundingClientRect().top -
       wrap.offsetHeight / 2;
     return `translateY(${dy.toFixed(1)}px) scale(${LIFT_SCALE})`;
@@ -134,7 +141,9 @@ export function SermonBottomNav({ tabs, tab, badge, onGo, children }: Props) {
       <svg ref={shapeRef} className="sn-bn-shape" preserveAspectRatio="none" aria-hidden>
         <path ref={pathRef} />
       </svg>
-      <span ref={orbRef} className="sn-bn-orb" data-k={tab} aria-hidden />
+      <span ref={orbRef} className="sn-bn-orb" data-k={tab} aria-hidden>
+        <b>{tabs[active]?.short}</b>
+      </span>
       {children}
       {tabs.map(({ k, short, label, Icon }) => {
         const b = badge(k);
@@ -157,7 +166,7 @@ export function SermonBottomNav({ tabs, tab, badge, onGo, children }: Props) {
                 </span>
               )}
             </span>
-            {short}
+            <span className="sn-bn-tx">{short}</span>
           </button>
         );
       })}

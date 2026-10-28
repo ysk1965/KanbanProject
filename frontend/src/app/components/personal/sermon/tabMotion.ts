@@ -153,9 +153,15 @@ export function liftIcon(el: HTMLElement | null, up: string | null, animate: boo
   });
 }
 
-/** 바 윗선에 오목한 자리를 판 윤곽. cx = 자리 가운데, h = 바 높이 */
-export function notchPath(w: number, h: number, cx: number) {
-  const d = 34;
-  const a = 46;
-  return `M0 0 H${cx - a} C${cx - a + 18} 0 ${cx - 30} ${d} ${cx} ${d} C${cx + 30} ${d} ${cx + a - 18} 0 ${cx + a} 0 H${w} V${h} H0 Z`;
+/**
+ * 바 윗선에 판 오목 자리 — 동그라미(가운데 cy, 반지름 r)를 같은 두께로 감싸는 원호 홈.
+ * 윗선과 만나는 모서리는 f 만큼 둥글린다. cx = 자리 가운데, h = 바 높이.
+ */
+export function notchPath(w: number, h: number, cx: number, cy: number, r: number, f = 10) {
+  const yy = Math.min(f, cy + r - 2);
+  const dx = Math.sqrt(Math.max(0, r * r - cy * cy));
+  const ex = Math.sqrt(Math.max(0, r * r - (yy - cy) ** 2));
+  const large = yy < cy ? 1 : 0;
+  const n = (v: number) => v.toFixed(2);
+  return `M0 0 H${n(cx - dx - f)} Q${n(cx - dx)} 0 ${n(cx - ex)} ${n(yy)} A${r} ${r} 0 ${large} 0 ${n(cx + ex)} ${n(yy)} Q${n(cx + dx)} 0 ${n(cx + dx + f)} 0 H${w} V${h} H0 Z`;
 }
