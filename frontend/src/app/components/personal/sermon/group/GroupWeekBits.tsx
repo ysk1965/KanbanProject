@@ -93,6 +93,38 @@ export function GroupDaySlots({
             <small>이 설교로 쓰기</small>
           </>
         );
+      // 「들은 예배」 카드 줄: 노트 카드와 같은 뼈대(위 띠 = 시간 + 날짜 알약 / 본문 = 모임 · 예배 이름 · 맨 아래 행동)
+      const cardLabel = card && (
+        <>
+          <span className="sn-ws-band">
+            {phase === 'live' ? (
+              <span className="sg-tm">
+                <span className="sg-dot" aria-hidden /> 지금
+              </span>
+            ) : (
+              <span className="sg-tm">{sl.start.replace(/^0/, '')}</span>
+            )}
+            <span className="sn-ws-gd">{dayLabel(date)}</span>
+          </span>
+          <span className="sn-ws-bd">
+            <span className="sn-ws-kind">{g.name}</span>
+            <span className="sn-ws-nm">
+              {mark}
+              {svcName}
+            </span>
+            <small>
+              {phase === 'before'
+                ? '이 시간에 쓰면 여기에 모여요'
+                : phase === 'live'
+                  ? writers.length
+                    ? `${writers.length}명 기록 중 · 같이 쓰기`
+                    : '지금 같이 쓰기'
+                  : `${writers.length}명 먼저 썼어요 · 이 설교로 쓰기`}
+            </small>
+            {people.length > 0 && <Faces people={people} max={3} size={20} />}
+          </span>
+        </>
+      );
       out.push(
         <button
           key={`${g.id}|${sl.service.id}`}
@@ -105,9 +137,12 @@ export function GroupDaySlots({
               : ctx.startInSlot(g.id, sl.service.id, date)
           }
         >
-          {card && <span className="sn-ws-gd">{dayLabel(date)}</span>}
-          {label}
-          {people.length > 0 && <Faces people={people} max={3} size={20} />}
+          {cardLabel || (
+            <>
+              {label}
+              {people.length > 0 && <Faces people={people} max={3} size={20} />}
+            </>
+          )}
         </button>,
       );
     }

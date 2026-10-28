@@ -384,6 +384,46 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
     [store],
   );
 
+  const handleAnswer = useCallback(
+    (noteId: string, thoughtId: string, answer: string | null) => {
+      const n = store.get(noteId);
+      if (!n) return;
+      store.save({
+        ...n,
+        thoughts: (n.thoughts || []).map((t) =>
+          t.id === thoughtId ? { ...t, answer, answered_at: answer ? Date.now() : null } : t,
+        ),
+      });
+      if (answer) toast('답을 적었어요');
+    },
+    [store],
+  );
+
+  // 다듬기 — 화면이 든 사본 대신 저장소의 최신 노트에 바뀐 칸(제목·예배)만 얹는다
+  const handleSaveNotes = useCallback(
+    (list: SermonNote[]) => {
+      list.forEach((x) => {
+        const n = store.get(x.id);
+        if (!n) return;
+        const nn: SermonNote = { ...n, title: x.title, service: x.service };
+        if (x.service_id) nn.service_id = x.service_id;
+        if (x.service_auto) nn.service_auto = true;
+        else delete nn.service_auto;
+        store.save(nn);
+      });
+      if (list.length) toast(list.length > 1 ? `노트 ${list.length}편을 다듬었어요` : '다듬었어요');
+    },
+    [store],
+  );
+
+  const handleRemoveNotes = useCallback(
+    (ids: string[]) => {
+      ids.forEach((id) => store.remove(id));
+      if (ids.length) toast(`빈 노트 ${ids.length}편을 지웠어요`);
+    },
+    [store],
+  );
+
   // 공유받은 카드에서 「나도 기록하기」 → /sermonnote?start=1&… : 같은 설교 정보로 새 노트를 연다
   // 첫 스티커는 노트 사본을 들고 있는다 (로그인 상태면 곧 서버 id 로 바뀌므로)
   const [firstNote, setFirstNote] = useState<SermonNote | null>(null);
@@ -486,6 +526,9 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
                 onOpen={handleOpen}
                 onNew={handleNew}
                 onToggleApply={handleToggleApply}
+                onAnswer={handleAnswer}
+                onSaveNotes={handleSaveNotes}
+                onRemoveNotes={handleRemoveNotes}
                 onLogin={onLogin}
                 mascot={look.mascot}
                 onOpenLook={() => setLookOpen(true)}

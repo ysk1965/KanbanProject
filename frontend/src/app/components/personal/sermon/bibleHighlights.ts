@@ -3,6 +3,7 @@ import { apiClient } from '../../../utils/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ANONYMOUS_USER } from './sermonStore';
 import { uid } from './sermonTypes';
+import { BOOKS, chCount } from './bibleRefs';
 
 /**
  * 성경 읽기 「형광펜」 — 내가 직접 칠한 구절. 설교 노트에서 오는 물결 밑줄(bibleMarks)과 따로 산다.
@@ -502,6 +503,17 @@ export function useHighlights(): HighlightStore {
 
 const POS_KEY = 'sermon-bible-pos';
 const FOCUS_KEY = 'sermon-bible-focus';
+
+/** 성경 읽기의 마지막 자리 — 읽기 화면이 열 장, 「성경」 칩 옆 「롬 5」 */
+export function loadReadPos(): { b: number; c: number } | null {
+  try {
+    const p = JSON.parse(localStorage.getItem(POS_KEY) || 'null');
+    if (p && BOOKS[p.b] && p.c >= 1 && p.c <= chCount(p.b)) return { b: p.b, c: p.c };
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
 
 /** 모아보기에서 누르면 — 읽기 화면이 그 장을 열고 그 절을 반짝인다 */
 export function openInReader(b: number, c: number, v: number) {

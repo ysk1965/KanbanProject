@@ -9,7 +9,7 @@ import { isGalpi, mainRef, UNTITLED, type SermonNote } from './sermonTypes';
  * 홈 아래 「들은 예배」 — 고른 주(일~토)의 노트를 날짜 순으로 카드 한 장씩. 기본은 이번 주.
  * 개인 노트 = g1, 모임 노트 = g3, 갈피 노트는 리본. 「적용 N」을 누르면 위 「한 주 동안」에서 그 노트 항목이 표시된다(이번 주만).
  * 아직 안 쓴 예배 자리(모임 GroupDaySlots · 내 예배표 MyDaySlots)는 그날 카드 뒤에 점선 칸으로 끼운다 — 지난 날은 「놓친 예배」.
- * 주 이동: 헤더 ‹ › · 최근 8주 막대 · 카드 줄 양 끝 칸 · 헤더 좌우 스와이프. 높이는 어느 주든 헤더 한 줄 + 카드 한 줄.
+ * 주 이동: 헤더 ‹ › · 최근 8주 막대(기록 전 주는 바닥선) · 카드 줄 양 끝 칸 · 헤더 좌우 스와이프. 높이는 어느 주든 헤더 한 줄 + 카드 한 줄.
  * 위 「한 주 동안」은 이번 주에 그대로 둔다.
  */
 interface WeekServicesProps {
@@ -91,12 +91,13 @@ export function WeekServices({
     const ks = [...byWeek.keys()].sort();
     return ks[0] && ks[0] < thisWeek ? ks[0] : thisWeek;
   }, [byWeek, thisWeek]);
+  // 최근 8주 막대 — 기록이 없는 주(가장 오래된 노트 앞)도 바닥선으로 그려 늘 같은 너비의 그래프로 읽히게
   const spark = useMemo(() => {
     const ws8 = Array.from({ length: SPARK_WEEKS }, (_, i) =>
       addDays(thisWeek, -7 * (SPARK_WEEKS - 1 - i)),
-    ).filter((w) => w >= oldest);
+    );
     const max = Math.max(1, ...ws8.map((w) => byWeek.get(w)?.length || 0));
-    return ws8.map((w) => ({ w, c: byWeek.get(w)?.length || 0, max }));
+    return ws8.map((w) => ({ w, c: byWeek.get(w)?.length || 0, max, off: w < oldest }));
   }, [byWeek, thisWeek, oldest]);
 
   const isThis = ws === thisWeek;
@@ -149,6 +150,9 @@ export function WeekServices({
         }}
       >
         <h4>{title}</h4>
+        <span className="sn-wsv-cnt">
+          {weekNotes.length ? `${weekNotes.length}편` : '아직 없어요'}
+        </span>
         <div className="sn-wsv-nav">
           <button
             type="button"
@@ -165,9 +169,9 @@ export function WeekServices({
             <ChevronRight className="sn-icon" style={{ width: 16, height: 16 }} />
           </button>
         </div>
-        {spark.length > 1 && (
+        {oldest < thisWeek && (
           <div className="sn-wsv-spark" role="group" aria-label={`최근 ${SPARK_WEEKS}주`}>
-            {spark.map(({ w, c, max }) => {
+            {spark.map(({ w, c, max, off }) => {
               const tip = `${weekName(w, thisWeek)} · ${c}편`;
               return (
                 <button
@@ -176,6 +180,7 @@ export function WeekServices({
                   data-tip={tip}
                   aria-label={tip}
                   aria-current={w === ws || undefined}
+                  disabled={off}
                   onClick={() => go(w)}
                 >
                   <i style={{ height: 3 + Math.round((c / max) * 19) }} />
@@ -189,18 +194,13 @@ export function WeekServices({
             이번 주로
           </button>
         )}
-        <span className="sn-wsv-cnt">
-          {weekNotes.length ? `${weekNotes.length}편` : '아직 없어요'}
-        </span>
       </div>
       <div className="sn-wsv-grid" ref={gridRef} data-dir={dir || undefined} key={ws}>
         {ws > oldest && (
           <button type="button" className="sn-wsv-card sn-wsv-peek" onClick={() => go(prevW)}>
             <ChevronLeft className="sn-icon" style={{ width: 18, height: 18 }} />
             <strong>지난주</strong>
-            <small>
-              {md(prevW)} 주 · {count(prevW)}편
-            </small>
+            <small>{count(prevW)}편</small>
           </button>
         )}
         {days.map((ds) => {
@@ -284,9 +284,7 @@ export function WeekServices({
           <button type="button" className="sn-wsv-card sn-wsv-peek" onClick={() => go(nextW)}>
             <ChevronRight className="sn-icon" style={{ width: 18, height: 18 }} />
             <strong>{nextW === thisWeek ? '이번 주' : '다음 주'}</strong>
-            <small>
-              {md(nextW)} 주 · {count(nextW)}편
-            </small>
+            <small>{count(nextW)}편</small>
           </button>
         )}
       </div>

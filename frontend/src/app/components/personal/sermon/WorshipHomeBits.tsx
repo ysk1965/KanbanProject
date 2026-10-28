@@ -47,16 +47,35 @@ export function MyDaySlots({
   return (
     <>
       {slots.map(({ service: w, start }) => {
-        const label = (
+        const tm = start.replace(/^0/, '');
+        const canWrite = (date === today || missed) && !!gctx;
+        // 「들은 예배」 카드 줄: 노트 카드와 같은 뼈대(위 띠 = 시간 + 날짜 알약 / 본문 = 종류 · 예배 이름 · 맨 아래 행동)
+        const label = card ? (
           <>
-            {card && <span className="sn-ws-gd">{dayLabel(date)}</span>}
-            <span className="sg-tm">{start.replace(/^0/, '')}</span>
+            <span className="sn-ws-band">
+              <span className="sg-tm">{tm}</span>
+              <span className="sn-ws-gd">{dayLabel(date)}</span>
+            </span>
+            <span className="sn-ws-bd">
+              <span className="sn-ws-kind">
+                {missed ? '놓친 예배' : date === today ? '오늘 예배' : '다가올 예배'}
+              </span>
+              <span className="sn-ws-nm">
+                {w.galpi && <GalpiMark size={13} />}
+                {worshipLabel(w)}
+              </span>
+              {canWrite && <small>{missed ? '늦게라도 적기' : '이 예배로 쓰기'}</small>}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="sg-tm">{tm}</span>
             {w.galpi && <GalpiMark size={13} />}
             {worshipLabel(w)}
-            {missed && <small>놓친 예배 · 늦게라도 적기</small>}
+            {canWrite && <small>이 예배로 쓰기</small>}
           </>
         );
-        return (date === today || missed) && gctx ? (
+        return canWrite && gctx ? (
           <button
             key={w.id}
             type="button"
@@ -66,7 +85,6 @@ export function MyDaySlots({
             onClick={() => gctx.startWorship(w.id, date)}
           >
             {label}
-            {!missed && <small>이 예배로 쓰기</small>}
           </button>
         ) : (
           <span

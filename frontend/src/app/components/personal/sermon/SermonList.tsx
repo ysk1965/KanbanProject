@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, LogIn, Mic, Plus, Search, X } from 'lucide-react';
-import { encRef, norm, refLong, refShort } from './bibleRefs';
+import { BOOKS, encRef, norm, refLong, refShort } from './bibleRefs';
 import { homeSyncLine, type SyncStatus } from './sermonStore';
 import {
   applyItems,
@@ -20,7 +20,7 @@ import {
   noteRefs,
   plainText,
   thisWeek,
-  UNTITLED,
+  todayString,
   type SermonNote,
 } from './sermonTypes';
 
@@ -37,11 +37,16 @@ import { SermonBottomNav } from './SermonBottomNav';
 import { SnViewBar, type ViewBarItem } from './SnViewBar';
 import { ActionBarHostProvider, useActionBarHost } from './SnActionBar';
 import { SermonHome } from './SermonHome';
+import { SermonCalendar } from './SermonCalendar';
+import { SermonThoughts } from './SermonThoughts';
+import { SermonTidy } from './SermonTidy';
+import { useTidy } from './useTidy';
+import { displayTitle } from './noteTidy';
 import { useSermonGroups } from './group/GroupContext';
 import { BibleReader } from './BibleReader';
 import { HighlightList } from './HighlightList';
 import { SermonVerses } from './VerseIndex';
-import { useHighlights } from './bibleHighlights';
+import { loadReadPos, useHighlights } from './bibleHighlights';
 import { MyGalpi } from './MyGalpi';
 import { WorshipPage } from './GalpiSettings';
 import { useGalpiPrefs, useGalpiStickers } from './galpiPrefs';
@@ -63,6 +68,11 @@ interface SermonListProps {
   /** date 를 주면 그 날짜로 새 노트 (홈 「들은 예배」의 지난 주 기록) */
   onNew: (date?: string) => void;
   onToggleApply: (noteId: string, thoughtId: string) => void;
+  /** 「내 생각」 질문에 답 적기 (null = 지우기) */
+  onAnswer: (noteId: string, thoughtId: string, answer: string | null) => void;
+  /** 「다듬기」 — 여러 노트를 한 번에 저장 / 지우기 */
+  onSaveNotes: (notes: SermonNote[]) => void;
+  onRemoveNotes: (ids: string[]) => void;
   /** 로그인 전이면 기존 로그인으로 보낸다 (없으면 안내를 그리지 않음) */
   onLogin?: () => void;
   /** 꾸미기에서 고른 마스코트 */
@@ -90,7 +100,8 @@ function nudgeSnoozed(): boolean {
 }
 
 export type SermonTabKey = 'note' | 'groups' | 'bible' | 'challenge' | 'me';
-type NoteView = 'home' | 'all' | 'thoughts';
+/** 이번 주 · 달력 · 내 생각 · 다듬기 (예배별 목록은 달력의 예배 칩으로 옮겼다) */
+type NoteView = 'home' | 'cal' | 'thoughts' | 'tidy';
 type BibleView = 'read' | 'verses' | 'highlights';
 
 const TABS: Array<{
@@ -135,6 +146,9 @@ export function SermonList({
   onOpen,
   onNew,
   onToggleApply,
+  onAnswer,
+  onSaveNotes,
+  onRemoveNotes,
   onLogin,
   mascot = 'galpi',
   onOpenLook,
@@ -175,6 +189,8 @@ export function SermonList({
   );
   const [noteView, setNoteView] = useState<NoteView>('home');
   const [bibleView, setBibleView] = useState<BibleView>('read');
+  /** 성경 읽기의 마지막 자리 — 「성경」 칩 옆에 「롬 5」로 */
+  const [readPos, setReadPos] = useState(loadReadPos);
   const highlights = useHighlights();
   const [challengeView, setChallengeView] = useState<ChallengeView>('home');
   /** 나의 갈피 안 화면 — 첫 화면 / 내 예배표 */
@@ -190,12 +206,14 @@ export function SermonList({
       /* ignore */
     }
   };
-  const [service, setService] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  /** 달력에서 고른 날 — 새 기록 버튼이 그 날짜로 만든다 */
+  const [calSel, setCalSel] = useState(todayString);
+  const { tidy, dismiss: dismissTidy } = useTidy(notes);
   /** 좁은 화면 보기 줄 — 본문을 내리면 이름표로 접힌다 */
   const [vbMin, setVbMin] = useState(false);
   const listMainRef = useRef<HTMLElement>(null);
-  /** 성경 이어 읽기 — 하단 보기 줄에서 연 말씀 찾기 칸과 그 자리 */
+  /** 성경 읽기 — 하단 보기 줄에서 연 말씀 찾기 칸과 그 자리 */
   const [bsOpen, setBsOpen] = useState(false);
   const [bsHost, setBsHost] = useState<HTMLElement | null>(null);
   /** 설교 구절·형광펜 — 보기 줄 위 66칸 한 줄 자리 */
@@ -220,15 +238,7 @@ export function SermonList({
     notes.forEach((n) => noteRefs(n).forEach((r) => s.add(encRef(r))));
     return s.size;
   }, [notes]);
-  const services = useMemo(
-    () => [...new Set(notes.map((n) => n.service).filter(Boolean))].sort(),
-    [notes],
-  );
-
-  const filtered = useMemo(
-    () => notes.filter((n) => (!service || n.service === service) && matchQuery(n, query)),
-    [notes, service, query],
-  );
+  const filtered = useMemo(() => notes.filter((n) => matchQuery(n, query)), [notes, query]);
 
   const weekDone = week.length - weekLeft.length;
 
@@ -248,7 +258,6 @@ export function SermonList({
       // 지금 탭을 다시 누르면 그 탭의 첫 화면으로
       if (t === 'note') {
         setNoteView('home');
-        setService(null);
         setQ('');
       }
       if (t === 'bible') setBibleView('read');
@@ -257,9 +266,8 @@ export function SermonList({
     }
     if (next.toString() !== sp.toString()) setSp(next);
   };
-  const pickNote = (v: NoteView, svc: string | null = null) => {
+  const pickNote = (v: NoteView) => {
     setNoteView(v);
-    setService(svc);
     if (tab !== 'note') goTab('note');
   };
   const stickerCount = useGalpiStickers(notes).size;
@@ -299,7 +307,12 @@ export function SermonList({
   const syncLine = sync.sub ? `${sync.text} · ${sync.sub}` : sync.text;
 
   // 보기 줄(vbar)이 뜨는 조건 중 성경 구절·형광펜일 때 — 66칸 한 줄을 줄 위 선반에 올린다
-  const vbShelf = standalone && !sp.get('session') && tab === 'bible' && bibleView !== 'read';
+  // 설교 노트 달력·내 생각도 거르기 칩을 선반에 올린다 (검색 중엔 목록이라 없음)
+  const vbShelf =
+    standalone &&
+    !sp.get('session') &&
+    ((tab === 'bible' && bibleView !== 'read') ||
+      (tab === 'note' && !query && (noteView === 'cal' || noteView === 'thoughts')));
   const stripHost = vbShelf ? shelfHost : undefined;
   let body: React.ReactNode;
   if (tab === 'bible' && bibleView === 'read') {
@@ -308,6 +321,7 @@ export function SermonList({
         notes={notes}
         onOpen={onOpen}
         mascot={mascot}
+        onPos={setReadPos}
         dockSearch={
           standalone ? { open: bsOpen, host: bsHost, onClose: () => setBsOpen(false) } : undefined
         }
@@ -369,37 +383,17 @@ export function SermonList({
         onNew={onNew}
       />
     );
-  } else if (noteView === 'thoughts' && !service) {
-    const rows: Array<{ n: SermonNote; t: SermonNote['thoughts'][number] }> = [];
-    filtered.forEach((n) =>
-      (n.thoughts || []).forEach((t) => {
-        if (!query || t.text.toLowerCase().includes(query.toLowerCase()) || matchQuery(n, query))
-          rows.push({ n, t });
-      }),
-    );
-    rows.sort((a, b) => (b.n.date || '').localeCompare(a.n.date || '') || a.t.at - b.t.at);
-    body = rows.length ? (
-      <div className="sn-rows">
-        {rows.map(({ n, t }) => (
-          <button key={t.id} type="button" className="sn-row" onClick={() => onOpen(n.id, t.aid)}>
-            <div className="sn-top">
-              <span className="sn-tagT" data-t={t.tag}>
-                {t.tag}
-              </span>
-              <span>{fmtDate(n.date)}</span>
-              <span>·</span>
-              <span>{n.title || UNTITLED}</span>
-              {t.label && <span className="sn-refpill">{t.label}</span>}
-            </div>
-            <div className="sn-txt">{t.text}</div>
-            {(t.media || []).length > 0 && (
-              <div className="sn-top">첨부 {(t.media || []).length}개</div>
-            )}
-          </button>
-        ))}
-      </div>
-    ) : (
-      <div className="sn-empty">아직 남긴 생각이 없어요.</div>
+  } else if (tab === 'note' && noteView === 'thoughts') {
+    body = (
+      <SermonThoughts
+        notes={notes}
+        query={query}
+        mascot={mascot}
+        onOpen={onOpen}
+        onToggleApply={onToggleApply}
+        onAnswer={onAnswer}
+        shelfHost={stripHost}
+      />
     );
   } else if (tab === 'bible') {
     body = (
@@ -410,7 +404,30 @@ export function SermonList({
         stripHost={stripHost}
       />
     );
-  } else if (noteView === 'home' && !query && !service) {
+  } else if (noteView === 'tidy' && !query) {
+    body = (
+      <SermonTidy
+        notes={notes}
+        tidy={tidy}
+        mascot={mascot}
+        onDismiss={dismissTidy}
+        onOpen={onOpen}
+        onSave={onSaveNotes}
+        onRemove={onRemoveNotes}
+      />
+    );
+  } else if (noteView === 'cal' && !query) {
+    body = (
+      <SermonCalendar
+        notes={notes}
+        mascot={mascot}
+        onOpen={onOpen}
+        onNew={onNew}
+        onSel={setCalSel}
+        shelfHost={stripHost}
+      />
+    );
+  } else if (noteView === 'home' && !query) {
     body = (
       <SermonHome
         notes={notes}
@@ -450,7 +467,7 @@ export function SermonList({
                     >
                       <span className="sn-nd">{fmtDate(n.date)}</span>
                       <span className="sn-nm">
-                        <b>{n.title || UNTITLED}</b>
+                        <b data-auto={!n.title.trim() || undefined}>{displayTitle(n).text}</b>
                         <span className="sn-ns">
                           {[n.preacher, n.service].filter(Boolean).join(' · ')}
                         </span>
@@ -492,6 +509,8 @@ export function SermonList({
     /** 좁은 화면 칩 줄에 쓰는 짧은 이름 */
     short?: string;
     count?: string | number;
+    /** 하단 보기 줄에서만 쓸 수 (null = 줄에선 숨김) */
+    barCount?: string | number | null;
     on: boolean;
     go: () => void;
   };
@@ -502,40 +521,40 @@ export function SermonList({
             items: [
               {
                 key: 'home',
-                label: '홈',
-                on: noteView === 'home' && !service,
+                label: '이번 주',
+                on: noteView === 'home',
                 go: () => pickNote('home'),
               },
               {
-                key: 'all',
-                label: '전체 노트',
+                key: 'cal',
+                label: '달력',
                 count: notes.length,
-                on: noteView === 'all' && !service,
-                go: () => pickNote('all'),
+                barCount: null,
+                on: noteView === 'cal',
+                go: () => pickNote('cal'),
               },
               {
                 key: 'thoughts',
-                label: '생각 모아보기',
+                label: '내 생각',
+                short: '생각',
                 count: thoughtCount,
-                on: noteView === 'thoughts' && !service,
+                on: noteView === 'thoughts',
                 go: () => pickNote('thoughts'),
               },
+              // 다듬을 게 없으면 숨는다 (보고 있는 동안엔 남겨 둔다)
+              ...(tidy.count > 0 || noteView === 'tidy'
+                ? [
+                    {
+                      key: 'tidy',
+                      label: '다듬기',
+                      count: tidy.count || undefined,
+                      on: noteView === 'tidy',
+                      go: () => pickNote('tidy'),
+                    },
+                  ]
+                : []),
             ],
           },
-          ...(services.length
-            ? [
-                {
-                  title: '예배',
-                  items: services.map((sv) => ({
-                    key: `svc:${sv}`,
-                    label: sv,
-                    count: notes.filter((n) => n.service === sv).length,
-                    on: service === sv,
-                    go: () => (service === sv ? pickNote('home') : pickNote('all', sv)),
-                  })),
-                },
-              ]
-            : []),
         ]
       : tab === 'bible'
         ? [
@@ -543,22 +562,21 @@ export function SermonList({
               items: [
                 {
                   key: 'read',
-                  label: '이어 읽기',
+                  label: '성경',
+                  count: readPos ? `${BOOKS[readPos.b][1]} ${readPos.c}` : undefined,
                   on: bibleView === 'read',
                   go: () => setBibleView('read'),
                 },
                 {
                   key: 'verses',
-                  label: '설교에서 만난 구절',
-                  short: '설교 구절',
+                  label: '설교 구절',
                   count: refCount,
                   on: bibleView === 'verses',
                   go: () => setBibleView('verses'),
                 },
                 {
                   key: 'highlights',
-                  label: '내 형광펜',
-                  short: '형광펜',
+                  label: '표시한 구절',
                   count: highlights.count,
                   on: bibleView === 'highlights',
                   go: () => setBibleView('highlights'),
@@ -600,6 +618,10 @@ export function SermonList({
     (tab === 'challenge' && (challengeView === 'rain' || challengeView === 'books'));
   const showSearch = tab === 'note' || (tab === 'bible' && bibleView === 'verses');
   const showFab = !deep && (tab === 'note' || tab === 'groups');
+  // 달력 보기에선 고른 날짜로 새 기록 (오늘을 고르면 평소처럼 예배표로 채운다)
+  const calNew = tab === 'note' && noteView === 'cal' && !query && calSel !== todayString();
+  const newLabel = calNew ? `${fmtDate(calSel)}에 새 기록` : '새 설교 기록';
+  const newHere = () => (calNew ? onNew(calSel) : onNew());
 
   /* 설치 앱 좁은 화면 — 위쪽 칩 줄·검색·새 기록 버튼 대신 하단 바 위 보기 줄 */
   const myGroups = gctx && !gctx.anonymous ? gctx.store.groups : [];
@@ -620,7 +642,7 @@ export function SermonList({
           g.items.map((it) => ({
             key: it.key,
             label: it.short || it.label,
-            count: it.count,
+            count: it.barCount === null ? undefined : (it.barCount ?? it.count),
             on: it.on,
             go: it.go,
           })),
@@ -866,12 +888,7 @@ export function SermonList({
             </>
           )}
           {showFab && !vbar && (
-            <button
-              type="button"
-              className="sn-fab"
-              aria-label="새 설교 기록"
-              onClick={() => onNew()}
-            >
+            <button type="button" className="sn-fab" aria-label={newLabel} onClick={newHere}>
               <Plus aria-hidden />
               <span>새 기록</span>
             </button>
@@ -912,7 +929,7 @@ export function SermonList({
                       : undefined
                   }
                   shelf={vbShelf ? setShelfHost : undefined}
-                  action={showFab ? { label: '새 설교 기록', onClick: () => onNew() } : undefined}
+                  action={showFab ? { label: newLabel, onClick: newHere } : undefined}
                 />
               )}
             </SermonBottomNav>

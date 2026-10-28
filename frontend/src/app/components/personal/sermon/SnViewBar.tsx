@@ -68,6 +68,7 @@ export function SnViewBar({
       data-min={collapsed}
       data-side={side}
       data-dock={dock?.open || undefined}
+      data-many={items.length >= 4 || undefined}
     >
       {shelf && <div className="sn-vbar-shelf" ref={shelf} aria-hidden={collapsed || undefined} />}
       {dock?.open && <div className="sn-vbar-dock" ref={dock.onHost} />}

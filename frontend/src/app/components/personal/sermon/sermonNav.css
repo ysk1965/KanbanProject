@@ -793,6 +793,10 @@
       background-color 0.18s,
       color 0.18s;
   }
+  /* 보기가 넷 이상이면(설교 노트) 여백을 줄여 한 줄에 다 들어가게 */
+  .sermon-app .sn-vbar-wrap[data-many] .sn-vbar-chips button {
+    padding: 0 12px;
+  }
   .sermon-app .sn-vbar-chips button .sn-count {
     font-size: 12px;
     opacity: 0.7;

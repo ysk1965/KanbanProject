@@ -37,6 +37,9 @@ export interface Thought {
   /** 적용 실천 체크 */
   done?: boolean;
   done_at?: number | null;
+  /** 질문에 적은 내 답 (설교 노트 「내 생각」). 비우면 다시 풀리지 않은 질문 */
+  answer?: string | null;
+  answered_at?: number | null;
   /** 기록 시각(ms) */
   at: number;
 }

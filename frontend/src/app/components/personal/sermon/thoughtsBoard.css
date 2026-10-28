@@ -1,0 +1,220 @@
+/* 설교 노트 「내 생각」 (SermonThoughts) — 테이프 붙은 메모지 */
+.sermon-app .sn-thoughts {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: 24px;
+}
+.sermon-app .sn-thoughts-seg {
+  display: inline-flex;
+  align-self: flex-start;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--sn-surface);
+  box-shadow: 0 1px 0 var(--sn-line-strong);
+}
+.sermon-app .sn-thoughts-seg button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--sn-muted);
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sermon-app .sn-thoughts-seg button[aria-pressed='true'] {
+  background: var(--sn-fg);
+  color: var(--sn-bg);
+  font-weight: 700;
+}
+.sermon-app .sn-thoughts-seg button[aria-pressed='true'] .sn-count {
+  color: inherit;
+}
+.sermon-app .sn-memos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
+  padding-top: 8px;
+}
+.sermon-app .sn-memo {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 16px 14px;
+  border-radius: 6px 6px 22px 6px;
+  background: var(--sn-surface);
+  box-shadow: var(--sn-shadow-soft);
+  transform: rotate(var(--rot, -1deg));
+}
+.sermon-app .sn-memo:nth-child(3n + 2) {
+  --rot: 0.8deg;
+}
+.sermon-app .sn-memo:nth-child(3n) {
+  --rot: -0.4deg;
+}
+.sermon-app .sn-memo[data-tag='적용'] {
+  background: color-mix(in srgb, var(--sn-g3) 22%, var(--sn-surface));
+}
+.sermon-app .sn-memo[data-tag='질문'] {
+  background: color-mix(in srgb, var(--sn-g1) 20%, var(--sn-surface));
+}
+.sermon-app .sn-memo-tape {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 74px;
+  height: 20px;
+  margin-left: -37px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--sn-g2) 55%, transparent);
+  transform: rotate(3deg);
+}
+.sermon-app .sn-memo[data-tag='질문'] .sn-memo-tape {
+  background: color-mix(in srgb, var(--sn-g1) 55%, transparent);
+}
+.sermon-app .sn-memo-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.sermon-app .sn-memo-tag {
+  flex: none;
+  font-family: var(--sn-f-hand);
+  font-size: 17px;
+}
+.sermon-app .sn-memo-src {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--sn-muted);
+  font-size: 12px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sermon-app .sn-memo-tx {
+  margin: 0;
+  font-family: var(--sn-f-hand);
+  font-size: 21px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.sermon-app .sn-memo[data-done] .sn-memo-tx {
+  text-decoration: line-through;
+  text-decoration-color: var(--sn-g3);
+  text-decoration-thickness: 3px;
+}
+.sermon-app .sn-memo-q {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--sn-g1);
+  font-family: var(--sn-f-serif);
+  font-size: 13px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-memo-media {
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-memo-ans {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--sn-surface);
+  font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.sermon-app .sn-memo-ans b {
+  display: block;
+  font-size: 12px;
+  color: var(--sn-t1);
+}
+.sermon-app .sn-memo-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sermon-app .sn-memo-edit textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1.5px solid var(--sn-line-strong);
+  border-radius: 14px;
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  font: inherit;
+  font-size: 14px;
+}
+.sermon-app .sn-memo-edit textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--sn-t1);
+}
+.sermon-app .sn-memo-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+.sermon-app .sn-memo-acts button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1.5px solid var(--sn-line-strong);
+  border-radius: 999px;
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  font-size: 12px;
+  cursor: pointer;
+}
+.sermon-app .sn-memo-acts button svg {
+  width: 14px;
+  height: 14px;
+}
+.sermon-app .sn-memo-acts .sn-memo-pri {
+  background: var(--sn-fg);
+  border-color: var(--sn-fg);
+  color: var(--sn-bg);
+  font-weight: 700;
+}
+.sermon-app .sn-memo-acts button[aria-pressed='true'] {
+  color: var(--sn-muted);
+}
+.sermon-app .sn-solved {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sermon-app .sn-solved-tg {
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  color: var(--sn-muted);
+  font-family: var(--sn-f-hand);
+  font-size: 18px;
+  cursor: pointer;
+}
+.sermon-app .sn-solved-tg::before {
+  content: '▸ ';
+}
+.sermon-app .sn-solved-tg[aria-expanded='true']::before {
+  content: '▾ ';
+}
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app .sn-memo {
+    transform: none;
+  }
+}

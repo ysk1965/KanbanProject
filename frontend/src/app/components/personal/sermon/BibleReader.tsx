@@ -26,6 +26,7 @@ import {
   rangeText,
   segmentsFor,
   spanOn,
+  loadReadPos,
   takeFocus,
   useHighlights,
   type HlColor,
@@ -65,6 +66,8 @@ interface BibleReaderProps {
   mascot?: MascotId;
   /** 설치 앱 좁은 화면 — 말씀 찾기는 위쪽 🔍 대신 하단 보기 줄에서 연다 */
   dockSearch?: { open: boolean; host: HTMLElement | null; onClose: () => void };
+  /** 장을 옮길 때마다 — 「성경」 칩 옆 마지막 자리 */
+  onPos?: (p: { b: number; c: number }) => void;
 }
 
 const POS_KEY = 'sermon-bible-pos';
@@ -82,15 +85,6 @@ const RAIL = '(min-width: 1320px)';
 const SWIPE_MIN = 70;
 const HAND_MAX = 46;
 
-function loadPos(): { b: number; c: number } | null {
-  try {
-    const p = JSON.parse(localStorage.getItem(POS_KEY) || 'null');
-    if (p && BOOKS[p.b] && p.c >= 1 && p.c <= chCount(p.b)) return { b: p.b, c: p.c };
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
 function loadFs(): number | null {
   try {
     const n = Number(localStorage.getItem(FS_KEY));
@@ -223,15 +217,21 @@ function Hand({ m, onOpen }: { m: ReadMark; onOpen: BibleReaderProps['onOpen'] }
   );
 }
 
-export function BibleReader({ notes, onOpen, mascot = 'galpi', dockSearch }: BibleReaderProps) {
+export function BibleReader({
+  notes,
+  onOpen,
+  mascot = 'galpi',
+  dockSearch,
+  onPos,
+}: BibleReaderProps) {
   const { bible, failed } = useBible();
   const marks = useMemo(() => collectMarks(notes), [notes]);
   const counts = useMemo(() => bookCounts(marks), [marks]);
 
   // 처음 여는 사람은 가장 최근 설교의 본문 장에서 시작한다 (노트가 늦게 도착해도 한 번은 따라간다)
-  const hadPos = useRef(!!loadPos());
+  const hadPos = useRef(!!loadReadPos());
   const [pos, setPos] = useState<{ b: number; c: number }>(
-    () => loadPos() || latestMainChapter(notes) || { b: 0, c: 1 },
+    () => loadReadPos() || latestMainChapter(notes) || { b: 0, c: 1 },
   );
   useEffect(() => {
     if (hadPos.current) return;
@@ -279,6 +279,7 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi', dockSearch }: Bib
   useEffect(() => {
     setPick(null);
     save(POS_KEY, JSON.stringify(pos));
+    onPos?.(pos);
     const strip = stripRef.current;
     const cur = strip?.querySelector<HTMLElement>('[aria-current="true"]');
     if (strip && cur) strip.scrollLeft = cur.offsetLeft - (strip.clientWidth - cur.offsetWidth) / 2;
@@ -967,7 +968,7 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi', dockSearch }: Bib
                 {list?.length
                   ? ` · 설교 ${new Set(list.map((m) => m.note.id)).size}편이 지나간 장`
                   : ''}
-                {hls.length ? ` · 내 형광펜 ${hls.length}` : ''}
+                {hls.length ? ` · 표시한 구절 ${hls.length}` : ''}
               </span>
             </div>
             {hand && whole.length > 0 && (
@@ -1067,7 +1068,7 @@ export function BibleReader({ notes, onOpen, mascot = 'galpi', dockSearch }: Bib
                                 {clip(h.memo, HAND_MAX)}
                               </span>
                               <span className="sn-hand-src">
-                                내 형광펜 ·{' '}
+                                표시한 구절 ·{' '}
                                 {refShort({ b: h.b, c: h.c, v1: h.v1, v2: h.v2, whole: false })}
                               </span>
                             </button>

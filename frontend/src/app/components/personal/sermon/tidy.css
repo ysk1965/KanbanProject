@@ -1,0 +1,173 @@
+/* 설교 노트 「다듬기」 (SermonTidy) */
+.sermon-app .sn-tidy {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: 24px;
+}
+.sermon-app .sn-tidy-helper {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.sermon-app .sn-tidy-bubble {
+  position: relative;
+  padding: 10px 16px;
+  border-radius: 20px;
+  background: var(--sn-surface);
+  box-shadow: var(--sn-shadow-soft);
+  font-family: var(--sn-f-hand);
+  font-size: 19px;
+}
+.sermon-app .sn-tidy-bubble::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  margin-top: -8px;
+  border: 8px solid transparent;
+  border-left: 0;
+  border-right-color: var(--sn-surface);
+}
+.sermon-app .sn-tidy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.sermon-app .sn-tidy-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 24px;
+  background: var(--sn-surface);
+  box-shadow: var(--sn-shadow-soft);
+  min-width: 0;
+}
+.sermon-app .sn-tidy-card[data-wide] {
+  grid-column: 1 / -1;
+}
+.sermon-app .sn-tidy-card[data-soft] {
+  background: color-mix(in srgb, var(--sn-surface) 70%, transparent);
+  box-shadow: none;
+  border: 1.5px dashed var(--sn-line-strong);
+}
+.sermon-app .sn-tidy-card h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.sermon-app .sn-tidy-n {
+  font-family: var(--sn-f-poster);
+  font-weight: 400;
+  font-size: 24px;
+  color: var(--sn-t2);
+}
+.sermon-app .sn-tidy-card p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-tidy-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sermon-app .sn-tidy-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.sermon-app .sn-tidy-s {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--sn-on-ink);
+  font-family: var(--sn-f-poster);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sermon-app .sn-tidy-d {
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sermon-app .sn-tidy-name {
+  min-width: 0;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--sn-surface-2);
+  color: var(--sn-fg);
+  font-size: 13px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sermon-app .sn-tidy-name[data-plain] {
+  cursor: default;
+  background: none;
+  padding-inline: 0;
+}
+.sermon-app .sn-tidy-name em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--sn-faint);
+  margin-left: 6px;
+}
+.sermon-app .sn-tidy-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sermon-app .sn-tidy button:not(.sn-tidy-name) {
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1.5px solid var(--sn-line-strong);
+  border-radius: 999px;
+  background: var(--sn-surface);
+  color: var(--sn-fg);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sermon-app .sn-tidy .sn-tidy-pri {
+  background: var(--sn-fg);
+  border-color: var(--sn-fg);
+  color: var(--sn-bg);
+  font-weight: 700;
+}
+.sermon-app .sn-tidy .sn-tidy-danger {
+  background: var(--sn-c-red);
+  border-color: var(--sn-c-red);
+  color: var(--sn-on-ink);
+  font-weight: 700;
+}
+.sermon-app .sn-tidy .sn-tidy-all {
+  align-self: flex-start;
+}
+@media (max-width: 760px) {
+  .sermon-app .sn-tidy-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sermon-app .sn-tidy-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .sermon-app .sn-tidy-d {
+    display: none;
+  }
+}
