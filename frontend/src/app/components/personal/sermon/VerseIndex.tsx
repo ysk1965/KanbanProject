@@ -76,7 +76,8 @@ const mql = (q: string) =>
     ? window.matchMedia(q)
     : null;
 
-function useNarrow() {
+/** 좁은 화면(≤760px) — 설교 노트 다른 화면도 같은 기준을 쓴다 */
+export function useNarrow() {
   const [n, setN] = useState(() => !!mql(NARROW)?.matches);
   useEffect(() => {
     const mq = mql(NARROW);

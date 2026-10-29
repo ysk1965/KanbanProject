@@ -12,26 +12,46 @@ import { LifeGalpiCard, type LifeGalpiApply } from './LifeGalpiCard';
 import { nextChapter, pilsaDoneCount, usePilsa } from './pilsaStore';
 
 /**
- * 챌린지 홈 — 지갑 · 이번 주 삶의 갈피 · 말씀 산성비 · 이번 주 말씀 필사 · 내 리그.
+ * 챌린지 홈 — 지갑 · 이번 주 갈피 퀘스트 · (잠시 숨김: 말씀 산성비 · 이번 주 말씀 필사) · 내 리그.
  * (66권 줄 세우기는 홈에서 뺐다 — 보기는 ChallengeTab 에 남아 있음)
  * 서버가 없거나 로그인 전이면 지갑·리그 자리에 안내만 두고 게임은 연습 판으로 열린다.
  */
 
-/** 서버가 없을 때 이 기기 노트로 이번 주 삶의 갈피를 어림한다 (월요일 시작) + 이번 주 가장 최근 노트 */
+/**
+ * 이 기기 노트로 이번 주 퀘스트를 어림한다 (월요일 시작) — 서버가 없을 때 판정 + 서버에 없는 걸음(적용 남기기)·보너스 진행
+ */
 function localComplete(notes: SermonNote[]): {
   note: boolean;
   apply_done: boolean;
   weekNote: SermonNote | null;
+  weekHasApply: boolean;
+  weekNoteCount: number;
+  weekDoneCount: number;
 } {
   const ws = localWeekStart();
   const wsYmd = `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`;
   const inWeek = notes
     .filter((n) => (n.date || '') >= wsYmd)
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  const apply_done = notes.some((n) =>
-    (n.thoughts || []).some((t) => t.tag === '적용' && t.done && (t.done_at || 0) >= ws.getTime()),
+  const weekDoneCount = notes.reduce(
+    (a, n) =>
+      a +
+      (n.thoughts || []).filter(
+        (t) => t.tag === '적용' && t.done && (t.done_at || 0) >= ws.getTime(),
+      ).length,
+    0,
   );
-  return { note: inWeek.length > 0, apply_done, weekNote: inWeek[0] ?? null };
+  const weekHasApply = inWeek.some((n) =>
+    (n.thoughts || []).some((t) => t.tag === '적용' && (t.text || '').trim().length >= 10),
+  );
+  return {
+    note: inWeek.length > 0,
+    apply_done: weekDoneCount > 0,
+    weekNote: inWeek[0] ?? null,
+    weekHasApply,
+    weekNoteCount: inWeek.length,
+    weekDoneCount,
+  };
 }
 
 /** 지갑에서 마지막으로 본 잔액 — 늘어나면 동전 연출. 화면을 다시 열어도 같은 잔액에 또 터지지 않게 모듈에 둔다 */
@@ -185,12 +205,18 @@ export function ChallengeHome({
         weekNote={local.weekNote}
         doneNote={doneNote}
         doneApply={doneApply}
+        weekHasApply={local.weekHasApply}
+        weekNoteCount={local.weekNoteCount}
+        weekDoneCount={local.weekDoneCount}
+        streakWeeks={anonymous ? undefined : store.wallet?.streak_weeks}
+        anonymous={anonymous}
         apply={apply}
         onToggleApply={onToggleApply}
         onOpenNote={onOpenNote}
         onNew={onNew}
       />
 
+      {/* 산성비 · 필사 카드 — 잠시 숨김 (2026-10-29)
       <div className="sn-ch-games">
         <button
           type="button"
@@ -259,6 +285,7 @@ export function ChallengeHome({
           </span>
         </button>
       </div>
+      */}
 
       {!anonymous && (
         <button type="button" className="sn-ch-league" onClick={onRanking}>

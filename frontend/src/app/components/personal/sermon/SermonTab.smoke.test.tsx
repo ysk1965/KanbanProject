@@ -290,9 +290,9 @@ describe('SermonTab 핵심 탭', () => {
     expect(screen.getByRole('region', { name: '내 이름표' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /내 인생 설교 고정하기/ })).toBeInTheDocument();
 
-    // 챌린지 — 이번 주 삶의 갈피
+    // 챌린지 — 이번 주 갈피 퀘스트
     fireEvent.click(screen.getAllByRole('tab', { name: /챌린지/ })[0]);
-    expect(await screen.findByRole('region', { name: '이번 주 삶의 갈피' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: '이번 주 갈피 퀘스트' })).toBeInTheDocument();
 
     // 모임 — 모임이 없을 때 본문 안내
     fireEvent.click(screen.getAllByRole('tab', { name: /^모임/ })[0]);

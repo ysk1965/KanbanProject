@@ -47,7 +47,7 @@ import { noteNav, type NoteView } from './noteNav';
 import { useSermonGroups } from './group/GroupContext';
 import { BibleReader } from './BibleReader';
 import { HighlightList } from './HighlightList';
-import { SermonVerses } from './VerseIndex';
+import { SermonVerses, useNarrow } from './VerseIndex';
 import { loadReadPos, useHighlights } from './bibleHighlights';
 import { MyGalpi, type MeView } from './MyGalpi';
 import { WorshipPage } from './GalpiSettings';
@@ -199,7 +199,9 @@ export function SermonList({
   const highlights = useHighlights();
   const [challengeView, setChallengeView] = useState<ChallengeView>('home');
   /** 나의 갈피 안 화면 — 첫 화면 / 내 예배표 */
-  const [meView, setMeView] = useState<MeView | 'worship'>('home');
+  const [meView, setMeView] = useState<Exclude<MeView, 'all'> | 'worship'>('home');
+  // 나의 갈피는 좁은 화면에서만 홈·스티커·설정으로 나눈다
+  const narrow = useNarrow();
   const abar = useActionBarHost();
   const [nudgeHidden, setNudgeHidden] = useState(() => nudgeSnoozed());
   const showNudge = status.anonymous && !!onLogin && notes.length > 0 && !nudgeHidden;
@@ -277,6 +279,16 @@ export function SermonList({
     if (tab !== 'note') goTab('note');
   };
   const stickerCount = useGalpiStickers(notes).size;
+  // 넓은 화면은 한 페이지라 모은 설교 스티커 자리로 내린다
+  const goStickers = () => {
+    setMeView('stickers');
+    if (tab !== 'me') goTab('me');
+    window.setTimeout(
+      () =>
+        document.querySelector('.sermon-app .sn-sticker-sec')?.scrollIntoView({ block: 'start' }),
+      60,
+    );
+  };
   const worshipCount = useGalpiPrefs().worship.length;
 
   const tabBadge = (k: SermonTabKey): string | null =>
@@ -332,7 +344,7 @@ export function SermonList({
   } else if (tab === 'me') {
     body = (
       <MyGalpi
-        view={meView === 'settings' ? 'settings' : 'home'}
+        view={!narrow ? 'all' : meView === 'worship' ? 'settings' : meView}
         notes={notes}
         mascot={mascot}
         name={userName}
@@ -601,23 +613,28 @@ export function SermonList({
                 ],
               },
             ]
-          : tab === 'me'
+          : tab === 'me' && narrow
             ? [
                 {
                   items: [
                     {
                       key: 'home',
-                      label: '모은 설교 스티커',
-                      short: '스티커',
-                      count: stickerCount,
+                      label: '홈',
                       on: meView === 'home',
                       go: () => setMeView('home'),
+                    },
+                    {
+                      key: 'stickers',
+                      label: '스티커',
+                      count: stickerCount,
+                      on: meView === 'stickers',
+                      go: () => setMeView('stickers'),
                     },
                     {
                       key: 'settings',
                       label: '설정',
                       // 내 예배표는 설정 안 화면
-                      on: meView !== 'home',
+                      on: meView === 'settings' || meView === 'worship',
                       go: () => setMeView('settings'),
                     },
                   ],
@@ -821,6 +838,10 @@ export function SermonList({
                       꾸미기
                     </button>
                   )}
+                  <button type="button" onClick={goStickers}>
+                    모은 설교 스티커
+                    <span className="sn-count">{stickerCount}</span>
+                  </button>
                   <button
                     type="button"
                     aria-current={meView === 'worship'}

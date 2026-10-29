@@ -1,4 +1,4 @@
-/* 챌린지 홈 「이번 주 삶의 갈피」 (LifeGalpiCard.tsx) */
+/* 챌린지 홈 「이번 주 갈피 퀘스트」 (LifeGalpiCard.tsx) */
 .sermon-app .sn-lg {
   position: relative;
   padding: 16px 18px 18px;
@@ -33,110 +33,6 @@
   font-weight: 800;
   color: var(--sn-fg);
 }
-.sermon-app .sn-lg-due {
-  font-size: 12px;
-  color: var(--sn-muted);
-}
-.sermon-app .sn-lg-prize {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--sn-fg);
-}
-.sermon-app .sn-lg-slots {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  gap: 12px;
-  margin-top: 14px;
-}
-.sermon-app .sn-lg-slot {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  min-width: 0;
-  padding: 14px;
-  border-radius: 22px;
-  background: var(--sn-surface-2);
-}
-/* 가름끈 도장 — 빈 칸은 점선, 꽂히면 잉크색 */
-.sermon-app .sn-lg-rib {
-  flex: none;
-  width: 48px;
-  height: 64px;
-  padding: 0 0 10px;
-  border: 0;
-  border-radius: 8px 8px 0 0;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 84%, 0 100%);
-  display: grid;
-  place-items: center;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.15;
-  text-align: center;
-  color: var(--sn-faint);
-  background:
-    repeating-linear-gradient(0deg, var(--sn-line-strong) 0 4px, transparent 4px 8px) left / 2px
-      100% no-repeat,
-    repeating-linear-gradient(0deg, var(--sn-line-strong) 0 4px, transparent 4px 8px) right / 2px
-      100% no-repeat,
-    repeating-linear-gradient(90deg, var(--sn-line-strong) 0 4px, transparent 4px 8px) top / 100%
-      2px no-repeat,
-    var(--sn-surface);
-}
-.sermon-app button.sn-lg-rib {
-  cursor: pointer;
-  color: var(--sn-t1);
-}
-.sermon-app button.sn-lg-rib:hover {
-  background-color: color-mix(in srgb, var(--sn-g1) 18%, var(--sn-surface));
-}
-.sermon-app .sn-lg-rib[data-on] {
-  font-family: var(--sn-f-poster);
-  font-weight: 400;
-  font-size: 14px;
-  color: var(--sn-on-ink);
-}
-.sermon-app .sn-lg-rib[data-on='word'] {
-  background: var(--sn-g2);
-  transform: rotate(-4deg);
-}
-.sermon-app .sn-lg-rib[data-on='life'] {
-  background: var(--sn-g3);
-  transform: rotate(4deg);
-}
-.sermon-app .sn-lg-rib[data-just] {
-  animation: sn-lg-drop 0.5s var(--sn-spring);
-}
-@keyframes sn-lg-drop {
-  from {
-    transform: translateY(-26px) rotate(-10deg);
-    opacity: 0;
-  }
-  to {
-    transform: rotate(4deg);
-    opacity: 1;
-  }
-}
-.sermon-app .sn-lg-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.sermon-app .sn-lg-body small {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--sn-muted);
-}
-.sermon-app .sn-lg-body b {
-  font-size: 14px;
-  color: var(--sn-fg);
-}
 .sermon-app .sn-lg-src {
   font-size: 12px;
   color: var(--sn-faint);
@@ -151,18 +47,6 @@
 .sermon-app .sn-lg-memo[data-done] {
   text-decoration: line-through;
   text-decoration-color: var(--sn-t2);
-}
-.sermon-app .sn-lg-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-.sermon-app .sn-lg-btn {
-  min-height: 34px;
-  padding: 6px 14px;
-  font-size: 13px;
 }
 .sermon-app .sn-lg-more {
   display: inline-flex;
@@ -185,24 +69,6 @@
 }
 .sermon-app .sn-lg-more[aria-expanded='true'] .sn-icon {
   transform: rotate(90deg);
-}
-.sermon-app .sn-lg-ribbon {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 12px 0 0;
-  padding: 10px 14px;
-  border-radius: 16px;
-  font-size: 13px;
-  color: var(--sn-fg);
-  background: color-mix(in srgb, var(--sn-g3) 45%, var(--sn-surface));
-}
-.sermon-app .sn-lg-ribbon b {
-  font-family: var(--sn-f-poster);
-  font-weight: 400;
-  font-size: 17px;
 }
 .sermon-app .sn-lg-list {
   position: relative;
@@ -257,17 +123,305 @@
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231b1a1f' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg>")
     center / 16px no-repeat;
 }
+.sermon-app .sn-lg-ck:disabled {
+  cursor: not-allowed;
+  border-style: dashed;
+  opacity: 0.6;
+}
+
+/* ── 퀘스트 로그 ── */
+.sermon-app .sn-lgq-due {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: var(--sn-r-pill);
+  color: var(--sn-t2);
+  background: color-mix(in srgb, var(--sn-g2) 24%, transparent);
+}
+.sermon-app .sn-lgq-bar {
+  position: relative;
+  height: 8px;
+  margin-top: 14px;
+  border-radius: var(--sn-r-pill);
+  background: var(--sn-surface-2);
+  overflow: hidden;
+}
+.sermon-app .sn-lgq-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--sn-g2), var(--sn-g1));
+  transition: width 0.5s var(--sn-ease);
+}
+.sermon-app .sn-lgq-meta {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sermon-app .sn-lgq-log {
+  position: relative;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sermon-app .sn-lgq-step {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 11px 12px;
+  border-radius: 18px;
+  background: var(--sn-surface-2);
+}
+.sermon-app .sn-lgq-step[data-s='now'] {
+  background: var(--sn-surface);
+  box-shadow: inset 0 0 0 2px var(--sn-t1);
+}
+.sermon-app .sn-lgq-step[data-s='next'] {
+  opacity: 0.6;
+}
+.sermon-app .sn-lgq-ck {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--sn-line-strong);
+  display: grid;
+  place-items: center;
+  font-family: var(--sn-f-poster);
+  font-size: 14px;
+  color: var(--sn-faint);
+}
+.sermon-app .sn-lgq-step[data-s='now'] .sn-lgq-ck {
+  border-color: var(--sn-t1);
+  color: var(--sn-t1);
+}
+.sermon-app .sn-lgq-step[data-s='done'] .sn-lgq-ck {
+  border-color: var(--sn-g3);
+  background: var(--sn-g3);
+  color: var(--sn-on-ink);
+}
+.sermon-app .sn-lgq-ck svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 3;
+}
+.sermon-app .sn-lgq-ck[data-just] {
+  animation: sn-lgq-pop 0.5s var(--sn-spring);
+}
+@keyframes sn-lgq-pop {
+  from {
+    transform: scale(0.4);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.sermon-app .sn-lgq-tx {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 3px;
+}
+.sermon-app .sn-lgq-tx > b {
+  font-size: 14px;
+  color: var(--sn-fg);
+}
+.sermon-app .sn-lgq-step[data-s='done'] .sn-lgq-tx > b {
+  text-decoration: line-through;
+  text-decoration-color: var(--sn-t2);
+  text-decoration-thickness: 2px;
+}
+.sermon-app .sn-lgq-src {
+  font-size: 12px;
+  color: var(--sn-muted);
+  overflow-wrap: anywhere;
+}
+.sermon-app button.sn-lgq-src {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.sermon-app button.sn-lgq-src:hover {
+  color: var(--sn-t1);
+  text-decoration: underline;
+}
+.sermon-app .sn-lgq-act {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.sermon-app .sn-lgq-btn {
+  min-height: 36px;
+  padding: 6px 16px;
+  font-size: 13px;
+}
+.sermon-app .sn-lgq-btn:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+  color: var(--sn-faint);
+  background: var(--sn-surface-2);
+  border-color: transparent;
+}
+.sermon-app .sn-lgq-rw {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sermon-app .sn-lgq-step[data-s='done'] .sn-lgq-rw {
+  color: var(--sn-fg);
+}
+
+/* 완주 상자 */
+.sermon-app .sn-lgq-chest {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-radius: 20px;
+  border: 1.5px dashed color-mix(in srgb, var(--sn-coin-face) 70%, transparent);
+  background: color-mix(in srgb, var(--sn-coin-face) 12%, var(--sn-surface));
+}
+.sermon-app .sn-lgq-chest[data-open] {
+  border-style: solid;
+  background: color-mix(in srgb, var(--sn-coin-face) 26%, var(--sn-surface));
+}
+.sermon-app .sn-lgq-box {
+  position: relative;
+  width: 40px;
+  height: 32px;
+  margin-top: 6px;
+  border-radius: 8px;
+  background: var(--sn-coin-face);
+  box-shadow: inset 0 -12px 0 color-mix(in srgb, var(--sn-coin-ink) 22%, var(--sn-coin-face));
+}
+.sermon-app .sn-lgq-box::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  top: -4px;
+  height: 12px;
+  border-radius: 6px 6px 3px 3px;
+  background: color-mix(in srgb, #fff 18%, var(--sn-coin-face));
+  transform-origin: left bottom;
+  transition: transform 0.45s var(--sn-spring);
+}
+.sermon-app .sn-lgq-chest[data-open] .sn-lgq-box::before {
+  transform: rotate(-28deg) translateY(-4px);
+}
+.sermon-app .sn-lgq-chest-tx {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sermon-app .sn-lgq-chest-tx b {
+  font-size: 14px;
+  color: var(--sn-fg);
+}
+.sermon-app .sn-lgq-chest-tx small {
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-lgq-amt {
+  font-family: var(--sn-f-poster);
+  font-size: 20px;
+  color: var(--sn-fg);
+}
+
+/* 보너스 퀘스트 */
+.sermon-app .sn-lgq-extras {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--sn-line-strong);
+}
+.sermon-app .sn-lgq-extras-h {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--sn-faint);
+}
+.sermon-app .sn-lgq-ex {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--sn-fg);
+}
+.sermon-app .sn-lgq-pip {
+  display: inline-flex;
+  gap: 3px;
+}
+.sermon-app .sn-lgq-pip i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sn-surface-2);
+  box-shadow: inset 0 0 0 1px var(--sn-line-strong);
+}
+.sermon-app .sn-lgq-pip i[data-on] {
+  background: var(--sn-g2);
+  box-shadow: none;
+}
+.sermon-app .sn-lgq-cnt {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sermon-app .sn-lgq-ex-rw {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-muted);
+}
+
 @media (max-width: 760px) {
   .sermon-app .sn-lg {
     padding: 14px;
     border-radius: 24px;
   }
-  .sermon-app .sn-lg-slots {
-    grid-template-columns: minmax(0, 1fr);
+  .sermon-app .sn-lgq-step {
+    grid-template-columns: 26px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 10px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sermon-app .sn-lg-rib[data-just] {
+  .sermon-app .sn-lgq-ck[data-just],
+  .sermon-app .sn-lgq-bar i,
+  .sermon-app .sn-lgq-box::before {
     animation: none;
+    transition: none;
   }
+}
+.sermon-app .sn-lgq-tx .sn-lg-memo {
+  font-size: 19px;
 }

@@ -21,9 +21,10 @@ import { useChallengeUserId } from './challenge/challengeUtil';
  * 「나의 갈피」 — 마이페이지. 기획: https://claude.ai/artifact/1pTWvwGGDy2aA1hYx6xnNA (1단계)
  * 위: 이름표(캐릭터·대표 말씀·소속 교회) / 가운데: 고정한 노트 폴라로이드 3장 · 모은 설교 스티커(한 해 스티커북) / 아래: 챌린지 줄·메뉴
  * 소속 교회는 챌린지(user_churches)가 원본이라 고르기는 challenge/ChurchPicker 를 그대로 쓴다.
- * 보기 두 개 — 「모은 설교 스티커」(이름표·고정 노트·스티커북) / 「설정」(챌린지 줄·메뉴). 고르기는 SermonList 보기 칩.
+ * 넓은 화면은 한 페이지(all). 좁은 화면은 보기 셋 — 홈(이름표·고정 노트) / 스티커(스티커북) / 설정(챌린지 줄·메뉴).
+ * 고르기는 SermonList 보기 칩.
  */
-export type MeView = 'home' | 'settings';
+export type MeView = 'all' | 'home' | 'stickers' | 'settings';
 
 export function MyGalpi({
   view,
@@ -66,7 +67,7 @@ export function MyGalpi({
 
   return (
     <div className="sn-me snp-me">
-      {view === 'home' ? (
+      {view !== 'stickers' && view !== 'settings' && (
         <>
           <Nametag
             profile={profile}
@@ -81,17 +82,21 @@ export function MyGalpi({
           />
 
           <PinnedNotes profile={profile} notes={notes} mascot={mascot} onOpen={onOpen} />
-
-          {/* 한 해 스티커북 — 주일마다 그 주 갈피 노트가 스티커로 붙는다 (홈에서 옮겨 옴) */}
-          <section className="sn-sticker-sec" aria-label="모은 설교 스티커">
-            <div className="sn-sec-h">
-              <h4>모은 설교 스티커</h4>
-              <span>주일마다 갈피 노트 한 장</span>
-            </div>
-            <StickerBook notes={notes} galpi={galpi} mascot={mascot} onOpen={onOpen} />
-          </section>
         </>
-      ) : (
+      )}
+
+      {/* 한 해 스티커북 — 주일마다 그 주 갈피 노트가 스티커로 붙는다 (홈에서 옮겨 옴) */}
+      {(view === 'all' || view === 'stickers') && (
+        <section className="sn-sticker-sec" aria-label="모은 설교 스티커">
+          <div className="sn-sec-h">
+            <h4>모은 설교 스티커</h4>
+            <span>주일마다 갈피 노트 한 장</span>
+          </div>
+          <StickerBook notes={notes} galpi={galpi} mascot={mascot} onOpen={onOpen} />
+        </section>
+      )}
+
+      {(view === 'all' || view === 'settings') && (
         <>
           <ChallengeMeRows onLogin={onLogin} />
 

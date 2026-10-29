@@ -46,3 +46,24 @@ export function rankName(nickname?: string | null, tag?: string | null): string 
   if (!nickname) return '';
   return tag ? `${nickname}#${tag}` : nickname;
 }
+
+/** 한국 시간 일요일 22시 마감까지 → 「D-4 · 일 22시」 / 「오늘 22시까지」 */
+export function dueLabel(now = Date.now()): string {
+  const k = new Date(now + 9 * 3600_000);
+  const day = k.getUTCDay();
+  let left = (7 - day) % 7;
+  if (left === 0 && k.getUTCHours() >= 22) left = 7;
+  return left === 0 ? '오늘 22시까지' : `D-${left} · 일 22시`;
+}
+
+/** 체크할 수 있게 되는 시각 → 「오늘 오후 9시」 / 「내일 오전 9시」 / 「목 오전 9시」 */
+export function unlockLabel(ms: number, now = Date.now()): string {
+  const d = new Date(ms);
+  const day0 = new Date(now);
+  day0.setHours(0, 0, 0, 0);
+  const diff = Math.floor((d.getTime() - day0.getTime()) / 86_400_000);
+  const h = d.getHours();
+  const time = `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}시${d.getMinutes() ? ` ${d.getMinutes()}분` : ''}`;
+  const when = diff <= 0 ? '오늘' : diff === 1 ? '내일' : '일월화수목금토'[d.getDay()];
+  return `${when} ${time}`;
+}

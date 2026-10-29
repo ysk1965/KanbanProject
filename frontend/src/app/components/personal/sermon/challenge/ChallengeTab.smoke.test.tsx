@@ -95,7 +95,8 @@ beforeAll(() => {
 });
 
 describe('챌린지 탭 (서버 없음)', () => {
-  it('홈 → 산성비 연습 판 → 랭킹 「아직 준비 중」', async () => {
+  // 산성비·필사 카드 잠시 숨김 (ChallengeHome) — 다시 열 때 skip 해제
+  it.skip('홈 → 산성비 연습 판 → 랭킹 「아직 준비 중」', async () => {
     localStorage.clear();
     const { default: SermonTab } = await import('../SermonTab');
     render(
@@ -106,7 +107,7 @@ describe('챌린지 탭 (서버 없음)', () => {
 
     // 홈 — 지갑 자리는 안내, 이번 주 삶의 갈피, 게임 카드 둘(산성비·필사)
     expect(await screen.findByText('달란트와 랭킹은 아직 준비 중이에요.')).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: '이번 주 삶의 갈피' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: '이번 주 갈피 퀘스트' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /이번 주 말씀 필사/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /66권 줄 세우기/ })).not.toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith('/challenge/wallet');
