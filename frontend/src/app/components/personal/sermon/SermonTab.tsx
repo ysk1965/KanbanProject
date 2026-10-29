@@ -25,6 +25,7 @@ import { loadBible } from './useBible';
 import { useSermonProfile } from './profile/useSermonProfile';
 import { ProfileContext } from './profile/ProfileContext';
 import { installTapFx } from './microFx';
+import { useWidgetSync } from './widget/useWidgetSync';
 import './sermon.css';
 
 /**
@@ -351,6 +352,9 @@ function SermonTabBody({ userId, anonymous, standalone, onLogin, strip }: BodyPr
 
   const notes = store.all();
   const openNote: SermonNote | undefined = openId ? store.get(openId) : undefined;
+
+  // iOS 홈·잠금 화면 위젯 요약 + 위젯에서 누른 체크 옮기기 (iOS 앱에서만)
+  useWidgetSync({ store, plans, userId, anonymous, notes, ink: look.ink, rootRef });
 
   // 딥링크 id 가 (동기화 후에도) 없으면 목록으로
   useEffect(() => {

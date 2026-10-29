@@ -25,6 +25,8 @@ function note(id: string, date: string, thoughts: Partial<Thought>[] = []): Serm
   } as unknown as SermonNote;
 }
 
+const earn = () => document.querySelector('.sn-lgq-earn')?.textContent;
+
 function items(n: SermonNote): ApplyItem[] {
   return (n.thoughts || []).map((t) => ({ n, t }));
 }
@@ -70,10 +72,10 @@ describe('LifeGalpiCard — 이번 주 갈피 퀘스트', () => {
     const p = renderCard();
     expect(screen.getByRole('region', { name: '이번 주 갈피 퀘스트' })).toBeInTheDocument();
     expect(screen.getByText('0 / 3 걸음')).toBeInTheDocument();
-    expect(screen.getByText('받은 달란트 0 / 53')).toBeInTheDocument();
+    expect(earn()).toBe('0 / 53');
     fireEvent.click(screen.getByRole('button', { name: '새 설교 기록' }));
     expect(p.onNew).toHaveBeenCalled();
-    expect(screen.getByText('세 걸음을 마치면 상자가 열려요')).toBeInTheDocument();
+    expect(screen.getByText('세 걸음을 마치면 완주 +20')).toBeInTheDocument();
   });
 
   it('적용을 남긴 지 12시간 전이면 「살아 냈어요」가 잠긴다', () => {
@@ -88,7 +90,8 @@ describe('LifeGalpiCard — 이번 주 갈피 퀘스트', () => {
       apply: { week: items(n), older: [] },
     });
     expect(screen.getByText('2 / 3 걸음')).toBeInTheDocument();
-    expect(screen.getByText('받은 달란트 23 / 53')).toBeInTheDocument();
+    expect(earn()).toBe('23 / 53');
+    expect(screen.getByText('살아 낼 적용')).toBeInTheDocument();
     const btn = screen.getByRole('button', { name: /^살아 냈어요 · / });
     expect(btn).toBeDisabled();
     fireEvent.click(btn);
@@ -123,9 +126,13 @@ describe('LifeGalpiCard — 이번 주 갈피 퀘스트', () => {
       streakWeeks: 2,
       apply: { week: items(n), older: [] },
     });
-    expect(screen.getByText('3 / 3 걸음')).toBeInTheDocument();
-    expect(screen.getByText('받은 달란트 53 / 53')).toBeInTheDocument();
-    expect(screen.getByText('이번 주 갈피 상자를 열었어요')).toBeInTheDocument();
+    expect(earn()).toBe('53 / 53');
+    expect(screen.getByText('이번 주 갈피를 삶까지 꽂았어요')).toBeInTheDocument();
+    // 적용 문장은 인용에 한 번만, 진행 막대는 숨김
+    expect(screen.getAllByText('출근길에 사과 문자 보내기')).toHaveLength(1);
+    expect(screen.queryByRole('progressbar', { name: '퀘스트 진행' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /적용 체크/ }));
+    expect(screen.getByRole('button', { name: '실천 표시 지우기' })).toBeInTheDocument();
     expect(screen.getByLabelText('보너스 퀘스트')).toBeInTheDocument();
     expect(screen.getByText('4주 연속 기록')).toBeInTheDocument();
   });

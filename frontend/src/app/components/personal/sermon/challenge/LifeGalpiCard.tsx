@@ -6,10 +6,12 @@ import { dueLabel, unlockLabel } from './challengeUtil';
 import './lifeGalpi.css';
 
 /**
- * 「이번 주 갈피 퀘스트」 — 말씀을 삶까지 세 걸음 + 완주 상자.
- *   1 말씀에 꽂기(노트 +20) → 2 적용 하나 남기기(+3) → 3 삶에 꽂기(실천 +10) → 상자(완주 +20)
+ * 「이번 주 갈피 퀘스트」 — 말씀을 삶까지 세 걸음 + 완주.
+ *   1 말씀에 꽂기(노트 +20) → 2 적용 하나 남기기(+3) → 3 삶에 꽂기(실천 +10) → 완주(+20)
  * 보상 숫자는 서버 적립 규칙 그대로(docs/Tech/sermon-challenge-api.md) — 화면은 진행을 보여 주기만 한다.
- * 기획: https://claude.ai/artifact/Ht686snaDMJXmE83EVSBue (A 퀘스트 로그)
+ * 모양은 「갈피 도장 줄」: 세 걸음을 도장 세 칸으로(좁은 화면은 세로), 다 한 칸은 날짜만 남긴다.
+ * 다 한 일에 취소선은 긋지 않는다(지운 일처럼 읽힘). 적용 문장은 아래 인용에 한 번만.
+ * 기획: https://claude.ai/artifact/Ht686snaDMJXmE83EVSBue · 다듬기: https://claude.ai/artifact/B3CyVN25hBS11oJXJ7Jbhd (A)
  */
 
 export interface LifeGalpiApply {
@@ -34,6 +36,13 @@ type StepState = 'done' | 'now' | 'next';
 
 function src(n: SermonNote): string {
   return `${fmtDate(n.date)} · ${n.title || UNTITLED}`;
+}
+
+/** ms → 「10.30 (금)」 */
+function dayOf(ms: number | null | undefined): string {
+  if (!ms) return '';
+  const d = new Date(ms);
+  return `${d.getMonth() + 1}.${d.getDate()} (${'일월화수목금토'[d.getDay()]})`;
 }
 
 function memo(x: ApplyItem): string {
@@ -80,6 +89,8 @@ export function LifeGalpiCard({
   // 삶에 꽂을 적용 — 이번 주 것 먼저, 없으면 지난 설교에서 남은 것
   const target = weekLeft[0] ?? apply.older[0] ?? null;
   const doneItem = weekDone[0] ?? null;
+  // 2걸음 칸에 날짜를 보일 적용 — 이번 주 노트에 남긴 것
+  const leftItem = apply.week[0] ?? null;
   const listCount = apply.week.length + apply.older.length;
 
   // 잠긴 적용이 있으면 풀리는 시각에 다시 그린다
@@ -111,7 +122,8 @@ export function LifeGalpiCard({
   };
   const lockedItem = (x: ApplyItem) => !anonymous && !x.t.done && (x.t.at || 0) + DONE_MIN_MS > now;
 
-  const step1 = s1 ? (
+  // ── 각 칸의 한 줄 설명 + (지금 걸음이면) 버튼 ──
+  const step1: ReactNode = s1 ? (
     weekNote ? (
       <button type="button" className="sn-lgq-src" onClick={() => onOpenNote(weekNote.id)}>
         {src(weekNote)}
@@ -143,17 +155,13 @@ export function LifeGalpiCard({
     </>
   );
 
-  const step2 = s2 ? (
+  const step2: ReactNode = s2 ? (
     <span className="sn-lgq-src">
-      {doneItem && !weekLeft.length
-        ? memo(doneItem)
-        : weekLeft[0]
-          ? memo(weekLeft[0])
-          : '적용을 남겼어요'}
+      {leftItem ? `${dayOf(leftItem.t.at) || fmtDate(leftItem.n.date)} 남김` : '적용을 남겼어요'}
     </span>
   ) : (
     <>
-      <span className="sn-lgq-src">노트에 「적용」 생각을 {APPLY_TEXT_MIN}자 이상 남겨요</span>
+      <span className="sn-lgq-src">이번 주 노트에 「적용」을 {APPLY_TEXT_MIN}자 이상</span>
       {cur === 1 && (
         <span className="sn-lgq-act">
           <button
@@ -161,73 +169,50 @@ export function LifeGalpiCard({
             className="sn-btn sn-primary sn-lgq-btn"
             onClick={() => (weekNote ? onOpenNote(weekNote.id) : onNew())}
           >
-            이번 주 노트에 적용 남기기
+            노트에 적용 남기기
           </button>
         </span>
       )}
     </>
   );
 
-  const more =
-    listCount > 1 ? (
-      <button
-        type="button"
-        className="sn-lg-more"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-      >
-        {doneApply
-          ? weekLeft.length + apply.older.length
-            ? `남은 적용 ${weekLeft.length + apply.older.length}개`
-            : '적용 모두 보기'
-          : '적용 모두 보기'}
-        <ChevronRight className="sn-icon" aria-hidden />
-      </button>
-    ) : null;
-
-  const step3 = s3 ? (
+  const step3: ReactNode = s3 ? (
+    <span className="sn-lgq-src">
+      {doneItem?.t.done_at ? `${dayOf(doneItem.t.done_at)} 살아 냄` : '이번 주 적용을 살아 냈어요'}
+    </span>
+  ) : cur === 2 && target ? (
     <>
-      {doneItem ? (
-        <span className="sn-lg-memo" data-done>
-          {memo(doneItem)}
-        </span>
-      ) : (
-        <span className="sn-lgq-src">이번 주 적용을 살아 냈어요</span>
-      )}
-      {more && <span className="sn-lgq-act">{more}</span>}
-    </>
-  ) : target ? (
-    <>
-      <span className="sn-lg-memo">{memo(target)}</span>
       <span className="sn-lgq-src">
-        {src(target.n)}
-        {locked && ` · 남긴 지 12시간이 지나면 체크할 수 있어요`}
+        {locked ? '남긴 지 12시간이 지나면 체크할 수 있어요' : '살아 냈으면 체크해요'}
       </span>
-      {(cur === 2 || more) && (
-        <span className="sn-lgq-act">
-          {cur === 2 && (
-            <button
-              type="button"
-              className="sn-btn sn-primary sn-lgq-btn"
-              disabled={locked}
-              onClick={() => live(target)}
-            >
-              {locked ? `살아 냈어요 · ${unlockLabel(unlockAt, now)}` : '살아 냈어요'}
-            </button>
-          )}
-          {more}
-        </span>
-      )}
+      <span className="sn-lgq-act">
+        <button
+          type="button"
+          className="sn-btn sn-primary sn-lgq-btn"
+          disabled={locked}
+          onClick={() => live(target)}
+        >
+          {locked ? `살아 냈어요 · ${unlockLabel(unlockAt, now)}` : '살아 냈어요'}
+        </button>
+      </span>
     </>
   ) : (
     <span className="sn-lgq-src">남긴 적용을 살아 내고 체크해요</span>
   );
 
-  const rows: { title: string; rw: number; body: ReactNode }[] = [
-    { title: '말씀에 꽂기', rw: RW.note, body: step1 },
-    { title: '적용 하나 남기기', rw: RW.apply, body: step2 },
-    { title: '삶에 꽂기', rw: RW.done, body: step3 },
+  const tiles: { key: string; title: string; rw: number; body: ReactNode }[] = [
+    { key: 'word', title: '말씀에 꽂기', rw: RW.note, body: step1 },
+    { key: 'apply', title: '적용 남기기', rw: RW.apply, body: step2 },
+    { key: 'life', title: '삶에 꽂기', rw: RW.done, body: step3 },
   ];
+
+  // 아래 인용 — 살아 낸 적용, 아니면 지금 살아 낼 적용 (적용 문장은 여기서 한 번만)
+  const quote: { label: string; item: ApplyItem } | null =
+    s3 && doneItem
+      ? { label: '이번 주 살아 낸 적용', item: doneItem }
+      : cur === 2 && target
+        ? { label: '살아 낼 적용', item: target }
+        : null;
 
   const nextStreak = STREAKS.find((n) => n > (streakWeeks ?? 0));
 
@@ -239,70 +224,119 @@ export function LifeGalpiCard({
     >
       <div className="sn-lg-head">
         <h4>이번 주 갈피 퀘스트</h4>
-        <span className="sn-lgq-due">{both ? '완주' : dueLabel()}</span>
+        <span className="sn-lgq-due" data-done={both || undefined}>
+          {both ? '완주' : dueLabel()}
+        </span>
+        <span className="sn-lgq-earn">
+          {anonymous ? (
+            '로그인하면 달란트로 쌓여요'
+          ) : (
+            <>
+              <Coin size={16} />
+              {earned} / {TOTAL}
+            </>
+          )}
+        </span>
+        {listCount > 0 && (
+          <button
+            type="button"
+            className="sn-lg-more"
+            aria-expanded={open}
+            onClick={() => setOpen((o) => !o)}
+          >
+            적용 모두 보기
+            <ChevronRight className="sn-icon" aria-hidden />
+          </button>
+        )}
       </div>
 
-      <div
-        className="sn-lgq-bar"
-        role="progressbar"
-        aria-label="퀘스트 진행"
-        aria-valuemin={0}
-        aria-valuemax={3}
-        aria-valuenow={steps}
-      >
-        <i style={{ width: `${(steps / 3) * 100}%` }} />
-      </div>
-      <div className="sn-lgq-meta">
-        <span>{steps} / 3 걸음</span>
-        <span>{anonymous ? '로그인하면 달란트로 쌓여요' : `받은 달란트 ${earned} / ${TOTAL}`}</span>
-      </div>
+      {both ? (
+        <div className="sn-lgq-banner">
+          <span className="sn-lgq-seal" aria-hidden>
+            완주
+          </span>
+          <span className="sn-lgq-banner-tx">
+            <b>이번 주 갈피를 삶까지 꽂았어요</b>
+            <small>완주 +{RW.complete}까지 받았어요. 다음 주 월요일에 새 퀘스트가 열려요.</small>
+          </span>
+          {!anonymous && <span className="sn-lgq-tot">+{earned}</span>}
+        </div>
+      ) : (
+        <>
+          <div
+            className="sn-lgq-bar"
+            role="progressbar"
+            aria-label="퀘스트 진행"
+            aria-valuemin={0}
+            aria-valuemax={3}
+            aria-valuenow={steps}
+          >
+            <i style={{ width: `${(steps / 3) * 100}%` }} />
+          </div>
+          <div className="sn-lgq-meta">
+            <span>{steps} / 3 걸음</span>
+            <span>세 걸음을 마치면 완주 +{RW.complete}</span>
+          </div>
+        </>
+      )}
 
-      <ol className="sn-lgq-log">
-        {rows.map((r, i) => (
-          <li key={r.title} className="sn-lgq-step" data-s={st(i)}>
-            <span
-              className="sn-lgq-ck"
-              data-just={(i === 2 && s3 && just) || undefined}
-              aria-label={flags[i] ? '완료' : `${i + 1}걸음`}
-            >
-              {flags[i] ? <Check aria-hidden /> : i + 1}
+      <ol className="sn-lgq-stamps">
+        {tiles.map((t, i) => (
+          <li key={t.key} className="sn-lgq-tile" data-s={st(i)} data-k={t.key}>
+            {flags[i] && <span className="sn-lgq-rib" aria-hidden />}
+            <span className="sn-lgq-top">
+              <span
+                className="sn-lgq-ck"
+                data-just={(i === 2 && s3 && just) || undefined}
+                aria-label={flags[i] ? '완료' : `${i + 1}걸음`}
+              >
+                {flags[i] ? <Check aria-hidden /> : i + 1}
+              </span>
+              <b>{t.title}</b>
+              <span className="sn-lgq-rw">
+                <Coin size={14} />+{t.rw}
+              </span>
             </span>
-            <span className="sn-lgq-tx">
-              <b>{r.title}</b>
-              {r.body}
-            </span>
-            <span className="sn-lgq-rw">
-              <Coin size={16} />+{r.rw}
-            </span>
+            <span className="sn-lgq-body">{t.body}</span>
           </li>
         ))}
       </ol>
 
-      <div className="sn-lgq-chest" data-open={both || undefined}>
-        <span className="sn-lgq-box" aria-hidden />
-        <span className="sn-lgq-chest-tx">
-          <b>{both ? '이번 주 갈피 상자를 열었어요' : '세 걸음을 마치면 상자가 열려요'}</b>
-          <small>
-            {both ? '말씀에 하나, 삶에 하나. 다음 주에 또 꽂아요.' : `남은 걸음 ${3 - steps}개`}
-          </small>
-        </span>
-        <span className="sn-lgq-amt">+{RW.complete}</span>
-      </div>
+      {quote && (
+        <div className="sn-lgq-quote" data-done={s3 || undefined}>
+          <small>{quote.label}</small>
+          <span className="sn-lg-memo">{memo(quote.item)}</span>
+        </div>
+      )}
 
-      {(s1 || s3) && (
+      {both && (
         <div className="sn-lgq-extras" aria-label="보너스 퀘스트">
           <span className="sn-lgq-extras-h">보너스 퀘스트</span>
-          <Bonus label="적용 더 살아 내기" on={weekDoneCount} max={MAX_DONE} rw={`+${RW.done}씩`} />
-          <Bonus label="노트 더 쓰기" on={weekNoteCount} max={MAX_NOTES} rw={`+${RW.note}씩`} />
-          {!anonymous && streakWeeks != null && nextStreak && (
+          <div className="sn-lgq-bonus">
             <Bonus
-              label={`${nextStreak}주 연속 기록`}
-              on={streakWeeks}
-              max={nextStreak}
-              rw={`+${STREAK_BONUS[nextStreak]}`}
-              count
+              label="적용 더 살아 내기"
+              rw={`+${RW.done}씩`}
+              on={weekDoneCount}
+              max={MAX_DONE}
+              action={listCount > 0 ? { label: '적용 체크', go: () => setOpen(true) } : undefined}
             />
-          )}
+            <Bonus
+              label="노트 더 쓰기"
+              rw={`+${RW.note}씩`}
+              on={weekNoteCount}
+              max={MAX_NOTES}
+              action={{ label: '새 기록', go: onNew }}
+            />
+            {!anonymous && streakWeeks != null && nextStreak && (
+              <Bonus
+                label={`${nextStreak}주 연속 기록`}
+                rw={`+${STREAK_BONUS[nextStreak]}`}
+                on={streakWeeks}
+                max={nextStreak}
+                note="다음 주에도"
+              />
+            )}
+          </div>
         </div>
       )}
 
@@ -339,34 +373,52 @@ export function LifeGalpiCard({
 
 function Bonus({
   label,
+  rw,
   on,
   max,
-  rw,
-  count,
+  action,
+  note,
 }: {
   label: string;
+  rw: string;
   on: number;
   max: number;
-  rw: string;
-  /** 점 대신 「2/4」 숫자로 (칸이 많을 때) */
-  count?: boolean;
+  action?: { label: string; go: () => void };
+  note?: string;
 }) {
   const n = Math.min(on, max);
+  const full = n >= max;
   return (
-    <div className="sn-lgq-ex">
-      <span>{label}</span>
-      {count || max > 6 ? (
-        <span className="sn-lgq-cnt">
-          {n}/{max}
+    <div className="sn-lgq-bn" data-full={full || undefined}>
+      <span className="sn-lgq-bn-h">
+        <b>{label}</b>
+        <span>{rw}</span>
+      </span>
+      <span
+        className="sn-lgq-bn-bar"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={max}
+        aria-valuenow={n}
+      >
+        <i style={{ width: `${(n / max) * 100}%` }} />
+      </span>
+      <span className="sn-lgq-bn-f">
+        <span>
+          {n} / {max}
         </span>
-      ) : (
-        <span className="sn-lgq-pip" aria-label={`${n}/${max}`}>
-          {Array.from({ length: max }, (_, i) => (
-            <i key={i} data-on={i < n || undefined} />
-          ))}
-        </span>
-      )}
-      <span className="sn-lgq-ex-rw">{rw}</span>
+        {full ? (
+          <span className="sn-lgq-bn-full">다 채웠어요</span>
+        ) : action ? (
+          <button type="button" className="sn-lg-more" onClick={action.go}>
+            {action.label}
+            <ChevronRight className="sn-icon" aria-hidden />
+          </button>
+        ) : note ? (
+          <span>{note}</span>
+        ) : null}
+      </span>
     </div>
   );
 }
@@ -382,6 +434,7 @@ function ApplyLine({
   onToggle: (x: ApplyItem) => void;
   onOpen: (noteId: string, aid?: string | null) => void;
 }) {
+  const at = unlockLabel((x.t.at || 0) + DONE_MIN_MS);
   return (
     <div className="sn-lg-line" data-done={!!x.t.done || undefined}>
       <button
@@ -390,11 +443,7 @@ function ApplyLine({
         aria-pressed={!!x.t.done}
         disabled={locked}
         aria-label={
-          x.t.done
-            ? '실천 표시 지우기'
-            : locked
-              ? `${unlockLabel((x.t.at || 0) + DONE_MIN_MS)}부터 체크할 수 있어요`
-              : '살아 냈어요'
+          x.t.done ? '실천 표시 지우기' : locked ? `${at}부터 체크할 수 있어요` : '살아 냈어요'
         }
         onClick={() => onToggle(x)}
       />
@@ -402,7 +451,7 @@ function ApplyLine({
         <span className="sn-lg-memo">{memo(x)}</span>
         <span className="sn-lg-src">
           {src(x.n)}
-          {locked && ` · ${unlockLabel((x.t.at || 0) + DONE_MIN_MS)}부터 체크`}
+          {locked && ` · ${at}부터 체크`}
         </span>
       </span>
       <button type="button" className="sn-btn sn-ghost" onClick={() => onOpen(x.n.id, x.t.aid)}>

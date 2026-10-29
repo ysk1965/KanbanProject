@@ -604,12 +604,13 @@ export function SermonList({
                     on: challengeView !== 'ranking',
                     go: () => setChallengeView('home'),
                   },
-                  {
-                    key: 'ranking',
-                    label: '랭킹',
-                    on: challengeView === 'ranking',
-                    go: () => setChallengeView('ranking'),
-                  },
+                  // 랭킹 — 잠시 숨김 (2026-10-29)
+                  // {
+                  //   key: 'ranking',
+                  //   label: '랭킹',
+                  //   on: challengeView === 'ranking',
+                  //   go: () => setChallengeView('ranking'),
+                  // },
                 ],
               },
             ]
@@ -823,13 +824,6 @@ export function SermonList({
                       ))}
                     </div>
                   ))}
-              {tab === 'challenge' && (
-                <p className="sn-sub-hint">
-                  {week.length
-                    ? `이번 주 적용 ${weekDone}/${week.length} 살아 냄`
-                    : '말씀에 하나, 삶에 하나. 이번 주 삶의 갈피를 꽂아요.'}
-                </p>
-              )}
               {tab === 'me' && (
                 <div className="sn-nav">
                   {onOpenLook && (

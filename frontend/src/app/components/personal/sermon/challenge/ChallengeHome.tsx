@@ -287,6 +287,7 @@ export function ChallengeHome({
       </div>
       */}
 
+      {/* 리그 · 랭킹 카드 — 잠시 숨김 (2026-10-29)
       {!anonymous && (
         <button type="button" className="sn-ch-league" onClick={onRanking}>
           <Trophy className="sn-icon" aria-hidden />
@@ -318,6 +319,7 @@ export function ChallengeHome({
           <ChevronRight className="sn-icon" aria-hidden />
         </button>
       )}
+      */}
     </div>
   );
 }

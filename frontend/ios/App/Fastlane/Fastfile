@@ -15,7 +15,7 @@ platform :ios do
     match(
       type: "appstore",
       readonly: is_ci,
-      app_identifier: "com.bridgespots.app"
+      app_identifier: ["com.bridgespots.app", "com.bridgespots.app.widget"]
     )
 
     build_app(
@@ -44,7 +44,7 @@ platform :ios do
     match(
       type: "appstore",
       readonly: is_ci,
-      app_identifier: "com.bridgespots.app"
+      app_identifier: ["com.bridgespots.app", "com.bridgespots.app.widget"]
     )
 
     build_app(

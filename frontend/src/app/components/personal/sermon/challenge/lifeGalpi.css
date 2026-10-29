@@ -44,10 +44,6 @@
   color: var(--sn-fg);
   overflow-wrap: anywhere;
 }
-.sermon-app .sn-lg-memo[data-done] {
-  text-decoration: line-through;
-  text-decoration-color: var(--sn-t2);
-}
 .sermon-app .sn-lg-more {
   display: inline-flex;
   align-items: center;
@@ -103,9 +99,8 @@
 .sermon-app .sn-lg-line .sn-lg-memo {
   font-size: 19px;
 }
+/* 실천한 적용 — 취소선 없이 흐리게만 (해낸 일이 지운 일처럼 보이지 않게) */
 .sermon-app .sn-lg-line[data-done] .sn-lg-memo {
-  text-decoration: line-through;
-  text-decoration-color: var(--sn-t2);
   color: var(--sn-muted);
 }
 .sermon-app .sn-lg-ck {
@@ -129,7 +124,10 @@
   opacity: 0.6;
 }
 
-/* ── 퀘스트 로그 ── */
+/* ── 갈피 도장 줄 ── */
+.sermon-app .sn-lgq .sn-lg-head {
+  row-gap: 6px;
+}
 .sermon-app .sn-lgq-due {
   font-size: 12px;
   font-weight: 700;
@@ -137,6 +135,23 @@
   border-radius: var(--sn-r-pill);
   color: var(--sn-t2);
   background: color-mix(in srgb, var(--sn-g2) 24%, transparent);
+}
+.sermon-app .sn-lgq-due[data-done] {
+  color: var(--sn-fg);
+  background: color-mix(in srgb, var(--sn-g3) 45%, transparent);
+}
+.sermon-app .sn-lgq-earn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sn-fg);
+  font-variant-numeric: tabular-nums;
+}
+.sermon-app .sn-lgq .sn-lg-head .sn-lg-more {
+  min-height: 28px;
 }
 .sermon-app .sn-lgq-bar {
   position: relative;
@@ -163,54 +178,151 @@
   color: var(--sn-muted);
   font-variant-numeric: tabular-nums;
 }
-.sermon-app .sn-lgq-log {
+
+/* 완주 도장 띠 */
+.sermon-app .sn-lgq-banner {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-radius: 20px;
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--sn-g2) 30%, var(--sn-surface)),
+    color-mix(in srgb, var(--sn-g1) 30%, var(--sn-surface))
+  );
+}
+.sermon-app .sn-lgq-seal {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--sn-f-poster);
+  font-size: 14px;
+  color: var(--sn-coin-ink);
+  background: var(--sn-coin-face);
+  box-shadow:
+    inset 0 0 0 3px color-mix(in srgb, var(--sn-coin-ink) 25%, var(--sn-coin-face)),
+    0 0 0 3px color-mix(in srgb, var(--sn-coin-face) 35%, transparent);
+  transform: rotate(-8deg);
+  animation: sn-lgq-seal 0.55s var(--sn-spring);
+}
+@keyframes sn-lgq-seal {
+  from {
+    transform: scale(1.6) rotate(-20deg);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(-8deg);
+    opacity: 1;
+  }
+}
+.sermon-app .sn-lgq-banner-tx {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sermon-app .sn-lgq-banner-tx b {
+  font-size: 15px;
+  color: var(--sn-fg);
+}
+.sermon-app .sn-lgq-banner-tx small {
+  font-size: 12px;
+  color: var(--sn-muted);
+}
+.sermon-app .sn-lgq-tot {
+  font-family: var(--sn-f-poster);
+  font-size: 22px;
+  color: var(--sn-fg);
+  white-space: nowrap;
+}
+
+/* 도장 세 칸 */
+.sermon-app .sn-lgq-stamps {
   position: relative;
   list-style: none;
   margin: 12px 0 0;
   padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.sermon-app .sn-lgq-tile {
+  position: relative;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-.sermon-app .sn-lgq-step {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: start;
-  padding: 11px 12px;
+  padding: 12px;
   border-radius: 18px;
   background: var(--sn-surface-2);
 }
-.sermon-app .sn-lgq-step[data-s='now'] {
+.sermon-app .sn-lgq-tile[data-s='done'] {
+  background: color-mix(in srgb, var(--sn-g3) 24%, var(--sn-surface));
+}
+.sermon-app .sn-lgq-tile[data-s='now'] {
   background: var(--sn-surface);
   box-shadow: inset 0 0 0 2px var(--sn-t1);
 }
-.sermon-app .sn-lgq-step[data-s='next'] {
+.sermon-app .sn-lgq-tile[data-s='next'] {
   opacity: 0.6;
 }
+/* 다 한 칸에 꽂힌 가름끈 — 말씀 분홍 · 적용 파랑 · 삶 연두 */
+.sermon-app .sn-lgq-rib {
+  position: absolute;
+  top: -5px;
+  right: 14px;
+  width: 14px;
+  height: 22px;
+  background: var(--sn-g2);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+}
+.sermon-app .sn-lgq-tile[data-k='apply'] .sn-lgq-rib {
+  background: var(--sn-g1);
+}
+.sermon-app .sn-lgq-tile[data-k='life'] .sn-lgq-rib {
+  background: var(--sn-g3);
+}
+.sermon-app .sn-lgq-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-right: 22px;
+}
+.sermon-app .sn-lgq-top b {
+  font-size: 14px;
+  color: var(--sn-fg);
+  white-space: nowrap;
+}
 .sermon-app .sn-lgq-ck {
-  width: 28px;
-  height: 28px;
+  flex: none;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 2px solid var(--sn-line-strong);
   display: grid;
   place-items: center;
   font-family: var(--sn-f-poster);
-  font-size: 14px;
+  font-size: 13px;
   color: var(--sn-faint);
 }
-.sermon-app .sn-lgq-step[data-s='now'] .sn-lgq-ck {
+.sermon-app .sn-lgq-tile[data-s='now'] .sn-lgq-ck {
   border-color: var(--sn-t1);
   color: var(--sn-t1);
 }
-.sermon-app .sn-lgq-step[data-s='done'] .sn-lgq-ck {
+.sermon-app .sn-lgq-tile[data-s='done'] .sn-lgq-ck {
   border-color: var(--sn-g3);
   background: var(--sn-g3);
   color: var(--sn-on-ink);
 }
 .sermon-app .sn-lgq-ck svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   stroke-width: 3;
 }
 .sermon-app .sn-lgq-ck[data-just] {
@@ -224,21 +336,25 @@
     transform: scale(1);
   }
 }
-.sermon-app .sn-lgq-tx {
+/* 보상은 걸음 이름 바로 옆 */
+.sermon-app .sn-lgq-rw {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sermon-app .sn-lgq-tile[data-s='done'] .sn-lgq-rw {
+  color: var(--sn-fg);
+}
+.sermon-app .sn-lgq-body {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  padding-top: 3px;
-}
-.sermon-app .sn-lgq-tx > b {
-  font-size: 14px;
-  color: var(--sn-fg);
-}
-.sermon-app .sn-lgq-step[data-s='done'] .sn-lgq-tx > b {
-  text-decoration: line-through;
-  text-decoration-color: var(--sn-t2);
-  text-decoration-thickness: 2px;
+  padding-left: 32px;
 }
 .sermon-app .sn-lgq-src {
   font-size: 12px;
@@ -264,11 +380,11 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 .sermon-app .sn-lgq-btn {
-  min-height: 36px;
-  padding: 6px 16px;
+  min-height: 34px;
+  padding: 6px 14px;
   font-size: 13px;
 }
 .sermon-app .sn-lgq-btn:disabled {
@@ -278,89 +394,34 @@
   background: var(--sn-surface-2);
   border-color: transparent;
 }
-.sermon-app .sn-lgq-rw {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding-top: 5px;
+
+/* 적용 인용 — 한 번만 */
+.sermon-app .sn-lgq-quote {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--sn-surface-2);
+}
+.sermon-app .sn-lgq-quote small {
   font-size: 12px;
   font-weight: 700;
   color: var(--sn-muted);
-  font-variant-numeric: tabular-nums;
 }
-.sermon-app .sn-lgq-step[data-s='done'] .sn-lgq-rw {
-  color: var(--sn-fg);
-}
-
-/* 완주 상자 */
-.sermon-app .sn-lgq-chest {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  margin-top: 8px;
-  padding: 12px 14px;
-  border-radius: 20px;
-  border: 1.5px dashed color-mix(in srgb, var(--sn-coin-face) 70%, transparent);
-  background: color-mix(in srgb, var(--sn-coin-face) 12%, var(--sn-surface));
-}
-.sermon-app .sn-lgq-chest[data-open] {
-  border-style: solid;
-  background: color-mix(in srgb, var(--sn-coin-face) 26%, var(--sn-surface));
-}
-.sermon-app .sn-lgq-box {
-  position: relative;
-  width: 40px;
-  height: 32px;
-  margin-top: 6px;
-  border-radius: 8px;
-  background: var(--sn-coin-face);
-  box-shadow: inset 0 -12px 0 color-mix(in srgb, var(--sn-coin-ink) 22%, var(--sn-coin-face));
-}
-.sermon-app .sn-lgq-box::before {
-  content: '';
-  position: absolute;
-  left: -3px;
-  right: -3px;
-  top: -4px;
-  height: 12px;
-  border-radius: 6px 6px 3px 3px;
-  background: color-mix(in srgb, #fff 18%, var(--sn-coin-face));
-  transform-origin: left bottom;
-  transition: transform 0.45s var(--sn-spring);
-}
-.sermon-app .sn-lgq-chest[data-open] .sn-lgq-box::before {
-  transform: rotate(-28deg) translateY(-4px);
-}
-.sermon-app .sn-lgq-chest-tx {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.sermon-app .sn-lgq-chest-tx b {
-  font-size: 14px;
-  color: var(--sn-fg);
-}
-.sermon-app .sn-lgq-chest-tx small {
-  font-size: 12px;
-  color: var(--sn-muted);
-}
-.sermon-app .sn-lgq-amt {
-  font-family: var(--sn-f-poster);
+.sermon-app .sn-lgq-quote .sn-lg-memo {
   font-size: 20px;
-  color: var(--sn-fg);
 }
 
-/* 보너스 퀘스트 */
+/* 보너스 퀘스트 — 누를 수 있는 작은 카드 */
 .sermon-app .sn-lgq-extras {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--sn-line-strong);
+  gap: 8px;
+  margin-top: 14px;
 }
 .sermon-app .sn-lgq-extras-h {
   font-size: 12px;
@@ -368,39 +429,72 @@
   letter-spacing: 0.06em;
   color: var(--sn-faint);
 }
-.sermon-app .sn-lgq-ex {
+.sermon-app .sn-lgq-bonus {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.sermon-app .sn-lgq-bn {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1.5px dashed var(--sn-line-strong);
+}
+.sermon-app .sn-lgq-bn[data-full] {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--sn-g3) 60%, transparent);
+}
+.sermon-app .sn-lgq-bn-h {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 13px;
+}
+.sermon-app .sn-lgq-bn-h b {
   color: var(--sn-fg);
 }
-.sermon-app .sn-lgq-pip {
-  display: inline-flex;
-  gap: 3px;
-}
-.sermon-app .sn-lgq-pip i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--sn-surface-2);
-  box-shadow: inset 0 0 0 1px var(--sn-line-strong);
-}
-.sermon-app .sn-lgq-pip i[data-on] {
-  background: var(--sn-g2);
-  box-shadow: none;
-}
-.sermon-app .sn-lgq-cnt {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--sn-muted);
-  font-variant-numeric: tabular-nums;
-}
-.sermon-app .sn-lgq-ex-rw {
+.sermon-app .sn-lgq-bn-h span {
   margin-left: auto;
   font-size: 12px;
   font-weight: 700;
   color: var(--sn-muted);
+  white-space: nowrap;
+}
+.sermon-app .sn-lgq-bn-bar {
+  height: 6px;
+  border-radius: var(--sn-r-pill);
+  background: var(--sn-surface-2);
+  overflow: hidden;
+}
+.sermon-app .sn-lgq-bn-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sn-g2);
+}
+.sermon-app .sn-lgq-bn[data-full] .sn-lgq-bn-bar i {
+  background: var(--sn-g3);
+}
+.sermon-app .sn-lgq-bn-f {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 28px;
+  font-size: 12px;
+  color: var(--sn-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sermon-app .sn-lgq-bn-f .sn-lg-more {
+  min-height: 28px;
+  font-size: 12px;
+}
+.sermon-app .sn-lgq-bn-full {
+  font-weight: 700;
+  color: var(--sn-fg);
 }
 
 @media (max-width: 760px) {
@@ -408,20 +502,43 @@
     padding: 14px;
     border-radius: 24px;
   }
-  .sermon-app .sn-lgq-step {
-    grid-template-columns: 26px minmax(0, 1fr) auto;
-    gap: 8px;
-    padding: 10px;
+  .sermon-app .sn-lgq-stamps,
+  .sermon-app .sn-lgq-bonus {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* 좁은 화면에선 다 한 칸을 한 줄로 접는다 */
+  .sermon-app .sn-lgq-tile[data-s='done'] {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    padding: 9px 12px;
+  }
+  .sermon-app .sn-lgq-tile[data-s='done'] .sn-lgq-body {
+    padding-left: 0;
+    flex: 1;
+  }
+  .sermon-app .sn-lgq-tile[data-s='done'] .sn-lgq-top {
+    padding-right: 0;
+  }
+  .sermon-app .sn-lgq-tile[data-s='done'] .sn-lgq-rib {
+    display: none;
+  }
+  .sermon-app .sn-lgq-banner {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .sermon-app .sn-lgq-seal {
+    width: 40px;
+    height: 40px;
+    font-size: 12px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .sermon-app .sn-lgq-ck[data-just],
-  .sermon-app .sn-lgq-bar i,
-  .sermon-app .sn-lgq-box::before {
+  .sermon-app .sn-lgq-seal,
+  .sermon-app .sn-lgq-bar i {
     animation: none;
     transition: none;
   }
-}
-.sermon-app .sn-lgq-tx .sn-lg-memo {
-  font-size: 19px;
 }
