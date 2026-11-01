@@ -1556,18 +1556,6 @@
     "autoRefresh": "Reconnecting automatically every 5 seconds",
     "hint": "Unsaved changes may have been lost. This screen closes automatically once the server is back."
   },
-  "nightShutdown": {
-    "title": "Outside Operating Hours",
-    "subtitle": "Daily maintenance runs from 03:30 to 08:30 (KST)",
-    "resumeAt": "Service resumes at",
-    "hours": "Hours",
-    "minutes": "Min",
-    "seconds": "Sec",
-    "checking": "Checking...",
-    "checkNow": "Check Now",
-    "autoRefresh": "Automatically checking every 30 seconds",
-    "schedule": "Operating Hours"
-  },
   "error": {
     "title": "Something went wrong",
     "description": "An unexpected error occurred. Please refresh the page or try again later.",

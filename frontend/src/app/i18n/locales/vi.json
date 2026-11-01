@@ -1180,18 +1180,6 @@
     "autoRefresh": "Tự động kết nối lại mỗi 5 giây",
     "hint": "Các thay đổi chưa lưu có thể đã mất. Màn hình này sẽ tự đóng khi máy chủ hoạt động trở lại."
   },
-  "nightShutdown": {
-    "title": "Ngoài giờ hoạt động",
-    "subtitle": "Bảo trì máy chủ diễn ra hàng ngày từ 03:30 đến 08:30 (KST)",
-    "resumeAt": "Thời gian mở lại",
-    "hours": "Giờ",
-    "minutes": "Phút",
-    "seconds": "Giây",
-    "checking": "Đang kiểm tra...",
-    "checkNow": "Kiểm tra ngay",
-    "autoRefresh": "Tự động kiểm tra mỗi 30 giây",
-    "schedule": "Giờ hoạt động"
-  },
   "error": {
     "title": "Da xay ra loi",
     "description": "Da xay ra loi khong mong muon. Vui long lam moi trang hoac thu lai sau.",

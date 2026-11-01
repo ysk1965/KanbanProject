@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="112dp" android:height="124dp"
+    android:viewportWidth="112" android:viewportHeight="124">
+    <!-- 갈피 몸 — Glance 에서 색을 입힌다 -->
+    <group android:translateX="6" android:translateY="14">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M30,6L70,6Q78,6 78,14L78,94L50,79L22,94L22,14Q22,6 30,6Z" />
+    </group>
+</vector>

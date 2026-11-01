@@ -41,6 +41,37 @@
 
         </activity>
 
+        <!-- 홈 화면 위젯 (java/com/bridgespots/app/widget, docs/Tech/ios-widget.md) -->
+        <receiver android:name=".widget.QuestWidgetReceiver" android:label="@string/widget_quest_name" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_quest" />
+        </receiver>
+        <receiver android:name=".widget.TodayWidgetReceiver" android:label="@string/widget_today_name" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today" />
+        </receiver>
+        <receiver android:name=".widget.VerseWidgetReceiver" android:label="@string/widget_verse_name" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_verse" />
+        </receiver>
+        <receiver android:name=".widget.WidgetTickReceiver" android:exported="false" />
+        <activity
+            android:name=".widget.VerseConfigActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

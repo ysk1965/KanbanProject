@@ -47,7 +47,6 @@ import {
   isGalpi,
   isLocalId,
   noteRefs,
-  plainText,
   todayString,
   type SermonAudioSegment,
   type SermonNote,
@@ -57,7 +56,7 @@ import { useSermonRecorder } from './useSermonRecorder';
 import { deleteMedia } from './sermonMedia';
 import { sermonAudioStore } from './sermonAudioStore';
 import { VersionTracker, listVersions, saveVersion, type NoteVersion } from './sermonVersions';
-import { firstVerseText, useBible } from './useBible';
+import { useBible } from './useBible';
 import { Mascot } from './Mascot';
 import './actionBar.css';
 import type { MascotId } from './sermonLook';
@@ -90,7 +89,7 @@ interface SermonEditorProps {
   onLogin?: () => void;
   /** 꾸미기에서 고른 마스코트 — 녹음 버튼에서 같이 귀를 기울인다 */
   mascot?: MascotId;
-  /** 모임 설교 자리 띠 (group/SessionBand) — 상단 바 바로 아래 */
+  /** 모임 칩 줄 (group/SessionBand) — 노트 정보 줄 바로 아래 */
   groupBand?: React.ReactNode;
 }
 
@@ -275,7 +274,8 @@ export function SermonEditor({
   });
   const [styleOpen, setStyleOpen] = useState(false);
   const [versions, setVersions] = useState<NoteVersion[] | null>(null);
-  const [bodyChars, setBodyChars] = useState(0);
+  /** 버전 기록 창이 비교할 지금 본문 */
+  const [verBody, setVerBody] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [topTitleShow, setTopTitleShow] = useState(false);
   const [mvClosed, setMvClosed] = useState<Set<string>>(() => new Set());
@@ -879,7 +879,7 @@ export function SermonEditor({
   // ───────── 버전 ─────────
   const openVersions = () => {
     saveNow();
-    setBodyChars(plainText(noteRef.current.body).length);
+    setVerBody(coreRef.current?.serialize() ?? noteRef.current.body ?? '');
     setVersions(listVersions(userId, noteRef.current.id));
   };
   const restoreVersion = (v: NoteVersion) => {
@@ -894,6 +894,25 @@ export function SermonEditor({
     toast('그 시점으로 되돌렸어요', {
       duration: 5500,
       action: { label: '취소', onClick: () => core.undo() },
+    });
+  };
+  /** 버전에서 문단 하나만 가져오기 — 창은 열어 둔 채 비교를 새로 그린다 */
+  const applyVersionBody = (html: string) => {
+    const core = coreRef.current;
+    if (!core) return;
+    core.snapNow();
+    core.setBody(html);
+    core.snapNow();
+    setVerBody(core.serialize());
+    toast('문단을 지금 글에 넣었어요', {
+      duration: 5500,
+      action: {
+        label: '취소',
+        onClick: () => {
+          core.undo();
+          setVerBody(core.serialize());
+        },
+      },
     });
   };
 
@@ -1133,7 +1152,6 @@ export function SermonEditor({
           )}
         </div>
       </header>
-      {groupBand && <div className="sg-band-wrap">{groupBand}</div>}
 
       {recording && micLost && (
         <div className="sn-player sn-player-lost" role="status">
@@ -1271,17 +1289,25 @@ export function SermonEditor({
                   </button>
                 )}
               </div>
+              {groupBand}
 
               <section className="sn-mainv" aria-label="설교 본문 말씀">
+                {/* 표지형 본문 — 상자 없이 제목 아래 큰 문장으로. 상자(.sn-vblock)는 노트 중간 말씀만 쓴다 */}
+                {mainRefs.length > 0 && <div className="sn-vc-label">오늘 본문</div>}
                 {mainRefs.map(([k, r]) => {
                   const col = mvClosed.has(k);
                   return (
-                    <div key={k} className="sn-vblock" data-collapsed={col ? 1 : 0}>
-                      <div className="sn-vh">
+                    <div key={k} className="sn-vcover" data-collapsed={col ? 1 : 0}>
+                      <div
+                        className="sn-vc-t"
+                        dangerouslySetInnerHTML={{ __html: verseHTML(r, false) }}
+                      />
+                      <div className="sn-vc-bar">
                         <button
                           type="button"
-                          className="sn-vtog"
+                          className="sn-vc-ref"
                           aria-expanded={!col}
+                          aria-label={`${refLong(r)} ${col ? '펼치기' : '접기'}`}
                           onClick={() =>
                             setMvClosed((s) => {
                               const n = new Set(s);
@@ -1291,14 +1317,14 @@ export function SermonEditor({
                             })
                           }
                         >
-                          <ChevronDown className="sn-icon sn-chev" aria-hidden />
                           <span>{refLong(r)}</span>
+                          <ChevronDown className="sn-icon sn-chev" aria-hidden />
                         </button>
                         <span className="sn-tr">개역한글</span>
-                        <span className="sn-peek">{firstVerseText(r)}</span>
+                        <span className="sn-vc-sp" />
                         <button
                           type="button"
-                          className="sn-act"
+                          className="sn-vc-act"
                           onClick={() => {
                             // 들어간 자리로 스크롤되고 말씀이 붙는 게 보이므로 토스트는 생략
                             coreRef.current?.insertBlock(r);
@@ -1308,17 +1334,13 @@ export function SermonEditor({
                         </button>
                         <button
                           type="button"
-                          className="sn-act"
+                          className="sn-vc-act"
                           aria-label={`${refShort(r)} 본문에서 빼기`}
                           onClick={() => removeMainRef(k)}
                         >
                           빼기
                         </button>
                       </div>
-                      <div
-                        className="sn-vt"
-                        dangerouslySetInnerHTML={{ __html: verseHTML(r, false) }}
-                      />
                     </div>
                   );
                 })}
@@ -1541,8 +1563,9 @@ export function SermonEditor({
         versions={versions || []}
         noteId={versions !== null ? noteRef.current.id : null}
         remote={userId !== ANONYMOUS_USER}
-        currentChars={bodyChars}
+        currentBody={verBody}
         onRestore={restoreVersion}
+        onApplyBody={applyVersionBody}
         onClose={() => setVersions(null)}
       />
       <SnOverlay

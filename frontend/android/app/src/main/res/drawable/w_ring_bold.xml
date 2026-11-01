@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 굵은 동그라미 테두리 (Glance 에서 색을 입힌다 — shape 는 색을 입히면 안까지 칠해져 벡터로 그린다) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp" android:height="64dp"
+    android:viewportWidth="64" android:viewportHeight="64">
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2" android:pathData="M1.6000000000000014,32A30.4,30.4 0,1 1,62.4,32A30.4,30.4 0,1 1,1.6000000000000014,32" />
+</vector>

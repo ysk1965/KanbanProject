@@ -252,6 +252,7 @@ export function SessionView({
       {editInfo && (
         <InfoEditor
           detail={detail}
+          myNote={myNote}
           canLock={group.me.role === 'leader'}
           onSaved={(next) => {
             setDetail((d) => d && { ...d, session: { ...d.session, ...next } });
@@ -646,18 +647,28 @@ function ComparePanel({
 
 function InfoEditor({
   detail,
+  myNote,
   canLock,
   onSaved,
 }: {
   detail: SessionDetail;
+  /** 내 노트 — 비어 있는 칸은 여기 적어 둔 값으로 미리 채운다 */
+  myNote?: SermonNote;
   canLock: boolean;
   onSaved: (s: SessionDetail['session']) => void;
 }) {
   const s = detail.session;
-  const [title, setTitle] = useState(s.title || '');
-  const [preacher, setPreacher] = useState(s.preacher || '');
+  const mine = {
+    title: myNote?.title.trim() || '',
+    preacher: myNote?.preacher.trim() || '',
+    ref: (myNote?.refs || []).map(decRef).find(Boolean),
+  };
   const r0 = (s.refs || []).map(decRef).find(Boolean);
-  const [refText, setRefText] = useState(r0 ? refLong(r0) : '');
+  const [title, setTitle] = useState(s.title || mine.title);
+  const [preacher, setPreacher] = useState(s.preacher || mine.preacher);
+  const [refText, setRefText] = useState(r0 ? refLong(r0) : mine.ref ? refLong(mine.ref) : '');
+  const fromNote =
+    (!s.title && !!mine.title) || (!s.preacher && !!mine.preacher) || (!r0 && !!mine.ref);
   const [busy, setBusy] = useState(false);
   const parsed = refText.trim() ? finalRef(parseRef(refText.trim())) : null;
 
@@ -686,6 +697,11 @@ function InfoEditor({
       <p className="sg-note">
         한 사람이 적으면 모임 모두의 노트에 채워져요. 내 노트 제목은 따로 그대로 남아요.
       </p>
+      {fromNote && (
+        <p className="sg-note" style={{ color: 'var(--sn-accent)' }}>
+          내 노트에 적어 둔 내용으로 미리 채웠어요. 맞으면 채우기만 누르세요.
+        </p>
+      )}
       <label className="sg-field" htmlFor="sg-i-title">
         설교 제목
         <input

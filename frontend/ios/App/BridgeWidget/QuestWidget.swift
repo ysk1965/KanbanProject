@@ -165,10 +165,10 @@ struct QuestSmall: View {
                 HStack(spacing: 8) {
                     Text("완주").font(WFont.num(20)).foregroundStyle(pal.dark ? pal.onInk : pal.t2)
                         .frame(width: 64, height: 64)
-                        .background(Circle().fill(pal.surface.opacity(0.7)))
+                        .background(Circle().fill(pal.dark ? pal.refChip : pal.surface.opacity(0.7)))
                         .overlay(Circle().strokeBorder(pal.dark ? pal.onInk : pal.t2, lineWidth: 3))
                         .rotationEffect(.degrees(-12))
-                    Galpi(fill: pal.surface, mood: .happy, size: 40)
+                    Galpi(fill: pal.paleOnInk, mood: .happy, size: 40)
                 }
                 Spacer(minLength: 4)
                 Text("+\(st.total) 달란트").font(WFont.ui(14, .bold)).foregroundStyle(pal.onInk)
@@ -305,7 +305,7 @@ struct QuestLarge: View {
                         if let r = s.ref {
                             Text(r).font(WFont.ui(12, .bold)).foregroundStyle(pal.dark ? pal.onInk : pal.t1)
                                 .padding(.horizontal, 9).padding(.vertical, 2)
-                                .background(Capsule().fill(pal.surface))
+                                .background(Capsule().fill(pal.refChip))
                                 .rotationEffect(.degrees(-2)).padding(.top, 4)
                         }
                     }

@@ -115,30 +115,6 @@ module "rds" {
   snapshot_identifier = var.rds_snapshot_identifier
 }
 
-# Infrastructure Scheduler - Off-peak shutdown (KST 03:30~08:30, maintenance window)
-# Saves cost by scaling EC2 (EB) to 0 during the nightly maintenance window.
-# RDS is kept running (stop_rds = false): on 2026-10-04 the morning start failed with
-# InsufficientDBInstanceCapacity (db.t4g.micro, ap-northeast-2b) and dev was down ~7h.
-# Stopping it only saved ~$3-4/month. A 10-min ensure_rds check restarts it if found stopped.
-# Startup fires at 08:15 (15min early) so EB is ready by the 08:30 resume time.
-module "infra_scheduler" {
-  source = "../../modules/infra-scheduler"
-
-  project_name        = var.project_name
-  environment         = var.environment
-  enabled             = true
-  shutdown_cron       = "cron(30 18 ? * * *)" # KST 03:30 = UTC 18:30
-  startup_cron        = "cron(15 23 ? * * *)" # KST 08:15 = UTC 23:15 (warm-up for 08:30 resume)
-  eb_environment_name = module.elastic_beanstalk.environment_name
-  eb_min_instances    = 1
-  eb_max_instances    = 2
-  rds_instance_id     = "${var.project_name}-${var.environment}-db"
-  stop_rds            = false
-  notification_email  = var.notification_email
-
-  depends_on = [module.elastic_beanstalk, module.rds]
-}
-
 # ElastiCache Module - DISABLED (using Simple Cache instead, ~$11.50/mo savings)
 # To re-enable: uncomment this block and set redis_host = module.elasticache.redis_endpoint in EB module
 # module "elasticache" {

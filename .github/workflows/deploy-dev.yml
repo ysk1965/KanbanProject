@@ -108,7 +108,7 @@ jobs:
 
       - name: Ensure infrastructure is running
         run: |
-          # Check if EB ASG is scaled to 0 (off-peak shutdown mode)
+          # Safety net: wake EB/RDS if the ASG was scaled to 0 by hand (no nightly shutdown anymore)
           ASG_NAME=$(aws elasticbeanstalk describe-environment-resources \
             --environment-name ${{ env.EB_ENVIRONMENT_NAME }} \
             --query 'EnvironmentResources.AutoScalingGroups[0].Name' \

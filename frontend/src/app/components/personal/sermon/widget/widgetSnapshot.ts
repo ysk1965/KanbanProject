@@ -24,12 +24,12 @@ import {
 } from '../weekPlan';
 
 /**
- * iOS 홈·잠금 화면 위젯에 넘길 요약 (앱 → App Group → 위젯).
+ * 홈·잠금 화면 위젯에 넘길 요약 (앱 → iOS App Group · 안드로이드 SharedPreferences → 위젯).
  * 위젯은 서버를 부르지 못하므로(토큰이 WebView 안에 있음) 앱이 그릴 거리를 모두 미리 계산해 넘긴다.
  *  - 갈피 퀘스트: LifeGalpiCard 와 같은 판정 (보상 20 / 3 / 10 / 20, 적용 실천은 남긴 지 12시간 뒤)
  *  - 오늘 할 일: 「한 주 동안」(weekPlan.ts) — 앱을 안 열어도 날이 바뀌면 그날 칸을 그리도록 남은 요일을 모두 넣는다
  *  - 오늘의 말씀: A 이번 주 설교 말씀 · B 내가 칠한 형광펜(날마다 하나) · C 오늘 읽을 곳
- * 계약(필드 이름)은 ios/App/BridgeWidget/Snapshot.swift 와 같아야 한다. 바꾸면 v 를 올린다.
+ * 계약(필드 이름)은 ios/App/BridgeWidget/Snapshot.swift · android/…/widget/Snapshot.kt 와 같아야 한다. 바꾸면 v 를 올린다.
  * 시안: https://claude.ai/artifact/9Fc4P2VH2CbUXuErmQubKH
  */
 

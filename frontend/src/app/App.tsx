@@ -6,7 +6,6 @@ import { AnalyticsProvider } from './contexts/AnalyticsContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AdminRoute } from './components/AdminRoute';
 import { MaintenancePage } from './components/MaintenancePage';
-import { NightShutdownPage } from './components/NightShutdownPage';
 import { ServerDownPage } from './components/ServerDownPage';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { Loader2 } from 'lucide-react';
@@ -881,18 +880,10 @@ const OFFLINE_CAPABLE_PATHS = ['/sermonnote'];
 const isOfflineCapablePath = (pathname: string) =>
   OFFLINE_CAPABLE_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
-/** KST 03:30~08:30 야간 점검 시간대인지 */
-const isNightWindow = (): boolean => {
-  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  const kstMins = kst.getUTCHours() * 60 + kst.getUTCMinutes();
-  return kstMins >= 3 * 60 + 30 && kstMins < 8 * 60 + 30;
-};
-
 // 점검 모드 + 공지사항 래퍼
 function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [maintenanceStatus, setMaintenanceStatus] = useState<MaintenanceStatus | null>(null);
-  const [isNightShutdown, setIsNightShutdown] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   // 서버 자체가 응답하지 않는 상태 (BE 배포 중 · 장애 · 오프라인)
   const [outage, setOutage] = useState<{
@@ -926,32 +917,17 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
       outageRef.current = false;
       setOutage(null);
       setMaintenanceStatus(status);
-      setIsNightShutdown(false);
     } catch {
-      // 서버 접속 불가 + 점검 시간(KST 03:30~08:30)이면 야간 셧다운 페이지 표시
-      if (isNightWindow()) {
-        outageRef.current = false;
-        setOutage(null);
-        setIsNightShutdown(true);
-        setMaintenanceStatus({
-          enabled: true,
-          message: '서버 점검 중입니다 (03:30~08:30)',
-          started_at: null,
-          estimated_end_at: null,
-        });
-      } else {
-        // 그 외 시간대의 무응답 = 서버 다운(배포 중 포함).
-        // 여기서 통과시키면 목업 데이터가 실데이터인 척 렌더된다.
-        outageRef.current = true;
-        setIsNightShutdown(false);
-        setMaintenanceStatus(null);
-        // offline 라벨은 "실제 요청도 실패했고 브라우저도 오프라인이라 함"일 때만.
-        // navigator.onLine 은 VPN·가상 NIC 환경에서 오판하므로 문구/아이콘 용도로만 쓴다.
-        setOutage((prev) => ({
-          offline: typeof navigator !== 'undefined' && !navigator.onLine,
-          since: prev?.since ?? Date.now(),
-        }));
-      }
+      // 무응답 = 서버 다운(배포 중 포함).
+      // 여기서 통과시키면 목업 데이터가 실데이터인 척 렌더된다.
+      outageRef.current = true;
+      setMaintenanceStatus(null);
+      // offline 라벨은 "실제 요청도 실패했고 브라우저도 오프라인이라 함"일 때만.
+      // navigator.onLine 은 VPN·가상 NIC 환경에서 오판하므로 문구/아이콘 용도로만 쓴다.
+      setOutage((prev) => ({
+        offline: typeof navigator !== 'undefined' && !navigator.onLine,
+        since: prev?.since ?? Date.now(),
+      }));
     } finally {
       setIsChecking(false);
       checkingRef.current = false;
@@ -1012,9 +988,6 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
 
   // 점검 모드이지만 허용된 경로면 정상 렌더링
   if (maintenanceStatus?.enabled && !isAllowedPath) {
-    if (isNightShutdown) {
-      return <NightShutdownPage onRetry={checkMaintenance} />;
-    }
     return <MaintenancePage status={maintenanceStatus} onRetry={checkMaintenance} />;
   }
 

@@ -23,10 +23,10 @@ import { buildSnapshot, type WidgetInk } from './widgetSnapshot';
 import { applyPending } from './widgetPending';
 
 /**
- * 설교 노트가 떠 있는 동안 iOS 위젯 요약을 맞춰 둔다.
+ * 설교 노트가 떠 있는 동안 홈 화면 위젯 요약을 맞춰 둔다 (iOS · 안드로이드).
  *  - 노트·할 일·형광펜·읽기 길·잉크가 바뀌면 잠시 뒤 요약을 다시 써서 위젯을 새로 그리게 한다
  *  - 열릴 때와 앱으로 돌아올 때 위젯에서 누른 체크를 먼저 저장소에 옮긴다
- * iOS 앱이 아니면 아무것도 하지 않는다 (훅 순서만 지킨다).
+ * 앱이 아니면(웹) 아무것도 하지 않는다 (훅 순서만 지킨다).
  */
 
 const WRITE_DELAY = 1200;

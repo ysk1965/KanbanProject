@@ -26,10 +26,10 @@ export interface NoteVersion {
 }
 
 export const VERSION_REASON_LABEL: Record<VersionReason, string> = {
-  open: '열었을 때',
-  auto: '자동 저장',
+  open: '고치기 전',
+  auto: '쓰는 중',
   close: '닫을 때',
-  restore: '되돌리기 전',
+  restore: '되돌리기 직전',
 };
 
 const LOCAL_KEEP = 12;

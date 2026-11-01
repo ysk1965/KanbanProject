@@ -176,6 +176,8 @@ export class EditorCore {
     if (!this.mounted) return;
     this.mounted = false;
     if (this.hist.t) window.clearTimeout(this.hist.t);
+    if (this.followRaf) window.cancelAnimationFrame(this.followRaf);
+    this.followRaf = 0;
     this.el.removeEventListener('input', this.onInput);
     this.el.removeEventListener('keydown', this.onKeydown);
     this.el.removeEventListener('paste', this.onPaste);
@@ -404,12 +406,55 @@ export class EditorCore {
     this.cb.onChange();
   }
 
+  // ───────── 커서 따라 스크롤 ─────────
+
+  private followRaf = 0;
+
+  private followCaretSoon() {
+    if (this.followRaf) return;
+    this.followRaf = window.requestAnimationFrame(() => {
+      this.followRaf = 0;
+      this.followCaret();
+    });
+  }
+
+  /**
+   * 아래쪽에서 쓰다 보면 커서가 하단 서식 바에 붙거나 가려진다 — 브라우저 기본 스크롤은 겨우 보일 만큼만 내려준다.
+   * 커서 아래로 여유(화면의 1/4, 최대 160px)를 남기도록 스크롤 상자를 같이 내린다. 위로 올리지는 않는다.
+   */
+  private followCaret() {
+    const scroller = this.el.closest<HTMLElement>('.sn-scroll');
+    const sel = window.getSelection();
+    if (!scroller || !sel || !sel.rangeCount || !sel.isCollapsed) return;
+    const rng = sel.getRangeAt(0);
+    if (!this.el.contains(rng.startContainer)) return;
+    let rect: DOMRect | null = rng.getClientRects()[0] || null;
+    if (!rect || (!rect.height && !rect.top)) {
+      const n = rng.startContainer;
+      const host = (n.nodeType === 1 ? n : n.parentElement) as HTMLElement | null;
+      rect = host?.getBoundingClientRect() || null;
+    }
+    if (!rect) return;
+    let bottom = scroller.getBoundingClientRect().bottom;
+    const vv = window.visualViewport;
+    if (vv) bottom = Math.min(bottom, vv.offsetTop + vv.height);
+    const dock = this.el.closest('.sn-edit')?.querySelector<HTMLElement>('.sn-dock');
+    if (dock) {
+      const d = dock.getBoundingClientRect();
+      if (d.height && d.top < bottom && d.bottom > rect.top) bottom = Math.min(bottom, d.top);
+    }
+    const room = Math.min(160, Math.round(scroller.clientHeight / 4));
+    const over = rect.bottom + room - bottom;
+    if (over > 0) scroller.scrollTop += over;
+  }
+
   // ───────── 입력 이벤트 ─────────
 
   private onInput = (e: Event) => {
     this.updateEmpty();
     this.cb.onChange();
     this.snapSoon();
+    this.followCaretSoon();
     const ie = e as InputEvent;
     if (ie.inputType === 'insertText' && (ie.data === ' ' || ie.data === '\u00a0')) {
       const sel = window.getSelection();

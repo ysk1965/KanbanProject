@@ -112,7 +112,7 @@ struct WeekVerse: View {
                 Spacer(minLength: 4)
                 Text(w.ref).font(WFont.ui(12, .bold)).foregroundStyle(pal.dark ? pal.onInk : pal.t1)
                     .padding(.horizontal, 9).padding(.vertical, 3)
-                    .background(Capsule().fill(pal.surface.opacity(pal.dark ? 0.5 : 1)))
+                    .background(Capsule().fill(pal.refChip))
                     .rotationEffect(.degrees(-3))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

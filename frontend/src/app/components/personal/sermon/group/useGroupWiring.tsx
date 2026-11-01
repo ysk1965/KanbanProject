@@ -258,7 +258,9 @@ export function useGroupWiring({
     try {
       if (!localStorage.getItem('sermon-group-auto-told')) {
         localStorage.setItem('sermon-group-auto-told', '1');
-        toast('예배 시간이라 모임과 같이 보는 노트가 됐어요 · 상관없으면 맨 위에서 뺄 수 있어요');
+        toast(
+          '예배 시간이라 모임과 같이 보는 노트가 됐어요 · 제목 아래 모임 칩에서 바꿀 수 있어요',
+        );
       }
     } catch {
       /* ignore */
@@ -367,6 +369,8 @@ export function useGroupWiring({
         l.group_id === groupId ? { ...l, ...patch } : l,
       );
       store.saveLinks(cur.id, { groups, group_dismissed: cur.group_dismissed });
+      // 칩의 세 단계(off·private 둘 다 보냄)는 화면에서 바로 보이므로 토스트 없이
+      if ('off' in patch && 'private' in patch) return;
       if (patch.off === true) toast('모임에서 뺐어요 · 다시 같이 볼 수 있어요');
       else if (patch.off === false) toast('다시 모임과 같이 봐요');
       else if (patch.private === false) toast('모임에 공개했어요');

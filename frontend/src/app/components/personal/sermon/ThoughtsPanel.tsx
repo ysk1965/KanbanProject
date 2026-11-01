@@ -24,6 +24,7 @@ import type { EditorCore } from './editorCore';
 import { prefersReducedMotion, useFx } from './microFx';
 import { MediaUploadError, attachMedia, deleteMedia, mediaErrorMessage } from './sermonMedia';
 import { sermonMediaQueue } from './sermonMediaQueue';
+import { TagPicker } from './TagPicker';
 import {
   THOUGHT_TAGS,
   fmtTime,
@@ -596,6 +597,35 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
       }
     };
 
+    // ───────── 분류 바꾸기 (칩 메뉴) ─────────
+    // 내용 수정이 아니므로 edited 는 그대로. 적용의 실천 표시·질문의 답도 지우지 않는다
+    // (집계는 tag 로 거르므로 다시 돌리면 그대로 돌아온다).
+    const retag = (id: string, next: ThoughtTag) => {
+      const cur = thoughts.find((x) => x.id === id);
+      if (!cur || cur.tag === next) return;
+      const prevTag = cur.tag;
+      const setTagOf = (to: ThoughtTag) =>
+        updateThoughts((prev) => prev.map((x) => (x.id === id ? { ...x, tag: to } : x)));
+      if (filter !== '전체' && filter !== next) {
+        // 지금 보기에서 빠진다 → 접히는 걸 보여 주고 되돌리기
+        fire(`out:${id}`);
+        window.setTimeout(() => setTagOf(next), prefersReducedMotion() ? 0 : 220);
+        toast(`${next}으로 옮겼어요`, {
+          duration: 5500,
+          action: {
+            label: '되돌리기',
+            onClick: () => {
+              setTagOf(prevTag);
+              fire(`tag:${id}`);
+            },
+          },
+        });
+        return;
+      }
+      setTagOf(next);
+      fire(`tag:${id}`);
+    };
+
     // ───────── 입력창 포커스/블러 ─────────
     const onFocusInput = () => {
       setComposeOpen(true);
@@ -788,9 +818,12 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
                         <Check className="sn-icon" style={{ width: 16, height: 16 }} />
                       </button>
                     )}
-                    <span className="sn-tagT" data-t={t.tag}>
-                      {t.tag}
-                    </span>
+                    <TagPicker
+                      value={t.tag}
+                      disabled={!!editingId}
+                      pulse={fx === `tag:${t.id}`}
+                      onPick={(x) => retag(t.id, x)}
+                    />
                     {canSeek ? (
                       <button
                         type="button"

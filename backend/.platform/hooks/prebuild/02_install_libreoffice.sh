@@ -67,7 +67,8 @@ fi
 # 2.5) 인플레이스 배포(앱이 이미 실행 중)에서는 설치하지 않는다.
 # t3.small(2GB)에서 Java 앱과 dnf/rpm 이 메모리를 경합하면 인스턴스가 마비되어
 # EB 배포 명령이 타임아웃된다 (2026-09-07 dev 배포 중단 사고). 신규 인스턴스
-# 프로비저닝 시에만 설치하고, 기존 인스턴스는 야간 재생성 때 자연히 설치된다.
+# 프로비저닝 시에만 설치한다. 야간 재생성이 없어졌으므로(상시 운영), 설치가 빠진 기존
+# 인스턴스는 인스턴스 교체(terminate → ASG 재생성)로 받게 한다.
 if pgrep -f 'java .*\.jar' >/dev/null 2>&1; then
   log "app already running — skip install on in-place deploy (installed on fresh instances only)"
   exit 0

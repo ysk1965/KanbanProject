@@ -1,4 +1,4 @@
-# iOS 위젯 (갈피 퀘스트 · 오늘 할 일 · 오늘의 말씀)
+# 홈 화면 위젯 — iOS · 안드로이드 (갈피 퀘스트 · 오늘 할 일 · 오늘의 말씀)
 
 시안: https://claude.ai/artifact/9Fc4P2VH2CbUXuErmQubKH
 
@@ -53,4 +53,33 @@ cd frontend && npm run build && npx cap sync ios
 cd ios/App && pod install && open App.xcworkspace   # 스킴 App 실행 → 홈 화면 길게 눌러 「갈피」 위젯 추가
 # 위젯만 컴파일 확인 (Pods 불필요)
 xcodebuild -project App.xcodeproj -target BridgeWidgetExtension -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build
+```
+
+## 안드로이드 (Glance)
+
+iOS 와 같은 요약 JSON · 같은 대기열 모양 · 같은 플러그인 이름(`BridgeWidget`)이라 웹 코드는 그대로 쓴다 (`widgetSupported()` 가 android 도 켠다).
+
+| 위치 | 내용 |
+|------|------|
+| `android/app/src/main/java/com/bridgespots/app/widget/WidgetStore.kt` | SharedPreferences `bridge_widget` — 요약 · 대기열 · 말씀 위젯마다 고른 출처 |
+| `…/widget/Snapshot.kt` | 요약 읽기 (org.json) · 대기열 덧입히기 · 날짜 |
+| `…/widget/BridgeWidgetPlugin.kt` | 앱 안 플러그인, `MainActivity.registerPlugin` 으로 등록 |
+| `…/widget/WidgetRefresh.kt` | 세 위젯 다시 그리기 + 다음 그릴 때(잠금 풀림 · 자정) 알람 (RTC, 기기를 깨우지 않음) |
+| `…/widget/Actions.kt` | 체크(ActionCallback → 대기열), 앱 링크 열기 |
+| `…/widget/Quest·Today·VerseWidget.kt`, `Theme.kt` | 화면 (작은 2×2 · 중간 4×2 · 큰 4×4, 말씀은 작은·중간) |
+| `…/widget/VerseConfigActivity.kt` | 말씀 출처 고르기 (Android 12+ 는 놓을 땐 건너뛰고 길게 눌러 다시 설정) |
+| `res/xml/widget_*.xml`, `res/drawable/w_*.xml` | 위젯 정보 · 아이콘 · 갈피 마스코트 벡터 |
+
+- iOS 와 다른 점: 잠금 화면 위젯 없음. 리소 망점 · 기울인 도장은 Glance 가 못 그려 뺐다. 크기는 사용자가 늘이고 줄이면 가까운 칸 모양으로 바뀐다.
+- Glance 는 한 Row/Column 에 자식 10개까지 — 넘으면 잘린다. 줄을 늘릴 땐 묶어서 넣는다.
+- 색을 입히는 동그라미는 `<shape>` 말고 벡터로 (shape 는 tint 하면 안까지 칠해진다).
+- 딥링크: 앱이 꺼져 있다 위젯으로 켜지면 안드로이드는 `appUrlOpen` 이 안 와서 `deepLinks.ts` 가 `getLaunchUrl()` 을 한 번 읽는다.
+- 빌드: Kotlin 1.9.24 + Compose 컴파일러 1.5.14 + `androidx.glance:glance-appwidget:1.1.0` (AGP 8.2.1 · compileSdk 34 그대로). 따로 할 콘솔 설정 없음 (같은 패키지에 들어간다).
+
+### 확인
+
+```bash
+cd frontend && npm run build && npx cap sync android
+cd android && ./gradlew :app:assembleDebug   # JDK 17
+adb install -r app/build/outputs/apk/debug/app-debug.apk   # 홈 화면 길게 눌러 위젯 → BRIDGE SPOTS
 ```

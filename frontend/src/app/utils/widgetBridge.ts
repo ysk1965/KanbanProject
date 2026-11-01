@@ -1,9 +1,10 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
 /**
- * iOS 위젯 브리지 (ios/App/App/BridgeWidgetPlugin.swift).
- * 앱이 위젯용 요약 JSON 을 App Group 에 쓰고, 위젯에서 누른 체크(대기열)를 받아 온다.
- * iOS 앱이 아니면 모두 아무 일도 하지 않는다.
+ * 홈 화면 위젯 브리지 — iOS ios/App/App/BridgeWidgetPlugin.swift (App Group),
+ * 안드로이드 android/app/src/main/java/com/bridgespots/app/widget/BridgeWidgetPlugin.kt (SharedPreferences).
+ * 앱이 위젯용 요약 JSON 을 쓰고, 위젯에서 누른 체크(대기열)를 받아 온다.
+ * 앱이 아니면(웹) 모두 아무 일도 하지 않는다.
  */
 
 export interface WidgetPendingOp {
@@ -31,7 +32,8 @@ interface BridgeWidgetPlugin {
 const Native = registerPlugin<BridgeWidgetPlugin>('BridgeWidget');
 
 export const widgetSupported = (): boolean =>
-  Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+  Capacitor.isNativePlatform() &&
+  (Capacitor.getPlatform() === 'ios' || Capacitor.getPlatform() === 'android');
 
 export async function writeWidgetSnapshot(json: string): Promise<void> {
   if (!widgetSupported()) return;

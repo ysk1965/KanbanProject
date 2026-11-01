@@ -194,7 +194,7 @@ struct TodaySmall: View {
             } else if st.left == 0 {
                 Text("오늘 할 일").font(WFont.ui(12, .bold)).foregroundStyle(pal.mintInk)
                 Spacer(minLength: 4)
-                Galpi(fill: pal.surface, mood: .happy, size: 52)
+                Galpi(fill: pal.paleOnInk, mood: .happy, size: 52)
                 Spacer(minLength: 4)
                 Text("오늘 다 했어요").font(WFont.ui(14, .bold)).foregroundStyle(pal.onInk)
                 Text("\(st.tasks.count)개 모두").font(WFont.ui(12)).foregroundStyle(pal.mintInk).padding(.top, 2)

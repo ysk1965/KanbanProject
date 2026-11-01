@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { isNative } from './platform';
 
 /**
@@ -30,15 +31,26 @@ async function primeReader(path: string) {
   openInReader(b, c, 1);
 }
 
+let launchHandled = false;
+
 export function initDeepLinks(navigate: (path: string) => void): void {
   if (!isNative()) return;
 
   import('@capacitor/app').then(({ App }) => {
-    App.addListener('appUrlOpen', (event) => {
-      const path = deepLinkPath(event.url);
+    const open = (url: string) => {
+      const path = deepLinkPath(url);
       if (!path) return;
       void primeReader(path).finally(() => navigate(path));
-    });
+    };
+    App.addListener('appUrlOpen', (event) => open(event.url));
+    // 안드로이드는 앱이 꺼져 있다가 링크(위젯 등)로 켜지면 appUrlOpen 이 오지 않는다 — 켠 링크를 직접 읽는다
+    // (initDeepLinks 는 navigate 가 바뀔 때마다 다시 불리므로 한 번만 — 아니면 화면을 옮길 때마다 켠 링크로 되돌아간다)
+    if (Capacitor.getPlatform() === 'android' && !launchHandled) {
+      launchHandled = true;
+      void App.getLaunchUrl().then((r) => {
+        if (r?.url) open(r.url);
+      });
+    }
 
     // Handle app state changes (background -> foreground)
     App.addListener('appStateChange', (state) => {

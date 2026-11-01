@@ -1180,18 +1180,6 @@
     "autoRefresh": "Reconectando automaticamente a cada 5 segundos",
     "hint": "Alterações não salvas podem ter sido perdidas. Esta tela fecha sozinha quando o servidor voltar."
   },
-  "nightShutdown": {
-    "title": "Fora do horário de funcionamento",
-    "subtitle": "A manutenção do servidor ocorre diariamente das 03:30 às 08:30 (KST)",
-    "resumeAt": "O serviço retorna às",
-    "hours": "Horas",
-    "minutes": "Min",
-    "seconds": "Seg",
-    "checking": "Verificando...",
-    "checkNow": "Verificar agora",
-    "autoRefresh": "Verificação automática a cada 30 segundos",
-    "schedule": "Horário de funcionamento"
-  },
   "error": {
     "title": "Algo deu errado",
     "description": "Ocorreu um erro inesperado. Por favor, atualize a página ou tente novamente mais tarde.",

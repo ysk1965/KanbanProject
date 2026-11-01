@@ -36,6 +36,11 @@ struct Palette {
         }
     }
 
+    /// 잉크 면(g1) 위 말씀 위치 알약 — 다크에선 진한 면 대신 밝은 반투명 (진한 글자가 보이게)
+    var refChip: Color { dark ? Color.white.opacity(0.55) : surface }
+    /// 잉크 면(완주 · 다 한 날) 위 갈피 · 도장 바탕 — 다크에서도 밝게
+    var paleOnInk: Color { dark ? Color.white.opacity(0.85) : surface }
+
     /// 민트 면(오늘 읽을 곳·다 한 날) 위 진한 초록 글자
     var mintInk: Color { dark ? Color(hex: "#0f3f31") : Color(hex: "#12513f") }
 

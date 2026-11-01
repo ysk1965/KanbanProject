@@ -1098,7 +1098,7 @@ html.light .sn-scope {
 .sermon-app .sn-paper {
   max-width: 760px;
   margin: 0 auto;
-  padding: 28px 16px 80px;
+  padding: 28px 16px 160px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1225,8 +1225,146 @@ html.light .sn-scope {
   padding-bottom: 6px;
   border-top: 1px solid var(--sn-line);
 }
-.sermon-app .sn-mainv .sn-vblock {
-  margin: 0;
+/* 표지형 본문: 상자 없이 제목 아래 큰 명조 문장. 위에 옅은 잉크 번짐 */
+.sermon-app .sn-mainv {
+  position: relative;
+  isolation: isolate;
+}
+.sermon-app .sn-mainv::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -8px -16px auto -16px;
+  height: 220px;
+  background: radial-gradient(
+    60% 70% at 15% 30%,
+    color-mix(in srgb, var(--sn-g1) 22%, transparent),
+    transparent 75%
+  );
+  pointer-events: none;
+}
+.sermon-app .sn-vc-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--sn-verse-ink);
+}
+.sermon-app .sn-vc-label::after {
+  content: '';
+  flex: 0 0 40px;
+  height: 1.5px;
+  background: currentColor;
+  opacity: 0.5;
+}
+.sermon-app .sn-vcover + .sn-vcover {
+  margin-top: 14px;
+}
+.sermon-app .sn-vc-t {
+  font-family: var(--sn-f-serif);
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1.8;
+  letter-spacing: -0.015em;
+  color: var(--sn-verse-text);
+  text-wrap: pretty;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.sermon-app .sn-vc-t sup {
+  font-family: var(--sn-f-ui);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sn-verse-ink);
+  margin-right: 4px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.sermon-app .sn-vc-t .sn-ctx {
+  color: var(--sn-faint);
+}
+/* 접으면 두 줄만 남기고 말줄임 — 표지 문장은 계속 보인다 */
+.sermon-app .sn-vcover[data-collapsed='1'] .sn-vc-t {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.sermon-app .sn-vc-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 8px;
+  user-select: none;
+}
+.sermon-app .sn-vc-ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 8px;
+  margin-left: -8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--sn-fg);
+  font-size: 13px;
+  font-weight: 700;
+}
+.sermon-app .sn-vc-ref:hover {
+  background: color-mix(in srgb, var(--sn-verse-ink) 8%, transparent);
+}
+.sermon-app .sn-vc-ref .sn-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--sn-faint);
+  transition: transform 0.15s;
+}
+.sermon-app .sn-vcover[data-collapsed='1'] .sn-vc-ref .sn-chev {
+  transform: rotate(-90deg);
+}
+.sermon-app .sn-vc-bar .sn-tr {
+  font-size: 12px;
+  color: var(--sn-faint);
+}
+.sermon-app .sn-vc-sp {
+  flex: 1;
+}
+.sermon-app .sn-vc-act {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--sn-line);
+  border-radius: var(--sn-r-pill);
+  background: var(--sn-surface);
+  color: var(--sn-muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.sermon-app .sn-vc-act:hover {
+  border-color: var(--sn-line-strong);
+  color: var(--sn-fg);
+}
+@media (pointer: coarse) {
+  .sermon-app .sn-vc-ref,
+  .sermon-app .sn-vc-act {
+    min-height: 40px;
+  }
+}
+@media (max-width: 699px) {
+  .sermon-app .sn-vc-t {
+    font-size: 19px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app .sn-vc-ref .sn-icon {
+    transition: none;
+  }
 }
 .sermon-app .sn-mvh {
   display: flex;
@@ -1758,6 +1896,156 @@ html.light .sn-scope {
 }
 .sermon-app .sn-tagT[data-t='적용'] {
   color: var(--sn-c-green);
+}
+/* 생각 카드의 태그 = 누르면 분류 메뉴 (TagPicker) */
+.sermon-app button.sn-tagT {
+  position: relative;
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  line-height: 1.4;
+  transition: background 0.15s;
+}
+.sermon-app .sn-th .sn-top > button.sn-tagT:first-child {
+  margin-left: -7px;
+}
+/* 글자는 그대로, 누르는 자리만 넓게 */
+.sermon-app button.sn-tagT::after {
+  content: '';
+  position: absolute;
+  inset: -8px -4px;
+}
+.sermon-app button.sn-tagT:hover:not(:disabled),
+.sermon-app button.sn-tagT[aria-expanded='true'] {
+  background: var(--sn-surface-2);
+}
+.sermon-app button.sn-tagT:disabled {
+  cursor: default;
+}
+.sermon-app button.sn-tagT:focus-visible {
+  outline: 2px solid var(--sn-accent);
+  outline-offset: 2px;
+}
+.sermon-app .sn-tagT-chev {
+  width: 12px;
+  height: 12px;
+  margin-left: -2px;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    transform 0.15s;
+}
+.sermon-app button.sn-tagT:hover:not(:disabled) .sn-tagT-chev,
+.sermon-app button.sn-tagT:focus-visible .sn-tagT-chev,
+.sermon-app button.sn-tagT[aria-expanded='true'] .sn-tagT-chev {
+  opacity: 0.8;
+}
+.sermon-app button.sn-tagT[aria-expanded='true'] .sn-tagT-chev {
+  transform: rotate(180deg);
+}
+@media (hover: none) {
+  .sermon-app button.sn-tagT:not(:disabled) .sn-tagT-chev {
+    opacity: 0.55;
+  }
+}
+.sermon-app button.sn-tagT[data-fx='pulse']::before {
+  animation: sn-tag-pulse 0.5s ease-out;
+}
+@keyframes sn-tag-pulse {
+  40% {
+    transform: scale(1.9);
+  }
+}
+
+/* 분류 메뉴 (body 포털) */
+.sn-scope.sn-tagpop {
+  position: fixed;
+  z-index: 60;
+  min-width: 188px;
+  display: flex;
+  flex-direction: column;
+  padding: 5px;
+  border-radius: 12px;
+  background: var(--sn-surface);
+  border: 1px solid var(--sn-line-strong);
+  box-shadow: var(--sn-shadow);
+  color: var(--sn-fg);
+  font-family: var(--sn-f-ui);
+  word-break: keep-all;
+  animation: sn-bubble-in 0.12s ease-out;
+}
+.sn-scope.sn-tagpop .sn-tagpop-h {
+  padding: 6px 10px 4px;
+  font-size: 12px;
+  color: var(--sn-faint);
+}
+.sn-scope.sn-tagpop button {
+  display: grid;
+  grid-template-columns: 8px 1fr 16px;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sn-scope.sn-tagpop button:hover,
+.sn-scope.sn-tagpop button:focus-visible {
+  background: var(--sn-surface-2);
+  outline: none;
+}
+.sn-scope.sn-tagpop button i {
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  background: currentColor;
+}
+.sn-scope.sn-tagpop button[data-t='생각'] i {
+  color: var(--sn-muted);
+}
+.sn-scope.sn-tagpop button[data-t='질문'] i {
+  color: var(--sn-c-blue);
+}
+.sn-scope.sn-tagpop button[data-t='적용'] i {
+  color: var(--sn-c-green);
+}
+.sn-scope.sn-tagpop button b {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.sn-scope.sn-tagpop button[aria-checked='true'] b {
+  font-weight: 700;
+}
+.sn-scope.sn-tagpop button small {
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--sn-faint);
+}
+.sn-scope.sn-tagpop .sn-tagpop-ok {
+  width: 16px;
+  height: 16px;
+  opacity: 0;
+}
+.sn-scope.sn-tagpop button[aria-checked='true'] .sn-tagpop-ok {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sermon-app button.sn-tagT[data-fx='pulse']::before,
+  .sn-scope.sn-tagpop {
+    animation: none;
+  }
+  .sermon-app .sn-tagT-chev {
+    transition: none;
+  }
 }
 .sermon-app .sn-th-empty {
   font-size: 13px;
