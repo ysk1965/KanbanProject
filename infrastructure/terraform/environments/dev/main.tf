@@ -180,8 +180,9 @@ module "elastic_beanstalk" {
 
   # t3.medium(4GB): 2026-10-06 t3.small(2GB) 에서 문서 미리보기(LibreOffice) 변환이 메모리를 바닥내
   # 인스턴스를 하루 4번 마비시킴. JVM(~1.1GB) 과 soffice 가 공존할 여유를 둔다.
-  instance_type       = "t3.medium"
-  min_instances       = 1
+  instance_type = "t3.medium"
+  # 2대 상시: 1대로 줄어든 사이 그 1대가 죽으면 전체 장애(2026-11-03). 2026-11-04 CLI 로 라이브 적용.
+  min_instances       = 2
   max_instances       = 2
   associate_public_ip = "true" # Public subnet, no NAT
 

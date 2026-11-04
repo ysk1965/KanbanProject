@@ -213,7 +213,7 @@ env:
 ### Procfile (JVM 설정)
 
 ```
-web: java -jar -Xmx768m -Xms512m -XX:+UseG1GC -XX:MaxMetaspaceSize=192m \
+web: java -jar -Xmx768m -Xms512m -XX:+UseG1GC -XX:MaxMetaspaceSize=384m -XX:+ExitOnOutOfMemoryError \
   -Dspring.profiles.active=$SPRING_PROFILES_ACTIVE -Dserver.port=5000 \
   application.jar
 ```

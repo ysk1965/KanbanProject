@@ -247,6 +247,50 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.max_instances
   }
 
+  # 스케일 트리거: EB 기본값(NetworkOut 2MB~6MB)은 트래픽 잔물결에 6분 간격으로 축소/확장을 반복해
+  # 축소 때마다 접속이 끊겼다(2026-11-01~02). CPU 기준 + 10분 지속으로 바꾼다.
+  setting {
+    namespace = "aws:autoscaling:trigger"
+    name      = "MeasureName"
+    value     = "CPUUtilization"
+  }
+
+  setting {
+    namespace = "aws:autoscaling:trigger"
+    name      = "Statistic"
+    value     = "Average"
+  }
+
+  setting {
+    namespace = "aws:autoscaling:trigger"
+    name      = "Unit"
+    value     = "Percent"
+  }
+
+  setting {
+    namespace = "aws:autoscaling:trigger"
+    name      = "UpperThreshold"
+    value     = "70"
+  }
+
+  setting {
+    namespace = "aws:autoscaling:trigger"
+    name      = "LowerThreshold"
+    value     = "20"
+  }
+
+  setting {
+    namespace = "aws:autoscaling:trigger"
+    name      = "Period"
+    value     = "5"
+  }
+
+  setting {
+    namespace = "aws:autoscaling:trigger"
+    name      = "BreachDuration"
+    value     = "10"
+  }
+
   # Load Balancer
   setting {
     namespace = "aws:elasticbeanstalk:environment"
