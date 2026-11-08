@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
   type RefObject,
@@ -92,6 +93,12 @@ function bumpHint() {
   } catch {
     /* ignore */
   }
+}
+
+/** 수정 중인 생각은 읽을 때와 같은 자리·높이로 — 상한 없이 내용만큼 늘린다 */
+function growFull(ta: HTMLTextAreaElement) {
+  ta.style.height = 'auto';
+  ta.style.height = `${ta.scrollHeight}px`;
 }
 
 function autoGrow(ta: HTMLTextAreaElement | null) {
@@ -368,10 +375,11 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
       },
     }));
 
-    // 수정 모드 textarea 포커스
-    useEffect(() => {
+    // 수정 모드 textarea 높이·포커스 — 그리기 전에 맞춰야 한 줄로 접혔다 펴지는 깜빡임이 없다
+    useLayoutEffect(() => {
       if (editingId && editRef.current) {
         const ta = editRef.current;
+        growFull(ta);
         ta.focus({ preventScroll: true });
         ta.setSelectionRange(ta.value.length, ta.value.length);
       }
@@ -720,29 +728,26 @@ export const ThoughtsPanel = forwardRef<ThoughtsPanelHandle, ThoughtsPanelProps>
             list.map((t) => {
               if (editingId === t.id && draft) {
                 return (
-                  <div key={t.id} className="sn-th">
+                  <div key={t.id} className="sn-th" data-editing="true">
+                    <div className="sn-top">
+                      <TagPicker value={draft.tag} onPick={(x) => setDraft({ ...draft, tag: x })} />
+                      <span className="sn-tm sn-mono">{t.t != null ? fmtTime(t.t) : ''}</span>
+                      <span className="sn-sp" />
+                      <span className="sn-edited">수정 중</span>
+                    </div>
                     <div className="sn-th-edit">
-                      <div className="sn-row2 sn-tags">
-                        {THOUGHT_TAGS.map((x) => (
-                          <button
-                            key={x}
-                            type="button"
-                            className="sn-chip"
-                            aria-pressed={draft.tag === x}
-                            onClick={() => setDraft({ ...draft, tag: x })}
-                          >
-                            {x}
-                          </button>
-                        ))}
-                      </div>
                       <label className="sn-sr" htmlFor="sn-th-edit-in">
                         생각 수정
                       </label>
                       <textarea
                         id="sn-th-edit-in"
                         ref={editRef}
+                        rows={1}
                         value={draft.text}
-                        onChange={(e) => setDraft({ ...draft, text: e.target.value })}
+                        onChange={(e) => {
+                          setDraft({ ...draft, text: e.target.value });
+                          growFull(e.target);
+                        }}
                         onPaste={(e) => onPasteImages(e, 'edit')}
                         onKeyDown={(e) => {
                           if (e.key === 'Escape') {

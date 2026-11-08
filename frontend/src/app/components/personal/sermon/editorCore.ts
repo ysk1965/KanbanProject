@@ -125,6 +125,15 @@ function closestEl(n: Node | null, sel: string): HTMLElement | null {
   return el && el.closest ? el.closest<HTMLElement>(sel) : null;
 }
 
+/** 커서 앞 글자가 화살표 단축(`->` `<-` `←>` `=>`)으로 끝나면 바꿀 길이와 화살표 */
+export function tailArrow(before: string): { len: number; arrow: string } | null {
+  if (before.endsWith('←>')) return { len: 2, arrow: '↔' };
+  if (before.endsWith('->')) return { len: 2, arrow: '→' };
+  if (before.endsWith('=>')) return { len: 2, arrow: '⇒' };
+  if (before.endsWith('<-')) return { len: 2, arrow: '←' };
+  return null;
+}
+
 export class EditorCore {
   readonly el: HTMLElement;
   private cb: EditorCallbacks;
@@ -456,6 +465,10 @@ export class EditorCore {
     this.snapSoon();
     this.followCaretSoon();
     const ie = e as InputEvent;
+    if (ie.inputType === 'insertText' && ie.data && /[>-]$/.test(ie.data)) {
+      this.arrowNow();
+      return;
+    }
     if (ie.inputType === 'insertText' && (ie.data === ' ' || ie.data === '\u00a0')) {
       const sel = window.getSelection();
       if (!sel || !sel.rangeCount) return;
@@ -480,6 +493,28 @@ export class EditorCore {
       this.cb.onChange();
     }
   };
+
+  // `->` `<-` `<->` `=>` 를 치면 화살표 글자로 (⌘Z 한 번이면 친 그대로 돌아온다)
+  private arrowNow() {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount || !sel.isCollapsed) return;
+    const r = sel.getRangeAt(0);
+    const node = r.startContainer;
+    if (node.nodeType !== 3) return;
+    const hit = tailArrow((node.textContent || '').slice(0, r.startOffset));
+    if (!hit) return;
+    this.snapNow();
+    const at = r.startOffset - hit.len;
+    (node as Text).replaceData(at, hit.len, hit.arrow);
+    const cr = document.createRange();
+    cr.setStart(node, at + hit.arrow.length);
+    cr.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(cr);
+    this.lastRange = cr.cloneRange();
+    this.cb.onChange();
+    this.snapSoon();
+  }
 
   private onKeydown = (e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && !e.altKey) {

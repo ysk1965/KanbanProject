@@ -946,6 +946,15 @@ export function SermonEditor({
     prevSyncSt.current = sync.state;
   }, [sync.state]);
   const dockBtn = (e: React.MouseEvent) => e.preventDefault();
+  // 큰 제목이 가려지면 상단 바 둘째 줄에 설교자 · 날짜 · 오늘 본문
+  const topMeta = [
+    preacher.trim(),
+    date ? fmtDate(date) : '',
+    mainRefs.map(([, r]) => refShort(r)).join(', '),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const topMetaOn = topTitleShow && !!topMeta;
 
   return (
     <section
@@ -966,13 +975,19 @@ export function SermonEditor({
         </button>
         <div className="sn-ttl">
           <b data-show={topTitleShow}>{title || '새 설교'}</b>
-          <span
-            className="sn-save-state"
-            data-st={sync.state}
-            data-fx={savedTick ? (savedTick % 2 ? 'a' : 'b') : undefined}
-          >
-            {sync.text}
-          </span>
+          <div className="sn-ttl-sub">
+            {/* 메타가 뜨면 '저장됨' 글자는 점만 남긴다 (저장 대기·실패는 글자 유지) */}
+            <span
+              className="sn-save-state"
+              data-st={sync.state}
+              data-fx={savedTick ? (savedTick % 2 ? 'a' : 'b') : undefined}
+              data-compact={topMetaOn && sync.state === 'ok'}
+              title={sync.text}
+            >
+              <span className="sn-save-txt">{sync.text}</span>
+            </span>
+            {topMetaOn && <span className="sn-ttl-meta">{topMeta}</span>}
+          </div>
         </div>
         <button
           type="button"
