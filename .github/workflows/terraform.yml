@@ -67,10 +67,10 @@ jobs:
       apply: ${{ steps.targets.outputs.apply }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
@@ -112,10 +112,10 @@ jobs:
         environment: [dev, prod]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
@@ -185,16 +185,16 @@ jobs:
       TF_VAR_slack_user_redirect_uri: ${{ secrets.SLACK_USER_REDIRECT_URI }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_GHA_TF_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
@@ -227,7 +227,7 @@ jobs:
 
       - name: Upload plan artifact
         if: needs.prepare.outputs.apply == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tfplan-${{ matrix.environment }}
           path: |
@@ -238,7 +238,7 @@ jobs:
 
       - name: Comment plan on PR
         if: github.event_name == 'pull_request' && !cancelled()
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           TF_ENV: ${{ matrix.environment }}
           PLAN_DIR: ${{ env.TF_DIR }}
@@ -308,22 +308,22 @@ jobs:
       TF_DIR: infrastructure/terraform/environments/${{ matrix.environment }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_GHA_TF_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download plan artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: tfplan-${{ matrix.environment }}
           path: ${{ env.TF_DIR }}
