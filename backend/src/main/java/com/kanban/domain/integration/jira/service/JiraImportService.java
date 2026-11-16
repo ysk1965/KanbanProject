@@ -36,6 +36,7 @@ import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.service.FileUploadService;
+import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -45,6 +46,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * JIRA 이슈 → BRIDGE 카드 가져오기.
@@ -80,6 +82,8 @@ public class JiraImportService {
      * 훑지 않도록 묶는다. 남은 카드는 다음 주기에 이어서 채워진다.
      */
     private static final int MAX_META_BACKFILLS = 40;
+    /** 고아 링크 판정 시 IN 절 한 번에 넣을 id 수. */
+    private static final int ALIVE_CHECK_CHUNK = 500;
 
     private final JiraApiClient jiraApiClient;
     private final JiraOAuthService oauthService;
@@ -106,8 +110,14 @@ public class JiraImportService {
     private final MilestoneRepository milestoneRepository;
     private final FileUploadService fileUploadService;
     private final TaskKeyAllocator taskKeyAllocator;
+    private final TransactionTemplate transactionTemplate;
+    private final EntityManager entityManager;
 
-    @Transactional
+    /*
+     * import/pull 진입점에는 @Transactional 을 두지 않는다 — doImport 가 단계별로 트랜잭션을 직접 나눈다.
+     * JIRA 검색(HTTP, 페이지당 수백 ms~수 초)이 트랜잭션 안에 있으면 그동안 DB 커넥션과 보드 행 락을
+     * 함께 쥐어, 2분 폴링마다 dev 풀(5개)이 고갈돼 다른 요청이 20초 대기 후 500 으로 끝났다(2026-11-16).
+     */
     public JiraResponse.ImportResult importIssues(String boardId, String userId, JiraRequest.Import request) {
         return doImport(boardId, userId, request, null, null);
     }
@@ -119,7 +129,6 @@ public class JiraImportService {
      * 부분 결과로는 "결과에 없음 = 삭제" 판정을 할 수 없으므로 삭제 재조정은 건너뛴다 — 주기적 전체 pull
      * ({@link com.kanban.domain.integration.jira.service.JiraSyncScheduler})이 대신 처리한다.
      */
-    @Transactional
     public JiraResponse.ImportResult pullIssues(String boardId, String userId, Integer sinceMinutes) {
         return doImport(boardId, userId, new JiraRequest.Import(null, false), null, sinceMinutes);
     }
@@ -128,51 +137,118 @@ public class JiraImportService {
      * 전용 프로젝트 스코프 import — 스코프 프로젝트의 이슈를 가져와 스코프 미러 컬럼에 배치하고
      * 링크에 scope_id를 직접 새긴다(별도 claim 불필요). 스코프 저장 직후·폴링이 호출한다.
      */
-    @Transactional
     public JiraResponse.ImportResult importScopeIssues(String boardId, String userId, String milestoneId) {
         return pullScopeIssues(boardId, userId, milestoneId, null);
     }
 
     /** 스코프 폴링 전용 증분 pull — {@link #pullIssues} 와 같은 규칙. */
-    @Transactional
     public JiraResponse.ImportResult pullScopeIssues(
             String boardId, String userId, String milestoneId, Integer sinceMinutes) {
-        JiraMilestoneScope scope = scopeRepository
+        return doImport(boardId, userId, new JiraRequest.Import(null, false), milestoneId, sinceMinutes);
+    }
+
+    /** ① 단계에서 정해 ② 단계(트랜잭션 밖)로 넘기는 값 — 엔티티 대신 값만 담는다. */
+    private record FetchPlan(JiraAuthContext ctx, String jql, String scopeId) {}
+
+    /** ③ 단계 결과 — 댓글 대조(④)는 커밋 뒤 트랜잭션 밖에서 돈다. */
+    private record ApplyOutcome(JiraResponse.ImportResult result, List<String> commentReconcileKeys) {}
+
+    /**
+     * 네 단계로 트랜잭션을 나눈다.
+     * <ol>
+     *   <li>짧은 트랜잭션: 권한·설정 확인, 토큰 확보(OAuth 회전 refresh 토큰이 config 에 저장되므로 커밋 필요), JQL 결정</li>
+     *   <li>트랜잭션 밖: JIRA 검색(fetchAll) — 가장 오래 걸리는 HTTP 구간</li>
+     *   <li>쓰기 트랜잭션: 보드 락 → 업서트/고아·삭제 재조정. 이슈가 바뀐 경우의 첨부·삭제 확인 호출만 남는다</li>
+     *   <li>트랜잭션 밖: 댓글 대조 — {@code reconcileIssue} 가 이슈마다 자체 트랜잭션</li>
+     * </ol>
+     *
+     * @param scopeMilestoneId null 이 아니면 그 마일스톤의 전용 프로젝트 스코프 import
+     * @param sinceMinutes null 이면 전체 조회(수동/최초 import), 아니면 최근 N분 갱신분만(폴링 증분).
+     */
+    private JiraResponse.ImportResult doImport(
+            String boardId, String userId, JiraRequest.Import request, String scopeMilestoneId, Integer sinceMinutes) {
+        boolean incremental = sinceMinutes != null;
+
+        // ① 짧은 트랜잭션 — 토큰 갱신 실패 시 markError 가 롤백되는 것은 기존 동작 그대로.
+        FetchPlan plan = transactionTemplate.execute(status -> {
+            JiraMilestoneScope scope = scopeMilestoneId != null ? findOwnProjectScope(boardId, scopeMilestoneId) : null;
+            boardPermissionService.checkMemberOrAbove(boardId, userId);
+            JiraIntegrationConfig config = findActiveConfig(boardId);
+            String token = oauthService.resolveToken(config);
+            String baseJql = scope != null ? resolveScopeJql(scope) : resolveJql(request, config);
+            String jql = incremental ? withUpdatedSince(baseJql, sinceMinutes) : baseJql;
+            return new FetchPlan(JiraAuthContext.of(config, token), jql, scope != null ? scope.getId() : null);
+        });
+
+        // ② 트랜잭션 밖 — DB 커넥션을 쥐지 않은 채 JIRA 를 조회한다.
+        List<ParsedJiraIssue> issues = fetchAll(plan.ctx(), plan.jql());
+
+        // ③ 쓰기 트랜잭션 — ① 이후 바뀌었을 수 있으니 설정·스코프는 다시 읽는다.
+        ApplyOutcome outcome = transactionTemplate.execute(status -> {
+            JiraIntegrationConfig config = findActiveConfig(boardId);
+            if (request.isPreview()) {
+                return new ApplyOutcome(buildPreview(boardId, issues, config), List.of());
+            }
+            JiraMilestoneScope scope = plan.scopeId() != null
+                    ? scopeRepository
+                            .findById(plan.scopeId())
+                            .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND))
+                    : null;
+            return applyIssues(boardId, userId, config, scope, plan.ctx(), issues, incremental);
+        });
+
+        // ④ 트랜잭션 밖 — 댓글 대조(웹훅 유실 백업). 링크 원장이 에코를 막으므로 몇 번을 돌려도 중복 생성되지 않는다.
+        reconcileComments(boardId, outcome.commentReconcileKeys());
+        return outcome.result();
+    }
+
+    private JiraIntegrationConfig findActiveConfig(String boardId) {
+        return configRepository
+                .findActiveByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
+    }
+
+    private JiraMilestoneScope findOwnProjectScope(String boardId, String milestoneId) {
+        return scopeRepository
                 .findActiveByMilestoneId(milestoneId)
                 .filter(s -> s.getBoard().getId().equals(boardId) && s.hasOwnProject())
                 .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
-        return doImport(boardId, userId, new JiraRequest.Import(null, false), scope, sinceMinutes);
     }
 
     /**
-     * @param sinceMinutes null 이면 전체 조회(수동/최초 import), 아니면 최근 N분 갱신분만(폴링 증분).
-     *                     HTTP 조회(fetchAll)가 트랜잭션 안에 남아 있는 것은 의도적 — 이후 reconcile/첨부/반려사유
-     *                     조회도 같은 ctx 로 JIRA 를 호출하므로 앞단만 떼어내도 실익이 없다.
+     * 살아 있는(soft-delete 안 된) 대상 id 만 한 번에 골라낸다 — 링크마다 existsById 를 부르던 N+1 을 대체.
+     * 엔티티의 {@code @SQLRestriction("deleted_at IS NULL")} 이 JPQL 에도 적용된다.
      */
-    private JiraResponse.ImportResult doImport(
-            String boardId, String userId, JiraRequest.Import request, JiraMilestoneScope scope, Integer sinceMinutes) {
-        boardPermissionService.checkMemberOrAbove(boardId, userId);
-        JiraIntegrationConfig config = configRepository
-                .findActiveByBoardId(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.JIRA_NOT_CONFIGURED));
-        String token = oauthService.resolveToken(config);
-        JiraAuthContext ctx = JiraAuthContext.of(config, token);
-        String baseJql = scope != null ? resolveScopeJql(scope) : resolveJql(request, config);
-        boolean incremental = sinceMinutes != null;
-        String jql = incremental ? withUpdatedSince(baseJql, sinceMinutes) : baseJql;
-
-        List<ParsedJiraIssue> issues;
-        try {
-            issues = fetchAll(ctx, jql);
-        } catch (BusinessException e) {
-            config.markError(e.getMessage());
-            throw e;
+    private Set<String> findAliveIds(String entityName, Collection<String> ids) {
+        Set<String> alive = new HashSet<>();
+        if (ids.isEmpty()) return alive;
+        List<String> all = new ArrayList<>(new HashSet<>(ids));
+        String jpql = "SELECT e.id FROM " + entityName + " e WHERE e.id IN :ids";
+        for (int from = 0; from < all.size(); from += ALIVE_CHECK_CHUNK) {
+            List<String> chunk = all.subList(from, Math.min(from + ALIVE_CHECK_CHUNK, all.size()));
+            alive.addAll(entityManager
+                    .createQuery(jpql, String.class)
+                    .setParameter("ids", chunk)
+                    .getResultList());
         }
+        return alive;
+    }
 
-        if (request.isPreview()) {
-            return buildPreview(boardId, issues, config);
-        }
+    private Set<String> targetIdsOf(List<JiraIssueLink> links, JiraLinkTargetType type) {
+        return links.stream()
+                .filter(l -> l.getTargetType() == type)
+                .map(JiraIssueLink::getTargetId)
+                .collect(Collectors.toSet());
+    }
 
+    private ApplyOutcome applyIssues(
+            String boardId,
+            String userId,
+            JiraIntegrationConfig config,
+            JiraMilestoneScope scope,
+            JiraAuthContext ctx,
+            List<ParsedJiraIssue> issues,
+            boolean incremental) {
         Board board = boardRepository
                 .findByIdWithLock(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
@@ -212,10 +288,12 @@ public class JiraImportService {
         Map<String, JiraIssueLink> taskLinkByKey = new HashMap<>();
         Map<String, String> projectKeyToFeatureId = new HashMap<>();
         List<JiraIssueLink> orphans = new ArrayList<>();
+        Set<String> aliveTaskIds = findAliveIds("Task", targetIdsOf(existing, JiraLinkTargetType.TASK));
+        Set<String> aliveFeatureIds = findAliveIds("Feature", targetIdsOf(existing, JiraLinkTargetType.FEATURE));
         for (JiraIssueLink link : existing) {
             boolean targetAlive = link.getTargetType() == JiraLinkTargetType.TASK
-                    ? taskRepository.existsById(link.getTargetId())
-                    : featureRepository.existsById(link.getTargetId());
+                    ? aliveTaskIds.contains(link.getTargetId())
+                    : aliveFeatureIds.contains(link.getTargetId());
             if (!targetAlive) {
                 orphans.add(link);
                 continue;
@@ -349,9 +427,6 @@ public class JiraImportService {
         // 증분 조회는 결과가 부분집합이라 "없음 = 삭제" 판정이 성립하지 않는다 → 전체 pull 때만 수행.
         int deleted = incremental ? 0 : reconcileDeletedInJira(boardId, ctx, reconcileMap, importable);
 
-        // 댓글 대조 (웹훅 유실 백업). 링크 원장이 에코를 막으므로 몇 번을 돌려도 중복 생성되지 않는다.
-        reconcileComments(boardId, commentReconcileKeys);
-
         config.markSynced();
         log.info(
                 "JIRA import to board {}: created={} updated={} orphans={} jiraDeleted={} (F{} T{} CL{} C{})",
@@ -365,7 +440,7 @@ public class JiraImportService {
                 c.checklists,
                 c.comments);
 
-        return JiraResponse.ImportResult.builder()
+        JiraResponse.ImportResult result = JiraResponse.ImportResult.builder()
                 .total(importable.size())
                 .created(c.created)
                 .updated(c.updated)
@@ -376,6 +451,7 @@ public class JiraImportService {
                 .comments(c.comments)
                 .errors(c.errors)
                 .build();
+        return new ApplyOutcome(result, commentReconcileKeys);
     }
 
     /**
@@ -865,10 +941,13 @@ public class JiraImportService {
         // 살아있는 링크만: TASK 대상이 존재하는 이슈 키(→갱신 예정), FEATURE 대상이 존재하는 프로젝트 키
         Set<String> liveTaskKeys = new HashSet<>();
         Set<String> liveFeatureProjectKeys = new HashSet<>();
-        for (JiraIssueLink link : issueLinkRepository.findByBoardId(boardId)) {
+        List<JiraIssueLink> links = issueLinkRepository.findByBoardId(boardId);
+        Set<String> aliveTaskIds = findAliveIds("Task", targetIdsOf(links, JiraLinkTargetType.TASK));
+        Set<String> aliveFeatureIds = findAliveIds("Feature", targetIdsOf(links, JiraLinkTargetType.FEATURE));
+        for (JiraIssueLink link : links) {
             if (link.getTargetType() == JiraLinkTargetType.TASK) {
-                if (taskRepository.existsById(link.getTargetId())) liveTaskKeys.add(link.getJiraIssueKey());
-            } else if (featureRepository.existsById(link.getTargetId())) {
+                if (aliveTaskIds.contains(link.getTargetId())) liveTaskKeys.add(link.getJiraIssueKey());
+            } else if (aliveFeatureIds.contains(link.getTargetId())) {
                 liveFeatureProjectKeys.add(link.getJiraIssueKey());
             }
         }

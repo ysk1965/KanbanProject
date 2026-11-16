@@ -375,7 +375,9 @@ spring:
     password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 5
+      # kanban-dev-db(db.t4g.micro) max_connections=79. 평시 2대, 롤링 배포 중 최대 4대 × 15 = 60 으로 여유를 둔다.
+      # 5 였을 때 요청이 몰리면 풀이 고갈돼 20초 대기 후 500 이 났다(2026-11-16).
+      maximum-pool-size: 15
       minimum-idle: 2
       connection-timeout: 20000
       idle-timeout: 300000

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  로그 출력 형식만 정한다. 로그 레벨은 application.yml 의 logging.level 이 그대로 적용된다.
+  로그 출력 형식만 정한다. 패키지별 레벨은 application.yml 의 logging.level 이 그대로 적용된다.
+  root 의 level 은 반드시 적는다 — 빠지면 Logback 기본값 DEBUG 로 돌아 요청마다 수십 줄이 찍히고
+  (2026-10-14 ~ 11-16 dev 에서 실제 발생) CloudWatch 수집도 대부분 유실된다.
   - prod: JSON 한 줄(logstash encoder) + MDC requestId → CloudWatch/Logs Insights 에서 필드 검색 가능
   - 그 외: Spring 기본 콘솔 패턴 + [requestId]
 -->
@@ -24,7 +26,7 @@
                 </throwableConverter>
             </encoder>
         </appender>
-        <root>
+        <root level="INFO">
             <appender-ref ref="CONSOLE_JSON"/>
         </root>
     </springProfile>
@@ -36,7 +38,7 @@
                 <charset>UTF-8</charset>
             </encoder>
         </appender>
-        <root>
+        <root level="INFO">
             <appender-ref ref="CONSOLE"/>
         </root>
     </springProfile>
